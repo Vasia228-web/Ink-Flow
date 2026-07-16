@@ -116,3 +116,7 @@ InitTestScene*.unity*
 
 # Editor personal-layer settings
 .vscode/
+
+# Headless core-test runner build artifacts
+/Tools/**/bin/
+/Tools/**/obj/
