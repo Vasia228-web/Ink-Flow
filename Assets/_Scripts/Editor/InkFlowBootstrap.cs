@@ -195,8 +195,12 @@ namespace InkFlow.Editor
 
         private static void BuildGameScene()
         {
-            // Свіжі референси ПІСЛЯ всіх імпортів/Refresh попередніх кроків —
-            // інакше в сцену записуються "fake null" замість асетів.
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            // Асети вантажимо СТРОГО ПІСЛЯ NewScene: закриття попередньої сцени
+            // вивантажує незакорінені асети, тож будь-який референс, отриманий до
+            // цього моменту (чи на попередніх кроках бутстрапа), стає "fake null"
+            // і записався б у сцену порожнім полем.
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
             var cellPrefab = AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath);
             if (sprite == null || cellPrefab == null)
@@ -204,8 +208,6 @@ namespace InkFlow.Editor
                 Debug.LogError($"[InkFlow] Не знайдено {SpritePath} або {CellPrefabPath} — сцена не збудована.");
                 return;
             }
-
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var camera = CreateCamera();
             CreateGlobalLight();
