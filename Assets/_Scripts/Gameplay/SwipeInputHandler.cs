@@ -26,6 +26,9 @@ namespace InkFlow.Gameplay
         /// <summary>Гравець просить хід: клітинка + напрямок. Валідність вирішує GameSession.</summary>
         public event Action<GridPos, Direction> MoveRequested;
 
+        /// <summary>true — жести ігноруються (йде анімація ходу). Ставить GridController.</summary>
+        public bool InputLocked { get; set; }
+
         private InputActionMap _map;
         private InputAction _press;
         private InputAction _point;
@@ -60,12 +63,24 @@ namespace InkFlow.Gameplay
 
         private void OnPressStarted(InputAction.CallbackContext _)
         {
+            if (InputLocked)
+            {
+                _dragCandidate = false;
+                return;
+            }
+
             _pressWorld = PointerWorld();
             _dragCandidate = gridView.TryWorldToOccupiedCell(_pressWorld, out _dragStart);
         }
 
         private void OnPressReleased(InputAction.CallbackContext _)
         {
+            if (InputLocked)
+            {
+                _dragCandidate = false;
+                return;
+            }
+
             var releaseWorld = PointerWorld();
             var delta = releaseWorld - _pressWorld;
             var isSwipe = delta.magnitude >= swipeThresholdCellFraction * gridView.CellSize;

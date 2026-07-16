@@ -12,6 +12,7 @@ namespace InkFlow.Gameplay
     {
         [SerializeField] private GridView view;
         [SerializeField] private SwipeInputHandler input;
+        [SerializeField] private GridAnimator animator;
 
         private GameSession _session;
 
@@ -20,6 +21,7 @@ namespace InkFlow.Gameplay
             DetachSession();
             _session = new GameSession(level);
             _session.SessionReset += OnSessionReset;
+            view.SetLevel(level);
             GameEvents.RaiseSessionStarted(_session);
             view.Repaint(_session.Grid);
         }
@@ -40,14 +42,38 @@ namespace InkFlow.Gameplay
 
         private void OnMoveRequested(GridPos from, Direction direction)
         {
+            if (_session == null || (animator != null && animator.IsAnimating))
+                return;
+
+            var result = _session.TryMove(from, direction);
+
+            if (animator == null)
+            {
+                view.Repaint(_session.Grid);
+                return;
+            }
+
+            // Модель уже у фінальному стані; аніматор програє перехід,
+            // а по завершенні в'ю досинхронізовується повним Repaint.
+            input.InputLocked = true;
+            animator.Play(result, _session.Grid, () =>
+            {
+                input.InputLocked = false;
+                view.Repaint(_session.Grid);
+            });
+        }
+
+        private void OnRetryRequested()
+        {
             if (_session == null)
                 return;
 
-            _session.TryMove(from, direction);
-            view.Repaint(_session.Grid);
+            // Retry посеред ланцюга: обриваємо анімацію, Reset сам викличе Repaint.
+            if (animator != null)
+                animator.Interrupt();
+            input.InputLocked = false;
+            _session.Reset();
         }
-
-        private void OnRetryRequested() => _session?.Reset();
 
         private void OnSessionReset() => view.Repaint(_session.Grid);
 
