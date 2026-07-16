@@ -25,6 +25,16 @@ namespace InkFlow.Gameplay
 
         private void Awake()
         {
+            if (cellPrefab == null || contentRoot == null)
+            {
+                Debug.LogError(
+                    "[InkFlow] CellPool: не призначено Cell Prefab або Content Root. " +
+                    "Запусти меню Ink Flow → Setup → Bootstrap Phase 1, щоб перебудувати сцену.",
+                    this);
+                enabled = false;
+                return;
+            }
+
             _pool = new ObjectPool<CellView>(
                 createFunc: CreatePooledCell,
                 actionOnGet: view =>
@@ -43,9 +53,24 @@ namespace InkFlow.Gameplay
                 maxSize: maxSize);
         }
 
-        public CellView Get() => _pool.Get();
+        public CellView Get()
+        {
+            EnsureInitialized();
+            return _pool.Get();
+        }
 
-        public void Release(CellView view) => _pool.Release(view);
+        public void Release(CellView view)
+        {
+            EnsureInitialized();
+            _pool.Release(view);
+        }
+
+        private void EnsureInitialized()
+        {
+            if (_pool == null)
+                throw new System.InvalidOperationException(
+                    "CellPool не ініціалізовано (cellPrefab/contentRoot порожні) — див. помилку в консолі.");
+        }
 
         private CellView CreatePooledCell()
         {

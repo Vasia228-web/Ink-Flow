@@ -49,10 +49,14 @@ namespace InkFlow.Editor
                 return;
             }
 
-            var sprite = EnsureSquareSprite();
-            var cellPrefab = EnsureCellPrefab(sprite);
+            // Кожен крок вантажить потрібні асети свіжими з AssetDatabase:
+            // створення Addressables-налаштувань (перший запуск) тягне за собою
+            // SaveAssets/Refresh, після якого референси, створені на попередніх
+            // кроках, стають "fake null" і записались би в сцену як порожні.
+            EnsureSquareSprite();
+            EnsureCellPrefab();
             EnsureAddressableLevels();
-            BuildGameScene(sprite, cellPrefab);
+            BuildGameScene();
 
             AssetDatabase.SaveAssets();
             Debug.Log("[InkFlow] Bootstrap Phase 1 завершено: сцена Assets/Scenes/Game.unity готова до Play Mode.");
@@ -118,12 +122,12 @@ namespace InkFlow.Editor
 
         // ---------- Cell prefab ----------
 
-        private static CellView EnsureCellPrefab(Sprite sprite)
+        private static void EnsureCellPrefab()
         {
-            var existing = AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath);
-            if (existing != null)
-                return existing;
+            if (AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath) != null)
+                return;
 
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
             EnsureFolder("Assets/_Prefabs");
 
             var cellGo = new GameObject("Cell");
@@ -153,7 +157,7 @@ namespace InkFlow.Editor
                 so.FindProperty("densityLabel").objectReferenceValue = label;
                 so.ApplyModifiedPropertiesWithoutUndo();
 
-                return PrefabUtility.SaveAsPrefabAsset(cellGo, CellPrefabPath).GetComponent<CellView>();
+                PrefabUtility.SaveAsPrefabAsset(cellGo, CellPrefabPath);
             }
             finally
             {
@@ -189,13 +193,23 @@ namespace InkFlow.Editor
 
         // ---------- Сцена ----------
 
-        private static void BuildGameScene(Sprite sprite, CellView cellPrefab)
+        private static void BuildGameScene()
         {
+            // Свіжі референси ПІСЛЯ всіх імпортів/Refresh попередніх кроків —
+            // інакше в сцену записуються "fake null" замість асетів.
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
+            var cellPrefab = AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath);
+            if (sprite == null || cellPrefab == null)
+            {
+                Debug.LogError($"[InkFlow] Не знайдено {SpritePath} або {CellPrefabPath} — сцена не збудована.");
+                return;
+            }
+
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var camera = CreateCamera();
             CreateGlobalLight();
-            var (gridView, swipeInput, gridController) = CreateGridRig(camera, cellPrefab);
+            var gridController = CreateGridRig(camera, cellPrefab);
             CreateGameManagement(gridController);
             CreateHud(sprite);
             CreateEventSystem();
@@ -203,10 +217,6 @@ namespace InkFlow.Editor
             EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
-
-            // Полегшує ручну перевірку: одразу відкрита готова сцена.
-            _ = gridView;
-            _ = swipeInput;
         }
 
         private static Camera CreateCamera()
@@ -231,7 +241,7 @@ namespace InkFlow.Editor
             light.intensity = 1f;
         }
 
-        private static (GridView, SwipeInputHandler, GridController) CreateGridRig(Camera camera, CellView cellPrefab)
+        private static GridController CreateGridRig(Camera camera, CellView cellPrefab)
         {
             var gridRoot = new GameObject("GridRoot");
             var pool = gridRoot.AddComponent<CellPool>();
@@ -248,7 +258,7 @@ namespace InkFlow.Editor
             Wire(swipeInput, ("actionsAsset", actions), ("gridView", gridView), ("worldCamera", camera));
             Wire(gridController, ("view", gridView), ("input", swipeInput));
 
-            return (gridView, swipeInput, gridController);
+            return gridController;
         }
 
         private static void CreateGameManagement(GridController gridController)
@@ -330,7 +340,8 @@ namespace InkFlow.Editor
             rect.anchoredPosition = new Vector2(0f, 70f);
             rect.sizeDelta = new Vector2(360f, 110f);
 
-            CreateLabel(go.transform, "Label", "Retry ↺",
+            // Без символу ↺ — його немає в LiberationSans SDF (TMP-ворнінг).
+            CreateLabel(go.transform, "Label", "Retry",
                 Vector2.zero, Vector2.one, Vector2.zero, new Vector2(0.5f, 0.5f),
                 52f, TextAlignmentOptions.Center).rectTransform.sizeDelta = Vector2.zero;
 
@@ -371,12 +382,22 @@ namespace InkFlow.Editor
 
         // ---------- Утиліти ----------
 
-        /// <summary>Проставляє приватні [SerializeField]-поля через SerializedObject.</summary>
+        /// <summary>
+        /// Проставляє приватні [SerializeField]-поля через SerializedObject і
+        /// ГОЛОСНО валідує результат: null на вході чи "fake null" (застарілий
+        /// референс, що записався порожнім) — це помилка бутстрапа, не тиха дірка в сцені.
+        /// </summary>
         private static void Wire(Object target, params (string field, Object value)[] fields)
         {
             var so = new SerializedObject(target);
             foreach (var (field, value) in fields)
             {
+                if (value == null)
+                {
+                    Debug.LogError($"[InkFlow] Спроба підв'язати null у поле '{field}' на {target.GetType().Name}");
+                    continue;
+                }
+
                 var property = so.FindProperty(field);
                 if (property == null)
                 {
@@ -386,6 +407,14 @@ namespace InkFlow.Editor
                 property.objectReferenceValue = value;
             }
             so.ApplyModifiedPropertiesWithoutUndo();
+
+            var check = new SerializedObject(target);
+            foreach (var (field, value) in fields)
+            {
+                if (value != null && check.FindProperty(field)?.objectReferenceValue == null)
+                    Debug.LogError($"[InkFlow] Поле '{field}' на {target.GetType().Name} записалось як null — " +
+                                   "референс застарів. Запусти Bootstrap Phase 1 ще раз.");
+            }
         }
 
         private static void EnsureFolder(string path)
