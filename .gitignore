@@ -105,3 +105,14 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# --- Project additions (not in upstream template) ---
+
+# macOS Finder metadata
+.DS_Store
+
+# Unity 6 auto-generated solution (new .slnx format, like *.sln above)
+*.slnx
+
+# Editor personal-layer settings
+.vscode/
