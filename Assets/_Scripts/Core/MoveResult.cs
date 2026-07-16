@@ -3,7 +3,30 @@ using System.Collections.Generic;
 
 namespace InkFlow.Core
 {
-    /// <summary>Один вибух у ланцюгу — для скору, анімацій та звуку (Фаза 2).</summary>
+    /// <summary>
+    /// Зміна однієї сусідньої клітинки внаслідок вибуху: порожня пофарбувалась
+    /// або однокольорова отримала +1. Знімок стану ПІСЛЯ цього вибуху —
+    /// в'ю може відтворити ланцюг крок за кроком.
+    /// </summary>
+    public readonly struct CellChange
+    {
+        public GridPos Position { get; }
+        public int Color { get; }
+        public int DensityAfter { get; }
+
+        /// <summary>true — клітинка була порожня і пофарбувалась; false — мала той самий колір і отримала +1.</summary>
+        public bool WasPainted { get; }
+
+        public CellChange(GridPos position, int color, int densityAfter, bool wasPainted)
+        {
+            Position = position;
+            Color = color;
+            DensityAfter = densityAfter;
+            WasPainted = wasPainted;
+        }
+    }
+
+    /// <summary>Один вибух у ланцюгу — для скору, анімацій та звуку.</summary>
     public readonly struct BurstRecord
     {
         public GridPos Position { get; }
@@ -12,11 +35,15 @@ namespace InkFlow.Core
         /// <summary>Density клітинки в момент вибуху — саме стільки йде в скор.</summary>
         public int Density { get; }
 
-        public BurstRecord(GridPos position, int color, int density)
+        /// <summary>Що сталося із сусідами цього вибуху (порядок Up, Right, Down, Left).</summary>
+        public IReadOnlyList<CellChange> NeighborChanges { get; }
+
+        public BurstRecord(GridPos position, int color, int density, IReadOnlyList<CellChange> neighborChanges)
         {
             Position = position;
             Color = color;
             Density = density;
+            NeighborChanges = neighborChanges ?? Array.Empty<CellChange>();
         }
     }
 

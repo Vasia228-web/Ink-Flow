@@ -101,9 +101,9 @@ namespace InkFlow.Core
                 if (!CheckBurst(cell, burstThreshold))
                     continue;
 
-                bursts.Add(new BurstRecord(pos, cell.Color, cell.Density));
                 grid[pos] = Cell.Empty;
 
+                var changes = new List<CellChange>(4);
                 foreach (var direction in GridPos.NeighborOrder)
                 {
                     var neighborPos = pos.Neighbor(direction);
@@ -111,16 +111,30 @@ namespace InkFlow.Core
                         continue;
 
                     var neighbor = grid[neighborPos];
+                    bool wasPainted;
                     if (neighbor.IsEmpty)
+                    {
                         grid[neighborPos] = new Cell(cell.Color, 1);
+                        wasPainted = true;
+                    }
                     else if (neighbor.Color == cell.Color)
+                    {
                         grid[neighborPos] = neighbor.WithDensity(neighbor.Density + 1);
+                        wasPainted = false;
+                    }
                     else
+                    {
                         continue; // інший колір — вибух його не чіпає
+                    }
 
-                    if (CheckBurst(grid[neighborPos], burstThreshold) && pending.Add(neighborPos))
+                    var updated = grid[neighborPos];
+                    changes.Add(new CellChange(neighborPos, updated.Color, updated.Density, wasPainted));
+
+                    if (CheckBurst(updated, burstThreshold) && pending.Add(neighborPos))
                         queue.Enqueue(neighborPos);
                 }
+
+                bursts.Add(new BurstRecord(pos, cell.Color, cell.Density, changes));
             }
 
             return bursts;

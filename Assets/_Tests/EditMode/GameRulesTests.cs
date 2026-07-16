@@ -145,6 +145,19 @@ namespace InkFlow.Tests
             Assert.AreEqual(new GridPos(0, 2), result.Bursts[1].Position);
             Assert.AreEqual(6, result.ScoreGained); // 3 + 3
 
+            // Знімки змін сусідів першого вибуху (порядок Up, Right, Down, Left):
+            // (1,1) пофарбована d1; (0,2) однокольорова 2→3; (0,0) пофарбована d1.
+            var changes = result.Bursts[0].NeighborChanges;
+            Assert.AreEqual(3, changes.Count);
+            Assert.AreEqual(new GridPos(1, 1), changes[0].Position);
+            Assert.IsTrue(changes[0].WasPainted);
+            Assert.AreEqual(1, changes[0].DensityAfter);
+            Assert.AreEqual(new GridPos(0, 2), changes[1].Position);
+            Assert.IsFalse(changes[1].WasPainted); // мікро-merge, не фарбування
+            Assert.AreEqual(3, changes[1].DensityAfter);
+            Assert.AreEqual(new GridPos(0, 0), changes[2].Position);
+            Assert.IsTrue(changes[2].WasPainted);
+
             // Другий вибух перефарбував клітинку першого.
             Assert.AreEqual(1, grid[0, 1].Density);
             Assert.AreEqual(1, grid[1, 1].Density);
@@ -185,6 +198,24 @@ namespace InkFlow.Tests
             var result = GameRules.ApplyMove(grid, new GridPos(0, 1), Direction.Up, 2);
 
             Assert.AreEqual(GameRules.MaxChainBursts, result.ChainLength);
+        }
+
+        [Test]
+        public void Burst_NeighborChanges_SkipOtherColorsAndOutOfGrid()
+        {
+            // Вибух у кутку (0,0): сусід (1,0) іншого кольору — без змін і БЕЗ запису,
+            // (0,1) порожня — пофарбована; напрямки поза сіткою відсутні у знімку.
+            var grid = Grid(3, Seed(0, 0, 0, 4), Seed(0, 1, 0, 6), Seed(1, 0, 1, 2));
+
+            var result = GameRules.ApplyMove(grid, new GridPos(0, 1), Direction.Left, 10);
+
+            Assert.AreEqual(1, result.ChainLength);
+            var changes = result.Bursts[0].NeighborChanges;
+            Assert.AreEqual(1, changes.Count); // тільки (0,1)
+            Assert.AreEqual(new GridPos(0, 1), changes[0].Position);
+            Assert.IsTrue(changes[0].WasPainted);
+            Assert.AreEqual(0, changes[0].Color);
+            Assert.AreEqual(2, grid[1, 0].Density); // інший колір не зачеплено
         }
 
         [Test]
