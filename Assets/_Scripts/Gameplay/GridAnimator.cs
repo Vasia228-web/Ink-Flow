@@ -48,6 +48,13 @@ namespace InkFlow.Gameplay
                  "(захист від патологічних ланцюгів до MaxChainBursts, які б анімувались хвилинами).")]
         [SerializeField, Min(1)] private int maxAnimatedLinks = 24;
 
+        [Header("Chain feedback")]
+        [SerializeField] private ChainAudio chainAudio;
+        [SerializeField] private CameraShaker cameraShaker;
+
+        [Tooltip("З якої ланки ланцюга вмикається camera shake (за ТЗ — з 3-ї).")]
+        [SerializeField, Min(1)] private int shakeFromChainLink = 3;
+
         public bool IsAnimating { get; private set; }
 
         public void Play(MoveResult result, GridModel finalGrid, Action onComplete)
@@ -152,7 +159,15 @@ namespace InkFlow.Gameplay
             }
         }
 
-        // Хук фідбеку ланцюга (звук/shake) — підключається окремим кроком Фази 2.
-        private void OnChainLink(int chainIndex) { }
+        /// <summary>Фідбек ланки ланцюга: pitch звуку росте з кожним вибухом, shake — з 3-ї ланки і сильнішає далі.</summary>
+        private void OnChainLink(int chainIndex)
+        {
+            if (chainAudio != null)
+                chainAudio.PlayChainPop(chainIndex);
+
+            var linkNumber = chainIndex + 1; // 1-базований номер ланки
+            if (cameraShaker != null && linkNumber >= shakeFromChainLink)
+                cameraShaker.Shake(0.5f + 0.25f * (linkNumber - shakeFromChainLink));
+        }
     }
 }
