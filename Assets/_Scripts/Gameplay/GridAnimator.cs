@@ -32,6 +32,22 @@ namespace InkFlow.Gameplay
         [Tooltip("Відстань відскоку як частка розміру клітинки (у ТЗ «8 units» — трактуємо як ~8-12% клітинки, інакше спрайт летів би через усю дошку).")]
         [SerializeField, Range(0.05f, 0.5f)] private float rejectBounceFraction = 0.12f;
 
+        [Header("Burst")]
+        [SerializeField] private EffectPool effects;
+
+        [Tooltip("Стискання спрайта до нуля перед частками, сек (за ТЗ 100ms).")]
+        [SerializeField, Range(0.05f, 0.3f)] private float burstShrinkDuration = 0.1f;
+
+        [Tooltip("Пауза між ланками ланцюга — щоб chain читався оком.")]
+        [SerializeField, Range(0f, 0.4f)] private float interBurstDelay = 0.1f;
+
+        [Tooltip("Поп-ін пофарбованої вибухом клітинки, сек.")]
+        [SerializeField, Range(0.02f, 0.2f)] private float paintPopDuration = 0.08f;
+
+        [Tooltip("Скільки перших ланок ланцюга анімувати повністю; далі — миттєво " +
+                 "(захист від патологічних ланцюгів до MaxChainBursts, які б анімувались хвилинами).")]
+        [SerializeField, Min(1)] private int maxAnimatedLinks = 24;
+
         public bool IsAnimating { get; private set; }
 
         public void Play(MoveResult result, GridModel finalGrid, Action onComplete)
@@ -101,11 +117,42 @@ namespace InkFlow.Gameplay
             yield return Tween.Bounce(fromView.transform, origin, peak, rejectBounceDuration);
         }
 
-        // Фаза «вибухи»: у цьому коміті — миттєво (без візуалу), послідовність
-        // shrink+частки+фідбек додається наступними кроками Фази 2.
         private IEnumerator PlayBursts(MoveResult result)
         {
-            yield break;
+            for (var i = 0; i < result.Bursts.Count; i++)
+            {
+                var burst = result.Bursts[i];
+                var animated = i < maxAnimatedLinks;
+
+                OnChainLink(i);
+
+                if (view.TryGetView(burst.Position, out var burstView))
+                {
+                    burstView.SetNearMiss(false);
+                    if (animated)
+                        yield return Tween.Scale(burstView.transform, Vector3.one, Vector3.zero, burstShrinkDuration);
+                    view.ReleaseAt(burst.Position);
+                }
+
+                if (effects != null)
+                    effects.PlayBurst(view.CellToWorld(burst.Position), view.ColorForIndex(burst.Color));
+
+                // Сусіди цього вибуху зі знімка Core: пофарбовані з'являються поп-іном,
+                // однокольорові просто оновлюють density (+1 від «мікро-merge»).
+                foreach (var change in burst.NeighborChanges)
+                {
+                    var isNew = !view.TryGetView(change.Position, out _);
+                    var cellView = view.ShowCell(change.Position, new Cell(change.Color, change.DensityAfter));
+                    if (animated && isNew && change.WasPainted)
+                        StartCoroutine(Tween.Scale(cellView.transform, Vector3.zero, Vector3.one, paintPopDuration));
+                }
+
+                if (animated && i < result.Bursts.Count - 1)
+                    yield return new WaitForSeconds(interBurstDelay);
+            }
         }
+
+        // Хук фідбеку ланцюга (звук/shake) — підключається окремим кроком Фази 2.
+        private void OnChainLink(int chainIndex) { }
     }
 }
