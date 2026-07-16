@@ -33,9 +33,13 @@ namespace InkFlow.Gameplay
         private readonly Dictionary<GridPos, CellView> _activeViews = new Dictionary<GridPos, CellView>();
         private readonly List<GridPos> _toRelease = new List<GridPos>(64);
         private GridModel _grid;
+        private int _burstThreshold;
 
         public float CellSize => cellSize;
         private float Spacing => cellSize + cellGap;
+
+        /// <summary>Викликається на старті сесії: поріг потрібен для near-miss підсвітки.</summary>
+        public void SetLevel(LevelData level) => _burstThreshold = level.BurstThreshold;
 
         /// <summary>Повна перемальовка під поточний стан моделі.</summary>
         public void Repaint(GridModel grid)
@@ -56,18 +60,39 @@ namespace InkFlow.Gameplay
             foreach (var pos in grid.AllPositions())
             {
                 var cell = grid[pos];
-                if (cell.IsEmpty)
-                    continue;
-
-                if (!_activeViews.TryGetValue(pos, out var view))
-                {
-                    view = pool.Get();
-                    view.transform.position = CellToWorld(pos);
-                    _activeViews.Add(pos, view);
-                }
-
-                view.Show(cell, ColorOf(cell.Color));
+                if (!cell.IsEmpty)
+                    ShowCell(pos, cell);
             }
+        }
+
+        // ---------- Поштучний доступ для GridAnimator ----------
+
+        /// <summary>Отримати-або-заспавнити в'ю клітинки і показати стан cell.</summary>
+        public CellView ShowCell(GridPos pos, Cell cell)
+        {
+            if (!_activeViews.TryGetValue(pos, out var view))
+            {
+                view = pool.Get();
+                view.transform.position = CellToWorld(pos);
+                _activeViews.Add(pos, view);
+            }
+
+            view.Show(cell, ColorForIndex(cell.Color));
+            // Near-miss: >= 80% порогу — клітинка «на межі», пульсує світлішим (ТЗ Фази 2).
+            view.SetNearMiss(_burstThreshold > 0 && cell.Density >= 0.8f * _burstThreshold);
+            return view;
+        }
+
+        public bool TryGetView(GridPos pos, out CellView view) =>
+            _activeViews.TryGetValue(pos, out view);
+
+        /// <summary>Повернути в'ю клітинки в пул (напр. джерело merge після переливання).</summary>
+        public void ReleaseAt(GridPos pos)
+        {
+            if (!_activeViews.TryGetValue(pos, out var view))
+                return;
+            pool.Release(view);
+            _activeViews.Remove(pos);
         }
 
         public void SetSelected(GridPos pos, bool selected)
@@ -114,7 +139,8 @@ namespace InkFlow.Gameplay
             return new Vector2(-half, -half);
         }
 
-        private Color ColorOf(int colorIndex) =>
+        /// <summary>Колір палітри за індексом моделі (потрібен і часткам вибуху).</summary>
+        public Color ColorForIndex(int colorIndex) =>
             colorPalette.Length > 0
                 ? colorPalette[Mathf.Clamp(colorIndex, 0, colorPalette.Length - 1)]
                 : Color.white;
