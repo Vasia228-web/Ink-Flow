@@ -1,0 +1,19 @@
+{
+    "name": "InkFlow.Gameplay",
+    "rootNamespace": "InkFlow.Gameplay",
+    "references": [
+        "InkFlow.Core",
+        "InkFlow.Levels",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
