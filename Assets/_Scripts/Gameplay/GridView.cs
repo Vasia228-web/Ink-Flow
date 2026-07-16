@@ -104,6 +104,9 @@ namespace InkFlow.Gameplay
         public bool TryWorldToOccupiedCell(Vector2 world, out GridPos pos) =>
             TryWorldToCell(world, out pos) && !_grid[pos].IsEmpty;
 
+        public bool IsOccupied(GridPos pos) =>
+            _grid != null && _grid.IsInside(pos) && !_grid[pos].IsEmpty;
+
         private Vector2 OriginOffset()
         {
             var size = _grid?.Size ?? 0;
