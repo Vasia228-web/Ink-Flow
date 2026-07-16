@@ -25,7 +25,7 @@
 ## Статус
 
 - **Фаза 0 (інфраструктура)**: ✅ CLAUDE.md, .gitignore/.gitattributes (LFS), git-workflow.
-- **Фаза 1 (core loop)**: у роботі, гілка `phase-1-core-loop`. Обсяг: asmdefs, Core-логіка + Edit Mode тести, CellPool, GridView, свайп-інпут, 3 рівні (Addressables), HUD+Retry. БЕЗ анімацій/звуку/метагри.
+- **Фаза 1 (core loop)**: ✅ код повністю на гілці `phase-1-core-loop` (компілюється без помилок, 31 headless-тест зелений). Разова ручна дія в Editor: меню **Ink Flow → Setup → Bootstrap Phase 1** (створює спрайт, Cell.prefab, сцену Game.unity, Addressables-групу "Levels"; якщо попросить повторний запуск після імпорту TMP — запустити ще раз). Після перевірки у Play Mode і підтвердження користувача — merge у `main`.
 - Фаза 2 (feel/анімації), Фаза 3 (метагра) — тільки після підтвердження користувача.
 
 ## Тести
