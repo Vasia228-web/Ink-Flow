@@ -120,3 +120,6 @@ InitTestScene*.unity*
 # Headless core-test runner build artifacts
 /Tools/**/bin/
 /Tools/**/obj/
+
+# Звіти симуляторів (генеруються локально)
+/Tools/economy-report.csv

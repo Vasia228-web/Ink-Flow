@@ -1,6 +1,7 @@
 using System.IO;
+using InkFlow.App;
+using InkFlow.Core;
 using InkFlow.Gameplay;
-using InkFlow.Levels;
 using InkFlow.UI;
 using TMPro;
 using UnityEditor;
@@ -18,52 +19,52 @@ using UnityEngine.UI;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Одноразовий (ідемпотентний) бутстрап Фази 1: створює спрайт, Cell-префаб,
-    /// ігрову сцену з HUD, Addressables-групу "Levels" і позначає рівні.
-    /// Меню: Ink Flow → Setup → Bootstrap Phase 1. Batch:
-    ///   Unity -batchmode -quit -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.InkFlowBootstrap.BootstrapPhase1
+    /// Ідемпотентний бутстрап проєкту: генерує спрайт, префаби, конфіги, рівні,
+    /// Addressables-групу і сцену Game з повним ригом.
+    /// Меню: Ink Flow → Setup → Bootstrap Scene. Batch:
+    ///   Unity -batchmode -quit -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.InkFlowBootstrap.BootstrapScene
+    ///
+    /// ВАЖЛИВО про порядок: усі асети завантажуються ЗАНОВО безпосередньо перед підв'язкою.
+    /// NewScene() і будь-який AssetDatabase.Refresh вивантажують незакорінені асети, і
+    /// референс, узятий раніше, тихо перетворюється на «fake null», який записався б у сцену
+    /// порожнім полем.
     /// </summary>
     public static class InkFlowBootstrap
     {
         private const string SpritePath = "Assets/_Sprites/Square.png";
         private const string CellPrefabPath = "Assets/_Prefabs/Cell.prefab";
         private const string BurstFxPrefabPath = "Assets/_Prefabs/BurstFx.prefab";
-        private const string ParticleMaterialPath =
-            "Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat";
+        private const string BossSegmentPrefabPath = "Assets/_Prefabs/BossSegment.prefab";
+        private const string BalanceConfigPath = "Assets/_ScriptableObjects/Balance/BalanceConfig.asset";
+        private const string FeelConfigPath = "Assets/_ScriptableObjects/Balance/FeelConfig.asset";
         private const string ScenePath = "Assets/Scenes/Game.unity";
         private const string InputActionsPath = "Assets/_Scripts/Gameplay/InkFlowControls.inputactions";
         private const string UnlitSpriteMaterialPath =
             "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Unlit-Default.mat";
+        private const string ParticleMaterialPath =
+            "Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat";
 
-        private static readonly string[] LevelAssetPaths =
-        {
-            "Assets/_ScriptableObjects/Levels/Level_001.asset",
-            "Assets/_ScriptableObjects/Levels/Level_002.asset",
-            "Assets/_ScriptableObjects/Levels/Level_003.asset"
-        };
-
-        [MenuItem("Ink Flow/Setup/Bootstrap Phase 1")]
-        public static void BootstrapPhase1()
+        [MenuItem("Ink Flow/Setup/Bootstrap Scene")]
+        public static void BootstrapScene()
         {
             if (!EnsureTmpEssentials())
             {
                 Debug.LogWarning("[InkFlow] TMP Essential Resources щойно імпортовано — " +
-                                 "запусти Bootstrap Phase 1 ще раз, щоб добудувати сцену.");
+                                 "запусти Bootstrap Scene ще раз, щоб добудувати сцену.");
                 return;
             }
 
-            // Кожен крок вантажить потрібні асети свіжими з AssetDatabase:
-            // створення Addressables-налаштувань (перший запуск) тягне за собою
-            // SaveAssets/Refresh, після якого референси, створені на попередніх
-            // кроках, стають "fake null" і записались би в сцену як порожні.
             EnsureSquareSprite();
             EnsureCellPrefab();
             EnsureBurstFxPrefab();
+            EnsureBossSegmentPrefab();
+            EnsureConfigs();
+            LevelAuthoring.CreateStarterLevels();
             EnsureAddressableLevels();
             BuildGameScene();
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[InkFlow] Bootstrap Phase 1 завершено: сцена Assets/Scenes/Game.unity готова до Play Mode.");
+            Debug.Log("[InkFlow] Bootstrap завершено: Assets/Scenes/Game.unity готова до Play Mode.");
         }
 
         // ---------- TMP ----------
@@ -73,7 +74,6 @@ namespace InkFlow.Editor
             if (TMP_Settings.instance != null)
                 return true;
 
-            // TMP Essential Resources лежать усередині пакета ugui (Unity 6) або textmeshpro (старіші).
             var packagePaths = new[]
             {
                 "Packages/com.unity.ugui/Package Resources/TMP Essential Resources.unitypackage",
@@ -89,17 +89,17 @@ namespace InkFlow.Editor
                 return TMP_Settings.instance != null;
             }
 
-            Debug.LogError("[InkFlow] Не знайдено TMP Essential Resources.unitypackage — імпортуй вручну: Window → TextMeshPro → Import TMP Essential Resources.");
+            Debug.LogError("[InkFlow] Не знайдено TMP Essential Resources — імпортуй вручну: " +
+                           "Window → TextMeshPro → Import TMP Essential Resources.");
             return false;
         }
 
-        // ---------- Спрайт ----------
+        // ---------- Асети ----------
 
-        private static Sprite EnsureSquareSprite()
+        private static void EnsureSquareSprite()
         {
-            var existing = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
-            if (existing != null)
-                return existing;
+            if (AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath) != null)
+                return;
 
             EnsureFolder("Assets/_Sprites");
 
@@ -120,11 +120,7 @@ namespace InkFlow.Editor
             importer.filterMode = FilterMode.Bilinear;
             importer.mipmapEnabled = false;
             importer.SaveAndReimport();
-
-            return AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
         }
-
-        // ---------- Cell prefab ----------
 
         private static void EnsureCellPrefab()
         {
@@ -132,20 +128,30 @@ namespace InkFlow.Editor
                 return;
 
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
+            var unlit = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
             EnsureFolder("Assets/_Prefabs");
 
-            var cellGo = new GameObject("Cell");
+            var root = new GameObject("Cell");
             try
             {
-                var spriteRenderer = cellGo.AddComponent<SpriteRenderer>();
-                spriteRenderer.sprite = sprite;
-                spriteRenderer.sortingOrder = 1;
-                var unlit = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
+                var body = root.AddComponent<SpriteRenderer>();
+                body.sprite = sprite;
+                body.sortingOrder = 1;
                 if (unlit != null)
-                    spriteRenderer.sharedMaterial = unlit; // не залежимо від 2D-освітлення
+                    body.sharedMaterial = unlit;
+
+                var overlayGo = new GameObject("Overlay");
+                overlayGo.transform.SetParent(root.transform, false);
+                overlayGo.transform.localPosition = new Vector3(0f, 0f, -0.005f);
+                var overlay = overlayGo.AddComponent<SpriteRenderer>();
+                overlay.sprite = sprite;
+                overlay.sortingOrder = 2;
+                overlay.enabled = false;
+                if (unlit != null)
+                    overlay.sharedMaterial = unlit;
 
                 var labelGo = new GameObject("DensityLabel");
-                labelGo.transform.SetParent(cellGo.transform, false);
+                labelGo.transform.SetParent(root.transform, false);
                 labelGo.transform.localPosition = new Vector3(0f, 0f, -0.01f);
                 var label = labelGo.AddComponent<TextMeshPro>();
                 label.text = "0";
@@ -153,23 +159,21 @@ namespace InkFlow.Editor
                 label.alignment = TextAlignmentOptions.Center;
                 label.color = Color.white;
                 label.rectTransform.sizeDelta = Vector2.one;
-                label.GetComponent<MeshRenderer>().sortingOrder = 2;
+                label.GetComponent<MeshRenderer>().sortingOrder = 3;
 
-                var view = cellGo.AddComponent<CellView>();
-                var so = new SerializedObject(view);
-                so.FindProperty("spriteRenderer").objectReferenceValue = spriteRenderer;
-                so.FindProperty("densityLabel").objectReferenceValue = label;
-                so.ApplyModifiedPropertiesWithoutUndo();
+                var view = root.AddComponent<CellView>();
+                Wire(view,
+                    ("spriteRenderer", body),
+                    ("densityLabel", label),
+                    ("overlayRenderer", overlay));
 
-                PrefabUtility.SaveAsPrefabAsset(cellGo, CellPrefabPath);
+                PrefabUtility.SaveAsPrefabAsset(root, CellPrefabPath);
             }
             finally
             {
-                Object.DestroyImmediate(cellGo);
+                Object.DestroyImmediate(root);
             }
         }
-
-        // ---------- BurstFx prefab ----------
 
         private static void EnsureBurstFxPrefab()
         {
@@ -177,25 +181,26 @@ namespace InkFlow.Editor
                 return;
 
             EnsureFolder("Assets/_Prefabs");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(ParticleMaterialPath);
 
-            var fxGo = new GameObject("BurstFx");
+            var root = new GameObject("BurstFx");
             try
             {
-                var ps = fxGo.AddComponent<ParticleSystem>();
+                var ps = root.AddComponent<ParticleSystem>();
 
                 var main = ps.main;
                 main.duration = 0.1f;
                 main.loop = false;
                 main.playOnAwake = false;
-                main.startLifetime = 0.3f; // ТЗ: частки згасають за 300ms
+                main.startLifetime = 0.3f;
                 main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 3.5f);
                 main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.2f);
                 main.gravityModifier = 0f;
-                main.maxParticles = 16;
+                main.maxParticles = 16; // мобільний бюджет: частинок мало і без Collision-модуля
 
                 var emission = ps.emission;
                 emission.rateOverTime = 0f;
-                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 8, 12, 1, 0.01f) }); // ТЗ: 8-12 часток
+                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 8, 12, 1, 0.01f) });
 
                 var shape = ps.shape;
                 shape.enabled = true;
@@ -214,23 +219,62 @@ namespace InkFlow.Editor
                 sizeOverLifetime.enabled = true;
                 sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0.2f));
 
-                var renderer = fxGo.GetComponent<ParticleSystemRenderer>();
-                var material = AssetDatabase.LoadAssetAtPath<Material>(ParticleMaterialPath);
+                var renderer = root.GetComponent<ParticleSystemRenderer>();
                 if (material != null)
                     renderer.sharedMaterial = material;
-                renderer.sortingOrder = 3; // над клітинками і підписами
+                renderer.sortingOrder = 5;
 
-                var fx = fxGo.AddComponent<BurstEffect>();
-                var so = new SerializedObject(fx);
-                so.FindProperty("particles").objectReferenceValue = ps;
-                so.ApplyModifiedPropertiesWithoutUndo();
+                var fx = root.AddComponent<BurstEffect>();
+                Wire(fx, ("particles", ps));
 
-                PrefabUtility.SaveAsPrefabAsset(fxGo, BurstFxPrefabPath);
+                PrefabUtility.SaveAsPrefabAsset(root, BurstFxPrefabPath);
             }
             finally
             {
-                Object.DestroyImmediate(fxGo);
+                Object.DestroyImmediate(root);
             }
+        }
+
+        private static void EnsureBossSegmentPrefab()
+        {
+            if (AssetDatabase.LoadAssetAtPath<SpriteRenderer>(BossSegmentPrefabPath) != null)
+                return;
+
+            EnsureFolder("Assets/_Prefabs");
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
+            var unlit = AssetDatabase.LoadAssetAtPath<Material>(UnlitSpriteMaterialPath);
+
+            var root = new GameObject("BossSegment");
+            try
+            {
+                var renderer = root.AddComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.color = new Color(0.12f, 0.12f, 0.16f, 1f);
+                renderer.sortingOrder = 1;
+                if (unlit != null)
+                    renderer.sharedMaterial = unlit;
+                root.transform.localScale = new Vector3(1f, 0.7f, 1f);
+
+                PrefabUtility.SaveAsPrefabAsset(root, BossSegmentPrefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void EnsureConfigs()
+        {
+            EnsureFolder("Assets/_ScriptableObjects/Balance");
+            EnsureAsset<BalanceConfig>(BalanceConfigPath);
+            EnsureAsset<FeelConfig>(FeelConfigPath);
+        }
+
+        private static void EnsureAsset<T>(string path) where T : ScriptableObject
+        {
+            if (AssetDatabase.LoadAssetAtPath<T>(path) != null)
+                return;
+            AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<T>(), path);
         }
 
         // ---------- Addressables ----------
@@ -238,12 +282,11 @@ namespace InkFlow.Editor
         private static void EnsureAddressableLevels()
         {
             var settings = AddressableAssetSettingsDefaultObject.GetSettings(true);
-            var group = settings.FindGroup("Levels");
-            if (group == null)
-                group = settings.CreateGroup("Levels", false, false, true, null,
-                    typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema));
+            var group = settings.FindGroup("Levels") ?? settings.CreateGroup(
+                "Levels", false, false, true, null,
+                typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema));
 
-            foreach (var path in LevelAssetPaths)
+            foreach (var path in LevelAuthoring.LevelAssetPaths())
             {
                 var guid = AssetDatabase.AssetPathToGUID(path);
                 if (string.IsNullOrEmpty(guid) || AssetDatabase.LoadMainAssetAtPath(path) == null)
@@ -253,7 +296,7 @@ namespace InkFlow.Editor
                 }
 
                 var entry = settings.CreateOrMoveEntry(guid, group);
-                entry.address = $"Levels/{Path.GetFileNameWithoutExtension(path)}";
+                entry.address = LevelCatalog.AddressPrefix + Path.GetFileNameWithoutExtension(path);
             }
 
             settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, null, true, true);
@@ -265,23 +308,28 @@ namespace InkFlow.Editor
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // Асети вантажимо СТРОГО ПІСЛЯ NewScene: закриття попередньої сцени
-            // вивантажує незакорінені асети, тож будь-який референс, отриманий до
-            // цього моменту (чи на попередніх кроках бутстрапа), стає "fake null"
-            // і записався б у сцену порожнім полем.
+            // Асети вантажимо СТРОГО після NewScene — див. коментар у шапці класу.
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
             var cellPrefab = AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath);
-            var burstFxPrefab = AssetDatabase.LoadAssetAtPath<BurstEffect>(BurstFxPrefabPath);
-            if (sprite == null || cellPrefab == null || burstFxPrefab == null)
+            var burstFx = AssetDatabase.LoadAssetAtPath<BurstEffect>(BurstFxPrefabPath);
+            var bossSegment = AssetDatabase.LoadAssetAtPath<SpriteRenderer>(BossSegmentPrefabPath);
+            var balance = AssetDatabase.LoadAssetAtPath<BalanceConfig>(BalanceConfigPath);
+            var feel = AssetDatabase.LoadAssetAtPath<FeelConfig>(FeelConfigPath);
+            var actions = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
+
+            if (sprite == null || cellPrefab == null || burstFx == null || bossSegment == null ||
+                balance == null || feel == null || actions == null)
             {
-                Debug.LogError($"[InkFlow] Не знайдено {SpritePath}, {CellPrefabPath} або {BurstFxPrefabPath} — сцена не збудована.");
+                Debug.LogError("[InkFlow] Не всі асети знайдено — сцена не збудована. " +
+                               "Запусти Bootstrap Scene ще раз.");
                 return;
             }
 
             var camera = CreateCamera();
             CreateGlobalLight();
-            var gridController = CreateGridRig(camera, cellPrefab, burstFxPrefab);
-            CreateGameManagement(gridController);
+
+            var rig = CreateGridRig(camera, cellPrefab, burstFx, bossSegment, feel, actions);
+            CreateAppRoot(rig.presenter, rig.feedback, balance);
             CreateHud(sprite);
             CreateEventSystem();
 
@@ -292,67 +340,72 @@ namespace InkFlow.Editor
 
         private static Camera CreateCamera()
         {
-            var cameraGo = new GameObject("Main Camera") { tag = "MainCamera" };
-            var camera = cameraGo.AddComponent<Camera>();
+            var go = new GameObject("Main Camera") { tag = "MainCamera" };
+            var camera = go.AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = 5.5f; // сітка 7×7 (~7.5 units) влазить у портрет
+            camera.orthographicSize = 5.5f;
             camera.transform.position = new Vector3(0f, 0f, -10f);
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color32(24, 25, 38, 255);
-            cameraGo.AddComponent<AudioListener>();
-            cameraGo.AddComponent<UniversalAdditionalCameraData>();
-            cameraGo.AddComponent<CameraShaker>();
+            go.AddComponent<AudioListener>();
+            go.AddComponent<UniversalAdditionalCameraData>();
+            go.AddComponent<ShakeController>();
             return camera;
         }
 
         private static void CreateGlobalLight()
         {
-            var lightGo = new GameObject("Global Light 2D");
-            var light = lightGo.AddComponent<Light2D>();
+            var go = new GameObject("Global Light 2D");
+            var light = go.AddComponent<Light2D>();
             light.lightType = Light2D.LightType.Global;
             light.intensity = 1f;
         }
 
-        private static GridController CreateGridRig(Camera camera, CellView cellPrefab, BurstEffect burstFxPrefab)
+        private static (GamePresenter presenter, ChainFeedback feedback) CreateGridRig(
+            Camera camera, CellView cellPrefab, BurstEffect burstFx, SpriteRenderer bossSegment,
+            FeelConfig feel, InputActionAsset actions)
         {
             var gridRoot = new GameObject("GridRoot");
-            var pool = gridRoot.AddComponent<CellPool>();
+
+            var cellPool = gridRoot.AddComponent<CellPool>();
+            var particlePool = gridRoot.AddComponent<ParticlePool>();
             var gridView = gridRoot.AddComponent<GridView>();
-            var swipeInput = gridRoot.AddComponent<SwipeInputHandler>();
-            var gridController = gridRoot.AddComponent<GridController>();
-            var effectPool = gridRoot.AddComponent<EffectPool>();
-            var animator = gridRoot.AddComponent<GridAnimator>();
+            var swipeInput = gridRoot.AddComponent<SwipeInput>();
+            var presenter = gridRoot.AddComponent<GamePresenter>();
 
             var audioSource = gridRoot.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
-            audioSource.spatialBlend = 0f; // 2D-звук
-            var chainAudio = gridRoot.AddComponent<ChainAudio>();
+            audioSource.spatialBlend = 0f;
+            var feedback = gridRoot.AddComponent<ChainFeedback>();
 
-            var actions = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
-            if (actions == null)
-                Debug.LogError($"[InkFlow] Не знайдено {InputActionsPath}");
+            var bossGo = new GameObject("Boss");
+            bossGo.transform.SetParent(gridRoot.transform, false);
+            var bossView = bossGo.AddComponent<BossView>();
 
-            Wire(pool, ("cellPrefab", cellPrefab), ("contentRoot", gridRoot.transform));
-            Wire(gridView, ("pool", pool));
+            Wire(cellPool, ("cellPrefab", cellPrefab), ("contentRoot", gridRoot.transform));
+            Wire(particlePool, ("effectPrefab", burstFx), ("contentRoot", gridRoot.transform));
+            Wire(gridView,
+                ("cellPool", cellPool), ("particlePool", particlePool), ("feel", feel),
+                ("shaker", camera.GetComponent<ShakeController>()), ("feedback", feedback));
             Wire(swipeInput, ("actionsAsset", actions), ("gridView", gridView), ("worldCamera", camera));
-            Wire(effectPool, ("effectPrefab", burstFxPrefab), ("contentRoot", gridRoot.transform));
-            Wire(chainAudio, ("source", audioSource));
-            Wire(animator,
-                ("view", gridView),
-                ("effects", effectPool),
-                ("chainAudio", chainAudio),
-                ("cameraShaker", camera.GetComponent<CameraShaker>()));
-            Wire(gridController, ("view", gridView), ("input", swipeInput), ("animator", animator));
+            Wire(feedback, ("source", audioSource));
+            Wire(bossView, ("gridView", gridView), ("segmentPrefab", bossSegment));
+            Wire(presenter, ("gridView", gridView), ("swipeInput", swipeInput), ("bossView", bossView));
 
-            return gridController;
+            bossGo.SetActive(false); // вмикається лише на бос-рівні
+            return (presenter, feedback);
         }
 
-        private static void CreateGameManagement(GridController gridController)
+        private static void CreateAppRoot(GamePresenter presenter, ChainFeedback feedback, BalanceConfig balance)
         {
-            var managementGo = new GameObject("GameManagement");
-            var loader = managementGo.AddComponent<LevelLoader>();
-            var manager = managementGo.AddComponent<GameManager>();
-            Wire(manager, ("levelLoader", loader), ("gridController", gridController));
+            var go = new GameObject("App");
+            var catalog = go.AddComponent<LevelCatalog>();
+            var bootstrap = go.AddComponent<GameBootstrap>();
+            Wire(bootstrap,
+                ("balanceConfig", balance),
+                ("levelCatalog", catalog),
+                ("presenter", presenter),
+                ("chainFeedback", feedback));
         }
 
         private static void CreateHud(Sprite sprite)
@@ -366,30 +419,39 @@ namespace InkFlow.Editor
             scaler.matchWidthOrHeight = 0.5f;
             canvasGo.AddComponent<GraphicRaycaster>();
 
-            var movesLabel = CreateLabel(canvasGo.transform, "MovesLabel", "Ходи: —",
-                anchorMin: new Vector2(0f, 1f), anchorMax: new Vector2(0f, 1f),
-                anchoredPos: new Vector2(40f, -60f), pivot: new Vector2(0f, 1f),
-                fontSize: 56f, alignment: TextAlignmentOptions.Left);
+            // Safe area — обов'язково, інакше UI ріжеться на iPhone з Dynamic Island (§9).
+            var safeGo = new GameObject("SafeArea");
+            safeGo.transform.SetParent(canvasGo.transform, false);
+            var safeRect = safeGo.AddComponent<RectTransform>();
+            safeRect.anchorMin = Vector2.zero;
+            safeRect.anchorMax = Vector2.one;
+            safeRect.offsetMin = Vector2.zero;
+            safeRect.offsetMax = Vector2.zero;
+            safeGo.AddComponent<SafeAreaBinder>();
 
-            var goalLabel = CreateLabel(canvasGo.transform, "GoalLabel", "Ціль: —",
-                anchorMin: new Vector2(1f, 1f), anchorMax: new Vector2(1f, 1f),
-                anchoredPos: new Vector2(-40f, -60f), pivot: new Vector2(1f, 1f),
-                fontSize: 56f, alignment: TextAlignmentOptions.Right);
+            var moves = CreateLabel(safeGo.transform, "MovesLabel", "Ходи: —",
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(40f, -40f), new Vector2(0f, 1f),
+                52f, TextAlignmentOptions.Left);
+            var goal = CreateLabel(safeGo.transform, "GoalLabel", "Ціль: —",
+                new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-40f, -40f), new Vector2(1f, 1f),
+                44f, TextAlignmentOptions.Right);
+            var score = CreateLabel(safeGo.transform, "ScoreLabel", "Очки: 0",
+                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(40f, -110f), new Vector2(0f, 1f),
+                44f, TextAlignmentOptions.Left);
 
-            var retryButton = CreateRetryButton(canvasGo.transform, sprite);
+            var retry = CreateRetryButton(safeGo.transform, sprite);
 
-            var winPanel = CreateBanner(canvasGo.transform, sprite, "WinPanel", "Перемога!",
-                new Color32(0, 150, 90, 235));
-            var losePanel = CreateBanner(canvasGo.transform, sprite, "LosePanel", "Ходи скінчились",
-                new Color32(160, 40, 60, 235));
+            var winPanel = CreateBanner(safeGo.transform, sprite, "WinPanel", new Color32(0, 150, 90, 235),
+                out var winLabel, out var starsLabel);
+            var losePanel = CreateBanner(safeGo.transform, sprite, "LosePanel", new Color32(160, 40, 60, 235),
+                out var loseLabel, out _);
+            _ = loseLabel;
 
-            var hud = canvasGo.AddComponent<HUDController>();
-            Wire(hud, ("movesLabel", movesLabel), ("goalLabel", goalLabel), ("retryButton", retryButton));
-
-            var winScreen = canvasGo.AddComponent<WinScreenController>();
-            Wire(winScreen, ("panel", winPanel));
-            var loseScreen = canvasGo.AddComponent<LoseScreenController>();
-            Wire(loseScreen, ("panel", losePanel));
+            var hud = safeGo.AddComponent<HudScreen>();
+            Wire(hud,
+                ("movesLabel", moves), ("goalLabel", goal), ("scoreLabel", score),
+                ("retryButton", retry), ("winPanel", winPanel), ("losePanel", losePanel),
+                ("outcomeLabel", winLabel), ("starsLabel", starsLabel));
         }
 
         private static TMP_Text CreateLabel(Transform parent, string name, string text,
@@ -407,7 +469,7 @@ namespace InkFlow.Editor
             rect.anchorMax = anchorMax;
             rect.pivot = pivot;
             rect.anchoredPosition = anchoredPos;
-            rect.sizeDelta = new Vector2(500f, 90f);
+            rect.sizeDelta = new Vector2(560f, 80f);
             return label;
         }
 
@@ -423,37 +485,44 @@ namespace InkFlow.Editor
             rect.anchorMin = new Vector2(0.5f, 0f);
             rect.anchorMax = new Vector2(0.5f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
-            rect.anchoredPosition = new Vector2(0f, 70f);
-            rect.sizeDelta = new Vector2(360f, 110f);
+            rect.anchoredPosition = new Vector2(0f, 60f);
+            rect.sizeDelta = new Vector2(340f, 110f);
 
-            // Без символу ↺ — його немає в LiberationSans SDF (TMP-ворнінг).
-            CreateLabel(go.transform, "Label", "Retry",
+            // Без гліфа ↺ — його немає в LiberationSans SDF.
+            var label = CreateLabel(go.transform, "Label", "Retry",
                 Vector2.zero, Vector2.one, Vector2.zero, new Vector2(0.5f, 0.5f),
-                52f, TextAlignmentOptions.Center).rectTransform.sizeDelta = Vector2.zero;
-
+                50f, TextAlignmentOptions.Center);
+            label.rectTransform.sizeDelta = Vector2.zero;
             return button;
         }
 
-        private static GameObject CreateBanner(Transform parent, Sprite sprite, string name, string text, Color color)
+        private static GameObject CreateBanner(Transform parent, Sprite sprite, string name, Color color,
+            out TMP_Text outcomeLabel, out TMP_Text starsLabel)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var image = go.AddComponent<Image>();
             image.sprite = sprite;
             image.color = color;
-            image.raycastTarget = false; // банер не блокує HUD-кнопку Retry
+            image.raycastTarget = false; // банер не має перехоплювати натискання Retry
             var rect = image.rectTransform;
             rect.anchorMin = new Vector2(0f, 0.5f);
             rect.anchorMax = new Vector2(1f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0f, 160f);
-            rect.sizeDelta = new Vector2(0f, 180f);
+            rect.anchoredPosition = new Vector2(0f, 180f);
+            rect.sizeDelta = new Vector2(0f, 230f);
 
-            var label = CreateLabel(go.transform, "Label", text,
-                Vector2.zero, Vector2.one, Vector2.zero, new Vector2(0.5f, 0.5f),
-                72f, TextAlignmentOptions.Center);
-            label.rectTransform.sizeDelta = Vector2.zero;
-            label.raycastTarget = false;
+            outcomeLabel = CreateLabel(go.transform, "Label", name,
+                new Vector2(0f, 0.45f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0.5f, 0.5f),
+                64f, TextAlignmentOptions.Center);
+            outcomeLabel.rectTransform.sizeDelta = Vector2.zero;
+            outcomeLabel.raycastTarget = false;
+
+            starsLabel = CreateLabel(go.transform, "Stars", string.Empty,
+                new Vector2(0f, 0f), new Vector2(1f, 0.45f), Vector2.zero, new Vector2(0.5f, 0.5f),
+                56f, TextAlignmentOptions.Center);
+            starsLabel.rectTransform.sizeDelta = Vector2.zero;
+            starsLabel.raycastTarget = false;
 
             go.SetActive(false);
             return go;
@@ -469,9 +538,9 @@ namespace InkFlow.Editor
         // ---------- Утиліти ----------
 
         /// <summary>
-        /// Проставляє приватні [SerializeField]-поля через SerializedObject і
-        /// ГОЛОСНО валідує результат: null на вході чи "fake null" (застарілий
-        /// референс, що записався порожнім) — це помилка бутстрапа, не тиха дірка в сцені.
+        /// Проставляє приватні [SerializeField]-поля й ГОЛОСНО валідує результат:
+        /// null на вході або поле, що записалось порожнім, — помилка бутстрапа,
+        /// а не тиха дірка в сцені, яку знайдуть уже в Play Mode.
         /// </summary>
         private static void Wire(Object target, params (string field, Object value)[] fields)
         {
@@ -490,26 +559,26 @@ namespace InkFlow.Editor
                     Debug.LogError($"[InkFlow] Поле '{field}' не знайдено на {target.GetType().Name}");
                     continue;
                 }
+
                 property.objectReferenceValue = value;
             }
+
             so.ApplyModifiedPropertiesWithoutUndo();
 
             var check = new SerializedObject(target);
             foreach (var (field, value) in fields)
-            {
                 if (value != null && check.FindProperty(field)?.objectReferenceValue == null)
                     Debug.LogError($"[InkFlow] Поле '{field}' на {target.GetType().Name} записалось як null — " +
-                                   "референс застарів. Запусти Bootstrap Phase 1 ще раз.");
-            }
+                                   "референс застарів. Запусти Bootstrap Scene ще раз.");
         }
 
-        private static void EnsureFolder(string path)
+        public static void EnsureFolder(string path)
         {
             if (AssetDatabase.IsValidFolder(path))
                 return;
             var parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
             var leaf = Path.GetFileName(path);
-            if (!AssetDatabase.IsValidFolder(parent))
+            if (!string.IsNullOrEmpty(parent) && !AssetDatabase.IsValidFolder(parent))
                 EnsureFolder(parent);
             AssetDatabase.CreateFolder(parent, leaf);
         }

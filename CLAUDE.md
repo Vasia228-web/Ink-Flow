@@ -1,61 +1,90 @@
-# Ink Flow — Unity merge-puzzle prototype
+# Ink Flow — стан проєкту
 
-Свайп-based merge-puzzle для Unity 2D (target: Android/iOS). Левел-дизайнери редагують рівні через ScriptableObject-аси в Inspector, не чіпаючи код.
+Мобільна головоломка про краплі чорнила (Unity 6, Android + iOS).
 
-## Стек і ключові рішення
+**Джерела правди:**
+- Ігрова правда — `~/Desktop/Ink Flow Design/ink-flow-master-doc_2.md`
+- Технічна правда — `~/Desktop/Ink Flow Design/ink-flow-architecture.md`
+- Стан проєкту (цей файл) — що зроблено, що наступне, особливості середовища.
 
-- **Unity 6000.5.4f1**, 2D URP template. Репозиторій = корінь Unity-проєкту.
-- **Input System** (`com.unity.inputsystem`) — новий Input System, НЕ legacy `Input.GetMouseButton`. Touch-first, без hover-залежностей. Один Input Actions asset для Editor (mouse) і mobile (touch).
-- **Анімації**: вбудовані Coroutines-твіни замість DOTween (рішення підтверджено у Фазі 2): власний хелпер `Tween.cs` (~50 рядків, OutQuad) покриває merge/burst/pulse/bounce без зовнішньої залежності. Модель мутується синхронно; `GridAnimator` лише візуалізує `MoveResult` (знімки змін сусідів у `BurstRecord.NeighborChanges`), наприкінці — синхронізуючий `Repaint`. Інпут блокується на час анімації (`SwipeInputHandler.InputLocked`).
-- **ScriptableObjects** для конфігурації рівнів (не JSON) — Inspector-редагування "з коробки".
-- **Assembly Definitions**: `Core` (чиста логіка, POCO), `Gameplay`, `UI`, `Tests`. Core НЕ посилається на Gameplay/UI — якщо таке посилання "потрібне", це помилка дизайну.
-- **Object Pooling**: `UnityEngine.Pool.ObjectPool<T>` через обгортку `CellPool`. ЖОДНИХ `Instantiate/Destroy` для клітинок/часток поза пулом — GC-паузи на мобільних відчутні під час chain-бурстів.
-- **Addressables** для LevelConfig-асетів (група "Levels") — оновлення рівнів/артів окремо від білду, готовність до live-ops.
-- **Свідомо НЕ використовуємо**: DI-фреймворк (VContainer/Zenject) — один core-loop, прямі serialized-референси простіші; DOTS/ECS — сітка ≤7×7 цього не потребує.
+Якщо архідок суперечить майстер-доку в геймдизайні — правий майстер-док. Якщо майстер-док суперечить архідоку в коді — правий архідок.
 
-## Правила гри (джерело правди для балансу)
+## Стек
 
-- Сітка N×N; клітинка порожня або `{color:int, density:int}`.
-- Свайп A→B (тільки 4 напрямки): якщо `color A == color B` → merge: `B.density += A.density`, A порожніє. Якщо кольори різні → хід відхилено, хід НЕ витрачається.
-- **Burst**: після merge, якщо `B.density >= burstThreshold` (з LevelConfig, базово 10) → B зникає; 4-directional сусіди: порожні фарбуються в color B з density=1; сусіди того ж кольору (ДО вибуху) отримують +1 density. Рекурсивно → chain reaction, лічильник `chainLength` для скору/фідбеку.
-- Хід витрачається ТІЛЬКИ якщо стався валідний merge.
-- Win-умови (enum `WinConditionType`): `Clear` (SingleColor | SingleCell) або `ScoreAttack` (targetScore за maxMoves; score = сума density усіх burst).
-- Поразка: maxMoves вичерпано, ціль не досягнута → одразу активна Retry (реініціалізація GridModel з LevelConfig, без перезавантаження сцени).
+Unity **6000.5.4f1**, 2D URP, C# 9 (nullable enabled в Core), IL2CPP + .NET Standard 2.1, Input System, Addressables, `UnityEngine.Pool`. Без DI-фреймворку і без DOTS/ECS — свідомо (архідок §1).
+
+## Карта збірок
+
+```
+InkFlow.Core        ← ЖОДНИХ посилань, noEngineReferences: true (навіть UnityEngine)
+InkFlow.Platform    ← інтерфейси сервісів + Null-реалізації
+InkFlow.Gameplay    ← Core + Platform + UnityEngine
+InkFlow.UI          ← Core + Meta (НЕ Gameplay: обмін через GameEvents/IGameCommands)
+InkFlow.Meta        ← Core
+InkFlow.App         ← усе вище (композиційний корінь)
+InkFlow.Editor      ← усе (бутстрап, авторинг рівнів, симулятори)
+InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
+```
+
+`GameEvents` і `IGameCommands` живуть у **Core** — саме тому UI бачить стан партії, не посилаючись на Gameplay.
+
+## Правила гри (стисло)
+
+- Свайп на сусіда: **той самий колір** → густоти додаються; **різний** → відскок, хід НЕ витрачається.
+- Густота ≥ порогу (базово 10) → **вибух** із силою = ФІНАЛЬНА густота (6+7 лопає з силою 13).
+- Зона вибуху — **завжди хрест із 4 клітинок**, незалежно від сили. Ніколи не змінюється.
+- **Сила фарбування** = сила ÷ 10, стеля = поріг−1 (базово 9). **Бризки** = 1 за кожні повні 15 сили, кожна силою 1, у випадкову клітинку **гало** (Мангеттен = 2).
+- Ефект: порожня → фарбується; той самий колір → +сила (так запалюються ланцюги); **чужий колір → РОЗМИВАЄТЬСЯ** (−сила) і лише впавши до нуля перефарбовується з густотою 1.
+- Ланцюги — черга FIFO, порядок Up→Right→Down→Left, стеля `MaxChainBursts` = 64 → подія `ChainTruncated`.
+- Перемога Puzzle: один колір АБО одна крапля. **Вибух не обов'язковий.** Поразка: ходи скінчились. **Тупік** (немає жодного дозволеного свайпу) — окремий стан.
+- Бос: влучання ТІЛЬКИ через верхній край сітки; 20+ = 2 сегменти, 35+ = 3 (стеля); діє кожен 3-й прийнятий хід і **завжди телеграфує намір ходом раніше**.
+- Endless: дозаправка після ходу; приплив +1 до мінімальної густоти кожні 10 вибухів; **система ніколи не вбиває гравця сама**.
 
 ## Статус
 
-- **Фаза 0 (інфраструктура)**: ✅ CLAUDE.md, .gitignore/.gitattributes (LFS), git-workflow.
-- **Фаза 1 (core loop)**: ✅ перевірена у Play Mode, змерджена в `main`.
-- **Фаза 2 (feel/анімації)**: код готовий на гілці `phase-2-feel-animations` (32 headless-тести зелені). Обсяг: merge-переливання 220ms + пульс 150ms, відскок 120ms, burst shrink 100ms + пул часток (8-12, 300ms), chain-звук з ростучим pitch (процедурний клип, без бінарних асетів), camera shake з 3-ї ланки, near-miss glow (>=80% порогу). Для перевірки: перезапустити **Ink Flow → Setup → Bootstrap Phase 1** (додає BurstFx.prefab і нові компоненти в сцену), Play. Merge у `main` після підтвердження.
-- Фаза 3 (метагра) — тільки після підтвердження користувача.
+- ✅ **Ядро (архідок §4-6)**: модель, стрічка подій `MoveResult`, усі формули §5, детермінований XorShift, сесії Puzzle/Endless/Boss, солвер рівнів.
+- ✅ **Feel (§8)**: `GridView.PlayEvents` — переливання merge, стискання+частинки вибуху, поп-ін фарбування, бризки, near-miss glow, тряска з 3-ї ланки, звук зі зростаючим pitch. Інпут блокується під час програвання; `FeelConfig.AnimationSpeed = 0` дає миттєвий режим.
+- ✅ **Шари Meta/Platform/App**: гаманець, денний ліміт, нагороди, версіоноване збереження з міграціями й атомарним записом; Null-реалізації всіх платформних сервісів; `GameBootstrap` як єдиний композиційний корінь.
+- ✅ **Тести**: 54 headless-тести, усі 7 обов'язкових запобіжників §14.
+- ✅ **Симулятори (§15)**: `LevelSolver` (доводить розв'язність, дає мінімум ходів), `EconomySimulator` (30 днів → CSV).
+- ⚠️ **Потребує запуску в редакторі**: `Ink Flow → Setup → Bootstrap Scene` (генерує спрайт, префаби, конфіги, рівні, Addressables-групу, сцену) і `Ink Flow → Setup → Apply Mobile Project Settings`.
+- ⛔ **Не зроблено (Фази 5-6, потребує акаунтів/SDK)**: реальні Android/iOS-реалізації Platform, UGS (Auth/Cloud Save/Leaderboards), галактика й магазин як екрани, PrivacyInfo.xcprivacy, ATT, keystore, публікація.
 
-## Тести
+Гілка: `phase-1-core`. Попередні: `phase-1-core-loop`, `phase-2-feel-animations` (змерджені в `main` до реархітектури).
 
-- Edit Mode тести: `Assets/_Tests/EditMode` (Unity Test Framework, NUnit), покривають merge/burst/chain у `GameRules` без сцени.
-- CLI (Unity Editor має бути ЗАКРИТИЙ — batchmode не працює при відкритому проєкті):
-  ```
-  "/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity" \
-    -batchmode -projectPath "<repo root>" \
-    -runTests -testPlatform EditMode -testResults "$(pwd)/TestResults.xml" | cat
-  ```
-- Швидка headless-перевірка чистої Core-логіки (без Unity, компілює Core + консольний runner бандленим dotnet):
-  ```
-  ./Tools/run-core-tests.sh
-  ```
-- Перед комітом, що зачіпає `GameRules.cs`/`GridModel.cs` — прогнати тести; червоні тести НЕ комітяться.
+## Команди
 
-## Git-workflow
+Headless-тести (працюють при ВІДКРИТОМУ редакторі — саме тому вони й існують):
+```bash
+bash Tools/run-core-tests.sh
+```
 
-- Окремий коміт після КОЖНОГО завершеного пункту фази; imperative-повідомлення ("Add GameRules merge/burst logic with unit tests").
-- Окрема гілка на фазу (`phase-1-core-loop`, `phase-2-feel-animations`); merge у `main` лише після підтвердження користувача.
-- Git LFS активний (див. `.gitattributes`): png/psd/wav/mp3/fbx тощо.
+Edit Mode тести через Unity CLI (редактор має бути ЗАКРИТИЙ):
+```bash
+"/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity" -batchmode -projectPath "$(pwd)" -runTests -testPlatform EditMode -testResults "$(pwd)/TestResults.xml" | cat
+```
+
+Компіляційна перевірка без редактора — компілятор із комплекту Unity:
+`.../Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet` + `Roslyn/bincore/csc.dll`, посилання на `Library/ScriptAssemblies/*.dll` і `NetStandard/compat/2.1.0/shims/netfx`.
 
 ## Конвенції
 
-- `GameRules.cs`, `GridModel.cs`, `Cell.cs` — POCO, БЕЗ UnityEngine API (тестованість без сцени). `LevelConfig.cs` — ScriptableObject у Core (єдиний виняток, тільки серіалізація даних, без логіки).
-- MonoBehaviour: `[SerializeField]` + приватні поля, не публічні. Ніяких `Find/FindObjectOfType` в Update.
-- Рівні: `Assets/_ScriptableObjects/Levels/Level_XXX.asset`, Addressable-група "Levels", адреса `Levels/Level_XXX`.
-- Формули density/burst закоментовані в `GameRules.cs` людською мовою — левел-дизайнери правлять LevelConfig без читання коду.
-- Editor-утиліти: меню `Ink Flow/...` (bootstrap сцени/префабів/Addressables — `Ink Flow/Setup/Bootstrap Phase 1`).
+- **Нова механіка = спершу тест у `InkFlow.Core.Tests`, потім реалізація, потім вигляд.**
+- **Будь-яке нове число → в конфіг** (`BalanceConfig`/`FeelConfig`), не в код.
+- Рівні: `Assets/_ScriptableObjects/Levels/Level_XXX.asset`, Addressables-група `Levels`, адреса `Levels/Level_001`. Розкладки живуть у `Core/Config/StarterLevels.cs` — одне джерело для генератора асетів і тесту розв'язності.
+- Координати: **X — колонка, Y — ряд знизу вгору**. Верхній ряд «дострілює» до боса.
+- MonoBehaviour: `[SerializeField]` + приватні поля. Ніяких `FindObjectOfType` у геймплеї.
+- Жодного `Instantiate`/`Destroy` під час партії — тільки `CellPool`/`ParticlePool`.
+- Editor-меню: `Ink Flow/Setup/*`, `Ink Flow/Simulate/*`.
 
-**Онови цей файл у кінці кожної фази/значної зміни.**
+## Особливості середовища (перевірено)
+
+- Editor-бутстрап мусить вантажити асети **строго після** `EditorSceneManager.NewScene`: закриття сцени вивантажує незакорінені асети, і раніше отриманий референс тихо стає «fake null», який записується в сцену порожнім полем. `Wire()` це валідує й кричить у консоль.
+- У шрифті LiberationSans SDF немає гліфа `↺` — у UI використовуємо текст.
+- Batchmode недоступний, поки відкритий редактор (`Temp/UnityLockfile`); саме для цього є `Tools/run-core-tests.sh`.
+
+## Git-workflow
+
+Гілка на фазу; окремий коміт на кожен пункт; імперативні повідомлення. Перед комітом, що зачіпає Core — прогнати тести. Git LFS налаштований на `.png/.psd/.wav/.mp3/.fbx`. Force Text серіалізація увімкнена.
+
+**Онови цей файл у кінці кожної фази.**
