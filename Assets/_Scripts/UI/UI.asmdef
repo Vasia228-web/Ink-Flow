@@ -3,6 +3,7 @@
     "rootNamespace": "InkFlow.UI",
     "references": [
         "InkFlow.Core",
+        "InkFlow.Meta",
         "UnityEngine.UI",
         "Unity.TextMeshPro"
     ],
