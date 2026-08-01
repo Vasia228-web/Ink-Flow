@@ -43,6 +43,40 @@ namespace NUnit.Framework
                     message ?? $"Expected: {expected ?? "null"}, but was: {actual ?? "null"}");
         }
 
+        public static void AreNotEqual(object expected, object actual, string message = null)
+        {
+            if (EqualityComparer<object>.Default.Equals(Normalize(expected), Normalize(actual)))
+                throw new AssertionException(message ?? $"Expected NOT: {expected ?? "null"}");
+        }
+
+        public static void IsNull(object value, string message = null)
+        {
+            if (value != null)
+                throw new AssertionException(message ?? $"Expected: null, but was: {value}");
+        }
+
+        public static void IsNotNull(object value, string message = null)
+        {
+            if (value == null)
+                throw new AssertionException(message ?? "Expected: not null, but was: null");
+        }
+
+        public static void Fail(string message = null) =>
+            throw new AssertionException(message ?? "Assert.Fail");
+
+        public static void DoesNotThrow(Action action, string message = null)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                throw new AssertionException(
+                    message ?? $"Expected no exception, but got {e.GetType().Name}: {e.Message}");
+            }
+        }
+
         public static TException Throws<TException>(Action action, string message = null)
             where TException : Exception
         {
