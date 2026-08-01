@@ -6,7 +6,7 @@
 
 - **Unity 6000.5.4f1**, 2D URP template. Репозиторій = корінь Unity-проєкту.
 - **Input System** (`com.unity.inputsystem`) — новий Input System, НЕ legacy `Input.GetMouseButton`. Touch-first, без hover-залежностей. Один Input Actions asset для Editor (mouse) і mobile (touch).
-- **Анімації**: Фаза 1 — без анімацій. Для Фази 2 обрано вбудовані Coroutines/AnimationCurve-твіни замість DOTween: одна менша зовнішня залежність, обсяг твінів малий (merge/burst/pulse), а власний легкий tween-хелпер покриває потреби. Переглянути, якщо у Фазі 2/3 твінів стане суттєво більше.
+- **Анімації**: вбудовані Coroutines-твіни замість DOTween (рішення підтверджено у Фазі 2): власний хелпер `Tween.cs` (~50 рядків, OutQuad) покриває merge/burst/pulse/bounce без зовнішньої залежності. Модель мутується синхронно; `GridAnimator` лише візуалізує `MoveResult` (знімки змін сусідів у `BurstRecord.NeighborChanges`), наприкінці — синхронізуючий `Repaint`. Інпут блокується на час анімації (`SwipeInputHandler.InputLocked`).
 - **ScriptableObjects** для конфігурації рівнів (не JSON) — Inspector-редагування "з коробки".
 - **Assembly Definitions**: `Core` (чиста логіка, POCO), `Gameplay`, `UI`, `Tests`. Core НЕ посилається на Gameplay/UI — якщо таке посилання "потрібне", це помилка дизайну.
 - **Object Pooling**: `UnityEngine.Pool.ObjectPool<T>` через обгортку `CellPool`. ЖОДНИХ `Instantiate/Destroy` для клітинок/часток поза пулом — GC-паузи на мобільних відчутні під час chain-бурстів.
@@ -25,8 +25,9 @@
 ## Статус
 
 - **Фаза 0 (інфраструктура)**: ✅ CLAUDE.md, .gitignore/.gitattributes (LFS), git-workflow.
-- **Фаза 1 (core loop)**: ✅ код повністю на гілці `phase-1-core-loop` (компілюється без помилок, 31 headless-тест зелений). Разова ручна дія в Editor: меню **Ink Flow → Setup → Bootstrap Phase 1** (створює спрайт, Cell.prefab, сцену Game.unity, Addressables-групу "Levels"; якщо попросить повторний запуск після імпорту TMP — запустити ще раз). Після перевірки у Play Mode і підтвердження користувача — merge у `main`.
-- Фаза 2 (feel/анімації), Фаза 3 (метагра) — тільки після підтвердження користувача.
+- **Фаза 1 (core loop)**: ✅ перевірена у Play Mode, змерджена в `main`.
+- **Фаза 2 (feel/анімації)**: код готовий на гілці `phase-2-feel-animations` (32 headless-тести зелені). Обсяг: merge-переливання 220ms + пульс 150ms, відскок 120ms, burst shrink 100ms + пул часток (8-12, 300ms), chain-звук з ростучим pitch (процедурний клип, без бінарних асетів), camera shake з 3-ї ланки, near-miss glow (>=80% порогу). Для перевірки: перезапустити **Ink Flow → Setup → Bootstrap Phase 1** (додає BurstFx.prefab і нові компоненти в сцену), Play. Merge у `main` після підтвердження.
+- Фаза 3 (метагра) — тільки після підтвердження користувача.
 
 ## Тести
 

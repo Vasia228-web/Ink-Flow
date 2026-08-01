@@ -27,6 +27,9 @@ namespace InkFlow.Editor
     {
         private const string SpritePath = "Assets/_Sprites/Square.png";
         private const string CellPrefabPath = "Assets/_Prefabs/Cell.prefab";
+        private const string BurstFxPrefabPath = "Assets/_Prefabs/BurstFx.prefab";
+        private const string ParticleMaterialPath =
+            "Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat";
         private const string ScenePath = "Assets/Scenes/Game.unity";
         private const string InputActionsPath = "Assets/_Scripts/Gameplay/InkFlowControls.inputactions";
         private const string UnlitSpriteMaterialPath =
@@ -55,6 +58,7 @@ namespace InkFlow.Editor
             // кроках, стають "fake null" і записались би в сцену як порожні.
             EnsureSquareSprite();
             EnsureCellPrefab();
+            EnsureBurstFxPrefab();
             EnsureAddressableLevels();
             BuildGameScene();
 
@@ -165,6 +169,70 @@ namespace InkFlow.Editor
             }
         }
 
+        // ---------- BurstFx prefab ----------
+
+        private static void EnsureBurstFxPrefab()
+        {
+            if (AssetDatabase.LoadAssetAtPath<BurstEffect>(BurstFxPrefabPath) != null)
+                return;
+
+            EnsureFolder("Assets/_Prefabs");
+
+            var fxGo = new GameObject("BurstFx");
+            try
+            {
+                var ps = fxGo.AddComponent<ParticleSystem>();
+
+                var main = ps.main;
+                main.duration = 0.1f;
+                main.loop = false;
+                main.playOnAwake = false;
+                main.startLifetime = 0.3f; // ТЗ: частки згасають за 300ms
+                main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 3.5f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.2f);
+                main.gravityModifier = 0f;
+                main.maxParticles = 16;
+
+                var emission = ps.emission;
+                emission.rateOverTime = 0f;
+                emission.SetBursts(new[] { new ParticleSystem.Burst(0f, 8, 12, 1, 0.01f) }); // ТЗ: 8-12 часток
+
+                var shape = ps.shape;
+                shape.enabled = true;
+                shape.shapeType = ParticleSystemShapeType.Circle;
+                shape.radius = 0.08f;
+
+                var colorOverLifetime = ps.colorOverLifetime;
+                colorOverLifetime.enabled = true;
+                var fade = new Gradient();
+                fade.SetKeys(
+                    new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                    new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+                colorOverLifetime.color = new ParticleSystem.MinMaxGradient(fade);
+
+                var sizeOverLifetime = ps.sizeOverLifetime;
+                sizeOverLifetime.enabled = true;
+                sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0.2f));
+
+                var renderer = fxGo.GetComponent<ParticleSystemRenderer>();
+                var material = AssetDatabase.LoadAssetAtPath<Material>(ParticleMaterialPath);
+                if (material != null)
+                    renderer.sharedMaterial = material;
+                renderer.sortingOrder = 3; // над клітинками і підписами
+
+                var fx = fxGo.AddComponent<BurstEffect>();
+                var so = new SerializedObject(fx);
+                so.FindProperty("particles").objectReferenceValue = ps;
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                PrefabUtility.SaveAsPrefabAsset(fxGo, BurstFxPrefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(fxGo);
+            }
+        }
+
         // ---------- Addressables ----------
 
         private static void EnsureAddressableLevels()
@@ -203,15 +271,16 @@ namespace InkFlow.Editor
             // і записався б у сцену порожнім полем.
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
             var cellPrefab = AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath);
-            if (sprite == null || cellPrefab == null)
+            var burstFxPrefab = AssetDatabase.LoadAssetAtPath<BurstEffect>(BurstFxPrefabPath);
+            if (sprite == null || cellPrefab == null || burstFxPrefab == null)
             {
-                Debug.LogError($"[InkFlow] Не знайдено {SpritePath} або {CellPrefabPath} — сцена не збудована.");
+                Debug.LogError($"[InkFlow] Не знайдено {SpritePath}, {CellPrefabPath} або {BurstFxPrefabPath} — сцена не збудована.");
                 return;
             }
 
             var camera = CreateCamera();
             CreateGlobalLight();
-            var gridController = CreateGridRig(camera, cellPrefab);
+            var gridController = CreateGridRig(camera, cellPrefab, burstFxPrefab);
             CreateGameManagement(gridController);
             CreateHud(sprite);
             CreateEventSystem();
@@ -232,6 +301,7 @@ namespace InkFlow.Editor
             camera.backgroundColor = new Color32(24, 25, 38, 255);
             cameraGo.AddComponent<AudioListener>();
             cameraGo.AddComponent<UniversalAdditionalCameraData>();
+            cameraGo.AddComponent<CameraShaker>();
             return camera;
         }
 
@@ -243,13 +313,20 @@ namespace InkFlow.Editor
             light.intensity = 1f;
         }
 
-        private static GridController CreateGridRig(Camera camera, CellView cellPrefab)
+        private static GridController CreateGridRig(Camera camera, CellView cellPrefab, BurstEffect burstFxPrefab)
         {
             var gridRoot = new GameObject("GridRoot");
             var pool = gridRoot.AddComponent<CellPool>();
             var gridView = gridRoot.AddComponent<GridView>();
             var swipeInput = gridRoot.AddComponent<SwipeInputHandler>();
             var gridController = gridRoot.AddComponent<GridController>();
+            var effectPool = gridRoot.AddComponent<EffectPool>();
+            var animator = gridRoot.AddComponent<GridAnimator>();
+
+            var audioSource = gridRoot.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f; // 2D-звук
+            var chainAudio = gridRoot.AddComponent<ChainAudio>();
 
             var actions = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
             if (actions == null)
@@ -258,7 +335,14 @@ namespace InkFlow.Editor
             Wire(pool, ("cellPrefab", cellPrefab), ("contentRoot", gridRoot.transform));
             Wire(gridView, ("pool", pool));
             Wire(swipeInput, ("actionsAsset", actions), ("gridView", gridView), ("worldCamera", camera));
-            Wire(gridController, ("view", gridView), ("input", swipeInput));
+            Wire(effectPool, ("effectPrefab", burstFxPrefab), ("contentRoot", gridRoot.transform));
+            Wire(chainAudio, ("source", audioSource));
+            Wire(animator,
+                ("view", gridView),
+                ("effects", effectPool),
+                ("chainAudio", chainAudio),
+                ("cameraShaker", camera.GetComponent<CameraShaker>()));
+            Wire(gridController, ("view", gridView), ("input", swipeInput), ("animator", animator));
 
             return gridController;
         }

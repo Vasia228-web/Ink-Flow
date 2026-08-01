@@ -129,9 +129,13 @@ namespace InkFlow.Gameplay
             for (var i = 0; i < result.Bursts.Count; i++)
             {
                 var burst = result.Bursts[i];
+                // За межею maxAnimatedLinks решта ланцюга програється миттєво і
+                // без часток/звуку — інакше патологічний ланцюг (див. MaxChainBursts)
+                // дав би сотні PlayOneShot і спавнів ефектів за один кадр.
                 var animated = i < maxAnimatedLinks;
 
-                OnChainLink(i);
+                if (animated)
+                    OnChainLink(i);
 
                 if (view.TryGetView(burst.Position, out var burstView))
                 {
@@ -141,7 +145,7 @@ namespace InkFlow.Gameplay
                     view.ReleaseAt(burst.Position);
                 }
 
-                if (effects != null)
+                if (animated && effects != null)
                     effects.PlayBurst(view.CellToWorld(burst.Position), view.ColorForIndex(burst.Color));
 
                 // Сусіди цього вибуху зі знімка Core: пофарбовані з'являються поп-іном,
