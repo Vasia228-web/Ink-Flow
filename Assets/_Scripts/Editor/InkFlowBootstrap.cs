@@ -286,6 +286,8 @@ namespace InkFlow.Editor
                 "Levels", false, false, true, null,
                 typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema));
 
+            RemoveDanglingEntries(settings, group);
+
             foreach (var path in LevelAuthoring.LevelAssetPaths())
             {
                 var guid = AssetDatabase.AssetPathToGUID(path);
@@ -300,6 +302,28 @@ namespace InkFlow.Editor
             }
 
             settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, null, true, true);
+        }
+
+        /// <summary>
+        /// Прибирає записи на асети, яких уже немає. Addressables зберігають GUID, а не шлях,
+        /// тож перейменований чи видалений рівень лишає «висячий» запис, який ламає
+        /// збірку контенту — і робить це мовчки, аж до білда.
+        /// </summary>
+        private static void RemoveDanglingEntries(AddressableAssetSettings settings, AddressableAssetGroup group)
+        {
+            var stale = new System.Collections.Generic.List<AddressableAssetEntry>();
+            foreach (var entry in group.entries)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(entry.guid);
+                if (string.IsNullOrEmpty(path) || AssetDatabase.LoadMainAssetAtPath(path) == null)
+                    stale.Add(entry);
+            }
+
+            foreach (var entry in stale)
+            {
+                Debug.Log($"[InkFlow] Прибрано висячий Addressables-запис '{entry.address}' (асет видалено).");
+                settings.RemoveAssetEntry(entry.guid, false);
+            }
         }
 
         // ---------- Сцена ----------
