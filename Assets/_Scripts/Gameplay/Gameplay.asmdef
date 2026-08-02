@@ -5,7 +5,8 @@
         "InkFlow.Core",
         "InkFlow.Platform",
         "Unity.InputSystem",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -20,9 +20,10 @@ namespace InkFlow.Gameplay
         [SerializeField] private float heightAboveGrid = 1.2f;
 
         private readonly List<SpriteRenderer> _segments = new List<SpriteRenderer>(8);
-        private BossSession _session;
+        private BossSession? _session;
 
-        public void Bind(BossSession session)
+        /// <summary>null — рівень не бос-рівень, в'ю просто вимикається.</summary>
+        public void Bind(BossSession? session)
         {
             _session = session;
             gameObject.SetActive(session != null);

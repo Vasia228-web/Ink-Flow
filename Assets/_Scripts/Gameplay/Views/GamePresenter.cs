@@ -18,12 +18,12 @@ namespace InkFlow.Gameplay
         [SerializeField, Min(0f)] private float hintDelaySeconds = 5f;
 
         private readonly InputRouter _router = new InputRouter();
-        private GameSession _session;
-        private Coroutine _playback;
+        private GameSession? _session;
+        private Coroutine? _playback;
         private float _idleTimer;
         private bool _hintShown;
 
-        public GameSession Session => _session;
+        public GameSession? Session => _session;
 
         private void Awake()
         {
@@ -74,7 +74,8 @@ namespace InkFlow.Gameplay
             _router.Locked = false;
             _playback = null;
 
-            if (_session.IsOver)
+            // Сесію могли скинути (Retry) прямо під час програвання подій.
+            if (_session != null && _session.IsOver)
                 GameEvents.RaiseSessionEnded(_session.State);
         }
 

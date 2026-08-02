@@ -13,7 +13,7 @@ namespace InkFlow.Gameplay
         [SerializeField, Range(0.05f, 0.5f)] private float duration = 0.15f;
 
         private Vector3 _basePosition;
-        private Coroutine _active;
+        private Coroutine? _active;
 
         private void Awake() => _basePosition = transform.localPosition;
 
