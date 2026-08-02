@@ -66,7 +66,7 @@ namespace InkFlow.Meta
 
             var json = JsonUtility.ToJson(save, prettyPrint: false);
             var directory = Path.GetDirectoryName(_path);
-            if (!string.IsNullOrEmpty(directory))
+            if (directory is not null && directory.Length > 0)
                 Directory.CreateDirectory(directory);
 
             File.WriteAllText(_tempPath, json);

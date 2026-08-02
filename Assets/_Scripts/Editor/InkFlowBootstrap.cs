@@ -600,11 +600,18 @@ namespace InkFlow.Editor
         {
             if (AssetDatabase.IsValidFolder(path))
                 return;
+
             var parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
-            var leaf = Path.GetFileName(path);
-            if (!string.IsNullOrEmpty(parent) && !AssetDatabase.IsValidFolder(parent))
+            // Явна перевірка замість string.IsNullOrEmpty: у reference-збірках, якими
+            // компілює Unity, вона не має [NotNullWhen(false)], тож компілятор НЕ звужує
+            // тип і видає CS8604. `is null` звужує завжди.
+            if (parent is null || parent.Length == 0)
+                return; // дійшли до кореня Assets — створювати нічого
+
+            if (!AssetDatabase.IsValidFolder(parent))
                 EnsureFolder(parent);
-            AssetDatabase.CreateFolder(parent, leaf);
+
+            AssetDatabase.CreateFolder(parent, Path.GetFileName(path));
         }
     }
 }
