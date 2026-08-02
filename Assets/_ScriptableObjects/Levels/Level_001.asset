@@ -15,28 +15,33 @@ MonoBehaviour:
   levelId: 1
   width: 4
   height: 4
-  colorsCount: 1
-  maxMoves: 5
+  colorsCount: 2
+  maxMoves: 3
   goal: 0
   bossSegments: 5
   startingCells:
   - x: 1
     y: 1
     color: 1
-    density: 1
+    density: 4
     flags: 0
   - x: 2
     y: 1
     color: 1
-    density: 1
-    flags: 0
-  - x: 1
-    y: 2
-    color: 1
-    density: 2
+    density: 6
     flags: 0
   - x: 2
     y: 2
-    color: 1
-    density: 2
+    color: 2
+    density: 1
+    flags: 0
+  - x: 2
+    y: 0
+    color: 2
+    density: 1
+    flags: 0
+  - x: 3
+    y: 1
+    color: 2
+    density: 1
     flags: 0

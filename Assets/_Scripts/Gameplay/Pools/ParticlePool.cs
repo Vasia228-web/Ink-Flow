@@ -4,36 +4,6 @@ using UnityEngine.Pool;
 
 namespace InkFlow.Gameplay
 {
-    /// <summary>Частинки вибуху/бризки. Конфігурує префаб бутстрап; ефект сам вертається в пул.</summary>
-    [RequireComponent(typeof(ParticleSystem))]
-    public sealed class BurstEffect : MonoBehaviour, IPoolable
-    {
-        [SerializeField] private ParticleSystem particles;
-
-        public float TotalDuration
-        {
-            get
-            {
-                var main = particles.main;
-                return main.duration + main.startLifetime.constantMax;
-            }
-        }
-
-        public void Play(Color color, float scale = 1f)
-        {
-            var main = particles.main;
-            main.startColor = color;
-            transform.localScale = Vector3.one * scale;
-            particles.Clear();
-            particles.Play();
-        }
-
-        public void OnGetFromPool() { }
-
-        public void OnReleaseToPool() =>
-            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-    }
-
     /// <summary>
     /// Пул частинок — той самий принцип, що CellPool: під час партії нічого не інстанціюється (§8).
     /// </summary>

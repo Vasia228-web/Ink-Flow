@@ -32,6 +32,7 @@ namespace InkFlow.Editor
 
             problems += ReportMissingScripts(report);
             problems += ReportUnusedAssets(report);
+            problems += ReportOrphanedMonoBehaviours(report);
 
             if (problems == 0)
                 Debug.Log("[InkFlow] Валідація: проблем не знайдено.");
@@ -78,6 +79,50 @@ namespace InkFlow.Editor
 
             foreach (Transform child in go.transform)
                 CountMissing(child.gameObject, $"{path}/{child.name}", affected);
+        }
+
+        /// <summary>
+        /// Шукає MonoBehaviour/ScriptableObject, чия назва класу не збігається з іменем файлу.
+        /// Unity створює MonoScript ЛИШЕ для класу, однойменного з файлом, тож решта
+        /// компілюється, але не серіалізується: компонент зберігається з порожнім m_Script,
+        /// а LoadAssetAtPath&lt;T&gt; повертає null попри наявний префаб. Помилка мовчазна
+        /// й дуже дорога в діагностиці — тому ловимо її тут.
+        /// </summary>
+        private static int ReportOrphanedMonoBehaviours(StringBuilder report)
+        {
+            var found = 0;
+            var pattern = new System.Text.RegularExpressions.Regex(
+                @"^\s*(?:public|internal)\s+(?:sealed\s+|abstract\s+|partial\s+)*class\s+(\w+)\s*:\s*([^\{\r\n]+)",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+
+            foreach (var guid in AssetDatabase.FindAssets("t:MonoScript", new[] { "Assets/_Scripts", "Assets/Tests" }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!path.EndsWith(".cs"))
+                    continue;
+
+                var stem = System.IO.Path.GetFileNameWithoutExtension(path);
+                string source;
+                try { source = System.IO.File.ReadAllText(path); }
+                catch { continue; }
+
+                foreach (System.Text.RegularExpressions.Match match in pattern.Matches(source))
+                {
+                    var className = match.Groups[1].Value;
+                    var bases = match.Groups[2].Value;
+                    var isUnityType = bases.Contains("MonoBehaviour") || bases.Contains("ScriptableObject") ||
+                                      bases.Contains("ScreenBase");
+                    if (!isUnityType || className == stem)
+                        continue;
+
+                    found++;
+                    report.AppendLine($"• {path}: клас '{className}' не збігається з іменем файлу — " +
+                                      "Unity не створить для нього MonoScript.");
+                    report.AppendLine($"    → винеси '{className}' у файл {className}.cs");
+                }
+            }
+
+            return found;
         }
 
         private static int ReportUnusedAssets(StringBuilder report)

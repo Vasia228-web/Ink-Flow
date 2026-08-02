@@ -64,7 +64,9 @@ namespace InkFlow.Editor
             EnsureConfigs();
             LevelAuthoring.CreateStarterLevels();
             EnsureAddressableLevels();
-            BuildGameScene();
+
+            if (!BuildGameScene())
+                return; // помилку вже показано — не рапортуємо про успіх
 
             AssetDatabase.SaveAssets();
             Debug.Log("[InkFlow] Bootstrap завершено: Assets/Scenes/Game.unity готова до Play Mode.");
@@ -372,7 +374,8 @@ namespace InkFlow.Editor
 
         // ---------- Сцена ----------
 
-        private static void BuildGameScene()
+        /// <summary>true — сцену збудовано й збережено.</summary>
+        private static bool BuildGameScene()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -385,25 +388,38 @@ namespace InkFlow.Editor
             var feel = AssetDatabase.LoadAssetAtPath<FeelConfig>(FeelConfigPath);
             var actions = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
 
-            if (sprite == null || cellPrefab == null || burstFx == null || bossSegment == null ||
-                balance == null || feel == null || actions == null)
+            // Перелічуємо КОЖЕН асет поіменно: «не всі асети знайдено» не дає жодної підказки,
+            // а причини бувають неочевидні (напр. MonoBehaviour у файлі з іншою назвою
+            // не отримує MonoScript, і LoadAssetAtPath<T> повертає null попри наявний файл).
+            var missing = new System.Collections.Generic.List<string>();
+            if (sprite == null) missing.Add(SpritePath);
+            if (cellPrefab == null) missing.Add($"{CellPrefabPath} (компонент CellView)");
+            if (burstFx == null) missing.Add($"{BurstFxPrefabPath} (компонент BurstEffect)");
+            if (bossSegment == null) missing.Add($"{BossSegmentPrefabPath} (компонент SpriteRenderer)");
+            if (balance == null) missing.Add(BalanceConfigPath);
+            if (feel == null) missing.Add(FeelConfigPath);
+            if (actions == null) missing.Add(InputActionsPath);
+
+            if (missing.Count > 0)
             {
-                Debug.LogError("[InkFlow] Не всі асети знайдено — сцена не збудована. " +
-                               "Запусти Bootstrap Scene ще раз.");
-                return;
+                Debug.LogError("[InkFlow] Сцена НЕ збудована — не знайдено:\n  " +
+                               string.Join("\n  ", missing));
+                return false;
             }
 
             var camera = CreateCamera();
             CreateGlobalLight();
 
-            var rig = CreateGridRig(camera, cellPrefab, burstFx, bossSegment, feel, actions);
-            CreateAppRoot(rig.presenter, rig.feedback, balance);
-            CreateHud(sprite);
+            // Null уже виключено перевіркою вище — '!' лише повідомляє про це компілятору.
+            var rig = CreateGridRig(camera, cellPrefab!, burstFx!, bossSegment!, feel!, actions!);
+            CreateAppRoot(rig.presenter, rig.feedback, balance!);
+            CreateHud(sprite!);
             CreateEventSystem();
 
             EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            return true;
         }
 
         private static Camera CreateCamera()

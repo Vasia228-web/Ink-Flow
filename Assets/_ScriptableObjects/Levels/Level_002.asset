@@ -16,37 +16,37 @@ MonoBehaviour:
   width: 5
   height: 5
   colorsCount: 2
-  maxMoves: 8
+  maxMoves: 6
   goal: 0
   bossSegments: 5
   startingCells:
-  - x: 1
-    y: 2
-    color: 1
-    density: 4
-    flags: 0
   - x: 2
     y: 2
     color: 1
-    density: 6
+    density: 15
+    flags: 8
+  - x: 2
+    y: 1
+    color: 1
+    density: 5
+    flags: 0
+  - x: 2
+    y: 0
+    color: 1
+    density: 4
+    flags: 0
+  - x: 1
+    y: 2
+    color: 2
+    density: 2
     flags: 0
   - x: 3
     y: 2
     color: 2
-    density: 1
+    density: 2
     flags: 0
   - x: 2
     y: 3
     color: 2
-    density: 1
-    flags: 0
-  - x: 2
-    y: 1
-    color: 2
-    density: 1
-    flags: 0
-  - x: 1
-    y: 3
-    color: 2
-    density: 1
+    density: 2
     flags: 0
