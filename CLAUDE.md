@@ -64,8 +64,11 @@ Edit Mode тести через Unity CLI (редактор має бути ЗА
 "/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity" -batchmode -projectPath "$(pwd)" -runTests -testPlatform EditMode -testResults "$(pwd)/TestResults.xml" | cat
 ```
 
-Компіляційна перевірка без редактора — компілятор із комплекту Unity:
-`.../Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet` + `Roslyn/bincore/csc.dll`, посилання на `Library/ScriptAssemblies/*.dll` і `NetStandard/compat/2.1.0/shims/netfx`.
+Компіляційна перевірка без редактора — **обов'язково перед комітом**:
+```bash
+bash Tools/check-compile.sh
+```
+Компілює кожну збірку ОКРЕМО, в порядку залежностей, з її власним `csc.rsp` — рівно як Unity. Монолітна компіляція «всіх .cs разом» дає хибне зелене: вона робить `internal` видимими між збірками і застосовує nullable-контекст глобально, тому пропускає і CS1061, і CS8632. Це вже одного разу коштувало нам 9 помилок і 20 попереджень, які знайшов лише редактор.
 
 ## Конвенції
 
@@ -78,6 +81,10 @@ Edit Mode тести через Unity CLI (редактор має бути ЗА
 - Editor-меню: `Ink Flow/Setup/*`, `Ink Flow/Simulate/*`.
 
 ## Особливості середовища (перевірено)
+
+- **`nullable enabled` вмикається `csc.rsp` у теці кожної збірки**, не глобально. Кожна нова збірка потребує свого `csc.rsp`, інакше будь-яка анотація `?` дає CS8632. У них же вимкнено CS8618: поля `[SerializeField]` заповнює десеріалізація, а не конструктор.
+- **`internal`-члени Core видно тестам лише через `InternalsVisibleTo`** (`Core/AssemblyInfo.cs`, `Meta/AssemblyInfo.cs`) — тести живуть в окремих збірках.
+- `TMP_Text` успадкований від `MaskableGraphic`, тож будь-яка збірка з TMP потребує ще й посилання на `UnityEngine.UI`.
 
 - Editor-бутстрап мусить вантажити асети **строго після** `EditorSceneManager.NewScene`: закриття сцени вивантажує незакорінені асети, і раніше отриманий референс тихо стає «fake null», який записується в сцену порожнім полем. `Wire()` це валідує й кричить у консоль.
 - У шрифті LiberationSans SDF немає гліфа `↺` — у UI використовуємо текст.
