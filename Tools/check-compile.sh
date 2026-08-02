@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Компіляційна перевірка без відкриття Unity.
 #
-# ПРИНЦИП: не відтворювати параметри компіляції вручну, а брати ВЛАСНІ response-файли Unity
-# з Library/Bee/artifacts/*.dag/. У них уже точний набір посилань, define-ів і аналізаторів —
-# рівно те, чим збирає редактор. Будь-яка ручна реконструкція рано чи пізно розходиться
-# (різні reference-збірки → різні nullable-анотації → попередження, які бачить лише Unity).
+# ПРИНЦИП: параметри компіляції беремо з ВЛАСНИХ response-файлів Unity
+# (Library/Bee/artifacts/*.dag/) — там точний набір посилань, define-ів і аналізаторів.
+# Ручна реконструкція вже двічі давала хибне зелене (різні reference-збірки → різні
+# nullable-анотації; монолітна збірка → невидимі помилки з internal).
 #
-# Кожна збірка компілюється ОКРЕМО: монолітна збірка «всіх .cs разом» робить internal-члени
-# видимими між збірками й дає хибне зелене.
+# АЛЕ список ФАЙЛІВ у тих rsp — станом на останню компіляцію Unity. Тому джерела
+# підставляємо поточні: інакше щойно доданий файл мовчки не перевіряється.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,43 +19,73 @@ OUT="${TMPDIR:-/tmp}/inkflow-compile"
 
 [[ -x "$DOTNET" && -n "$CSC" ]] || { echo "Не знайдено компілятор Unity ($UNITY_VERSION)"; exit 1; }
 
-# Найсвіжіша тека артефактів Bee — саме там лежать актуальні rsp.
 DAG="$(ls -dt "$ROOT"/Library/Bee/artifacts/*.dag 2>/dev/null | head -1)"
 if [[ -z "$DAG" ]]; then
-  echo "Немає Library/Bee/artifacts/*.dag — відкрий проєкт в Unity хоча б раз," >&2
-  echo "щоб він згенерував параметри компіляції." >&2
+  echo "Немає Library/Bee/artifacts/*.dag — відкрий проєкт в Unity хоча б раз." >&2
   exit 1
 fi
 
-ASSEMBLIES=(
-  InkFlow.Core InkFlow.Platform InkFlow.Meta InkFlow.Gameplay
-  InkFlow.UI InkFlow.App InkFlow.Editor
-  InkFlow.Core.Tests InkFlow.Meta.Tests
+# збірка → тека з кодом
+ASSEMBLY_DIRS=(
+  "InkFlow.Core:Assets/_Scripts/Core"
+  "InkFlow.Platform:Assets/_Scripts/Platform"
+  "InkFlow.Meta:Assets/_Scripts/Meta"
+  "InkFlow.Gameplay:Assets/_Scripts/Gameplay"
+  "InkFlow.UI:Assets/_Scripts/UI"
+  "InkFlow.App:Assets/_Scripts/App"
+  "InkFlow.Editor:Assets/_Scripts/Editor"
+  "InkFlow.Core.Tests:Assets/Tests/EditMode"
+  "InkFlow.Meta.Tests:Assets/Tests/EditMode/Meta"
 )
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 
-echo "Компіляція по збірках (параметрами самого Unity, $(basename "$DAG")):"
+echo "Компіляція по збірках (параметрами Unity з $(basename "$DAG"), джерела — поточні):"
 FAILED=0
 MISSING=0
 
-for name in "${ASSEMBLIES[@]}"; do
+for entry in "${ASSEMBLY_DIRS[@]}"; do
+  name="${entry%%:*}"
+  dir="${entry#*:}"
   src_rsp="$DAG/$name.rsp"
+
   if [[ ! -f "$src_rsp" ]]; then
     echo "  ? $name — Unity ще не збирав цю збірку, пропущено"
     MISSING=1
     continue
   fi
 
-  # Єдина правка: перенаправляємо вихід, щоб не чіпати артефакти редактора.
+  # Файли з вкладених asmdef належать іншій збірці — Unity їх сюди не включає.
+  prune=()
+  while IFS= read -r nested; do
+    nested_dir="$(dirname "$nested")"
+    [[ "$nested_dir" == "$ROOT/$dir" ]] && continue
+    prune+=(-path "$nested_dir" -prune -o)
+  done < <(find "$ROOT/$dir" -name '*.asmdef' 2>/dev/null)
+
+  sources=()
+  while IFS= read -r file; do
+    sources+=("${file#$ROOT/}")
+  done < <(find "$ROOT/$dir" ${prune[@]+"${prune[@]}"} -name '*.cs' -print 2>/dev/null)
+
+  if [[ ${#sources[@]} -eq 0 ]]; then
+    echo "  · $name — немає .cs, пропущено"
+    continue
+  fi
+
   rsp="$OUT/$name.rsp"
-  sed -e "s|^-out:.*|-out:\"$OUT/$name.dll\"|" \
-      -e "s|^-refout:.*|-refout:\"$OUT/$name.ref.dll\"|" \
-      -e "s|^-doc:.*||" "$src_rsp" > "$rsp"
+  {
+    # Лише прапорці Unity, без його списку файлів. Unity пише їх і через '-', і через '/'
+    # (напр. /nowarn:0649) — фільтрувати треба обидва, інакше «загубляться» саме ті
+    # придушення попереджень, які редактор застосовує до [SerializeField]-полів.
+    grep -E '^[-/]' "$src_rsp" \
+      | grep -vE '^[-/](out|refout|doc):'
+    echo "-out:\"$OUT/$name.dll\""
+    printf '"%s"\n' "${sources[@]}"
+  } > "$rsp"
 
   log="$OUT/$name.log"
-  # Компілюємо з кореня проєкту: шляхи в rsp відносні саме до нього.
   if (cd "$ROOT" && "$DOTNET" exec "$CSC" -nologo -noconfig "@$rsp") > "$log" 2>&1; then
     warns="$(grep -c 'warning CS' "$log" || true)"
     if [[ "$warns" -gt 0 ]]; then
@@ -63,7 +93,7 @@ for name in "${ASSEMBLIES[@]}"; do
       grep 'warning CS' "$log" | sed 's|^|      |' | sort -u | head -8
       FAILED=1
     else
-      echo "  ✔ $name"
+      echo "  ✔ $name ($((${#sources[@]})) файлів)"
     fi
   else
     echo "  ✘ $name — ПОМИЛКИ КОМПІЛЯЦІЇ"
@@ -73,8 +103,6 @@ for name in "${ASSEMBLIES[@]}"; do
 done
 
 echo
-if [[ $MISSING -eq 1 ]]; then
-  echo "Увага: частину збірок пропущено. Дай Unity перекомпілювати проєкт і запусти знову."
-fi
+[[ $MISSING -eq 1 ]] && echo "Увага: частину збірок пропущено — дай Unity перекомпілювати проєкт."
 echo "Результат: $([[ $FAILED -eq 0 ]] && echo 'чисто — 0 помилок, 0 попереджень' || echo 'Є ЗАУВАЖЕННЯ')"
 exit $FAILED

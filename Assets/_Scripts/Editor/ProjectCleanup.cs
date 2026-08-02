@@ -143,12 +143,16 @@ namespace InkFlow.Editor
 
             var so = new SerializedObject(settings);
             var property = so.FindProperty("m_defaultSpriteAsset");
-            if (property == null || property.objectReferenceValue != null ||
-                property.objectReferenceInstanceIDValue == 0)
+
+            // Видалений асет читається як null, але GUID у файлі лишається. Перезаписуємо
+            // поле й дивимось, чи щось справді змінилось — так не чіпаємо асет даремно.
+            if (property == null || property.objectReferenceValue != null)
                 return;
 
             property.objectReferenceValue = null;
-            so.ApplyModifiedPropertiesWithoutUndo();
+            if (!so.ApplyModifiedPropertiesWithoutUndo())
+                return;
+
             EditorUtility.SetDirty(settings);
             AssetDatabase.SaveAssetIfDirty(settings);
             Debug.Log("[InkFlow] TMP Settings: прибрано мертве посилання на Default Sprite Asset.");
