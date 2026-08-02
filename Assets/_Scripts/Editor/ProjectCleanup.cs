@@ -99,6 +99,9 @@ namespace InkFlow.Editor
         [MenuItem("Ink Flow/Setup/Clean Unused Assets")]
         public static void CleanUnusedAssets()
         {
+            if (!InkFlowBootstrap.EnsureEditMode())
+                return;
+
             var targets = new List<string>();
             foreach (var path in UnusedPaths)
                 if (AssetExists(path))
@@ -168,6 +171,9 @@ namespace InkFlow.Editor
         [MenuItem("Ink Flow/Setup/Strip Missing Scripts From Open Scene")]
         public static void StripMissingScripts()
         {
+            if (!InkFlowBootstrap.EnsureEditMode())
+                return;
+
             var removed = 0;
             for (var i = 0; i < SceneManager.sceneCount; i++)
             {

@@ -47,6 +47,9 @@ namespace InkFlow.Editor
         [MenuItem("Ink Flow/Setup/Bootstrap Scene")]
         public static void BootstrapScene()
         {
+            if (!EnsureEditMode())
+                return;
+
             if (!EnsureTmpEssentials())
             {
                 Debug.LogWarning("[InkFlow] TMP Essential Resources щойно імпортовано — " +
@@ -65,6 +68,44 @@ namespace InkFlow.Editor
 
             AssetDatabase.SaveAssets();
             Debug.Log("[InkFlow] Bootstrap завершено: Assets/Scenes/Game.unity готова до Play Mode.");
+        }
+
+        /// <summary>
+        /// У Play Mode редакторні операції ламаються посеред роботи: NewScene кидає виняток,
+        /// а ParticleSystem уже грає, тож його налаштування не застосовуються — і префаб
+        /// зберігається зіпсованим. Тому спершу зупиняємось.
+        /// </summary>
+        internal static bool EnsureEditMode()
+        {
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                return true;
+
+            Debug.LogError("[InkFlow] Ця операція недоступна в Play Mode — зупини гру (⏹) і запусти ще раз.");
+            EditorUtility.DisplayDialog(
+                "Спочатку зупини гру",
+                "Бутстрап перебудовує сцену й префаби, а в Play Mode редактор цього не дозволяє.\n\n" +
+                "Натисни ⏹ (Stop) і запусти команду знову.",
+                "Зрозуміло");
+            return false;
+        }
+
+        /// <summary>
+        /// true — асет треба створювати. Якщо файл є, але компонент у ньому не читається
+        /// (напр. префаб зберігся зі втраченим скриптом), видаляємо його й перестворюємо:
+        /// мовчки лишити зіпсований префаб гірше, ніж перезаписати.
+        /// </summary>
+        private static bool NeedsCreation<T>(string path) where T : Object
+        {
+            if (AssetDatabase.LoadAssetAtPath<T>(path) != null)
+                return false;
+
+            if (AssetDatabase.LoadMainAssetAtPath(path) != null)
+            {
+                Debug.LogWarning($"[InkFlow] {path} існує, але компонент {typeof(T).Name} у ньому втрачено — перестворюю.");
+                AssetDatabase.DeleteAsset(path);
+            }
+
+            return true;
         }
 
         // ---------- TMP ----------
@@ -124,7 +165,7 @@ namespace InkFlow.Editor
 
         private static void EnsureCellPrefab()
         {
-            if (AssetDatabase.LoadAssetAtPath<CellView>(CellPrefabPath) != null)
+            if (!NeedsCreation<CellView>(CellPrefabPath))
                 return;
 
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
@@ -177,7 +218,7 @@ namespace InkFlow.Editor
 
         private static void EnsureBurstFxPrefab()
         {
-            if (AssetDatabase.LoadAssetAtPath<BurstEffect>(BurstFxPrefabPath) != null)
+            if (!NeedsCreation<BurstEffect>(BurstFxPrefabPath))
                 return;
 
             EnsureFolder("Assets/_Prefabs");
@@ -187,11 +228,14 @@ namespace InkFlow.Editor
             try
             {
                 var ps = root.AddComponent<ParticleSystem>();
+                // Свіжий ParticleSystem одразу «грає»; поки він грає, Unity відмовляється
+                // міняти duration. Спершу глушимо систему, потім налаштовуємо.
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
                 var main = ps.main;
-                main.duration = 0.1f;
-                main.loop = false;
                 main.playOnAwake = false;
+                main.loop = false;
+                main.duration = 0.1f;
                 main.startLifetime = 0.3f;
                 main.startSpeed = new ParticleSystem.MinMaxCurve(2f, 3.5f);
                 main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.2f);
@@ -237,7 +281,7 @@ namespace InkFlow.Editor
 
         private static void EnsureBossSegmentPrefab()
         {
-            if (AssetDatabase.LoadAssetAtPath<SpriteRenderer>(BossSegmentPrefabPath) != null)
+            if (!NeedsCreation<SpriteRenderer>(BossSegmentPrefabPath))
                 return;
 
             EnsureFolder("Assets/_Prefabs");
