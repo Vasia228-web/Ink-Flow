@@ -55,6 +55,7 @@ namespace InkFlow.Editor
             design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             var rounded = LoadSprite("rounded-rect");
+            var outline = LoadSprite("rounded-rect-outline");
             var circle = LoadSprite("circle-soft");
             var gloss = LoadSprite("circle-gloss");
             var glowSprite = LoadSprite("glow");
@@ -65,6 +66,7 @@ namespace InkFlow.Editor
             var missing = new System.Collections.Generic.List<string>();
             if (design == null) missing.Add(DesignSystemPath);
             if (rounded == null) missing.Add($"{SpriteFolder}/rounded-rect.png");
+            if (outline == null) missing.Add($"{SpriteFolder}/rounded-rect-outline.png");
             if (circle == null) missing.Add($"{SpriteFolder}/circle-soft.png");
             if (gloss == null) missing.Add($"{SpriteFolder}/circle-gloss.png");
             if (glowSprite == null) missing.Add($"{SpriteFolder}/glow.png");
@@ -102,8 +104,8 @@ namespace InkFlow.Editor
 
             var header = BuildHeader(screenGo, design!, font, dropPrefab!, currencyPrefab!,
                 out var avatar, out var nameLabel, out var titleLabel, out var currency);
-            var nav = BuildNavBar(screenGo, design!, font, rounded!, circle!, out var navBar);
-            var middle = BuildMiddle(screenGo, design!, font, rounded!, glowSprite!, circle!,
+            var nav = BuildNavBar(screenGo, design!, font, rounded!, outline!, out var navBar);
+            var middle = BuildMiddle(screenGo, design!, font, rounded!, outline!, glowSprite!, circle!,
                 header, nav, out var logo, out var tagline, out var levels, out var endless);
             _ = middle;
 
@@ -194,7 +196,7 @@ namespace InkFlow.Editor
         // Лого 58/800 (lh .9), таглайн 12/700 ls .18em, картки max-width 332 з gap 15.
 
         private static RectTransform BuildMiddle(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite glowSprite, Sprite circle, RectTransform header, RectTransform nav,
+            Sprite rounded, Sprite outline, Sprite glowSprite, Sprite circle, RectTransform header, RectTransform nav,
             out TMP_Text logo, out TMP_Text tagline, out ModeCard levels, out ModeCard endless)
         {
             var middle = Child(parent, "Middle");
@@ -236,13 +238,13 @@ namespace InkFlow.Editor
             y -= taglineH + groupGap;
 
             levels = BuildModeCard(content, "LevelsCard", ModeCard.Tone.Levels, design, font,
-                rounded, glowSprite, circle, cardH);
+                rounded, outline, glowSprite, circle, cardH);
             Place(levels, new Vector2(0f, y - cardH * 0.5f), new Vector2(M(332f), cardH),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             y -= cardH + cardGap;
 
             endless = BuildModeCard(content, "EndlessCard", ModeCard.Tone.Endless, design, font,
-                rounded, glowSprite, circle, cardH);
+                rounded, outline, glowSprite, circle, cardH);
             Place(endless, new Vector2(0f, y - cardH * 0.5f), new Vector2(M(332f), cardH),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
@@ -251,8 +253,8 @@ namespace InkFlow.Editor
 
         // Картка: padding 16/18 → 44/50, gap 15 → 42, плитка 52 → 144, шеврон 25 → 69.
         private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.Tone tone,
-            DesignSystem design, TMP_FontAsset? font, Sprite rounded, Sprite glowSprite, Sprite circle,
-            float height)
+            DesignSystem design, TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite glowSprite,
+            Sprite circle, float height)
         {
             var padX = M(18f);       // 50
             var tileSize = design.CardIconTileSize; // 144
@@ -266,6 +268,9 @@ namespace InkFlow.Editor
             glow.sprite = glowSprite;
             glow.type = Image.Type.Sliced;
             glow.raycastTarget = false;
+            // Зона згасання спрайта — 56 px; розтягуємо її рівно на радіус гало,
+            // щоб світіння плавно зникало, а не обривалось кантом.
+            glow.pixelsPerUnitMultiplier = 56f / design.CardGlowRadius;
 
             var bgGo = Child(card, "Background");
             Stretch(bgGo);
@@ -276,7 +281,7 @@ namespace InkFlow.Editor
             var strokeGo = Child(card, "Stroke");
             Stretch(strokeGo);
             var stroke = strokeGo.AddComponent<Image>();
-            stroke.sprite = rounded;
+            stroke.sprite = outline; // обведення, а не заповнений прямокутник
             stroke.type = Image.Type.Sliced;
             stroke.raycastTarget = false;
 
@@ -298,7 +303,7 @@ namespace InkFlow.Editor
             var tileStrokeGo = Child(tile, "Stroke");
             Stretch(tileStrokeGo);
             var tileStroke = tileStrokeGo.AddComponent<Image>();
-            tileStroke.sprite = rounded;
+            tileStroke.sprite = outline;
             tileStroke.type = Image.Type.Sliced;
             tileStroke.raycastTarget = false;
 
@@ -389,7 +394,7 @@ namespace InkFlow.Editor
         // Макет: left/right 16 → 44, r30 → 83, padding 10/8, gap 6, підпис 10.
 
         private static RectTransform BuildNavBar(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite circle, out NavBar navBar)
+            Sprite rounded, Sprite outline, out NavBar navBar)
         {
             var side = M(16f);      // 44
             var height = M(65f);    // 180
@@ -413,7 +418,7 @@ namespace InkFlow.Editor
             var strokeGo = Child(nav, "Stroke");
             Stretch(strokeGo);
             var stroke = strokeGo.AddComponent<Image>();
-            stroke.sprite = rounded;
+            stroke.sprite = outline;
             stroke.type = Image.Type.Sliced;
             stroke.raycastTarget = false;
 
@@ -425,6 +430,7 @@ namespace InkFlow.Editor
 
             var titles = new[] { "Галактика", "Магазин", "Рейтинги", "Профіль" };
             var ids = new[] { "galaxy", "shop", "ranks", "profile" };
+            var iconFiles = new[] { "icon-galaxy", "icon-shop", "icon-ranks", "icon-profile" };
             var accents = new[] { design.AccentSecondary, design.AccentPrimary, design.AccentGold, design.TextMuted };
 
             var tabs = so.FindProperty("tabs");
@@ -451,12 +457,10 @@ namespace InkFlow.Editor
                 iconRect.pivot = new Vector2(0.5f, 0.5f);
                 iconRect.anchoredPosition = new Vector2(0f, M(9f));
                 iconRect.sizeDelta = new Vector2(M(26f), M(26f));
-                icon.AddComponent<CanvasGroup>();
-
                 var iconImage = icon.AddComponent<Image>();
-                iconImage.sprite = circle;
+                iconImage.sprite = LoadSprite(iconFiles[i]);
                 iconImage.raycastTarget = false;
-                iconImage.color = accents[i];
+                iconImage.color = i == 0 ? accents[i] : design.NavLabelInactive;
 
                 var label = Label(tab, "Label", titles[i], design, font,
                     design.FontSizeCaption,
@@ -470,6 +474,7 @@ namespace InkFlow.Editor
                 entry.FindPropertyRelative("label").objectReferenceValue = label;
                 entry.FindPropertyRelative("icon").objectReferenceValue = iconRect;
                 entry.FindPropertyRelative("button").objectReferenceValue = button;
+                entry.FindPropertyRelative("activeColor").colorValue = accents[i];
             }
 
             so.ApplyModifiedPropertiesWithoutUndo();

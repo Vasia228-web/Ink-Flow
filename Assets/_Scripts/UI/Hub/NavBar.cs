@@ -23,6 +23,9 @@ namespace InkFlow.UI
             public TMP_Text? label;
             public RectTransform? icon;
             public Button? button;
+
+            [Tooltip("Колір іконки, коли вкладка активна.")]
+            public Color activeColor = Color.white;
         }
 
         [SerializeField] private DesignSystem design;
@@ -100,8 +103,11 @@ namespace InkFlow.UI
 
                 // Неактивні іконки приглушені — у макеті вони сірі, активна кольорова.
                 var icon = tabs[i].icon;
-                if (icon != null && icon.TryGetComponent<CanvasGroup>(out var group))
-                    group.alpha = active ? 1f : 0.55f;
+                if (icon == null)
+                    continue;
+                // Неактивні іконки приглушені до сірого, активна лишається кольоровою.
+                if (icon.TryGetComponent<Image>(out var image))
+                    image.color = active ? tabs[i].activeColor : design.NavLabelInactive;
             }
         }
     }

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 2
+  tokenVersion: 3
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -40,36 +40,36 @@ MonoBehaviour:
   textPrimary: {r: 1, g: 1, b: 1, a: 1}
   textMuted: {r: 1, g: 1, b: 1, a: 0.62}
   textDim: {r: 1, g: 1, b: 1, a: 0.38}
-  glassFill: {r: 1, g: 1, b: 1, a: 0.05}
-  glassFillRaised: {r: 1, g: 1, b: 1, a: 0.09}
-  glassStroke: {r: 1, g: 1, b: 1, a: 0.09}
-  glassStrokeWidth: 3
-  radiusSmall: 43
-  radiusMedium: 48
-  radiusButton: 56
-  radiusCard: 70
-  radiusSheet: 91
+  glassFill: {r: 0.03529412, g: 0.023529412, b: 0.08627451, a: 0.42352942}
+  glassFillRaised: {r: 0.0627451, g: 0.043137256, b: 0.13333334, a: 0.5882353}
+  glassStroke: {r: 1, g: 1, b: 1, a: 0.14}
+  glassStrokeWidth: 4
+  radiusSmall: 44
+  radiusMedium: 50
+  radiusButton: 61
+  radiusCard: 72
+  radiusSheet: 94
   spacingXs: 11
-  spacingSm: 16
-  spacingMd: 27
-  spacingLg: 38
-  spacingXl: 48
-  navBarHeight: 140
+  spacingSm: 17
+  spacingMd: 28
+  spacingLg: 39
+  spacingXl: 50
+  navBarHeight: 180
   font: {fileID: 11400000, guid: b06b1162245054e0d9b2830b308c4a70, type: 2}
-  fontSizeCaption: 27
-  fontSizeLabel: 32
-  fontSizeBody: 40
-  fontSizeSubtitle: 46
-  fontSizeTitle: 59
-  fontSizeDisplay: 73
+  fontSizeCaption: 28
+  fontSizeLabel: 33
+  fontSizeBody: 42
+  fontSizeSubtitle: 47
+  fontSizeTitle: 61
+  fontSizeDisplay: 75
   letterSpacingWide: 14
   buttonTintStrength: 0.16
   buttonStrokeAlpha: 0.75
-  glowButtonRadius: 48
-  glowButtonAlpha: 0.6
+  glowButtonRadius: 50
+  glowButtonAlpha: 0.38
   glowNearMissMin: 8
-  glowNearMissMax: 38
-  glowPanelRadius: 107
+  glowNearMissMax: 39
+  glowPanelRadius: 111
   glowPanelAlpha: 0.18
   dropHighlightLighten: 0.5
   dropMidLighten: 0.12
@@ -190,3 +190,22 @@ MonoBehaviour:
   starTwinkleSlow: 11
   starTwinkleFast: 7
   starCount: 90
+  radiusModeCard: 78
+  cardTintStrong: 0.18
+  cardTintWeak: 0.08
+  cardStrokeAlpha: 0.38
+  cardGlowRadius: 72
+  cardGlowAlpha: 0.2
+  cardIconTileSize: 144
+  statTextLighten: 0.56
+  navFill: {r: 0.07058824, g: 0.047058824, b: 0.13333334, a: 0.54901963}
+  navStroke: {r: 1, g: 1, b: 1, a: 0.12}
+  radiusNav: 83
+  navLabelActive: {r: 1, g: 1, b: 1, a: 0.92}
+  navLabelInactive: {r: 1, g: 1, b: 1, a: 0.5}
+  fontSizeLogo: 161
+  fontSizeSmall: 30
+  fontSizeCardSubtitle: 35
+  textFaint: {r: 1, g: 1, b: 1, a: 0.42}
+  letterSpacingTagline: 18
+  letterSpacingTight: 2

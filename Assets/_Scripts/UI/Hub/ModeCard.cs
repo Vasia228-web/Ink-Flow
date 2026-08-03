@@ -68,9 +68,11 @@ namespace InkFlow.UI
 
             if (background != null)
             {
-                background.SetGradient(
-                    DesignSystem.WithAlpha(accent, design.CardTintStrong),
-                    DesignSystem.WithAlpha(secondary, design.CardTintWeak));
+                // Темна скляна основа з ледь помітним кольоровим підтоном по діагоналі.
+                // Саме основа, а не заливка кольором: крізь картку мають бути видні зорі.
+                var from = Blend(design.CardBase, accent, design.CardTintStrong);
+                var to = Blend(design.CardBase, secondary, design.CardTintWeak);
+                background.SetGradient(from, to);
                 background.color = Color.white;
                 background.pixelsPerUnitMultiplier = ppu;
             }
@@ -112,6 +114,14 @@ namespace InkFlow.UI
             label.characterSpacing = spacing;
             if (design.Font != null)
                 label.font = design.Font;
+        }
+
+        /// <summary>Підмішує колір у скляну основу, НЕ чіпаючи її прозорість.</summary>
+        private static Color Blend(Color glass, Color tone, float amount)
+        {
+            var mixed = Color.Lerp(glass, tone, amount);
+            mixed.a = glass.a;
+            return mixed;
         }
 
         private (Color accent, Color secondary) ToneColors(Tone value) => value switch

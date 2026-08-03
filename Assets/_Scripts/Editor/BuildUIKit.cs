@@ -36,6 +36,7 @@ namespace InkFlow.Editor
 
             GenerateUISprites.Generate();
             GenerateFontAsset.Generate();
+            GenerateSpriteAsset.Generate();
             EnsureDesignSystem();
 
             InkFlowBootstrap.EnsureFolder(PrefabFolder);
@@ -104,12 +105,15 @@ namespace InkFlow.Editor
         {
             var design = LoadDesign();
             var rounded = LoadSprite("rounded-rect");
+            var outline = LoadSprite("rounded-rect-outline");
 
             var root = NewUIObject("GlassPanel", new Vector2(600f, 320f));
             try
             {
                 var fill = AddImage(root, "Fill", rounded, design.GlassFill);
-                var stroke = AddImage(root, "Stroke", rounded, design.GlassStroke);
+                // Рамка — окремий спрайт-обведення: заповнений rounded-rect тут
+                // лягав би суцільною плашкою поверх заливки.
+                var stroke = AddImage(root, "Stroke", outline, design.GlassStroke);
 
                 var panel = root.AddComponent<GlassPanel>();
                 Wire(panel, ("design", design), ("fill", fill), ("stroke", stroke));
@@ -137,6 +141,7 @@ namespace InkFlow.Editor
                 glow.type = Image.Type.Sliced;
                 glow.raycastTarget = false;
                 glow.color = DesignSystem.WithAlpha(design.AccentPrimary, design.GlowButtonAlpha);
+                glow.pixelsPerUnitMultiplier = 56f / design.GlowButtonRadius;
 
                 var bgGo = NewChild(root, "Background", Vector2.zero, stretch: true);
                 var background = bgGo.AddComponent<GradientImage>();
@@ -234,7 +239,7 @@ namespace InkFlow.Editor
             try
             {
                 var fill = AddImage(root, "Fill", rounded, design.GlassFill);
-                var stroke = AddImage(root, "Stroke", rounded, design.GlassStroke);
+                var stroke = AddImage(root, "Stroke", LoadSprite("rounded-rect-outline"), design.GlassStroke);
                 var panel = root.AddComponent<GlassPanel>();
                 Wire(panel, ("design", design), ("fill", fill), ("stroke", stroke));
 

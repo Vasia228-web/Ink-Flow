@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 3;
+        public const int CurrentTokenVersion = 4;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -265,11 +265,16 @@ namespace InkFlow.Style
         [Tooltip("Радіус картки режиму: 28 px макета.")]
         [SerializeField] private float radiusModeCard = 78f;
 
-        [Tooltip("Перша зупинка градієнта картки: rgba(accent,.18).")]
-        [SerializeField, Range(0f, 1f)] private float cardTintStrong = 0.18f;
+        [Tooltip("Перша зупинка градієнта картки. Скло, а не заливка: крізь картку " +
+                 "мають просвічувати зорі, тож альфа тримається в межах 0.06-0.10. " +
+                 "Колір живе в рамці й гало.")]
+        [SerializeField, Range(0f, 0.3f)] private float cardTintStrong = 0.09f;
 
-        [Tooltip("Друга зупинка: rgba(secondary,.08).")]
-        [SerializeField, Range(0f, 1f)] private float cardTintWeak = 0.08f;
+        [Tooltip("Друга зупинка градієнта — майже прозора.")]
+        [SerializeField, Range(0f, 0.3f)] private float cardTintWeak = 0.04f;
+
+        [Tooltip("Темна основа під кольоровим підтоном картки: та сама, що в скла.")]
+        [SerializeField] private Color cardBase = new Color32(9, 6, 22, 92);
 
         [Tooltip("Кольорова рамка картки: rgba(accent,.38) завтовшки 1 px макета.")]
         [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.38f;
@@ -286,8 +291,10 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float statTextLighten = 0.56f;
 
         [Header("Хаб: нижня навігація")]
-        [Tooltip("Заливка капсули навігації: rgba(18,12,34,.55) з макета — темніша за звичайне скло.")]
-        [SerializeField] private Color navFill = new Color32(18, 12, 34, 140);
+        [Tooltip("Заливка капсули навігації — таке саме скло, що й картки: крізь неї " +
+                 "видно фон. Значення макета rgba(18,12,34,.55) в UGUI без backdrop-blur " +
+                 "читалось як сіра непрозора плашка.")]
+        [SerializeField] private Color navFill = new Color32(14, 9, 28, 110);
 
         [Tooltip("Рамка капсули: rgba(255,255,255,.12).")]
         [SerializeField] private Color navStroke = new Color(1f, 1f, 1f, 0.12f);
@@ -392,6 +399,7 @@ namespace InkFlow.Style
         public float CardGlowRadius => cardGlowRadius;
         public float CardGlowAlpha => cardGlowAlpha;
         public float CardIconTileSize => cardIconTileSize;
+        public Color CardBase => cardBase;
 
         public Color NavFill => navFill;
         public Color NavStroke => navStroke;

@@ -7,6 +7,12 @@ namespace InkFlow.UI
     /// ОБОВ'ЯЗКОВО на корені кожного екрана: без цього UI ріжеться на iPhone з Dynamic Island
     /// і на Android з жестовою навігацією. Перераховується при зміні орієнтації/роздільності.
     /// </summary>
+    /// <remarks>
+    /// ExecuteAlways: без нього прив'язка застосовується лише в Play Mode, і в
+    /// Scene view / Device Simulator верстка виглядає так, ніби safe area немає —
+    /// шапка заходить під Dynamic Island.
+    /// </remarks>
+    [ExecuteAlways]
     [RequireComponent(typeof(RectTransform))]
     public sealed class SafeAreaBinder : MonoBehaviour
     {
@@ -14,7 +20,7 @@ namespace InkFlow.UI
         private Rect _lastSafeArea;
         private Vector2Int _lastResolution;
 
-        private void Awake()
+        private void OnEnable()
         {
             _rect = GetComponent<RectTransform>();
             Apply();
@@ -22,6 +28,9 @@ namespace InkFlow.UI
 
         private void Update()
         {
+            if (_rect == null)
+                _rect = GetComponent<RectTransform>();
+
             var resolution = new Vector2Int(Screen.width, Screen.height);
             if (Screen.safeArea == _lastSafeArea && resolution == _lastResolution)
                 return;

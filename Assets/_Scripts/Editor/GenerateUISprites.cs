@@ -21,11 +21,18 @@ namespace InkFlow.Editor
         private const int RoundedSize = 128;
         private const int RoundedRadius = 40;
 
-        /// <summary>Глибина «розмиття» країв гало в пікселях.</summary>
-        private const int GlowSize = 128;
-        private const int GlowInset = 40;
+        /// <summary>Гало: 256 px, силует радіусом 56 з зоною згасання 56 по краю.</summary>
+        private const int GlowSize = 256;
+        private const int GlowRadius = 56;
+        private const int GlowFalloff = 56;
+
+        /// <summary>Товщина обведення в пікселях текстури (≈2 px макета після масштабу).</summary>
+        private const float OutlineThickness = 3f;
 
         private const int CircleSize = 256;
+
+        /// <summary>Роздільність іконок навігації (26 px макета → з запасом на retina).</summary>
+        private const int IconSize = 128;
 
         [MenuItem("Ink Flow/Setup/Generate UI Sprites")]
         public static void Generate()
@@ -39,13 +46,24 @@ namespace InkFlow.Editor
             WriteSprite("circle-gloss.png", CreateGloss(), pixelsPerUnit: CircleSize, border: Vector4.zero);
 
             // Border = радіус кута: центр тягнеться, кути лишаються круглими.
+            // PPU = 100 (як referencePixelsPerUnit канваса): тоді розмір border у
+            // world-одиницях = texture_px / pixelsPerUnitMultiplier, і радіус стає
+            // керованим одним множником без прихованих коефіцієнтів.
             var r = RoundedRadius;
-            WriteSprite("rounded-rect.png", CreateRoundedRect(), pixelsPerUnit: RoundedSize,
+            WriteSprite("rounded-rect.png", CreateRoundedRect(), pixelsPerUnit: 100,
                 border: new Vector4(r, r, r, r));
 
-            var g = GlowInset;
-            WriteSprite("glow.png", CreateGlow(), pixelsPerUnit: GlowSize,
-                border: new Vector4(g, g, g, g));
+            // Справжня ОБВЕДЕННЯ-рамка з прозорою серединою. Раніше і заливка, і «рамка»
+            // малювались одним заповненим спрайтом — рамка лягала суцільною плашкою
+            // поверх заливки, через що скло виглядало залитим кольором.
+            WriteSprite("rounded-rect-outline.png", CreateRoundedOutline(), pixelsPerUnit: 100,
+                border: new Vector4(r, r, r, r));
+
+            // Гало: заокруглений силует із широкою м'якою зоною згасання.
+            // Старе glow.png мало прямі кути й вузький край — звідси прямокутні смуги.
+            var gb = GlowRadius + GlowFalloff;
+            WriteSprite("glow.png", CreateGlow(), pixelsPerUnit: 100,
+                border: new Vector4(gb, gb, gb, gb));
 
             // ★ і ↺ немає в Nunito (і в жодному OFL-шрифті Google, який варто тягнути
             // заради двох знаків). У макеті вони теж намальовані фігурами, а не набрані
@@ -54,9 +72,17 @@ namespace InkFlow.Editor
             WriteSprite("icon-star.png", CreateStar(), pixelsPerUnit: CircleSize, border: Vector4.zero);
             WriteSprite("icon-retry.png", CreateRetry(), pixelsPerUnit: CircleSize, border: Vector4.zero);
 
+            // Іконки нижньої навігації. У макеті вони складені з <div>-фігур; тут
+            // малюємо ті самі силуети процедурно — білими, колір задає DesignSystem.
+            WriteSprite("icon-galaxy.png", CreateGalaxyIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+            WriteSprite("icon-shop.png", CreateShopIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+            WriteSprite("icon-ranks.png", CreateRanksIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+            WriteSprite("icon-profile.png", CreateProfileIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+
             AssetDatabase.Refresh();
             Debug.Log($"[InkFlow] UI-спрайти згенеровано в {Folder}: circle-soft, circle-gloss, " +
-                      "rounded-rect (9-slice), glow (9-slice), icon-star, icon-retry.");
+                      "rounded-rect + outline (9-slice), glow (9-slice), icon-star, icon-retry, " +
+                      "icon-galaxy, icon-shop, icon-ranks, icon-profile.");
         }
 
         // ───────────────────────── Малювання ─────────────────────────
@@ -139,44 +165,75 @@ namespace InkFlow.Editor
             return tex;
         }
 
-        private static float RoundedAlpha(int x, int y)
-        {
-            var r = RoundedRadius;
-            var max = RoundedSize - 1;
-
-            // Відстань до найближчого центру кута; поза кутовими зонами — усередині фігури.
-            var cx = x < r ? r : (x > max - r ? max - r : x);
-            var cy = y < r ? r : (y > max - r ? max - r : y);
-            var d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-            return Mathf.Clamp01((r - d) / 1.5f);
-        }
+        private static float RoundedAlpha(int x, int y) =>
+            Mathf.Clamp01(-RoundedDistance(x, y) / 1.5f);
 
         /// <summary>
-        /// Гало для 9-slice: суцільний центр і м'яко згасаючі краї. Використовується
-        /// як зовнішнє світіння під кнопками й панелями (Image з кольором акценту).
+        /// Обведення заокругленого прямокутника: видно лише кант завтовшки
+        /// OutlineThickness, середина прозора. Саме це дає «тонку рамку» скла.
         /// </summary>
-        private static Texture2D CreateGlow()
+        private static Texture2D CreateRoundedOutline()
         {
-            var tex = NewTexture(GlowSize);
-            var pixels = new Color[GlowSize * GlowSize];
-            var max = GlowSize - 1;
+            var tex = NewTexture(RoundedSize);
+            var pixels = new Color[RoundedSize * RoundedSize];
 
-            for (var y = 0; y < GlowSize; y++)
+            for (var y = 0; y < RoundedSize; y++)
             {
-                for (var x = 0; x < GlowSize; x++)
+                for (var x = 0; x < RoundedSize; x++)
                 {
-                    // Відстань до краю по кожній осі, нормалізована до зони згасання.
-                    var fx = Mathf.Clamp01(Mathf.Min(x, max - x) / (float)GlowInset);
-                    var fy = Mathf.Clamp01(Mathf.Min(y, max - y) / (float)GlowInset);
-                    var edge = fx * fy;
-                    // Квадратичне згасання читається як м'яке гало, лінійне — як сірий кант.
-                    pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, edge * edge);
+                    // Відстань до контуру фігури: додатна зовні, від'ємна всередині.
+                    var d = RoundedDistance(x, y);
+                    // Кант лежить усередині від контуру.
+                    var alpha = Mathf.Clamp01((OutlineThickness - Mathf.Abs(d + OutlineThickness * 0.5f)) / 1.2f);
+                    pixels[y * RoundedSize + x] = new Color(1f, 1f, 1f, alpha);
                 }
             }
 
             tex.SetPixels(pixels);
             tex.Apply();
             return tex;
+        }
+
+        /// <summary>
+        /// Гало: заокруглений силует, що плавно згасає до нуля на GlowFalloff пікселів.
+        /// Центр непрозорий, але його завжди перекриває сама картка — видно лише
+        /// м'яке світіння назовні, без видимих країв.
+        /// </summary>
+        private static Texture2D CreateGlow()
+        {
+            var tex = NewTexture(GlowSize);
+            var pixels = new Color[GlowSize * GlowSize];
+            var inset = GlowFalloff;
+            var max = GlowSize - 1;
+
+            for (var y = 0; y < GlowSize; y++)
+            {
+                for (var x = 0; x < GlowSize; x++)
+                {
+                    // Відстань до заокругленого прямокутника, вписаного з відступом inset.
+                    var cx = Mathf.Clamp(x, inset + GlowRadius, max - inset - GlowRadius);
+                    var cy = Mathf.Clamp(y, inset + GlowRadius, max - inset - GlowRadius);
+                    var d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - GlowRadius;
+
+                    var t = Mathf.Clamp01(1f - d / GlowFalloff);
+                    // Квадратичне згасання читається як світіння; лінійне дає видимий кант.
+                    pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, t * t);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>Знакова відстань до контуру заокругленого прямокутника (від'ємна всередині).</summary>
+        private static float RoundedDistance(int x, int y)
+        {
+            var r = RoundedRadius;
+            var max = RoundedSize - 1;
+            var cx = Mathf.Clamp(x, r, max - r);
+            var cy = Mathf.Clamp(y, r, max - r);
+            return Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - r;
         }
 
         /// <summary>П'ятикутна зірка рейтингу рівня (замість гліфа ★).</summary>
@@ -287,6 +344,112 @@ namespace InkFlow.Editor
             }
 
             return inside;
+        }
+
+
+        // ───────────────────────── Іконки навігації ─────────────────────────
+        // Малюємо в нормалізованих координатах 0..1, щоб числа читались як пропорції.
+
+        /// <summary>Планета з кільцем — вкладка «Галактика».</summary>
+        private static Texture2D CreateGalaxyIcon() => DrawIcon((u, v) =>
+        {
+            var d = Dist(u, v, 0.5f, 0.52f);
+            var planet = Cover(0.30f - d);
+
+            // Кільце — еліпс, нахилений на -20°, з вирізаною серединою.
+            var (rx, ry) = Rotate(u - 0.5f, v - 0.52f, -20f);
+            var ring = Mathf.Sqrt(rx * rx / (0.46f * 0.46f) + ry * ry / (0.15f * 0.15f));
+            var ringBand = Cover(0.06f - Mathf.Abs(ring - 1f) * 0.5f);
+
+            return Mathf.Max(planet, ringBand);
+        });
+
+        /// <summary>Відро з фарбою — вкладка «Магазин».</summary>
+        private static Texture2D CreateShopIcon() => DrawIcon((u, v) =>
+        {
+            // Корпус — трапеція, звужена донизу.
+            var top = 0.66f;
+            var bottom = 0.16f;
+            var t = Mathf.InverseLerp(bottom, top, v);
+            var halfWidth = Mathf.Lerp(0.20f, 0.28f, t);
+            var body = v >= bottom && v <= top ? Cover((halfWidth - Mathf.Abs(u - 0.5f)) * 4f) : 0f;
+
+            // Ручка — дуга над відром.
+            var hd = Mathf.Abs(Dist(u, v, 0.5f, top) - 0.24f);
+            var handle = v > top ? Cover((0.035f - hd) * 6f) : 0f;
+
+            return Mathf.Max(body, handle);
+        });
+
+        /// <summary>Кубок — вкладка «Рейтинги».</summary>
+        private static Texture2D CreateRanksIcon() => DrawIcon((u, v) =>
+        {
+            // Чаша: звужується донизу, зверху рівна.
+            var cupTop = 0.78f;
+            var cupBottom = 0.40f;
+            var t = Mathf.InverseLerp(cupBottom, cupTop, v);
+            var half = Mathf.Lerp(0.10f, 0.26f, Mathf.Sqrt(Mathf.Clamp01(t)));
+            var cup = v >= cupBottom && v <= cupTop ? Cover((half - Mathf.Abs(u - 0.5f)) * 5f) : 0f;
+
+            // Вушка з боків.
+            var earL = Cover((0.055f - Mathf.Abs(Dist(u, v, 0.24f, 0.63f) - 0.09f)) * 6f);
+            var earR = Cover((0.055f - Mathf.Abs(Dist(u, v, 0.76f, 0.63f) - 0.09f)) * 6f);
+
+            // Ніжка й основа.
+            var stem = v > 0.24f && v < cupBottom ? Cover((0.055f - Mathf.Abs(u - 0.5f)) * 6f) : 0f;
+            var baseBar = v > 0.14f && v < 0.24f ? Cover((0.22f - Mathf.Abs(u - 0.5f)) * 6f) : 0f;
+
+            return Mathf.Max(Mathf.Max(cup, Mathf.Max(earL, earR)), Mathf.Max(stem, baseBar));
+        });
+
+        /// <summary>Силует людини — вкладка «Профіль».</summary>
+        private static Texture2D CreateProfileIcon() => DrawIcon((u, v) =>
+        {
+            var head = Cover((0.17f - Dist(u, v, 0.5f, 0.72f)) * 6f);
+            // Плечі — половина еліпса знизу.
+            var sx = (u - 0.5f) / 0.34f;
+            var sy = (v - 0.16f) / 0.34f;
+            var shoulders = v >= 0.16f && v < 0.5f
+                ? Cover((1f - Mathf.Sqrt(sx * sx + sy * sy)) * 4f)
+                : 0f;
+            return Mathf.Max(head, shoulders);
+        });
+
+        private static float Dist(float x, float y, float cx, float cy) =>
+            Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+
+        private static (float x, float y) Rotate(float x, float y, float degrees)
+        {
+            var a = degrees * Mathf.Deg2Rad;
+            return (x * Mathf.Cos(a) - y * Mathf.Sin(a), x * Mathf.Sin(a) + y * Mathf.Cos(a));
+        }
+
+        /// <summary>Плавний перехід 0..1 навколо межі — дешевий антиаліасинг.</summary>
+        private static float Cover(float signedDistance) =>
+            Mathf.Clamp01(signedDistance * IconSize * 0.5f);
+
+        /// <summary>Малює іконку за функцією покриття з 2×2 суперсемплінгом.</summary>
+        private static Texture2D DrawIcon(System.Func<float, float, float> coverage)
+        {
+            var tex = NewTexture(IconSize);
+            var pixels = new Color[IconSize * IconSize];
+
+            for (var y = 0; y < IconSize; y++)
+            {
+                for (var x = 0; x < IconSize; x++)
+                {
+                    var a = 0f;
+                    for (var sy = 0; sy < 2; sy++)
+                        for (var sx = 0; sx < 2; sx++)
+                            a += coverage((x + 0.25f + sx * 0.5f) / IconSize,
+                                          (y + 0.25f + sy * 0.5f) / IconSize) * 0.25f;
+                    pixels[y * IconSize + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(a));
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
         }
 
         // ───────────────────────── Запис і імпорт ─────────────────────────
