@@ -93,9 +93,12 @@ for entry in "${ASSEMBLY_DIRS[@]}"; do
     grep -E '^[-/]' "$src_rsp" \
       | grep -vE '^[-/](out|refout|doc):' \
       | grep -vE '^[-/]r:"?[^"]*ScriptAssemblies/InkFlow\.'
-    for built in "$OUT"/InkFlow.*.dll; do
-      [[ -f "$built" ]] && echo "-r:\"$built\""
-    done
+    # Тільки ті наші збірки, які asmdef справді оголошує (транзитивно).
+    # Підставляти всі підряд не можна: тоді перевірка резолвить типи, яких Unity
+    # не побачить, і мовчить там, де редактор падає з CS0234.
+    while IFS= read -r ref; do
+      [[ -f "$OUT/$ref.dll" ]] && echo "-r:\"$OUT/$ref.dll\""
+    done < <(python3 "$ROOT/Tools/asmdef-refs.py" "$ROOT" "$name")
     echo "-out:\"$OUT/$name.dll\""
     printf '"%s"\n' "${sources[@]}"
   } > "$rsp"

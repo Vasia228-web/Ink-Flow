@@ -3,6 +3,7 @@
     "rootNamespace": "InkFlow.Editor",
     "references": [
         "InkFlow.Core",
+        "InkFlow.Style",
         "InkFlow.Gameplay",
         "InkFlow.UI",
         "InkFlow.Meta",
