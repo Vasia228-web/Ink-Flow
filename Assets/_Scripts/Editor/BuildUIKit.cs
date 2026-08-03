@@ -151,7 +151,7 @@ namespace InkFlow.Editor
                 tint.a = design.GlassFill.a;
                 background.SetGradient(tint, design.GlassFill);
 
-                var stroke = AddImage(root, "Stroke", rounded,
+                var stroke = AddImage(root, "Stroke", LoadSprite("rounded-rect-outline"),
                     DesignSystem.WithAlpha(design.AccentPrimary, design.ButtonStrokeAlpha));
 
                 var labelGo = NewChild(root, "Label", Vector2.zero, stretch: true);
