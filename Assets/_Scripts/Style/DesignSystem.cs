@@ -25,6 +25,18 @@ namespace InkFlow.Style
         /// <summary>Множник px макета → reference-одиниці UGUI.</summary>
         public const float MockupToReference = ReferenceWidth / MockupWidth;
 
+        /// <summary>
+        /// Версія набору токенів. Піднімати щоразу, коли змінюються значення за замовчуванням:
+        /// бутстрап порівнює її з тією, що записана в .asset, і переписує асет свіжими
+        /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
+        /// продовжувала б читати старий асет.
+        /// </summary>
+        public const int CurrentTokenVersion = 2;
+
+        [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
+
+        public int TokenVersion => tokenVersion;
+
         // ───────────────────────── Палітра чорнила ─────────────────────────
 
         [Serializable]
@@ -75,17 +87,19 @@ namespace InkFlow.Style
         // ───────────────────────── Скло ─────────────────────────
 
         [Header("Скляна панель")]
-        [Tooltip("Заливка панелі: rgba(255,255,255,.05) з макета.")]
-        [SerializeField] private Color glassFill = new Color(1f, 1f, 1f, 0.05f);
+        [Tooltip("Заливка скла: ТЕМНА основа з низькою альфою — космічний фон має просвічувати. " +
+                 "Біла заливка макета (.05) читалась як сірий непрозорий пластик, бо в UGUI під нею " +
+                 "немає backdrop-blur, який у вебі притемнює фон.")]
+        [SerializeField] private Color glassFill = new Color32(9, 6, 22, 108);
 
-        [Tooltip("Внутрішній контур: inset 0 0 0 1px rgba(255,255,255,.09).")]
-        [SerializeField] private Color glassStroke = new Color(1f, 1f, 1f, 0.09f);
+        [Tooltip("Підвищена заливка для активних/виділених панелей.")]
+        [SerializeField] private Color glassFillRaised = new Color32(16, 11, 34, 150);
 
-        [Tooltip("Товщина контуру в reference-одиницях (1 px макета ≈ 2.7).")]
-        [SerializeField] private float glassStrokeWidth = 3f;
+        [Tooltip("Тонка світла рамка по контуру: біла з малою альфою.")]
+        [SerializeField] private Color glassStroke = new Color(1f, 1f, 1f, 0.14f);
 
-        [Tooltip("Підвищена заливка для активних/виділених панелей: rgba(255,255,255,.09).")]
-        [SerializeField] private Color glassFillRaised = new Color(1f, 1f, 1f, 0.09f);
+        [Tooltip("Товщина контуру в reference-одиницях: 1-2 px макета ≈ 3-5.")]
+        [SerializeField] private float glassStrokeWidth = 4f;
 
         // ───────────────────────── Радіуси ─────────────────────────
 
@@ -135,11 +149,20 @@ namespace InkFlow.Style
 
         // ───────────────────────── Світіння ─────────────────────────
 
+        [Header("Кнопка")]
+        [Tooltip("Наскільки колір тону підмішується в темну скляну основу кнопки. " +
+                 "У макеті всередині картки ледь помітний кольоровий підтон, а не заливка.")]
+        [SerializeField, Range(0f, 0.6f)] private float buttonTintStrength = 0.16f;
+
+        [Tooltip("Непрозорість кольорової рамки кнопки (рамка тонка, 1 px макета).")]
+        [SerializeField, Range(0f, 1f)] private float buttonStrokeAlpha = 0.75f;
+
         [Header("Світіння")]
         [Tooltip("Радіус гало кнопки: 0 0 18px → ~48 одиниць.")]
         [SerializeField] private float glowButtonRadius = 48f;
 
-        [SerializeField, Range(0f, 1f)] private float glowButtonAlpha = 0.6f;
+        [Tooltip("Гало назовні — тонке й делікатне: у макеті це підсвітка контуру, а не ореол.")]
+        [SerializeField, Range(0f, 1f)] private float glowButtonAlpha = 0.38f;
 
         [Tooltip("Спокійний стан near-miss: drop-shadow 0 0 3px.")]
         [SerializeField] private float glowNearMissMin = 8f;
@@ -169,6 +192,17 @@ namespace InkFlow.Style
 
         [Tooltip("Тінь під краплею: 0 6px 16px withAlpha(colour, .4).")]
         [SerializeField, Range(0f, 1f)] private float dropShadowAlpha = 0.4f;
+
+        [Tooltip("Розмір гало як частка від розміру краплі. Має лишатись у межах клітинки: " +
+                 "на сітці 6×6 завелике гало зливає сусідні краплі в одну пляму.")]
+        [SerializeField, Range(1f, 1.6f)] private float dropGlowScale = 1.16f;
+
+        [Tooltip("Пік гало при near-miss. Верхня межа теж обмежена проміжком між клітинками.")]
+        [SerializeField, Range(1f, 1.8f)] private float dropNearMissGlowScale = 1.3f;
+
+        [Tooltip("Мінімальний проміжок між краплями в reference-одиницях: гало сусідів " +
+                 "не мають торкатись. Клітинка = розмір краплі × NearMissGlowScale + цей проміжок.")]
+        [SerializeField, Min(0f)] private float dropMinGap = 18f;
 
         // ───────────────────────── Рух ─────────────────────────
 
@@ -282,6 +316,18 @@ namespace InkFlow.Style
         public float DropEdgeDarken => dropEdgeDarken;
         public float DropGlossAlpha => dropGlossAlpha;
         public float DropShadowAlpha => dropShadowAlpha;
+        public float DropGlowScale => dropGlowScale;
+        public float DropNearMissGlowScale => dropNearMissGlowScale;
+        public float DropMinGap => dropMinGap;
+
+        public float ButtonTintStrength => buttonTintStrength;
+        public float ButtonStrokeAlpha => buttonStrokeAlpha;
+
+        /// <summary>
+        /// Крок сітки для краплі заданого розміру: гало сусідів не перетинаються
+        /// навіть на піку near-miss. Саме це число має використовувати розкладка поля.
+        /// </summary>
+        public float CellPitchFor(float dropSize) => dropSize * dropNearMissGlowScale + dropMinGap;
 
         public float MotionWobbleDuration => motionWobbleDuration;
         public float MotionWobbleScale => motionWobbleScale;

@@ -58,6 +58,17 @@ namespace InkFlow.Editor
             InkFlowBootstrap.EnsureFolder(StyleFolder);
 
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
+
+            if (design != null && design.TokenVersion < DesignSystem.CurrentTokenVersion)
+            {
+                // Токени виправили в коді — переносимо їх у вже створений асет.
+                // Без цього гра й далі читала б старі значення, а правки жили б лише в дефолтах.
+                Debug.Log($"[InkFlow] DesignSystem: токени v{design.TokenVersion} → " +
+                          $"v{DesignSystem.CurrentTokenVersion}, асет перестворюю.");
+                AssetDatabase.DeleteAsset(DesignSystemPath);
+                design = null;
+            }
+
             if (design == null)
             {
                 design = ScriptableObject.CreateInstance<DesignSystem>();
@@ -131,9 +142,12 @@ namespace InkFlow.Editor
                 var background = bgGo.AddComponent<GradientImage>();
                 background.sprite = rounded;
                 background.type = Image.Type.Sliced;
-                background.SetGradient(design.AccentPrimary, design.AccentSecondary);
+                var tint = Color.Lerp(design.GlassFill, design.AccentPrimary, design.ButtonTintStrength);
+                tint.a = design.GlassFill.a;
+                background.SetGradient(tint, design.GlassFill);
 
-                var stroke = AddImage(root, "InnerStroke", rounded, new Color(1f, 1f, 1f, 0.5f));
+                var stroke = AddImage(root, "Stroke", rounded,
+                    DesignSystem.WithAlpha(design.AccentPrimary, design.ButtonStrokeAlpha));
 
                 var labelGo = NewChild(root, "Label", Vector2.zero, stretch: true);
                 var label = labelGo.AddComponent<TextMeshProUGUI>();
@@ -168,7 +182,10 @@ namespace InkFlow.Editor
             var root = NewUIObject("DropView", new Vector2(160f, 160f));
             try
             {
-                var glowGo = NewChild(root, "Glow", new Vector2(220f, 220f));
+                // Розмір гало — з дизайн-системи; DropView перераховує його ще й у рантаймі,
+                // бо крапля на сітці менша за префаб.
+                var glowSize = 160f * design.DropGlowScale;
+                var glowGo = NewChild(root, "Glow", new Vector2(glowSize, glowSize));
                 var glow = glowGo.AddComponent<Image>();
                 glow.sprite = circle;
                 glow.raycastTarget = false;
@@ -318,42 +335,49 @@ namespace InkFlow.Editor
 
             // Заголовок
             var title = AddLabel(safeGo, "Title", "UI KIT", design, design.FontSizeTitle, font);
-            Place(title, new Vector2(0f, 780f), new Vector2(900f, 90f));
+            Place(title, new Vector2(0f, 830f), new Vector2(900f, 90f));
 
             // Валюта — правий верх
             var currencyInstance = (GameObject)PrefabUtility.InstantiatePrefab(currency, safeGo.transform);
-            Place(currencyInstance, new Vector2(300f, 640f), new Vector2(300f, 90f));
+            Place(currencyInstance, new Vector2(300f, 700f), new Vector2(300f, 90f));
 
-            // Скляна панель
+            // Скляна панель у ролі ігрового поля — крізь неї має просвічувати фон.
             var glassInstance = (GameObject)PrefabUtility.InstantiatePrefab(glass, safeGo.transform);
-            Place(glassInstance, new Vector2(0f, 330f), new Vector2(900f, 380f));
-            var glassCaption = AddLabel(safeGo, "GlassCaption", "GlassPanel · radius Card 70",
-                design, design.FontSizeCaption, font);
-            Place(glassCaption, new Vector2(0f, 500f), new Vector2(800f, 40f));
+            Place(glassInstance, new Vector2(0f, 150f), new Vector2(1000f, 1000f));
+            var glassCaption = AddLabel(safeGo, "GlassCaption",
+                "GlassPanel · темне скло, фон просвічує", design, design.FontSizeCaption, font);
+            Place(glassCaption, new Vector2(0f, 590f), new Vector2(900f, 40f));
 
-            // Палітра крапель усередині панелі
+            // Сітка 6×6: доказ, що гало сусідніх крапель не зливаються.
+            const float dropSize = 105f;
+            var pitch = design.CellPitchFor(dropSize);
             var palette = InkColors.All;
-            for (var i = 0; i < palette.Length; i++)
+            for (var y = 0; y < 6; y++)
             {
-                var instance = (GameObject)PrefabUtility.InstantiatePrefab(drop, safeGo.transform);
-                instance.name = $"Drop_{palette[i]}";
-                var x = -360f + i * 145f;
-                Place(instance, new Vector2(x, 330f), new Vector2(160f, 160f));
+                for (var x = 0; x < 6; x++)
+                {
+                    var instance = (GameObject)PrefabUtility.InstantiatePrefab(drop, safeGo.transform);
+                    instance.name = $"Drop_{x}_{y}";
+                    Place(instance,
+                        new Vector2((x - 2.5f) * pitch, 150f + (y - 2.5f) * pitch),
+                        new Vector2(dropSize, dropSize));
 
-                var view = instance.GetComponent<DropView>();
-                view.Show(palette[i], (i + 1) * 2);
-                if (i == palette.Length - 1)
-                    view.SetNearMiss(true); // остання показує пульс near-miss
+                    var view = instance.GetComponent<DropView>();
+                    view.Show(palette[(x + y * 2) % palette.Length], 1 + (x + y) % 9);
+                    // Кутова крапля пульсує — видно, що навіть на піку гало лишається в клітинці.
+                    view.SetNearMiss(x == 5 && y == 5);
+                    view.Apply();
+                }
             }
 
             // Кнопки трьох тонів
             var tones = new[] { NeonButton.Tone.Primary, NeonButton.Tone.Cool, NeonButton.Tone.Warm };
-            var titles = new[] { "Грати", "Нескінченний", "Магазин" };
+            var titles = new[] { "Рівні", "Нескінченний", "Магазин" };
             for (var i = 0; i < tones.Length; i++)
             {
                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(button, safeGo.transform);
                 instance.name = $"NeonButton_{tones[i]}";
-                Place(instance, new Vector2(0f, -20f - i * 190f), new Vector2(520f, 150f));
+                Place(instance, new Vector2(0f, -450f - i * 180f), new Vector2(700f, 150f));
 
                 var neon = instance.GetComponent<NeonButton>();
                 var so = new SerializedObject(neon);
@@ -364,9 +388,9 @@ namespace InkFlow.Editor
             }
 
             var hint = AddLabel(safeGo, "Hint",
-                "Тапни краплю — squash & stretch. Тапни кнопку — пружне натискання.",
+                $"Сітка 6×6 · крок {pitch:0} = крапля {dropSize:0} × {design.DropNearMissGlowScale:0.00} + проміжок {design.DropMinGap:0}",
                 design, design.FontSizeCaption, font);
-            Place(hint, new Vector2(0f, -640f), new Vector2(900f, 60f));
+            Place(hint, new Vector2(0f, -890f), new Vector2(1000f, 60f));
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();

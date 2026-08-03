@@ -1,0 +1,186 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
+  m_Name: DesignSystem
+  m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
+  inkPalette:
+  - color: 1
+    hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
+  - color: 2
+    hex: {r: 0, g: 0.8509804, b: 0.7529412, a: 1}
+  - color: 3
+    hex: {r: 1, g: 0.7019608, b: 0, a: 1}
+  - color: 4
+    hex: {r: 0.60784316, g: 0.9019608, b: 0.21176471, a: 1}
+  - color: 5
+    hex: {r: 0.6156863, g: 0.3019608, b: 1, a: 1}
+  - color: 6
+    hex: {r: 1, g: 0.46666667, b: 0.7137255, a: 1}
+  backgroundInner: {r: 0.16470589, g: 0.11764706, b: 0.3372549, a: 1}
+  backgroundMid: {r: 0.101960786, g: 0.07450981, b: 0.21960784, a: 1}
+  backgroundOuter: {r: 0.047058824, g: 0.03137255, b: 0.1254902, a: 1}
+  backgroundEdge: {r: 0.02745098, g: 0.019607844, b: 0.07058824, a: 1}
+  backgroundStops: {x: 0, y: 0.34, z: 0.68, w: 1}
+  accentPrimary: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
+  accentSecondary: {r: 0.6156863, g: 0.3019608, b: 1, a: 1}
+  accentTeal: {r: 0, g: 0.8509804, b: 0.7529412, a: 1}
+  accentBlue: {r: 0.23137255, g: 0.48235294, b: 1, a: 1}
+  accentGold: {r: 1, g: 0.7019608, b: 0, a: 1}
+  accentLime: {r: 0.60784316, g: 0.9019608, b: 0.21176471, a: 1}
+  textPrimary: {r: 1, g: 1, b: 1, a: 1}
+  textMuted: {r: 1, g: 1, b: 1, a: 0.62}
+  textDim: {r: 1, g: 1, b: 1, a: 0.38}
+  glassFill: {r: 1, g: 1, b: 1, a: 0.05}
+  glassStroke: {r: 1, g: 1, b: 1, a: 0.09}
+  glassStrokeWidth: 3
+  glassFillRaised: {r: 1, g: 1, b: 1, a: 0.09}
+  radiusSmall: 43
+  radiusMedium: 48
+  radiusButton: 56
+  radiusCard: 70
+  radiusSheet: 91
+  spacingXs: 11
+  spacingSm: 16
+  spacingMd: 27
+  spacingLg: 38
+  spacingXl: 48
+  navBarHeight: 140
+  font: {fileID: 11400000, guid: b06b1162245054e0d9b2830b308c4a70, type: 2}
+  fontSizeCaption: 27
+  fontSizeLabel: 32
+  fontSizeBody: 40
+  fontSizeSubtitle: 46
+  fontSizeTitle: 59
+  fontSizeDisplay: 73
+  letterSpacingWide: 14
+  glowButtonRadius: 48
+  glowButtonAlpha: 0.6
+  glowNearMissMin: 8
+  glowNearMissMax: 38
+  glowPanelRadius: 107
+  glowPanelAlpha: 0.18
+  dropHighlightLighten: 0.5
+  dropMidLighten: 0.12
+  dropEdgeDarken: 0.28
+  dropGlossAlpha: 0.4
+  dropShadowAlpha: 0.4
+  motionWobbleDuration: 5.5
+  motionWobbleScale: 0.03
+  motionWobbleTilt: 2
+  motionLandDuration: 0.47
+  motionRejectDuration: 0.32
+  motionDropInDuration: 0.55
+  motionNearMissDuration: 1.15
+  motionPressDuration: 0.28
+  motionScreenFadeDuration: 0.35
+  curveBackOut:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 3.2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.45
+      value: 1.12
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  curveLand:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 4
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.45
+      value: 1.25
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.75
+      value: 0.92
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  curveEaseInOut:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  starTwinkleSlow: 11
+  starTwinkleFast: 7
+  starCount: 90

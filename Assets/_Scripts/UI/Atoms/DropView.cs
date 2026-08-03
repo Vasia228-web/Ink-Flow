@@ -80,7 +80,18 @@ namespace InkFlow.UI
                 gloss.color = new Color(1f, 1f, 1f, design.DropGlossAlpha);
 
             if (glow != null)
+            {
                 glow.color = design.InkGlow(ink);
+                // Розмір гало — з дизайн-системи, а не з префаба: на сітці 6×6 завелике
+                // світіння зливає сусідні краплі в одну пляму.
+                if (glow.rectTransform != null)
+                {
+                    glow.rectTransform.anchorMin = glow.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                    glow.rectTransform.sizeDelta = ((RectTransform)transform).rect.size * design.DropGlowScale;
+                }
+
+                glow.transform.localScale = Vector3.one;
+            }
 
             if (densityLabel != null)
             {
@@ -112,9 +123,10 @@ namespace InkFlow.UI
             if (_nearMiss && glow != null)
             {
                 var pulse = 0.5f + 0.5f * Mathf.Sin(Time.time / design.MotionNearMissDuration * Mathf.PI * 2f);
-                var min = design.GlowNearMissMin / design.GlowNearMissMax;
-                var size = Mathf.Lerp(min, 1f, pulse);
-                glow.transform.localScale = Vector3.one * (1.15f + 0.45f * size);
+                // Пік пульсу обмежений NearMissGlowScale — саме з нього рахується крок сітки,
+                // тож гало ніколи не виходить за межі клітинки.
+                var peak = design.DropNearMissGlowScale / Mathf.Max(0.01f, design.DropGlowScale);
+                glow.transform.localScale = Vector3.one * Mathf.Lerp(1f, peak, pulse);
                 glow.color = DesignSystem.WithAlpha(design.Ink(ink), design.DropShadowAlpha * (0.5f + 0.5f * pulse));
                 scale *= Mathf.Lerp(1f, 1.08f, pulse);
             }

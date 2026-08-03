@@ -8,11 +8,16 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Кнопка макета: градієнтна заливка, неонове гало, світлий внутрішній контур
+    /// Кнопка макета: ТЕМНА скляна основа з ледь помітним кольоровим підтоном,
+    /// тонка кольорова рамка (1 px), делікатне кольорове гало назовні, світлий текст
     /// і пружне натискання (.28 s, back-out).
     ///
-    /// Градієнт у макеті — `linear-gradient(135deg, …)`; в UGUI робимо його
-    /// вершинними кольорами через VertexGradient на самому Image, без окремого шейдера.
+    /// Саме так, а не «яскрава заливка + світла рамка»: у макеті картки читаються як
+    /// підсвічене скло на космічному фоні — фон крізь них просвічує, а колір тону
+    /// живе в рамці й гало, не в заливці.
+    ///
+    /// Підтон робимо градієнтом по вершинах (135° як у макеті) — нуль зайвих
+    /// draw call і жодного нового матеріалу.
     /// </summary>
     [RequireComponent(typeof(RectTransform))]
     public sealed class NeonButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
@@ -68,32 +73,39 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            var (from, to) = ToneColors(tone);
+            var accent = ToneAccent(tone);
+            var ppu = GlassPanel.PixelsPerUnitFor(design.RadiusButton);
 
             if (background != null)
             {
-                // 135° макета: зліва-вгору → вправо-вниз.
-                background.SetGradient(from, to);
+                // Темне скло з кольоровим підтоном, що згасає по діагоналі 135°.
+                // Альфу беремо зі скла — фон має просвічувати.
+                var tinted = Color.Lerp(design.GlassFill, accent, design.ButtonTintStrength);
+                tinted.a = design.GlassFill.a;
+                background.SetGradient(tinted, design.GlassFill);
                 background.color = Color.white;
-                background.pixelsPerUnitMultiplier =
-                    GlassPanel.PixelsPerUnitFor(design.RadiusButton);
+                background.pixelsPerUnitMultiplier = ppu;
             }
 
             if (glow != null)
             {
-                glow.color = DesignSystem.WithAlpha(from, tone == Tone.Ghost ? 0f : design.GlowButtonAlpha);
-                glow.gameObject.SetActive(tone != Tone.Ghost);
+                var visible = tone != Tone.Ghost;
+                glow.color = DesignSystem.WithAlpha(accent, visible ? design.GlowButtonAlpha : 0f);
+                glow.gameObject.SetActive(visible);
             }
 
             if (innerStroke != null)
             {
-                // inset 0 0 0 2px rgba(255,255,255,.5) з макета.
-                innerStroke.color = new Color(1f, 1f, 1f, tone == Tone.Ghost ? 0.09f : 0.5f);
-                innerStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(design.RadiusButton);
+                // Рамка — кольорова й тонка; у Ghost лишається нейтральне скло.
+                innerStroke.color = tone == Tone.Ghost
+                    ? design.GlassStroke
+                    : DesignSystem.WithAlpha(accent, design.ButtonStrokeAlpha);
+                innerStroke.pixelsPerUnitMultiplier = ppu;
             }
 
             if (label != null)
             {
+                // Світлий текст на темному — не навпаки.
                 label.color = design.TextPrimary;
                 label.fontSize = design.FontSizeBody;
                 if (design.Font != null)
@@ -101,12 +113,13 @@ namespace InkFlow.UI
             }
         }
 
-        private (Color from, Color to) ToneColors(Tone value) => value switch
+        /// <summary>Колір тону: він живе в рамці й гало, а в заливці — лише як слабкий підтон.</summary>
+        private Color ToneAccent(Tone value) => value switch
         {
-            Tone.Cool => (design.AccentTeal, design.AccentBlue),
-            Tone.Warm => (design.AccentGold, design.AccentPrimary),
-            Tone.Ghost => (design.GlassFill, design.GlassFill),
-            _ => (design.AccentPrimary, design.AccentSecondary)
+            Tone.Cool => design.AccentTeal,
+            Tone.Warm => design.AccentGold,
+            Tone.Ghost => design.TextMuted,
+            _ => design.AccentPrimary
         };
 
         public void OnPointerDown(PointerEventData eventData) => PlayScale(pressScale, instant: true);
