@@ -26,8 +26,13 @@ if [[ -z "$DAG" ]]; then
 fi
 
 # збірка → тека з кодом
+# збірка:тека[:донор-rsp]
+# Донор потрібен новим збіркам, яких Unity ще не компілював: беремо прапорці
+# сусідньої збірки із сумісним набором посилань, щоб новий код не лишався
+# неперевіреним до наступного відкриття редактора.
 ASSEMBLY_DIRS=(
   "InkFlow.Core:Assets/_Scripts/Core"
+  "InkFlow.Style:Assets/_Scripts/Style:InkFlow.UI"
   "InkFlow.Platform:Assets/_Scripts/Platform"
   "InkFlow.Meta:Assets/_Scripts/Meta"
   "InkFlow.Gameplay:Assets/_Scripts/Gameplay"
@@ -46,9 +51,12 @@ FAILED=0
 MISSING=0
 
 for entry in "${ASSEMBLY_DIRS[@]}"; do
-  name="${entry%%:*}"
-  dir="${entry#*:}"
+  IFS=':' read -r name dir donor <<< "$entry"
   src_rsp="$DAG/$name.rsp"
+  if [[ ! -f "$src_rsp" && -n "${donor:-}" && -f "$DAG/$donor.rsp" ]]; then
+    src_rsp="$DAG/$donor.rsp"
+    echo "  · $name — використовую прапорці $donor (Unity ще не збирав цю збірку)"
+  fi
 
   if [[ ! -f "$src_rsp" ]]; then
     echo "  ? $name — Unity ще не збирав цю збірку, пропущено"
@@ -79,8 +87,15 @@ for entry in "${ASSEMBLY_DIRS[@]}"; do
     # Лише прапорці Unity, без його списку файлів. Unity пише їх і через '-', і через '/'
     # (напр. /nowarn:0649) — фільтрувати треба обидва, інакше «загубляться» саме ті
     # придушення попереджень, які редактор застосовує до [SerializeField]-полів.
+    # Прапорці Unity, але БЕЗ посилань на власні InkFlow-збірки: їх підставляємо
+    # свіжозібраними з цього ж прогону. Інакше нове посилання між нашими збірками
+    # (додане в asmdef щойно) не резолвиться, бо rsp редактора про нього ще не знає.
     grep -E '^[-/]' "$src_rsp" \
-      | grep -vE '^[-/](out|refout|doc):'
+      | grep -vE '^[-/](out|refout|doc):' \
+      | grep -vE '^[-/]r:"?[^"]*ScriptAssemblies/InkFlow\.'
+    for built in "$OUT"/InkFlow.*.dll; do
+      [[ -f "$built" ]] && echo "-r:\"$built\""
+    done
     echo "-out:\"$OUT/$name.dll\""
     printf '"%s"\n' "${sources[@]}"
   } > "$rsp"

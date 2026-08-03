@@ -1,12 +1,10 @@
 {
-    "name": "InkFlow.UI",
-    "rootNamespace": "InkFlow.UI",
+    "name": "InkFlow.Style",
+    "rootNamespace": "InkFlow.Style",
     "references": [
         "InkFlow.Core",
-        "InkFlow.Style",
-        "InkFlow.Meta",
-        "UnityEngine.UI",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
