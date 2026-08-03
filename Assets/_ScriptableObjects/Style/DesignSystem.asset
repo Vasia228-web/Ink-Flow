@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
+  tokenVersion: 2
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -40,9 +41,9 @@ MonoBehaviour:
   textMuted: {r: 1, g: 1, b: 1, a: 0.62}
   textDim: {r: 1, g: 1, b: 1, a: 0.38}
   glassFill: {r: 1, g: 1, b: 1, a: 0.05}
+  glassFillRaised: {r: 1, g: 1, b: 1, a: 0.09}
   glassStroke: {r: 1, g: 1, b: 1, a: 0.09}
   glassStrokeWidth: 3
-  glassFillRaised: {r: 1, g: 1, b: 1, a: 0.09}
   radiusSmall: 43
   radiusMedium: 48
   radiusButton: 56
@@ -62,6 +63,8 @@ MonoBehaviour:
   fontSizeTitle: 59
   fontSizeDisplay: 73
   letterSpacingWide: 14
+  buttonTintStrength: 0.16
+  buttonStrokeAlpha: 0.75
   glowButtonRadius: 48
   glowButtonAlpha: 0.6
   glowNearMissMin: 8
@@ -73,6 +76,9 @@ MonoBehaviour:
   dropEdgeDarken: 0.28
   dropGlossAlpha: 0.4
   dropShadowAlpha: 0.4
+  dropGlowScale: 1.16
+  dropNearMissGlowScale: 1.3
+  dropMinGap: 18
   motionWobbleDuration: 5.5
   motionWobbleScale: 0.03
   motionWobbleTilt: 2

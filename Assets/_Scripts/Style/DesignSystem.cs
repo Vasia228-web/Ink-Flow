@@ -6,8 +6,8 @@ namespace InkFlow.Style
 {
     /// <summary>
     /// ЄДИНЕ джерело візуальних значень гри. Витягнуто з макета Claude Design
-    /// («Ink Flow v2», полотно 402×874 px) і перераховано в reference-одиниці UGUI
-    /// 1080×1920 з коефіцієнтом 1080/402 ≈ 2.687.
+    /// («Ink Flow v2», полотно 390×844 px) і перераховано в reference-одиниці UGUI
+    /// 1080×1920 з коефіцієнтом 1080/390 ≈ 2.769.
     ///
     /// ПРАВИЛО: жодного кольору, радіуса чи тривалості в коді або префабах —
     /// усе читається звідси. Інакше зміна стилю перетворюється на пошук по всьому проєкту.
@@ -16,8 +16,8 @@ namespace InkFlow.Style
     [CreateAssetMenu(fileName = "DesignSystem", menuName = "Ink Flow/Design System")]
     public sealed class DesignSystem : ScriptableObject
     {
-        /// <summary>Ширина полотна макета в px — база для перерахунку.</summary>
-        public const float MockupWidth = 402f;
+        /// <summary>Ширина полотна макета в px: hint-size="390,844" у Ink Flow v2.dc.html.</summary>
+        public const float MockupWidth = 390f;
 
         /// <summary>Ширина reference-полотна UGUI.</summary>
         public const float ReferenceWidth = 1080f;
@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 2;
+        public const int CurrentTokenVersion = 3;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -103,33 +103,33 @@ namespace InkFlow.Style
 
         // ───────────────────────── Радіуси ─────────────────────────
 
-        [Header("Радіуси, reference-одиниці (px макета × 2.687)")]
+        [Header("Радіуси, reference-одиниці (px макета × 2.769)")]
         [Tooltip("16 px макета — чипи, дрібні плашки.")]
-        [SerializeField] private float radiusSmall = 43f;
+        [SerializeField] private float radiusSmall = 44f;
 
         [Tooltip("18 px — нижня навігація, кнопки-іконки.")]
-        [SerializeField] private float radiusMedium = 48f;
+        [SerializeField] private float radiusMedium = 50f;
 
         [Tooltip("20-22 px — кнопки.")]
-        [SerializeField] private float radiusButton = 56f;
+        [SerializeField] private float radiusButton = 61f;
 
         [Tooltip("26 px — основні картки/панелі.")]
-        [SerializeField] private float radiusCard = 70f;
+        [SerializeField] private float radiusCard = 72f;
 
         [Tooltip("34 px — модальні листи знизу.")]
-        [SerializeField] private float radiusSheet = 91f;
+        [SerializeField] private float radiusSheet = 94f;
 
         // ───────────────────────── Відступи ─────────────────────────
 
         [Header("Сітка відступів, reference-одиниці")]
         [SerializeField] private float spacingXs = 11f;   // 4 px
-        [SerializeField] private float spacingSm = 16f;   // 6 px
-        [SerializeField] private float spacingMd = 27f;   // 10 px
-        [SerializeField] private float spacingLg = 38f;   // 14 px
-        [SerializeField] private float spacingXl = 48f;   // 18 px — бічні поля екрана
+        [SerializeField] private float spacingSm = 17f;   // 6 px
+        [SerializeField] private float spacingMd = 28f;   // 10 px
+        [SerializeField] private float spacingLg = 39f;   // 14 px
+        [SerializeField] private float spacingXl = 50f;   // 18 px — бічні поля екрана
 
-        [Tooltip("Висота нижньої навігації: 52 px макета.")]
-        [SerializeField] private float navBarHeight = 140f;
+        [Tooltip("Висота нижньої навігації разом із внутрішніми відступами (65 px макета).")]
+        [SerializeField] private float navBarHeight = 180f;
 
         // ───────────────────────── Типографіка ─────────────────────────
 
@@ -137,12 +137,12 @@ namespace InkFlow.Style
         [Tooltip("Макет намальовано в Baloo 2; у грі — Nunito (Baloo 2 не має кирилиці).")]
         [SerializeField] private TMPro.TMP_FontAsset? font;
 
-        [SerializeField] private float fontSizeCaption = 27f;  // 10 px
-        [SerializeField] private float fontSizeLabel = 32f;    // 12 px
-        [SerializeField] private float fontSizeBody = 40f;     // 15 px
-        [SerializeField] private float fontSizeSubtitle = 46f; // 17 px
-        [SerializeField] private float fontSizeTitle = 59f;    // 22 px
-        [SerializeField] private float fontSizeDisplay = 73f;  // 27 px
+        [SerializeField] private float fontSizeCaption = 28f;  // 10 px
+        [SerializeField] private float fontSizeLabel = 33f;    // 12 px
+        [SerializeField] private float fontSizeBody = 42f;     // 15 px
+        [SerializeField] private float fontSizeSubtitle = 47f; // 17 px
+        [SerializeField] private float fontSizeTitle = 61f;    // 22 px
+        [SerializeField] private float fontSizeDisplay = 75f;  // 27 px
 
         [Tooltip("Розріджені великі літери (labels): .14em макета.")]
         [SerializeField] private float letterSpacingWide = 14f;
@@ -159,7 +159,7 @@ namespace InkFlow.Style
 
         [Header("Світіння")]
         [Tooltip("Радіус гало кнопки: 0 0 18px → ~48 одиниць.")]
-        [SerializeField] private float glowButtonRadius = 48f;
+        [SerializeField] private float glowButtonRadius = 50f;
 
         [Tooltip("Гало назовні — тонке й делікатне: у макеті це підсвітка контуру, а не ореол.")]
         [SerializeField, Range(0f, 1f)] private float glowButtonAlpha = 0.38f;
@@ -168,10 +168,10 @@ namespace InkFlow.Style
         [SerializeField] private float glowNearMissMin = 8f;
 
         [Tooltip("Пік near-miss: drop-shadow 0 0 14px.")]
-        [SerializeField] private float glowNearMissMax = 38f;
+        [SerializeField] private float glowNearMissMax = 39f;
 
         [Tooltip("Гало навколо великої панелі: 0 0 40px rgba(157,77,255,.18).")]
-        [SerializeField] private float glowPanelRadius = 107f;
+        [SerializeField] private float glowPanelRadius = 111f;
 
         [SerializeField, Range(0f, 1f)] private float glowPanelAlpha = 0.18f;
 
@@ -258,6 +258,68 @@ namespace InkFlow.Style
 
         [SerializeField, Min(0)] private int starCount = 90;
 
+
+        // ───────────────────────── Хаб-меню ─────────────────────────
+
+        [Header("Хаб: картки режимів (значення з розмітки макета)")]
+        [Tooltip("Радіус картки режиму: 28 px макета.")]
+        [SerializeField] private float radiusModeCard = 78f;
+
+        [Tooltip("Перша зупинка градієнта картки: rgba(accent,.18).")]
+        [SerializeField, Range(0f, 1f)] private float cardTintStrong = 0.18f;
+
+        [Tooltip("Друга зупинка: rgba(secondary,.08).")]
+        [SerializeField, Range(0f, 1f)] private float cardTintWeak = 0.08f;
+
+        [Tooltip("Кольорова рамка картки: rgba(accent,.38) завтовшки 1 px макета.")]
+        [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.38f;
+
+        [Tooltip("Гало картки: 0 0 26px → 72 одиниці.")]
+        [SerializeField] private float cardGlowRadius = 72f;
+
+        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.2f;
+
+        [Tooltip("Плитка іконки в картці: 52×52 px макета.")]
+        [SerializeField] private float cardIconTileSize = 144f;
+
+        [Tooltip("Наскільки світлішає акцент для рядка статистики (#FF9ECB від #FF2D8A).")]
+        [SerializeField, Range(0f, 1f)] private float statTextLighten = 0.56f;
+
+        [Header("Хаб: нижня навігація")]
+        [Tooltip("Заливка капсули навігації: rgba(18,12,34,.55) з макета — темніша за звичайне скло.")]
+        [SerializeField] private Color navFill = new Color32(18, 12, 34, 140);
+
+        [Tooltip("Рамка капсули: rgba(255,255,255,.12).")]
+        [SerializeField] private Color navStroke = new Color(1f, 1f, 1f, 0.12f);
+
+        [Tooltip("Радіус капсули навігації: 30 px макета.")]
+        [SerializeField] private float radiusNav = 83f;
+
+        [Tooltip("Підпис активної вкладки: rgba(255,255,255,.92), вага 800.")]
+        [SerializeField] private Color navLabelActive = new Color(1f, 1f, 1f, 0.92f);
+
+        [Tooltip("Підпис неактивної: rgba(255,255,255,.5), вага 700.")]
+        [SerializeField] private Color navLabelInactive = new Color(1f, 1f, 1f, 0.5f);
+
+        [Header("Хаб: типографіка")]
+        [Tooltip("Лого «Ink Flow»: 58 px макета, line-height .9.")]
+        [SerializeField] private float fontSizeLogo = 161f;
+
+        [Tooltip("Дрібний підпис (11 px макета): підзаголовок профілю, службові рядки.")]
+        [SerializeField] private float fontSizeSmall = 30f;
+
+        [Tooltip("Підзаголовок картки (12.5 px макета).")]
+        [SerializeField] private float fontSizeCardSubtitle = 35f;
+
+        [Tooltip("Підпис профілю: rgba(255,255,255,.42).")]
+        [SerializeField] private Color textFaint = new Color(1f, 1f, 1f, 0.42f);
+
+        [Tooltip("Таглайн під лого: rgba(255,255,255,.4), letter-spacing .18em.")]
+        [SerializeField] private float letterSpacingTagline = 18f;
+
+        [Tooltip("Рядок статистики: letter-spacing .02em.")]
+        [SerializeField] private float letterSpacingTight = 2f;
+
         // ───────────────────────── Доступ ─────────────────────────
 
         public Color BackgroundInner => backgroundInner;
@@ -322,6 +384,30 @@ namespace InkFlow.Style
 
         public float ButtonTintStrength => buttonTintStrength;
         public float ButtonStrokeAlpha => buttonStrokeAlpha;
+
+        public float RadiusModeCard => radiusModeCard;
+        public float CardTintStrong => cardTintStrong;
+        public float CardTintWeak => cardTintWeak;
+        public float CardStrokeAlpha => cardStrokeAlpha;
+        public float CardGlowRadius => cardGlowRadius;
+        public float CardGlowAlpha => cardGlowAlpha;
+        public float CardIconTileSize => cardIconTileSize;
+
+        public Color NavFill => navFill;
+        public Color NavStroke => navStroke;
+        public float RadiusNav => radiusNav;
+        public Color NavLabelActive => navLabelActive;
+        public Color NavLabelInactive => navLabelInactive;
+
+        public float FontSizeLogo => fontSizeLogo;
+        public float FontSizeSmall => fontSizeSmall;
+        public float FontSizeCardSubtitle => fontSizeCardSubtitle;
+        public Color TextFaint => textFaint;
+        public float LetterSpacingTagline => letterSpacingTagline;
+        public float LetterSpacingTight => letterSpacingTight;
+
+        /// <summary>Колір рядка статистики картки — освітлений акцент (#FF2D8A → #FF9ECB).</summary>
+        public Color StatText(Color accent) => Lighten(accent, statTextLighten);
 
         /// <summary>
         /// Крок сітки для краплі заданого розміру: гало сусідів не перетинаються
