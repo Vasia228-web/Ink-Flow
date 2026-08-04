@@ -47,6 +47,15 @@ namespace InkFlow.Editor
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
 
+            // Поки збираємо — жодних відкладених перечитувань стилю: ApplyScaler()
+            // і Apply() кличемо самі, синхронно, перед SaveScene.
+            StyleRefresh.Suspended = true;
+            try { BuildScene(); }
+            finally { StyleRefresh.Suspended = false; }
+        }
+
+        private static void BuildScene()
+        {
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             if (design == null)
             {
@@ -142,6 +151,12 @@ namespace InkFlow.Editor
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
             eventSystem.AddComponent<InputSystemUIInputModule>();
+
+            // Стилі застосовуємо тут, синхронно й перед збереженням. Покладатись на
+            // OnValidate більше не можна: він відкладений на наступний кадр (див.
+            // StyleRefresh), тож у файл сцени потрапили б дефолтні значення.
+            uiRoot.ApplyScaler();
+            screen.Apply();
 
             InkFlowBootstrap.EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);

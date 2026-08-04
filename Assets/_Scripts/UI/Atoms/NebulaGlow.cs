@@ -39,7 +39,7 @@ namespace InkFlow.UI
         private void OnValidate()
         {
             _rect = (RectTransform)transform;
-            Apply();
+            StyleRefresh.Schedule(this, Apply);
         }
 #endif
 

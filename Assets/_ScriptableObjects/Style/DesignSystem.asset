@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 4
+  tokenVersion: 5
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -65,8 +65,8 @@ MonoBehaviour:
   letterSpacingWide: 14
   buttonTintStrength: 0.16
   buttonStrokeAlpha: 0.75
-  glowButtonRadius: 50
-  glowButtonAlpha: 0.38
+  glowButtonRadius: 30
+  glowButtonAlpha: 0.2
   glowNearMissMin: 8
   glowNearMissMax: 39
   glowPanelRadius: 111
@@ -195,8 +195,9 @@ MonoBehaviour:
   cardTintWeak: 0.04
   cardBase: {r: 0.03529412, g: 0.023529412, b: 0.08627451, a: 0.36078432}
   cardStrokeAlpha: 0.38
-  cardGlowRadius: 72
-  cardGlowAlpha: 0.2
+  cardGlowRadius: 28
+  cardGlowAlpha: 0.085
+  cardGlowPressBoost: 2.4
   cardIconTileSize: 144
   statTextLighten: 0.56
   navFill: {r: 0.05490196, g: 0.03529412, b: 0.10980392, a: 0.43137255}
@@ -210,3 +211,21 @@ MonoBehaviour:
   textFaint: {r: 1, g: 1, b: 1, a: 0.42}
   letterSpacingTagline: 18
   letterSpacingTight: 2
+  blobAsymmetry: 0.055
+  blobMorphPeriod: 7.3
+  glossDrift: 0.07
+  dripInterval: 5.5
+  dripJitter: 0.55
+  dripFallDuration: 1.15
+  dripFallDistance: 110
+  dripSize: 0.22
+  nebulaScale: 1.15
+  nebulaAlpha: 0.13
+  nebulaBreathPeriod: 17
+  nebulaBreathAmount: 0.22
+  starTwinkleFraction: 0.35
+  pressScale: 0.96
+  pressDownDuration: 0.07
+  pressReleaseDuration: 0.26
+  tabBounceHeight: 14
+  tabBounceDuration: 0.32

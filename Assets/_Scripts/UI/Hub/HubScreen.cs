@@ -47,7 +47,7 @@ namespace InkFlow.UI
         private void OnEnable() => Apply();
 
 #if UNITY_EDITOR
-        private void OnValidate() => Apply();
+        private void OnValidate() => StyleRefresh.Schedule(this, Apply);
 #endif
 
         public override void OnEnter(ScreenArgs args)

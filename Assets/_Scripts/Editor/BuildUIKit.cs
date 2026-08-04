@@ -34,6 +34,15 @@ namespace InkFlow.Editor
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
 
+            // Поки збираємо — жодних відкладених перечитувань стилю: усі потрібні
+            // Apply() викликаються нижче синхронно, до SavePrefab.
+            StyleRefresh.Suspended = true;
+            try { BuildAll(); }
+            finally { StyleRefresh.Suspended = false; }
+        }
+
+        private static void BuildAll()
+        {
             // Кожен крок в окремому try: виняток в одному не має обривати збірку мовчки —
             // саме так недоступна для читання текстура вбила генерацію шрифтів і префабів.
             Step("UI-спрайти", GenerateUISprites.Generate);
@@ -132,6 +141,9 @@ namespace InkFlow.Editor
 
                 var panel = root.AddComponent<GlassPanel>();
                 Wire(panel, ("design", design), ("fill", fill), ("stroke", stroke));
+                // Синхронно: OnValidate тепер відкладений, а pixelsPerUnitMultiplier
+                // мусить бути в префабі, інакше 9-slice радіус поїде.
+                panel.Apply();
 
                 SavePrefab(root, "GlassPanel");
             }
@@ -283,6 +295,8 @@ namespace InkFlow.Editor
                 Wire(widget,
                     ("design", design), ("panel", panel), ("dropIcon", icon),
                     ("dropGloss", glossImage), ("amountLabel", label));
+                panel.Apply();
+                widget.Apply();
 
                 SavePrefab(root, "CurrencyWidget");
             }
@@ -352,6 +366,7 @@ namespace InkFlow.Editor
             var uiRoot = canvasGo.AddComponent<UIRoot>();
             Wire(uiRoot, ("canvas", canvas), ("scaler", scaler), ("navigation", navigation),
                 ("safeArea", safeGo.GetComponent<SafeAreaBinder>()));
+            uiRoot.ApplyScaler();
 
             // Заголовок
             var title = AddLabel(safeGo, "Title", "UI KIT", design, design.FontSizeTitle, font);

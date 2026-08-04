@@ -37,7 +37,7 @@ namespace InkFlow.UI
         private void OnEnable() => Apply();
 
 #if UNITY_EDITOR
-        private void OnValidate() => Apply();
+        private void OnValidate() => StyleRefresh.Schedule(this, Apply);
 #endif
 
         /// <summary>Перечитує значення з дизайн-системи. Викликається і в редакторі.</summary>

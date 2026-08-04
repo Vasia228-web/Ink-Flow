@@ -68,7 +68,7 @@ namespace InkFlow.UI
         }
 
 #if UNITY_EDITOR
-        private void OnValidate() => Apply();
+        private void OnValidate() => StyleRefresh.Schedule(this, Apply);
 #endif
 
         public void Select(int index)

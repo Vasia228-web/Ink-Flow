@@ -48,7 +48,7 @@ namespace InkFlow.UI
         private void OnEnable() => Apply();
 
 #if UNITY_EDITOR
-        private void OnValidate() => Apply();
+        private void OnValidate() => StyleRefresh.Schedule(this, Apply);
 #endif
 
         public void SetText(string title, string subtitle, string stat)

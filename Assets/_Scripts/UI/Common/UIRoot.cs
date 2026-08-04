@@ -30,10 +30,15 @@ namespace InkFlow.UI
         private void Awake() => ApplyScaler();
 
 #if UNITY_EDITOR
-        private void OnValidate() => ApplyScaler();
+        private void OnValidate() => StyleRefresh.Schedule(this, ApplyScaler);
 #endif
 
-        private void ApplyScaler()
+        /// <summary>
+        /// Публічний, бо бутстрап мусить викликати його синхронно перед SaveScene:
+        /// правка з OnValidate відкладена на наступний кадр і в збережену сцену
+        /// вже не потрапила б — CanvasScaler лишився б дефолтним.
+        /// </summary>
+        public void ApplyScaler()
         {
             if (scaler == null)
                 return;

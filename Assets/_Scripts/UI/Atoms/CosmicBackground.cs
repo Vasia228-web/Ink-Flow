@@ -102,12 +102,7 @@ namespace InkFlow.UI
             }
         }
 
-#if UNITY_EDITOR
-        protected override void OnValidate()
-        {
-            base.OnValidate();
-            SetVerticesDirty();
-        }
-#endif
+        // OnValidate тут навмисно немає: Graphic.OnValidate уже кличе SetAllDirty(),
+        // а наш додатковий SetVerticesDirty лише подвоював реєстрацію на перебудову.
     }
 }
