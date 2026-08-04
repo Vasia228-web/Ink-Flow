@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 52c4f969434a94f1ca35d281aa1ac5ba
+guid: 23aeda08294d848248ae73321e1d67e6
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -5099863976607236638
-    second: rounded-rect_0
+      213: -3059508689165935373
+    second: rounded-rect-outline_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,7 +126,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: rounded-rect_0
+      name: rounded-rect-outline_0
       rect:
         serializedVersion: 2
         x: 0
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 2edb387cbb4a939b0800000000000000
-      internalID: -5099863976607236638
+      spriteID: 3fc1b03ae017a85d0800000000000000
+      internalID: -3059508689165935373
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      rounded-rect_0: -5099863976607236638
+      rounded-rect-outline_0: -3059508689165935373
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

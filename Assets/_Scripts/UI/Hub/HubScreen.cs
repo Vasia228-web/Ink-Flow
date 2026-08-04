@@ -93,7 +93,11 @@ namespace InkFlow.UI
                     tagline.font = design.Font;
             }
 
-            levelsCard?.SetText("Рівні", "Розчисти сітку", $"Рівень {mockLevel} · ★ {mockStars}");
+            // ★ немає в Nunito, тож підставляємо іконку тегом. Голий символ не годиться:
+            // TMP шукає відсутні гліфи лише у fallback-ШРИФТАХ, а не у спрайт-асеті,
+            // і замінює їх на порожній квадрат.
+            levelsCard?.SetText("Рівні", "Розчисти сітку",
+                $"Рівень {mockLevel} · <sprite name=\"star\"> {mockStars}");
             endlessCard?.SetText("Нескінченний", "Набирай рекорд", $"Рекорд · {mockRecord:N0}");
             levelsCard?.Apply();
             endlessCard?.Apply();

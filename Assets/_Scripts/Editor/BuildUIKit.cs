@@ -34,9 +34,11 @@ namespace InkFlow.Editor
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
 
-            GenerateUISprites.Generate();
-            GenerateFontAsset.Generate();
-            GenerateSpriteAsset.Generate();
+            // Кожен крок в окремому try: виняток в одному не має обривати збірку мовчки —
+            // саме так недоступна для читання текстура вбила генерацію шрифтів і префабів.
+            Step("UI-спрайти", GenerateUISprites.Generate);
+            Step("TMP-шрифти", GenerateFontAsset.Generate);
+            Step("TMP Sprite Asset", GenerateSpriteAsset.Generate);
             EnsureDesignSystem();
 
             InkFlowBootstrap.EnsureFolder(PrefabFolder);
@@ -50,6 +52,19 @@ namespace InkFlow.Editor
 
             AssetDatabase.SaveAssets();
             Debug.Log("[InkFlow] UI Kit готовий: DesignSystem.asset, 5 префабів-атомів і сцена Assets/Scenes/UIKit.unity.");
+        }
+
+        /// <summary>Виконує крок збірки, не даючи його падінню обірвати решту.</summary>
+        private static void Step(string label, System.Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"[InkFlow] Крок «{label}» впав: {e.Message}\n{e.StackTrace}");
+            }
         }
 
         // ───────────────────────── Дизайн-система ─────────────────────────

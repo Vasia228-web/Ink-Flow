@@ -33,17 +33,18 @@ namespace InkFlow.Editor
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
 
-            var sprites = new List<(Sprite sprite, string name, uint unicode)>();
+            var sprites = new List<(Sprite sprite, string path, string name, uint unicode)>();
             foreach (var (file, name, unicode) in Icons)
             {
-                var sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/{file}.png");
+                var path = $"{SpriteFolder}/{file}.png";
+                var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
                 if (sprite == null)
                 {
-                    Debug.LogError($"[InkFlow] Немає {SpriteFolder}/{file}.png — спершу Generate UI Sprites.");
+                    Debug.LogError($"[InkFlow] Немає {path} — спершу Generate UI Sprites.");
                     return;
                 }
 
-                sprites.Add((sprite, name, unicode));
+                sprites.Add((sprite, path, name, unicode));
             }
 
             AssetDatabase.DeleteAsset(AssetPath);
@@ -107,7 +108,7 @@ namespace InkFlow.Editor
 
         /// <summary>Склеює іконки в одну текстуру-атлас і повертає їхні прямокутники.</summary>
         private static Texture2D BuildAtlas(
-            List<(Sprite sprite, string name, uint unicode)> sprites, out List<Rect> rects)
+            List<(Sprite sprite, string path, string name, uint unicode)> sprites, out List<Rect> rects)
         {
             const int cell = 128;
             var atlas = new Texture2D(cell * sprites.Count, cell, TextureFormat.RGBA32, false)
@@ -122,8 +123,13 @@ namespace InkFlow.Editor
             rects = new List<Rect>();
             for (var i = 0; i < sprites.Count; i++)
             {
-                var source = sprites[i].sprite.texture;
+                // PNG читаємо з диска, а не через sprite.texture: імпортовані текстури
+                // не мають CPU-копії (Read/Write вимкнено), і GetPixel* кидає виняток.
+                // Вмикати Read/Write заради генерації означало б тягнути зайву копію
+                // кожної іконки в пам'ять білда.
+                var source = LoadReadable(sprites[i].path);
                 var scaled = ScaleTo(source, cell);
+                Object.DestroyImmediate(source);
                 atlas.SetPixels(i * cell, 0, cell, cell, scaled.GetPixels());
                 Object.DestroyImmediate(scaled);
                 rects.Add(new Rect(i * cell, 0, cell, cell));
@@ -131,6 +137,14 @@ namespace InkFlow.Editor
 
             atlas.Apply();
             return atlas;
+        }
+
+        /// <summary>Читає PNG з диска у тимчасову текстуру з доступом до пікселів.</summary>
+        private static Texture2D LoadReadable(string assetPath)
+        {
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            texture.LoadImage(System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(assetPath)));
+            return texture;
         }
 
         private static Texture2D ScaleTo(Texture2D source, int size)

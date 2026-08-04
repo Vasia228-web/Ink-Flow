@@ -131,8 +131,8 @@ namespace InkFlow.Editor
             sb.Append('“').Append('”'); // " "
             sb.Append('„'); // „
             sb.Append('…'); // …
-            sb.Append('→'); // →
             sb.Append('∞'); // ∞ — «Нескінченний» режим
+            // → свідомо НЕ додаємо: у Nunito його немає, а в текстах гри він не трапляється.
             sb.Append('•'); // •
 
             return sb.ToString();
