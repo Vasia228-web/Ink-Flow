@@ -153,6 +153,7 @@ bash Tools/check-compile.sh
 - Згенеровані асети (`Scenes/Game.unity`, `_Prefabs/*`) **не тримаємо в репозиторії руками** — їх повністю створює бутстрап. Інакше після рефакторингу вони лишаються з мертвими GUID («The referenced script is missing»).
 
 - Editor-бутстрап мусить вантажити асети **строго після** `EditorSceneManager.NewScene`: закриття сцени вивантажує незакорінені асети, і раніше отриманий референс тихо стає «fake null», який записується в сцену порожнім полем. `Wire()` це валідує й кричить у консоль.
+- **В `Awake` не можна створювати GameObject-и й додавати компоненти.** Unity в цій фазі ще не розсилає `SendMessage`-колбеки, і кожен створений об'єкт дає пачку попереджень «SendMessage cannot be called during Awake, CheckConsistency, or OnValidate» (`OnDidAddComponent`, `OnTransformParentChanged`, `OnRectTransformDimensionsChange`…) — по 8 на об'єкт. Пули наповнюємо у `Start`: це перша безпечна точка, і вона гарантовано настає раніше за будь-який `Update`. `CellPool`/`ParticlePool` цим не страждають, бо в `Awake` лише конструюють `ObjectPool<T>`, а інстанціюють ліниво.
 - У шрифті LiberationSans SDF немає гліфа `↺` — у UI використовуємо текст.
 - Batchmode недоступний, поки відкритий редактор (`Temp/UnityLockfile`); саме для цього є `Tools/run-core-tests.sh`.
 

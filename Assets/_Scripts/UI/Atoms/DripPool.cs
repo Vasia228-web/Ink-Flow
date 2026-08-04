@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using InkFlow.Style;
 using UnityEngine;
 using UnityEngine.UI;
@@ -34,7 +33,11 @@ namespace InkFlow.UI
 
         private Drip[] _drips = System.Array.Empty<Drip>();
 
-        private void Awake() => Allocate();
+        // Пул створюється у Start, а НЕ в Awake: під час Awake Unity ще не може
+        // розсилати SendMessage-колбеки (OnDidAddComponent, OnTransformParentChanged),
+        // і кожен створений об'єкт сипле попередженнями. Start — перша безпечна точка,
+        // і вона гарантовано настає раніше за будь-який Update, який покличе Emit.
+        private void Start() => Allocate();
 
         private void Allocate()
         {
@@ -66,8 +69,12 @@ namespace InkFlow.UI
         /// </summary>
         public void Emit(Vector2 localPosition, Color color, float sourceSize)
         {
-            if (design == null || _drips.Length == 0)
+            if (design == null)
                 return;
+
+            // Страховка на випадок виклику до Start (наприклад, з іншого Start).
+            if (_drips.Length == 0)
+                Allocate();
 
             for (var i = 0; i < _drips.Length; i++)
             {
@@ -130,13 +137,5 @@ namespace InkFlow.UI
             }
         }
 
-#if UNITY_EDITOR
-        private void OnValidate()
-        {
-            if (!Application.isPlaying)
-                return;
-            Allocate();
-        }
-#endif
     }
 }
