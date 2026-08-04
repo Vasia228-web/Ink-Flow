@@ -5,11 +5,14 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Велика розмита туманність у центрі фону: дає глибину, якої не дає сам градієнт.
+    /// Ледь помітне потовщення світла у фоні: прибирає пласкість градієнта — і все.
     ///
-    /// Це один Image зі спрайтом м'якого кола, а не post-process Bloom: повноекранний
-    /// bloom на iPhone SE-класі коштує кадру, а тут — один прозорий квад.
-    /// Дихає дуже повільно (17 с) і з дуже малою альфою — атмосфера, а не анімація.
+    /// Гравець не має помічати туманність свідомо. Тому вона більша за екран
+    /// (форма не читається), зміщена вниз-убік від лого, а колір будується від
+    /// фонового — вона не може стати світлішою за фон, як би не крутили токени.
+    ///
+    /// Це два прозорі квади зі спрайтом м'якого купола, а не post-process Bloom:
+    /// повноекранний bloom на iPhone SE-класі коштує кадру.
     /// </summary>
     [RequireComponent(typeof(Image))]
     public sealed class NebulaGlow : MonoBehaviour
@@ -48,15 +51,26 @@ namespace InkFlow.UI
             if (design == null || image == null)
                 return;
 
+            // Розмір і позиція живуть тут, а не в бутстрапі: інакше nebulaScale
+            // і nebulaOffset не крутились би в інспекторі без перезбирання сцени.
             var size = DesignSystem.ReferenceWidth * design.NebulaScale;
             _rect.sizeDelta = new Vector2(size, size);
+            _rect.anchoredPosition = design.NebulaOffset * DesignSystem.ReferenceWidth;
 
-            image.color = DesignSystem.WithAlpha(design.AccentSecondary, design.NebulaAlpha);
+            image.color = DesignSystem.WithAlpha(design.NebulaTint, design.NebulaAlpha);
             image.raycastTarget = false;
 
             if (secondary != null)
             {
-                secondary.color = DesignSystem.WithAlpha(design.AccentBlue, design.NebulaAlpha * 0.7f);
+                // Другий шар менший і зсунутий у протилежний бік від першого:
+                // разом вони дають несиметричне світло, у якому не вгадується коло.
+                var secondRect = secondary.rectTransform;
+                secondRect.sizeDelta = new Vector2(size * 0.68f, size * 0.68f);
+                secondRect.anchoredPosition = new Vector2(size * 0.24f, size * 0.18f);
+
+                secondary.color = DesignSystem.WithAlpha(
+                    Color.Lerp(design.NebulaTint, design.AccentBlue, 0.3f),
+                    design.NebulaAlpha * 0.6f);
                 secondary.raycastTarget = false;
             }
         }

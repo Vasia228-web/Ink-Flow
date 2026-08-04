@@ -168,7 +168,7 @@ namespace InkFlow.Editor
                 glow.type = Image.Type.Sliced;
                 glow.raycastTarget = false;
                 glow.color = DesignSystem.WithAlpha(design.AccentPrimary, design.GlowButtonAlpha);
-                glow.pixelsPerUnitMultiplier = 56f / design.GlowButtonRadius;
+                glow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / design.GlowButtonRadius;
 
                 var bgGo = NewChild(root, "Background", Vector2.zero, stretch: true);
                 var background = bgGo.AddComponent<GradientImage>();

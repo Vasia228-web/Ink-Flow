@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 5;
+        public const int CurrentTokenVersion = 6;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -161,8 +161,9 @@ namespace InkFlow.Style
         [Tooltip("Радіус гало кнопки: щільна підсвітка контуру, не ореол.")]
         [SerializeField] private float glowButtonRadius = 30f;
 
-        [Tooltip("Гало назовні — тонке й делікатне: у макеті це підсвітка контуру, а не ореол.")]
-        [SerializeField, Range(0f, 1f)] private float glowButtonAlpha = 0.2f;
+        [Tooltip("Гало назовні — тонке й делікатне: у макеті це підсвітка контуру, а не ореол. " +
+                 "Спрайт спільний із карткою і тепер рант, тож площа світіння менша.")]
+        [SerializeField, Range(0f, 0.6f)] private float glowButtonAlpha = 0.34f;
 
         [Tooltip("Спокійний стан near-miss: drop-shadow 0 0 3px.")]
         [SerializeField] private float glowNearMissMin = 8f;
@@ -279,11 +280,14 @@ namespace InkFlow.Style
         [Tooltip("Кольорова рамка картки: rgba(accent,.38) завтовшки 1 px макета.")]
         [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.38f;
 
-        [Tooltip("Гало картки притиснуте до рамки: 8-12 px макета → ~28 одиниць. " +
-                 "Ширше гало перетворюється на розмиту пляму й з'їдає контур.")]
-        [SerializeField] private float cardGlowRadius = 28f;
+        [Tooltip("Ширина згасання гало НАЗОВНІ від контуру, в reference-одиницях. " +
+                 "28 ≈ 10 px макета. Діапазон навмисно вузький (6-14 px): ширше — " +
+                 "і гало перестає бути контуром, стає плямою.")]
+        [SerializeField, Range(16f, 40f)] private float cardGlowRadius = 28f;
 
-        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.085f;
+        [Tooltip("Яскравість гало. Спрайт тепер рант, а не заповнений силует, тож " +
+                 "площа світіння менша й альфа може бути вищою за стару 0.085.")]
+        [SerializeField, Range(0f, 0.5f)] private float cardGlowAlpha = 0.2f;
 
         [Tooltip("У скільки разів яскравішає гало в момент натискання.")]
         [SerializeField, Range(1f, 4f)] private float cardGlowPressBoost = 2.4f;
@@ -362,15 +366,33 @@ namespace InkFlow.Style
         [SerializeField, Range(0.05f, 0.5f)] private float dripSize = 0.22f;
 
         [Header("Фон: туманність і зорі")]
-        [Tooltip("Розмір туманності як частка ширини екрана.")]
-        [SerializeField, Range(0.2f, 2f)] private float nebulaScale = 1.15f;
+        // Правило екрана: найяскравіше — лого й картки, фон завжди темніший.
+        // Туманності гравець не має помічати свідомо; її робота — прибрати
+        // пласкість фону. Якщо її видно як окремий об'єкт, вона завелика або яскрава.
 
-        [SerializeField, Range(0f, 0.4f)] private float nebulaAlpha = 0.13f;
+        [Tooltip("Розмір туманності як частка ширини екрана. Понад 2 — ядро ширше " +
+                 "за екран, і форма кулі не читається взагалі.")]
+        [SerializeField, Range(0.5f, 3f)] private float nebulaScale = 2.2f;
+
+        [Tooltip("Пікова яскравість у центрі купола. Це НЕ середня: у спрайті " +
+                 "(1-t²)³ середня альфа = 1/4 пікової, тож сумарного світла тут " +
+                 "приблизно вп'ятеро менше за старий суцільний диск на 0.13. " +
+                 "Нижче ~0.02 підйом над фоном стає меншим за 2/255 — тобто " +
+                 "туманності не видно взагалі. Верхня межа низька навмисно.")]
+        [SerializeField, Range(0f, 0.1f)] private float nebulaAlpha = 0.03f;
+
+        [Tooltip("Зсув центра від центра екрана, у частках ширини. Вниз-убік, щоб " +
+                 "не сидіти рівно за лого.")]
+        [SerializeField] private Vector2 nebulaOffset = new Vector2(-0.26f, -0.4f);
+
+        [Tooltip("Наскільки колір туманності відходить від фонового до акцентного. " +
+                 "0 — зливається з фоном, 1 — чистий акцент. Тримати низьким.")]
+        [SerializeField, Range(0f, 1f)] private float nebulaTintMix = 0.3f;
 
         [Tooltip("Період «дихання» туманності, сек. Дуже повільно — це атмосфера, не анімація.")]
         [SerializeField, Min(4f)] private float nebulaBreathPeriod = 17f;
 
-        [SerializeField, Range(0f, 0.6f)] private float nebulaBreathAmount = 0.22f;
+        [SerializeField, Range(0f, 0.4f)] private float nebulaBreathAmount = 0.14f;
 
         [Tooltip("Яка частка зір мерехтить. Решта світить рівно — так небо виглядає глибшим.")]
         [SerializeField, Range(0f, 1f)] private float starTwinkleFraction = 0.35f;
@@ -477,6 +499,13 @@ namespace InkFlow.Style
 
         public float NebulaScale => nebulaScale;
         public float NebulaAlpha => nebulaAlpha;
+        public Vector2 NebulaOffset => nebulaOffset;
+
+        /// <summary>
+        /// Колір туманності будується від фонового, а не від акцентного: так вона
+        /// не може стати світлішою за фон, хоч би як крутили nebulaTintMix.
+        /// </summary>
+        public Color NebulaTint => Color.Lerp(backgroundInner, accentSecondary, nebulaTintMix);
         public float NebulaBreathPeriod => nebulaBreathPeriod;
         public float NebulaBreathAmount => nebulaBreathAmount;
         public float StarTwinkleFraction => starTwinkleFraction;

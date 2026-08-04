@@ -77,6 +77,7 @@ namespace InkFlow.Editor
             var circle = LoadSprite("circle-soft");
             var gloss = LoadSprite("circle-gloss");
             var glowSprite = LoadSprite("glow");
+            var nebulaSprite = LoadSprite("nebula");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var dropPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/DropView.prefab");
             var currencyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CurrencyWidget.prefab");
@@ -88,6 +89,7 @@ namespace InkFlow.Editor
             if (circle == null) missing.Add($"{SpriteFolder}/circle-soft.png");
             if (gloss == null) missing.Add($"{SpriteFolder}/circle-gloss.png");
             if (glowSprite == null) missing.Add($"{SpriteFolder}/glow.png");
+            if (nebulaSprite == null) missing.Add($"{SpriteFolder}/nebula.png");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (dropPrefab == null) missing.Add($"{PrefabFolder}/DropView.prefab");
             if (currencyPrefab == null) missing.Add($"{PrefabFolder}/CurrencyWidget.prefab");
@@ -106,7 +108,7 @@ namespace InkFlow.Editor
             canvasGo.AddComponent<GraphicRaycaster>();
 
             PrefabUtility.InstantiatePrefab(cosmic, canvasGo.transform);
-            BuildNebula(canvasGo, design!, circle!);
+            BuildNebula(canvasGo, design!, nebulaSprite!);
 
             var safe = Child(canvasGo, "SafeArea");
             Stretch(safe);
@@ -307,9 +309,10 @@ namespace InkFlow.Editor
             glow.sprite = glowSprite;
             glow.type = Image.Type.Sliced;
             glow.raycastTarget = false;
-            // Зона згасання спрайта — 56 px; розтягуємо її рівно на радіус гало,
-            // щоб світіння плавно зникало, а не обривалось кантом.
-            glow.pixelsPerUnitMultiplier = 56f / design.CardGlowRadius;
+            // Зону згасання спрайта розтягуємо рівно на CardGlowRadius одиниць:
+            // множник = (px згасання у спрайті) / (бажана ширина на екрані).
+            // Константу беремо з генератора — інакше зміна спрайта тихо поїхала б.
+            glow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / design.CardGlowRadius;
 
             var bgGo = Child(card, "Background");
             Stretch(bgGo);
@@ -545,26 +548,23 @@ namespace InkFlow.Editor
 
 
         /// <summary>Туманність за зорями: два м'які кола, що дуже повільно дихають.</summary>
-        private static void BuildNebula(GameObject canvas, DesignSystem design, Sprite circle)
+        private static void BuildNebula(GameObject canvas, DesignSystem design, Sprite nebulaSprite)
         {
+            // Розміри й зсув задає NebulaGlow.Apply() — тут лише каркас, інакше
+            // токени nebulaScale/nebulaOffset не крутились би без перезбирання.
             var go = Child(canvas, "Nebula");
             var rect = go.GetComponent<RectTransform>();
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0f, DesignSystem.ReferenceWidth * 0.12f);
 
             var image = go.AddComponent<Image>();
-            image.sprite = circle;
+            image.sprite = nebulaSprite;
             image.raycastTarget = false;
 
             var secondGo = Child(go, "Secondary");
             var secondRect = secondGo.GetComponent<RectTransform>();
             secondRect.anchorMin = secondRect.anchorMax = new Vector2(0.5f, 0.5f);
-            secondRect.sizeDelta = new Vector2(DesignSystem.ReferenceWidth * 0.8f,
-                DesignSystem.ReferenceWidth * 0.8f);
-            secondRect.anchoredPosition = new Vector2(-DesignSystem.ReferenceWidth * 0.18f,
-                -DesignSystem.ReferenceWidth * 0.15f);
             var second = secondGo.AddComponent<Image>();
-            second.sprite = circle;
+            second.sprite = nebulaSprite;
             second.raycastTarget = false;
 
             var nebula = go.AddComponent<NebulaGlow>();

@@ -21,10 +21,23 @@ namespace InkFlow.Editor
         private const int RoundedSize = 128;
         private const int RoundedRadius = 40;
 
-        /// <summary>Гало: 256 px, силует радіусом 56 з зоною згасання 56 по краю.</summary>
+        /// <summary>
+        /// Гало — РАНТ уздовж контуру, а не заповнений силует. Заповнений заливав
+        /// акцентом усю площу картки під напівпрозорим склом, і картка світилась
+        /// цілком замість того, щоб світився її контур.
+        /// </summary>
         private const int GlowSize = 256;
         private const int GlowRadius = 56;
-        private const int GlowFalloff = 56;
+
+        /// <summary>Скільки пікселів гало згасає НАЗОВНІ від контуру.</summary>
+        internal const int GlowFalloff = 56;
+
+        /// <summary>Скільки пікселів гало заходить УСЕРЕДИНУ: рант має триматись
+        /// контуру, а не обриватись на ньому кантом.</summary>
+        private const int GlowInnerFade = 14;
+
+        /// <summary>Туманність: величезне м'яке ядро без жодного видимого краю.</summary>
+        private const int NebulaSize = 256;
 
         /// <summary>Товщина обведення в пікселях текстури (≈2 px макета після масштабу).</summary>
         private const float OutlineThickness = 3f;
@@ -43,6 +56,10 @@ namespace InkFlow.Editor
             InkFlowBootstrap.EnsureFolder(Folder);
 
             WriteSprite("circle-soft.png", CreateSoftCircle(), pixelsPerUnit: CircleSize, border: Vector4.zero);
+
+            // Туманність окремим спрайтом: circle-soft — це суцільний диск із краєм
+            // у 1.5 px, і саме тому туманність читалась як куля з чіткою межею.
+            WriteSprite("nebula.png", CreateNebula(), pixelsPerUnit: NebulaSize, border: Vector4.zero);
             WriteSprite("circle-gloss.png", CreateGloss(), pixelsPerUnit: CircleSize, border: Vector4.zero);
 
             // Border = радіус кута: центр тягнеться, кути лишаються круглими.
@@ -80,7 +97,7 @@ namespace InkFlow.Editor
             WriteSprite("icon-profile.png", CreateProfileIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
 
             AssetDatabase.Refresh();
-            Debug.Log($"[InkFlow] UI-спрайти згенеровано в {Folder}: circle-soft, circle-gloss, " +
+            Debug.Log($"[InkFlow] UI-спрайти згенеровано в {Folder}: circle-soft, circle-gloss, nebula, " +
                       "rounded-rect + outline (9-slice), glow (9-slice), icon-star, icon-retry, " +
                       "icon-galaxy, icon-shop, icon-ranks, icon-profile.");
         }
@@ -215,9 +232,43 @@ namespace InkFlow.Editor
                     var cy = Mathf.Clamp(y, inset + GlowRadius, max - inset - GlowRadius);
                     var d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - GlowRadius;
 
-                    var t = Mathf.Clamp01(1f - d / GlowFalloff);
+                    // Рант: назовні згасає за GlowFalloff, усередину — за GlowInnerFade.
+                    // Середина картки лишається прозорою, тому гало підсвічує контур,
+                    // а не заливає всю площу.
+                    var t = d >= 0f
+                        ? Mathf.Clamp01(1f - d / GlowFalloff)
+                        : Mathf.Clamp01(1f + d / GlowInnerFade);
+
                     // Квадратичне згасання читається як світіння; лінійне дає видимий кант.
                     pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, t * t);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>
+        /// Туманність: купол (1-t²)³ від центру до краю. Похідна на межі — нуль,
+        /// тому спрайт не має ані канта, ані видимої «кулі»; гравець бачить лише
+        /// те, що фон перестав бути пласким.
+        /// </summary>
+        private static Texture2D CreateNebula()
+        {
+            var tex = NewTexture(NebulaSize);
+            var pixels = new Color[NebulaSize * NebulaSize];
+            var center = (NebulaSize - 1) * 0.5f;
+
+            for (var y = 0; y < NebulaSize; y++)
+            {
+                for (var x = 0; x < NebulaSize; x++)
+                {
+                    var dx = (x - center) / center;
+                    var dy = (y - center) / center;
+                    var core = Mathf.Clamp01(1f - (dx * dx + dy * dy));
+                    var alpha = core * core * core;
+                    pixels[y * NebulaSize + x] = new Color(1f, 1f, 1f, alpha);
                 }
             }
 
