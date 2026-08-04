@@ -39,9 +39,9 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text statLabel;
         [SerializeField] private TMP_Text chevronLabel;
 
-        [SerializeField, Range(0.8f, 1f)] private float pressScale = 0.97f;
-
         private Vector3 _restScale = Vector3.one;
+        private Coroutine? _press;
+        private float _glowBoost = 1f;
 
         private void Awake() => _restScale = transform.localScale;
 
@@ -84,7 +84,7 @@ namespace InkFlow.UI
             }
 
             if (glow != null)
-                glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha);
+                glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha * _glowBoost);
 
             if (iconTileFill != null)
             {
@@ -130,10 +130,52 @@ namespace InkFlow.UI
             _ => (design.AccentPrimary, design.AccentSecondary)
         };
 
-        public void OnPointerDown(PointerEventData eventData) =>
-            transform.localScale = _restScale * pressScale;
+        public void OnPointerDown(PointerEventData eventData) => Press(true);
 
-        public void OnPointerUp(PointerEventData eventData) =>
-            transform.localScale = _restScale;
+        public void OnPointerUp(PointerEventData eventData) => Press(false);
+
+        /// <summary>Стискання під пальцем і пружне повернення з overshoot.</summary>
+        private void Press(bool down)
+        {
+            if (design == null || !isActiveAndEnabled)
+                return;
+            if (_press != null)
+                StopCoroutine(_press);
+            _press = StartCoroutine(PressRoutine(down));
+        }
+
+        private System.Collections.IEnumerator PressRoutine(bool down)
+        {
+            var from = transform.localScale;
+            var to = down ? _restScale * design.PressScale : _restScale;
+            var glowFrom = _glowBoost;
+            var glowTo = down ? design.CardGlowPressBoost : 1f;
+
+            // Стискання різке, повернення пружне — рука має відчути опір, а не желе.
+            var duration = down ? design.PressDownDuration : design.PressReleaseDuration;
+            var curve = down ? design.CurveEaseInOut : design.CurveBackOut;
+
+            for (var t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                var k = curve.Evaluate(t / duration);
+                transform.localScale = Vector3.LerpUnclamped(from, to, k);
+                _glowBoost = Mathf.LerpUnclamped(glowFrom, glowTo, k);
+                UpdateGlow();
+                yield return null;
+            }
+
+            transform.localScale = to;
+            _glowBoost = glowTo;
+            UpdateGlow();
+            _press = null;
+        }
+
+        private void UpdateGlow()
+        {
+            if (glow == null || design == null)
+                return;
+            var (accent, _) = ToneColors(tone);
+            glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha * _glowBoost);
+        }
     }
 }

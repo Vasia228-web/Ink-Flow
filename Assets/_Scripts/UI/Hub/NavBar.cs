@@ -26,6 +26,13 @@ namespace InkFlow.UI
 
             [Tooltip("Колір іконки, коли вкладка активна.")]
             public Color activeColor = Color.white;
+
+            [Tooltip("Кольорові шари іконки (плями на планеті, фарба у відрі). " +
+                     "Гаснуть разом із вкладкою, але не до сірого.")]
+            public Graphic[] accents = System.Array.Empty<Graphic>();
+
+            [Tooltip("Світіння під активною вкладкою.")]
+            public Graphic? underGlow;
         }
 
         [SerializeField] private DesignSystem design;
@@ -35,6 +42,11 @@ namespace InkFlow.UI
 
         [Tooltip("Індекс активної вкладки. У хабі це «Галактика».")]
         [SerializeField] private int activeIndex;
+
+        /// <summary>Наскільки тьмяніє неактивна вкладка. Колір лишається — гасне лише яскравість.</summary>
+        private const float InactiveTint = 0.42f;
+
+        private Coroutine? _bounce;
 
         /// <summary>Гравець торкнувся вкладки: id із таблиці.</summary>
         public event Action<string>? TabSelected;
@@ -63,9 +75,39 @@ namespace InkFlow.UI
         {
             if (index < 0 || index >= tabs.Count)
                 return;
+
             activeIndex = index;
             Apply();
+            Bounce(tabs[index].icon);
             TabSelected?.Invoke(tabs[index].id);
+        }
+
+        /// <summary>Коротке підстрибування іконки при перемиканні.</summary>
+        private void Bounce(RectTransform? icon)
+        {
+            if (icon == null || design == null || !isActiveAndEnabled)
+                return;
+            if (_bounce != null)
+                StopCoroutine(_bounce);
+            _bounce = StartCoroutine(BounceRoutine(icon));
+        }
+
+        private System.Collections.IEnumerator BounceRoutine(RectTransform icon)
+        {
+            var start = icon.anchoredPosition;
+            var duration = design.TabBounceDuration;
+            var height = design.TabBounceHeight;
+
+            for (var t = 0f; t < duration; t += Time.unscaledDeltaTime)
+            {
+                // Півсинусоїда: вгору й назад одним рухом, без зависання у верхній точці.
+                var k = Mathf.Sin(t / duration * Mathf.PI);
+                icon.anchoredPosition = start + new Vector2(0f, height * k);
+                yield return null;
+            }
+
+            icon.anchoredPosition = start;
+            _bounce = null;
         }
 
         public void Apply()
@@ -101,13 +143,29 @@ namespace InkFlow.UI
                 if (design.Font != null)
                     label.font = design.Font;
 
-                // Неактивні іконки приглушені — у макеті вони сірі, активна кольорова.
+                // Неактивна вкладка приглушена, але НЕ сіра: колір лишається,
+                // просто тьмяніє. Сірий силует читається як вимкнений, а не як «інша вкладка».
                 var icon = tabs[i].icon;
-                if (icon == null)
-                    continue;
-                // Неактивні іконки приглушені до сірого, активна лишається кольоровою.
-                if (icon.TryGetComponent<Image>(out var image))
-                    image.color = active ? tabs[i].activeColor : design.NavLabelInactive;
+                if (icon != null && icon.TryGetComponent<Image>(out var image))
+                    image.color = active
+                        ? tabs[i].activeColor
+                        : DesignSystem.WithAlpha(tabs[i].activeColor, InactiveTint);
+
+                foreach (var accent in tabs[i].accents)
+                {
+                    if (accent == null)
+                        continue;
+                    var c = accent.color;
+                    c.a = active ? 1f : InactiveTint;
+                    accent.color = c;
+                }
+
+                if (tabs[i].underGlow != null)
+                {
+                    var glowColor = DesignSystem.WithAlpha(tabs[i].activeColor,
+                        active ? design.CardGlowAlpha * 3.2f : 0f);
+                    tabs[i].underGlow!.color = glowColor;
+                }
             }
         }
     }

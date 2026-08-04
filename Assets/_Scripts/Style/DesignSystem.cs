@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 4;
+        public const int CurrentTokenVersion = 5;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -158,11 +158,11 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float buttonStrokeAlpha = 0.75f;
 
         [Header("Світіння")]
-        [Tooltip("Радіус гало кнопки: 0 0 18px → ~48 одиниць.")]
-        [SerializeField] private float glowButtonRadius = 50f;
+        [Tooltip("Радіус гало кнопки: щільна підсвітка контуру, не ореол.")]
+        [SerializeField] private float glowButtonRadius = 30f;
 
         [Tooltip("Гало назовні — тонке й делікатне: у макеті це підсвітка контуру, а не ореол.")]
-        [SerializeField, Range(0f, 1f)] private float glowButtonAlpha = 0.38f;
+        [SerializeField, Range(0f, 1f)] private float glowButtonAlpha = 0.2f;
 
         [Tooltip("Спокійний стан near-miss: drop-shadow 0 0 3px.")]
         [SerializeField] private float glowNearMissMin = 8f;
@@ -279,10 +279,14 @@ namespace InkFlow.Style
         [Tooltip("Кольорова рамка картки: rgba(accent,.38) завтовшки 1 px макета.")]
         [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.38f;
 
-        [Tooltip("Гало картки: 0 0 26px → 72 одиниці.")]
-        [SerializeField] private float cardGlowRadius = 72f;
+        [Tooltip("Гало картки притиснуте до рамки: 8-12 px макета → ~28 одиниць. " +
+                 "Ширше гало перетворюється на розмиту пляму й з'їдає контур.")]
+        [SerializeField] private float cardGlowRadius = 28f;
 
-        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.2f;
+        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.085f;
+
+        [Tooltip("У скільки разів яскравішає гало в момент натискання.")]
+        [SerializeField, Range(1f, 4f)] private float cardGlowPressBoost = 2.4f;
 
         [Tooltip("Плитка іконки в картці: 52×52 px макета.")]
         [SerializeField] private float cardIconTileSize = 144f;
@@ -326,6 +330,65 @@ namespace InkFlow.Style
 
         [Tooltip("Рядок статистики: letter-spacing .02em.")]
         [SerializeField] private float letterSpacingTight = 2f;
+
+
+        // ───────────────────────── Оживлення ─────────────────────────
+
+        [Header("Крапля: органічна форма")]
+        [Tooltip("Асиметрія blob-форми: наскільки осі X/Y розходяться. 0 = ідеальне коло.")]
+        [SerializeField, Range(0f, 0.2f)] private float blobAsymmetry = 0.055f;
+
+        [Tooltip("Період повільної деформації форми, сек. Свідомо не кратний періоду " +
+                 "дихання — інакше рух читається як механічний.")]
+        [SerializeField, Min(0.5f)] private float blobMorphPeriod = 7.3f;
+
+        [Tooltip("На скільки зміщується відблиск при нахилі краплі, частка радіуса.")]
+        [SerializeField, Range(0f, 0.3f)] private float glossDrift = 0.07f;
+
+        [Header("Краплі, що стікають")]
+        [Tooltip("Середня пауза між краплинами однієї краплі, сек.")]
+        [SerializeField, Min(0.5f)] private float dripInterval = 5.5f;
+
+        [Tooltip("Розкид паузи: ±ця частка від інтервалу. Без розкиду краплі капають хором.")]
+        [SerializeField, Range(0f, 1f)] private float dripJitter = 0.55f;
+
+        [Tooltip("Скільки летить краплина, сек.")]
+        [SerializeField, Min(0.2f)] private float dripFallDuration = 1.15f;
+
+        [Tooltip("Дистанція падіння в reference-одиницях.")]
+        [SerializeField] private float dripFallDistance = 110f;
+
+        [Tooltip("Розмір краплини як частка від розміру джерела.")]
+        [SerializeField, Range(0.05f, 0.5f)] private float dripSize = 0.22f;
+
+        [Header("Фон: туманність і зорі")]
+        [Tooltip("Розмір туманності як частка ширини екрана.")]
+        [SerializeField, Range(0.2f, 2f)] private float nebulaScale = 1.15f;
+
+        [SerializeField, Range(0f, 0.4f)] private float nebulaAlpha = 0.13f;
+
+        [Tooltip("Період «дихання» туманності, сек. Дуже повільно — це атмосфера, не анімація.")]
+        [SerializeField, Min(4f)] private float nebulaBreathPeriod = 17f;
+
+        [SerializeField, Range(0f, 0.6f)] private float nebulaBreathAmount = 0.22f;
+
+        [Tooltip("Яка частка зір мерехтить. Решта світить рівно — так небо виглядає глибшим.")]
+        [SerializeField, Range(0f, 1f)] private float starTwinkleFraction = 0.35f;
+
+        [Header("Реакція на дотик")]
+        [Tooltip("До якого масштабу стискається елемент під пальцем.")]
+        [SerializeField, Range(0.85f, 1f)] private float pressScale = 0.96f;
+
+        [Tooltip("Тривалість стискання, сек.")]
+        [SerializeField, Range(0.02f, 0.3f)] private float pressDownDuration = 0.07f;
+
+        [Tooltip("Тривалість пружного повернення (з overshoot).")]
+        [SerializeField, Range(0.05f, 0.6f)] private float pressReleaseDuration = 0.26f;
+
+        [Tooltip("Підстрибування іконки вкладки при перемиканні, reference-одиниці.")]
+        [SerializeField] private float tabBounceHeight = 14f;
+
+        [SerializeField, Range(0.05f, 0.6f)] private float tabBounceDuration = 0.32f;
 
         // ───────────────────────── Доступ ─────────────────────────
 
@@ -400,6 +463,29 @@ namespace InkFlow.Style
         public float CardGlowAlpha => cardGlowAlpha;
         public float CardIconTileSize => cardIconTileSize;
         public Color CardBase => cardBase;
+        public float CardGlowPressBoost => cardGlowPressBoost;
+
+        public float BlobAsymmetry => blobAsymmetry;
+        public float BlobMorphPeriod => blobMorphPeriod;
+        public float GlossDrift => glossDrift;
+
+        public float DripInterval => dripInterval;
+        public float DripJitter => dripJitter;
+        public float DripFallDuration => dripFallDuration;
+        public float DripFallDistance => dripFallDistance;
+        public float DripSize => dripSize;
+
+        public float NebulaScale => nebulaScale;
+        public float NebulaAlpha => nebulaAlpha;
+        public float NebulaBreathPeriod => nebulaBreathPeriod;
+        public float NebulaBreathAmount => nebulaBreathAmount;
+        public float StarTwinkleFraction => starTwinkleFraction;
+
+        public float PressScale => pressScale;
+        public float PressDownDuration => pressDownDuration;
+        public float PressReleaseDuration => pressReleaseDuration;
+        public float TabBounceHeight => tabBounceHeight;
+        public float TabBounceDuration => tabBounceDuration;
 
         public Color NavFill => navFill;
         public Color NavStroke => navStroke;

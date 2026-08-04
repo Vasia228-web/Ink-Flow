@@ -39,15 +39,36 @@ namespace InkFlow.UI
         [Tooltip("Погойдування в спокої. Вимикати для щільних списків — це Update на кожну краплю.")]
         [SerializeField] private bool idleWobble = true;
 
+        [Tooltip("Пул краплин, що стікають. Без нього крапля просто не капає.")]
+        [SerializeField] private DripPool? dripPool;
+
+        [Tooltip("Чи капає ця крапля. Для крапель на ігровому полі краще вимкнути.")]
+        [SerializeField] private bool emitsDrips = true;
+
         private Coroutine? _squash;
         private float _phase;
+        private float _morphPhase;
+        private float _nextDrip;
         private bool _nearMiss;
 
         public InkColor Ink => ink;
 
-        private void Awake() =>
+        private void Awake()
+        {
             // Розводимо фази, щоб краплі не «дихали» синхронно, як метроном.
             _phase = Random.value * Mathf.PI * 2f;
+            _morphPhase = Random.value * Mathf.PI * 2f;
+            _nextDrip = NextDripDelay();
+        }
+
+        /// <summary>Пауза до наступної краплини з розкидом — інакше краплі капають хором.</summary>
+        private float NextDripDelay()
+        {
+            if (design == null)
+                return float.MaxValue;
+            var jitter = design.DripInterval * design.DripJitter;
+            return design.DripInterval + Random.Range(-jitter, jitter);
+        }
 
         private void OnEnable() => Apply();
 
@@ -104,20 +125,32 @@ namespace InkFlow.UI
 
         private void Update()
         {
-            if (design == null || _squash != null)
+            if (design == null)
+                return;
+
+            TickDrip();
+
+            if (_squash != null)
                 return;
 
             var scale = Vector3.one;
             var tilt = 0f;
+            var wave = 0f;
 
             if (idleWobble)
             {
-                // Одна синусоїда керує і масштабом, і нахилом — рух виходить злитим,
-                // як у макеті, де це один keyframe-цикл.
-                var t = Mathf.Sin((Time.time / design.MotionWobbleDuration + _phase) * Mathf.PI * 2f);
+                // Дихання: одна синусоїда керує і масштабом, і нахилом — рух злитий.
+                wave = Mathf.Sin((Time.time / design.MotionWobbleDuration + _phase) * Mathf.PI * 2f);
                 var amp = design.MotionWobbleScale;
-                scale = new Vector3(1f + amp * t, 1f - amp * t, 1f);
-                tilt = design.MotionWobbleTilt * t;
+                scale = new Vector3(1f + amp * wave, 1f - amp * wave, 1f);
+                tilt = design.MotionWobbleTilt * wave;
+
+                // Повільна деформація форми поверх дихання: період інший і некратний,
+                // тому крапля читається як жива клякса, а не як пульсуюче коло.
+                var morph = Mathf.Sin((Time.time / design.BlobMorphPeriod + _morphPhase) * Mathf.PI * 2f);
+                var asym = design.BlobAsymmetry;
+                scale.x *= 1f + asym * morph;
+                scale.y *= 1f - asym * morph * 0.75f;
             }
 
             if (_nearMiss && glow != null)
@@ -133,6 +166,34 @@ namespace InkFlow.UI
 
             transform.localScale = scale;
             transform.localRotation = Quaternion.Euler(0f, 0f, tilt);
+
+            // Відблиск «пливе» проти нахилу — так світло здається зовнішнім,
+            // а не наклеєним на краплю.
+            if (gloss != null)
+            {
+                var size = ((RectTransform)transform).rect.width;
+                gloss.rectTransform.anchoredPosition =
+                    new Vector2(-wave * design.GlossDrift * size * 0.5f,
+                                 wave * design.GlossDrift * size * 0.25f);
+            }
+        }
+
+        /// <summary>Раз на кілька секунд зриває краплину з нижнього краю.</summary>
+        private void TickDrip()
+        {
+            if (!emitsDrips || dripPool == null || density <= 0)
+                return;
+
+            _nextDrip -= Time.deltaTime;
+            if (_nextDrip > 0f)
+                return;
+
+            _nextDrip = NextDripDelay();
+
+            var rect = (RectTransform)transform;
+            var world = rect.TransformPoint(new Vector3(0f, -rect.rect.height * 0.42f, 0f));
+            var local = (Vector2)dripPool.transform.InverseTransformPoint(world);
+            dripPool.Emit(local, design.Ink(ink), rect.rect.width);
         }
 
         public void OnPointerClick(PointerEventData eventData) => PlayLand();

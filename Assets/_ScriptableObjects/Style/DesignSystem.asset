@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 3
+  tokenVersion: 4
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -191,14 +191,15 @@ MonoBehaviour:
   starTwinkleFast: 7
   starCount: 90
   radiusModeCard: 78
-  cardTintStrong: 0.18
-  cardTintWeak: 0.08
+  cardTintStrong: 0.09
+  cardTintWeak: 0.04
+  cardBase: {r: 0.03529412, g: 0.023529412, b: 0.08627451, a: 0.36078432}
   cardStrokeAlpha: 0.38
   cardGlowRadius: 72
   cardGlowAlpha: 0.2
   cardIconTileSize: 144
   statTextLighten: 0.56
-  navFill: {r: 0.07058824, g: 0.047058824, b: 0.13333334, a: 0.54901963}
+  navFill: {r: 0.05490196, g: 0.03529412, b: 0.10980392, a: 0.43137255}
   navStroke: {r: 1, g: 1, b: 1, a: 0.12}
   radiusNav: 83
   navLabelActive: {r: 1, g: 1, b: 1, a: 0.92}

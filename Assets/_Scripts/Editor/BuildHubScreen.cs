@@ -30,6 +30,11 @@ namespace InkFlow.Editor
         private const string SpriteFolder = "Assets/_Sprites/UI";
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
+        private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
+
+        /// <summary>Спрайт-асет іконок вішаємо на кожен напис явно: покладатись на
+        /// TMP Settings ризиковано — одна забута галочка й ★ знову стає квадратом.</summary>
+        private static TMP_SpriteAsset? _iconSprites;
 
         // ── Числа макета (px) → reference-одиниці ──
         private const float K = 1080f / 390f;
@@ -54,6 +59,10 @@ namespace InkFlow.Editor
             // Асети — строго після NewScene (див. коментар у InkFlowBootstrap).
             design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
+            _iconSprites = AssetDatabase.LoadAssetAtPath<TMP_SpriteAsset>(SpriteAssetPath);
+            if (_iconSprites == null)
+                Debug.LogWarning($"[InkFlow] Немає {SpriteAssetPath} — ★ не відрендериться. " +
+                                 "Спершу: Ink Flow → Setup → Build UI Kit.");
             var rounded = LoadSprite("rounded-rect");
             var outline = LoadSprite("rounded-rect-outline");
             var circle = LoadSprite("circle-soft");
@@ -88,6 +97,7 @@ namespace InkFlow.Editor
             canvasGo.AddComponent<GraphicRaycaster>();
 
             PrefabUtility.InstantiatePrefab(cosmic, canvasGo.transform);
+            BuildNebula(canvasGo, design!, circle!);
 
             var safe = Child(canvasGo, "SafeArea");
             Stretch(safe);
@@ -114,6 +124,20 @@ namespace InkFlow.Editor
                 ("playerTitle", titleLabel), ("currency", currency), ("logo", logo),
                 ("tagline", tagline), ("levelsCard", levels), ("endlessCard", endless),
                 ("navBar", navBar));
+
+            // Пул краплин — над контентом, щоб краплі падали поверх карток.
+            var dripsGo = Child(screenGo, "Drips");
+            Stretch(dripsGo);
+            var drips = dripsGo.AddComponent<DripPool>();
+            Wire(drips, ("design", design!), ("dropSprite", circle!));
+            dripsGo.transform.SetAsLastSibling();
+
+            // Аватар капає; лого — теж, але рідше й у два кольори.
+            var avatarSo = new SerializedObject(avatar);
+            avatarSo.FindProperty("dripPool").objectReferenceValue = drips;
+            avatarSo.ApplyModifiedPropertiesWithoutUndo();
+
+            BuildLogoDrips(screenGo, design!, drips, logo);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -332,7 +356,9 @@ namespace InkFlow.Editor
             Place(subtitle, new Vector2(0f, -M(2f)), new Vector2(textW, M(16f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
-            var stat = Label(text, "Stat", "Рівень 12 · ★ 27", design, font,
+            // Зірка тегом, а не символом: у сцені лишався літерал ★, і TMP щоразу
+            // писав «not found in font asset», бо гліфа в Nunito немає.
+            var stat = Label(text, "Stat", "Рівень 12 · <sprite name=\"star\"> 27", design, font,
                 design.FontSizeLabel, design.AccentPrimary, TextAlignmentOptions.Left);
             Place(stat, new Vector2(0f, -M(19f)), new Vector2(textW, M(16f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
@@ -457,10 +483,25 @@ namespace InkFlow.Editor
                 iconRect.pivot = new Vector2(0.5f, 0.5f);
                 iconRect.anchoredPosition = new Vector2(0f, M(9f));
                 iconRect.sizeDelta = new Vector2(M(26f), M(26f));
+                // Світіння під активною вкладкою — за іконкою, тому окремим об'єктом.
+                var underGlowGo = Child(tab, "UnderGlow");
+                var underRect = underGlowGo.GetComponent<RectTransform>();
+                underRect.anchorMin = underRect.anchorMax = new Vector2(0.5f, 0.5f);
+                underRect.anchoredPosition = new Vector2(0f, -M(4f));
+                underRect.sizeDelta = new Vector2(M(34f), M(20f));
+                var underGlow = underGlowGo.AddComponent<Image>();
+                underGlow.sprite = LoadSprite("circle-soft");
+                underGlow.raycastTarget = false;
+                underGlowGo.transform.SetAsFirstSibling();
+
                 var iconImage = icon.AddComponent<Image>();
                 iconImage.sprite = LoadSprite(iconFiles[i]);
                 iconImage.raycastTarget = false;
-                iconImage.color = i == 0 ? accents[i] : design.NavLabelInactive;
+                iconImage.color = accents[i];
+
+                // Кольорові деталі поверх силуету: саме вони роблять іконку живою,
+                // а не монохромним знаком.
+                var accentLayers = BuildIconAccents(icon, i, design);
 
                 var label = Label(tab, "Label", titles[i], design, font,
                     design.FontSizeCaption,
@@ -475,11 +516,174 @@ namespace InkFlow.Editor
                 entry.FindPropertyRelative("icon").objectReferenceValue = iconRect;
                 entry.FindPropertyRelative("button").objectReferenceValue = button;
                 entry.FindPropertyRelative("activeColor").colorValue = accents[i];
+                entry.FindPropertyRelative("underGlow").objectReferenceValue = underGlow;
+                var accentArray = entry.FindPropertyRelative("accents");
+                accentArray.arraySize = accentLayers.Length;
+                for (var a = 0; a < accentLayers.Length; a++)
+                    accentArray.GetArrayElementAtIndex(a).objectReferenceValue = accentLayers[a];
             }
 
             so.ApplyModifiedPropertiesWithoutUndo();
             navBar.Apply();
             return rect;
+        }
+
+
+        /// <summary>Туманність за зорями: два м'які кола, що дуже повільно дихають.</summary>
+        private static void BuildNebula(GameObject canvas, DesignSystem design, Sprite circle)
+        {
+            var go = Child(canvas, "Nebula");
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0f, DesignSystem.ReferenceWidth * 0.12f);
+
+            var image = go.AddComponent<Image>();
+            image.sprite = circle;
+            image.raycastTarget = false;
+
+            var secondGo = Child(go, "Secondary");
+            var secondRect = secondGo.GetComponent<RectTransform>();
+            secondRect.anchorMin = secondRect.anchorMax = new Vector2(0.5f, 0.5f);
+            secondRect.sizeDelta = new Vector2(DesignSystem.ReferenceWidth * 0.8f,
+                DesignSystem.ReferenceWidth * 0.8f);
+            secondRect.anchoredPosition = new Vector2(-DesignSystem.ReferenceWidth * 0.18f,
+                -DesignSystem.ReferenceWidth * 0.15f);
+            var second = secondGo.AddComponent<Image>();
+            second.sprite = circle;
+            second.raycastTarget = false;
+
+            var nebula = go.AddComponent<NebulaGlow>();
+            Wire(nebula, ("design", design), ("image", image), ("secondary", second));
+            nebula.Apply();
+
+            // Під зорі, але над градієнтом.
+            go.transform.SetSiblingIndex(1);
+        }
+
+        /// <summary>Точки зриву краплин під «Ink» і під «Flow».</summary>
+        private static void BuildLogoDrips(GameObject parent, DesignSystem design, DripPool pool, TMP_Text logo)
+        {
+            var go = Child(parent, "LogoDrips");
+            Stretch(go);
+
+            var left = Child(go, "InkSource").GetComponent<RectTransform>();
+            var right = Child(go, "FlowSource").GetComponent<RectTransform>();
+            var logoRect = logo.rectTransform;
+
+            foreach (var (source, x) in new[] { (left, -0.22f), (right, 0.24f) })
+            {
+                source.anchorMin = source.anchorMax = new Vector2(0.5f, 0.5f);
+                source.sizeDelta = Vector2.one;
+                // Прив'язуємось до низу рядка логотипу — саме звідти стікає чорнило.
+                source.position = logoRect.TransformPoint(
+                    new Vector3(logoRect.rect.width * x, -logoRect.rect.height * 0.28f, 0f));
+            }
+
+            var drip = go.AddComponent<LogoDrip>();
+            var so = new SerializedObject(drip);
+            so.FindProperty("design").objectReferenceValue = design;
+            so.FindProperty("pool").objectReferenceValue = pool;
+            var sources = so.FindProperty("sources");
+            sources.arraySize = 2;
+            sources.GetArrayElementAtIndex(0).objectReferenceValue = left;
+            sources.GetArrayElementAtIndex(1).objectReferenceValue = right;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+
+        /// <summary>
+        /// Кольорові шари іконки вкладки. У макеті кожна іконка складена з кількох
+        /// фігур із власними кольорами — відтворюємо це накладанням дрібних спрайтів.
+        /// </summary>
+        private static Graphic[] BuildIconAccents(GameObject icon, int tabIndex, DesignSystem design)
+        {
+            var circle = LoadSprite("circle-soft");
+
+            switch (tabIndex)
+            {
+                case 0: // Галактика — плями на планеті
+                {
+                    var spots = new[]
+                    {
+                        (new Vector2(-M(4f), M(3f)), M(8f), design.AccentPrimary),
+                        (new Vector2(M(4f), M(5f)), M(6f), design.AccentLime),
+                        (new Vector2(M(2f), -M(4f)), M(7f), design.AccentTeal)
+                    };
+
+                    var layers = new Graphic[spots.Length];
+                    for (var i = 0; i < spots.Length; i++)
+                    {
+                        var go = Child(icon, $"Spot{i}");
+                        var rect = go.GetComponent<RectTransform>();
+                        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+                        rect.anchoredPosition = spots[i].Item1;
+                        rect.sizeDelta = new Vector2(spots[i].Item2, spots[i].Item2);
+                        var image = go.AddComponent<Image>();
+                        image.sprite = circle;
+                        image.raycastTarget = false;
+                        image.color = spots[i].Item3;
+                        layers[i] = image;
+                    }
+
+                    return layers;
+                }
+
+                case 1: // Магазин — маджентова фарба у відрі з відблиском
+                {
+                    var paintGo = Child(icon, "Paint");
+                    var paintRect = paintGo.GetComponent<RectTransform>();
+                    paintRect.anchorMin = paintRect.anchorMax = new Vector2(0.5f, 0.5f);
+                    paintRect.anchoredPosition = new Vector2(0f, M(2f));
+                    paintRect.sizeDelta = new Vector2(M(13f), M(5f));
+                    var paint = paintGo.AddComponent<Image>();
+                    paint.sprite = circle;
+                    paint.raycastTarget = false;
+                    paint.color = design.AccentPrimary;
+
+                    var shineGo = Child(icon, "Shine");
+                    var shineRect = shineGo.GetComponent<RectTransform>();
+                    shineRect.anchorMin = shineRect.anchorMax = new Vector2(0.5f, 0.5f);
+                    shineRect.anchoredPosition = new Vector2(-M(3f), M(3f));
+                    shineRect.sizeDelta = new Vector2(M(4f), M(2.5f));
+                    var shine = shineGo.AddComponent<Image>();
+                    shine.sprite = circle;
+                    shine.raycastTarget = false;
+                    shine.color = new Color(1f, 1f, 1f, 0.55f);
+
+                    return new Graphic[] { paint, shine };
+                }
+
+                case 2: // Рейтинги — тепле світло в чаші кубка
+                {
+                    var lightGo = Child(icon, "CupLight");
+                    var lightRect = lightGo.GetComponent<RectTransform>();
+                    lightRect.anchorMin = lightRect.anchorMax = new Vector2(0.5f, 0.5f);
+                    lightRect.anchoredPosition = new Vector2(0f, M(4f));
+                    lightRect.sizeDelta = new Vector2(M(14f), M(10f));
+                    var light = lightGo.AddComponent<Image>();
+                    light.sprite = circle;
+                    light.raycastTarget = false;
+                    light.color = DesignSystem.WithAlpha(design.AccentGold, 0.5f);
+                    lightGo.transform.SetAsFirstSibling();
+
+                    return new Graphic[] { light };
+                }
+
+                default: // Профіль — силует у скляному крузі
+                {
+                    var glassGo = Child(icon, "GlassRing");
+                    var glassRect = glassGo.GetComponent<RectTransform>();
+                    glassRect.anchorMin = glassRect.anchorMax = new Vector2(0.5f, 0.5f);
+                    glassRect.sizeDelta = new Vector2(M(24f), M(24f));
+                    var glass = glassGo.AddComponent<Image>();
+                    glass.sprite = circle;
+                    glass.raycastTarget = false;
+                    glass.color = design.GlassFillRaised;
+                    glassGo.transform.SetAsFirstSibling();
+
+                    return new Graphic[] { glass };
+                }
+            }
         }
 
         // ───────────────────────── Утиліти ─────────────────────────
@@ -527,6 +731,8 @@ namespace InkFlow.Editor
             label.raycastTarget = false;
             if (font != null)
                 label.font = font;
+            if (_iconSprites != null)
+                label.spriteAsset = _iconSprites;
             return label;
         }
 

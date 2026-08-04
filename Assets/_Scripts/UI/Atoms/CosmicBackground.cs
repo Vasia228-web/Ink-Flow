@@ -46,12 +46,27 @@ namespace InkFlow.UI
                         Mathf.Max(0.0001f, Mathf.Min(rx, ry));
 
             var stops = design.BackgroundStops;
+            // Шість зупинок замість чотирьох: між кожною парою макета вставляємо
+            // проміжну. Чотири зупинки на весь екран давали видимий бандинг —
+            // око ловить межі там, де градієнт міняє нахил.
             var colors = new[]
             {
-                design.BackgroundInner, design.BackgroundMid,
-                design.BackgroundOuter, design.BackgroundEdge
+                design.BackgroundInner,
+                Color.Lerp(design.BackgroundInner, design.BackgroundMid, 0.55f),
+                design.BackgroundMid,
+                Color.Lerp(design.BackgroundMid, design.BackgroundOuter, 0.5f),
+                design.BackgroundOuter,
+                design.BackgroundEdge
             };
-            var positions = new[] { stops.x, stops.y, stops.z, Mathf.Max(stops.w, reach) };
+            var positions = new[]
+            {
+                stops.x,
+                Mathf.Lerp(stops.x, stops.y, 0.55f),
+                stops.y,
+                Mathf.Lerp(stops.y, stops.z, 0.5f),
+                stops.z,
+                Mathf.Max(stops.w, reach)
+            };
 
             // Центральна вершина.
             vh.AddVert(origin, colors[0], Vector2.zero);

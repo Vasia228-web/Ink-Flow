@@ -45,13 +45,20 @@ namespace InkFlow.UI
             {
                 var x = rect.xMin + (float)random.NextDouble() * rect.width;
                 var y = rect.yMin + (float)random.NextDouble() * rect.height;
-                var size = Mathf.Lerp(sizeRange.x, sizeRange.y, (float)random.NextDouble());
+                // Кубічний розподіл: дрібних зір багато, великих одиниці —
+                // саме так виглядає справжнє небо.
+                var roll = (float)random.NextDouble();
+                var size = Mathf.Lerp(sizeRange.x, sizeRange.y, roll * roll * roll);
 
                 _phases[i] = (float)random.NextDouble() * Mathf.PI * 2f;
-                // Половина зір — «дальній» повільний шар, половина — ближній.
-                _speeds[i] = i % 2 == 0 ? design.StarTwinkleSlow : design.StarTwinkleFast;
+                // Мерехтить лише частина зір: коли блимає все небо, воно читається
+                // як шум, а не як глибина. Решта світить рівно (швидкість 0).
+                _speeds[i] = (float)random.NextDouble() < design.StarTwinkleFraction
+                    ? (i % 2 == 0 ? design.StarTwinkleSlow : design.StarTwinkleFast)
+                    : 0f;
 
-                var alpha = Mathf.Lerp(0.35f, 0.9f, (float)random.NextDouble());
+                // Яскравість корелює з розміром — інакше дрібні зорі «кричать».
+                var alpha = Mathf.Lerp(0.28f, 0.95f, roll * 0.6f + (float)random.NextDouble() * 0.4f);
                 var tint = i % 3 == 0
                     ? new Color(0.82f, 0.9f, 1f, alpha)   // холодні зорі макета (#CFE6FF)
                     : new Color(1f, 1f, 1f, alpha);
@@ -77,10 +84,13 @@ namespace InkFlow.UI
             if (design == null || _phases.Length == 0)
                 return;
 
-            // Мерехтіння як зміна прозорості всього шару: перебудовувати меш щокадру
+            // Мерехтіння як дихання прозорості шару: перебудовувати меш щокадру
             // заради 90 квадів — марна трата, а різниця на око невідчутна.
-            var t = 0.5f + 0.5f * Mathf.Sin(Time.time / design.StarTwinkleFast * Mathf.PI * 2f + _phases[0]);
-            canvasRenderer.SetAlpha(Mathf.Lerp(0.65f, 1f, t));
+            // Два періоди накладаються, тож ритм не читається як синусоїда.
+            var slow = Mathf.Sin(Time.time / design.StarTwinkleSlow * Mathf.PI * 2f);
+            var fast = Mathf.Sin(Time.time / design.StarTwinkleFast * Mathf.PI * 2f + _phases[0]);
+            var t = 0.5f + 0.25f * (slow + fast);
+            canvasRenderer.SetAlpha(Mathf.Lerp(0.72f, 1f, t));
         }
     }
 }
