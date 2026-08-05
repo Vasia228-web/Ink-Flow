@@ -62,7 +62,7 @@ namespace InkFlow.UI
 
         private void Awake() => _restScale = transform.localScale;
 
-        private void OnEnable() => Apply();
+        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.Schedule(this, Apply);

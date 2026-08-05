@@ -23,7 +23,7 @@ namespace InkFlow.UI
         private void OnEnable()
         {
             _rect = GetComponent<RectTransform>();
-            Apply();
+            StyleRefresh.Schedule(this, Apply);
         }
 
         private void Update()

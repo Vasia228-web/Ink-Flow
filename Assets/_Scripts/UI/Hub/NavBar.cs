@@ -53,7 +53,7 @@ namespace InkFlow.UI
 
         private void OnEnable()
         {
-            Apply();
+            StyleRefresh.Schedule(this, Apply);
             for (var i = 0; i < tabs.Count; i++)
             {
                 var index = i;

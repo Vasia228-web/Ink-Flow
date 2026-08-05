@@ -50,6 +50,16 @@ namespace InkFlow.Editor
             if (!EnsureEditMode())
                 return;
 
+            // Як і решта бутстрапів: поки будуємо — жодних відкладених перечитувань
+            // стилю. Тут це стосується SafeAreaBinder: його Apply свідомо НЕ печемо
+            // у сцену, бо safe area залежить від пристрою, а не від збірки.
+            StyleRefresh.Suspended = true;
+            try { BuildAll(); }
+            finally { StyleRefresh.Suspended = false; }
+        }
+
+        private static void BuildAll()
+        {
             if (!EnsureTmpEssentials())
             {
                 Debug.LogWarning("[InkFlow] TMP Essential Resources щойно імпортовано — " +

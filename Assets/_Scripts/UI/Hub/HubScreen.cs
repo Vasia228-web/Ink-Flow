@@ -44,7 +44,7 @@ namespace InkFlow.UI
         [SerializeField] private int mockStars = 27;
         [SerializeField] private int mockRecord = 8420;
 
-        private void OnEnable() => Apply();
+        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.Schedule(this, Apply);

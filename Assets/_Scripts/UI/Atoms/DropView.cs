@@ -70,7 +70,7 @@ namespace InkFlow.UI
             return design.DripInterval + Random.Range(-jitter, jitter);
         }
 
-        private void OnEnable() => Apply();
+        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.Schedule(this, Apply);

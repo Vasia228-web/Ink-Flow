@@ -198,6 +198,7 @@ namespace InkFlow.Editor
                 Wire(neon,
                     ("design", design), ("button", button), ("background", background),
                     ("glow", glow), ("innerStroke", stroke), ("label", label));
+                neon.Apply();
 
                 SavePrefab(root, "NeonButton");
             }
@@ -248,6 +249,7 @@ namespace InkFlow.Editor
                 Wire(drop,
                     ("design", design), ("body", body), ("gloss", glossImage),
                     ("glow", glow), ("densityLabel", label));
+                drop.Apply();
 
                 SavePrefab(root, "DropView");
             }

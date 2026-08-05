@@ -35,7 +35,7 @@ namespace InkFlow.UI
         private void OnEnable()
         {
             _rect = (RectTransform)transform;
-            Apply();
+            StyleRefresh.Schedule(this, Apply);
         }
 
 #if UNITY_EDITOR

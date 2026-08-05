@@ -34,7 +34,7 @@ namespace InkFlow.UI
         [Tooltip("Підвищена заливка для активних/виділених панелей.")]
         [SerializeField] private bool raised;
 
-        private void OnEnable() => Apply();
+        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.Schedule(this, Apply);

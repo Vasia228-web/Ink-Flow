@@ -25,7 +25,7 @@ namespace InkFlow.UI
 
         private void OnEnable()
         {
-            Apply();
+            StyleRefresh.Schedule(this, Apply);
             if (_wallet != null)
                 _wallet.Changed += OnChanged;
         }
