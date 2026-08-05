@@ -97,6 +97,8 @@ namespace InkFlow.Editor
             if (asset.material != null)
                 AssetDatabase.AddObjectToAsset(asset.material, asset);
 
+            StampVersion(asset);
+
             EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
 
@@ -104,6 +106,40 @@ namespace InkFlow.Editor
 
             Debug.Log($"[InkFlow] TMP Sprite Asset готовий: {AssetPath}. " +
                       "Символи ★ і ↺ тепер рендеряться іконками в будь-якому тексті.");
+        }
+
+        /// <summary>
+        /// Ставить асету версію формату TMP. Без цього рядка все ламається двічі.
+        ///
+        /// `TMP_SpriteAsset.UpdateLookupTables()` перевіряє
+        /// `material != null &amp;&amp; string.IsNullOrEmpty(m_Version)` і, якщо версії немає,
+        /// вважає асет успадкованим із старого формату — кличе `UpgradeSpriteAsset()`.
+        /// А той **очищає** `m_SpriteCharacterTable` і `m_GlyphTable` й перебудовує їх
+        /// із legacy-списку `spriteInfoList`, який у нас порожній: ми наповнюємо одразу
+        /// сучасні таблиці. Тобто ★ зникає.
+        ///
+        /// Друге: таблиці будуються ліниво, на першому зверненні з `TMP_Text.ParseInputText`,
+        /// а це відбувається всередині `Canvas.SendWillRenderCanvases()`. Апгрейд там кличе
+        /// `SetDirty` + `AssetDatabase.SaveAssets()`, і кожна графіка, яку він бруднить,
+        /// дає «Trying to add … for graphic rebuild while we are already inside a graphic
+        /// rebuild loop». Саме звідси бралися ті 138 помилок.
+        ///
+        /// Сеттер `version` у TMP `internal`, тому пишемо через SerializedObject.
+        /// Шрифтів це не стосується — `TMP_FontAsset.CreateFontAsset` штампує версію сам.
+        /// </summary>
+        private static void StampVersion(TMP_SpriteAsset asset)
+        {
+            var so = new SerializedObject(asset);
+            var version = so.FindProperty("m_Version");
+            if (version == null)
+            {
+                Debug.LogWarning("[InkFlow] У TMP_SpriteAsset немає поля m_Version — " +
+                                 "формат пакета змінився, перевір com.unity.ugui.");
+                return;
+            }
+
+            version.stringValue = "1.1.0";
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>Склеює іконки в одну текстуру-атлас і повертає їхні прямокутники.</summary>
