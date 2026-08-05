@@ -94,7 +94,9 @@ namespace InkFlow.UI
 
         private System.Collections.IEnumerator BounceRoutine(RectTransform icon)
         {
-            var start = icon.anchoredPosition;
+            // localPosition, не anchoredPosition: друге шле OnRectTransformDimensionsChange
+            // і просить графіку на перебудову щокадру анімації.
+            var start = icon.localPosition;
             var duration = design.TabBounceDuration;
             var height = design.TabBounceHeight;
 
@@ -102,11 +104,11 @@ namespace InkFlow.UI
             {
                 // Півсинусоїда: вгору й назад одним рухом, без зависання у верхній точці.
                 var k = Mathf.Sin(t / duration * Mathf.PI);
-                icon.anchoredPosition = start + new Vector2(0f, height * k);
+                icon.localPosition = start + new Vector3(0f, height * k, 0f);
                 yield return null;
             }
 
-            icon.anchoredPosition = start;
+            icon.localPosition = start;
             _bounce = null;
         }
 

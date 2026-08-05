@@ -79,7 +79,7 @@ namespace InkFlow.UI
             vh.AddTriangle(index, index + 2, index + 3);
         }
 
-        private void Update()
+        private void LateUpdate()
         {
             if (design == null || _phases.Length == 0)
                 return;

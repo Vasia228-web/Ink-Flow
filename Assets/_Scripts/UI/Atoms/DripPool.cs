@@ -9,15 +9,20 @@ namespace InkFlow.UI
     ///
     /// Один пул на екран: усі клієнти просять краплину звідси, тому під час гри
     /// нічого не інстанціюється (§18 інваріант 9). Анімація рахується в одному
-    /// Update по масиву структур — без корутин на кожну краплину і без алокацій.
+    /// LateUpdate по масиву структур — без корутин на краплину і без алокацій.
+    ///
+    /// Щокадрово чіпаємо ЛИШЕ localPosition, localScale і CanvasRenderer — вони не
+    /// бруднять графіку. sizeDelta і Image.color виставлені раз при створенні пулу:
+    /// кожен їх дотик кликав би SetVerticesDirty, а якщо це збігається з перебудовою
+    /// канваса — Unity кидає «graphic rebuild loop».
     /// </summary>
     public sealed class DripPool : MonoBehaviour
     {
         private struct Drip
         {
             public RectTransform Rect;
-            public Image Image;
-            public Vector2 Origin;
+            public CanvasRenderer Renderer;
+            public Vector3 Origin;
             public Color Color;
             public float Size;
             public float Time;
@@ -30,6 +35,9 @@ namespace InkFlow.UI
         [Tooltip("Скільки краплин може летіти одночасно. Більше не буває: крапель " +
                  "на екрані одиниці, а інтервали рознесені.")]
         [SerializeField, Min(1)] private int capacity = 12;
+
+        /// <summary>Опорний розмір графіки. Реальний розмір задає localScale.</summary>
+        private const float BaseSize = 100f;
 
         private Drip[] _drips = System.Array.Empty<Drip>();
 
@@ -52,12 +60,19 @@ namespace InkFlow.UI
                 var image = go.AddComponent<Image>();
                 image.sprite = dropSprite;
                 image.raycastTarget = false;
+
+                // Розмір і колір графіки фіксуємо тут, раз і назавжди. Далі краплина
+                // живе тільки на трансформі й CanvasRenderer.
+                var rect = go.GetComponent<RectTransform>();
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(BaseSize, BaseSize);
+                image.color = Color.white;
                 go.SetActive(false);
 
                 _drips[i] = new Drip
                 {
-                    Rect = go.GetComponent<RectTransform>(),
-                    Image = image
+                    Rect = rect,
+                    Renderer = go.GetComponent<CanvasRenderer>()
                 };
             }
         }
@@ -83,17 +98,21 @@ namespace InkFlow.UI
 
                 _drips[i].Active = true;
                 _drips[i].Time = 0f;
-                _drips[i].Origin = localPosition;
+                _drips[i].Origin = new Vector3(localPosition.x, localPosition.y, 0f);
                 _drips[i].Color = color;
                 _drips[i].Size = sourceSize * design.DripSize;
-                _drips[i].Rect.anchorMin = _drips[i].Rect.anchorMax = new Vector2(0.5f, 0.5f);
-                _drips[i].Rect.anchoredPosition = localPosition;
+                _drips[i].Rect.localPosition = _drips[i].Origin;
                 _drips[i].Rect.gameObject.SetActive(true);
+                // Колір — після SetActive: Graphic.OnDisable чистить CanvasRenderer.
+                _drips[i].Renderer.SetColor(color);
+                _drips[i].Renderer.SetAlpha(1f);
                 return;
             }
         }
 
-        private void Update()
+        // LateUpdate, а не Update: рух має лягати після всієї ігрової логіки кадру
+        // й гарантовано поза будь-яким колбеком розкладки.
+        private void LateUpdate()
         {
             if (design == null)
                 return;
@@ -127,13 +146,11 @@ namespace InkFlow.UI
                 var size = _drips[i].Size * Mathf.Lerp(0.35f, 1f, stretchPhase);
                 var stretch = Mathf.Lerp(1.5f, 1.05f, stretchPhase) + fall * 0.35f;
 
-                _drips[i].Rect.sizeDelta = new Vector2(size, size * stretch);
-                _drips[i].Rect.anchoredPosition =
-                    _drips[i].Origin + new Vector2(0f, -distance * fall);
-
-                var color = _drips[i].Color;
-                color.a *= 1f - fallPhase * fallPhase;
-                _drips[i].Image.color = color;
+                var k = size / BaseSize;
+                _drips[i].Rect.localScale = new Vector3(k, k * stretch, 1f);
+                _drips[i].Rect.localPosition =
+                    _drips[i].Origin + new Vector3(0f, -distance * fall, 0f);
+                _drips[i].Renderer.SetAlpha(_drips[i].Color.a * (1f - fallPhase * fallPhase));
             }
         }
 

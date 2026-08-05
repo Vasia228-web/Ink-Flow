@@ -50,6 +50,10 @@ namespace InkFlow.UI
         private float _morphPhase;
         private float _nextDrip;
         private bool _nearMiss;
+        private bool _pulsing;
+
+        /// <summary>Точка спокою глянцю: щокадрова анімація рахується від неї.</summary>
+        private Vector3 _glossRest;
 
         public InkColor Ink => ink;
 
@@ -59,6 +63,11 @@ namespace InkFlow.UI
             _phase = Random.value * Mathf.PI * 2f;
             _morphPhase = Random.value * Mathf.PI * 2f;
             _nextDrip = NextDripDelay();
+
+            // Точку спокою глянцю знімаємо до першої анімації: далі щокадровий зсув
+            // рахується від неї, і префаб лишається джерелом позиції.
+            if (gloss != null)
+                _glossRest = gloss.rectTransform.localPosition;
         }
 
         /// <summary>Пауза до наступної краплини з розкидом — інакше краплі капають хором.</summary>
@@ -123,7 +132,9 @@ namespace InkFlow.UI
             }
         }
 
-        private void Update()
+        // LateUpdate: анімація не має виконуватись усередині колбеків розкладки
+        // чи перебудови канваса — саме звідти беруться «graphic rebuild loop».
+        private void LateUpdate()
         {
             if (design == null)
                 return;
@@ -160,9 +171,19 @@ namespace InkFlow.UI
                 // тож гало ніколи не виходить за межі клітинки.
                 var peak = design.DropNearMissGlowScale / Mathf.Max(0.01f, design.DropGlowScale);
                 glow.transform.localScale = Vector3.one * Mathf.Lerp(1f, peak, pulse);
-                glow.color = DesignSystem.WithAlpha(design.Ink(ink), design.DropShadowAlpha * (0.5f + 0.5f * pulse));
+                // Яскравість — через CanvasRenderer: Image.color щокадру кликав би
+                // SetVerticesDirty і ламав перебудову канваса.
+                glow.canvasRenderer.SetAlpha(0.5f + 0.5f * pulse);
                 scale *= Mathf.Lerp(1f, 1.08f, pulse);
             }
+            else if (_pulsing && glow != null)
+            {
+                // Пульс щойно вимкнули — повертаємо повну яскравість один раз,
+                // а не щокадру.
+                glow.canvasRenderer.SetAlpha(1f);
+            }
+
+            _pulsing = _nearMiss;
 
             transform.localScale = scale;
             transform.localRotation = Quaternion.Euler(0f, 0f, tilt);
@@ -171,10 +192,13 @@ namespace InkFlow.UI
             // а не наклеєним на краплю.
             if (gloss != null)
             {
+                // localPosition, а не anchoredPosition: зміна anchoredPosition шле
+                // OnRectTransformDimensionsChange, і графіка щокадру просилась на
+                // перебудову. Точка спокою знята один раз, у Apply().
                 var size = ((RectTransform)transform).rect.width;
-                gloss.rectTransform.anchoredPosition =
-                    new Vector2(-wave * design.GlossDrift * size * 0.5f,
-                                 wave * design.GlossDrift * size * 0.25f);
+                gloss.rectTransform.localPosition = _glossRest + new Vector3(
+                    -wave * design.GlossDrift * size * 0.5f,
+                     wave * design.GlossDrift * size * 0.25f, 0f);
             }
         }
 

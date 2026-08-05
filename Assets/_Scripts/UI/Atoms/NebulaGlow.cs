@@ -75,7 +75,7 @@ namespace InkFlow.UI
             }
         }
 
-        private void Update()
+        private void LateUpdate()
         {
             if (design == null || design.NebulaBreathPeriod <= 0f)
                 return;

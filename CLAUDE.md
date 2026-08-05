@@ -88,7 +88,7 @@ InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 
 Крутити наживо: `nebulaAlpha`, `nebulaScale`, `nebulaOffset`, `nebulaTintMix`, `cardGlowRadius`, `cardGlowAlpha`.
 
-Продуктивність: краплини — з пулу (`DripPool`, один Update по масиву структур, нуль алокацій), гало — статичні спрайти, туманність — один прозорий квад. **Ніякого post-process Bloom** — повноекранний прохід коштував би кадру на iPhone SE.
+Продуктивність: краплини — з пулу (`DripPool`, один LateUpdate по масиву структур, нуль алокацій), гало — статичні спрайти, туманність — один прозорий квад. **Ніякого post-process Bloom** — повноекранний прохід коштував би кадру на iPhone SE.
 
 **★ і ↺ — спрайти, не гліфи.** У Nunito їх немає, і в жодному OFL-шрифті Google, який варто тягнути заради двох знаків; у макеті вони теж намальовані фігурами. Тому `icon-star.png` / `icon-retry.png`. Це і є причина, чому зникли warning-и про відсутні гліфи.
 
@@ -134,6 +134,10 @@ Edit Mode тести через Unity CLI (редактор має бути ЗА
 ```bash
 bash Tools/check-compile.sh
 ```
+Перевірка щокадрової анімації UI — теж перед комітом, якщо чіпав `Update`/`LateUpdate`/твіни:
+```bash
+python3 Tools/check-ui-animation.py
+```
 Разова генерація UI (у Edit Mode): `Ink Flow → Setup → Build UI Kit` — створює спрайти, TMP-шрифт, `DesignSystem.asset`, префаби атомів і сцену `Assets/Scenes/UIKit.unity`. Шрифти качаються окремо: `bash Tools/fetch-fonts.sh`.
 Бере **власні response-файли Unity** з `Library/Bee/artifacts/*.dag/` і компілює кожну збірку окремо (перенаправляючи лише `-out`). Тобто перевіряє точно тими посиланнями, define-ами й аналізаторами, якими збирає редактор.
 
@@ -167,6 +171,7 @@ bash Tools/check-compile.sh
   - Наслідок, про який легко забути: **бутстрап мусить кликати `Apply()` сам, синхронно, перед `SaveScene`/`SavePrefab`** — відкладена правка в файл уже не потрапить, а `Suspended` глушить її й зовсім. Виняток свідомий: `SafeAreaBinder` не печемо ніколи — safe area залежить від пристрою, не від збірки.
 - **Рукописному `TMP_SpriteAsset` треба штампувати `m_Version = "1.1.0"`.** `UpdateLookupTables()` перевіряє `material != null && string.IsNullOrEmpty(m_Version)` і без версії вважає асет успадкованим зі старого формату: `UpgradeSpriteAsset()` **очищає** `m_SpriteCharacterTable`/`m_GlyphTable` й перебудовує їх із legacy-списку `spriteInfoList` — а він у нас порожній, бо ми наповнюємо одразу сучасні таблиці. Наслідків два: ★ зникає, і — оскільки таблиці будуються ліниво з `TMP_Text.ParseInputText` усередині `Canvas.SendWillRenderCanvases()` — апгрейд кличе `SetDirty` + `SaveAssets()` прямо в циклі перебудови й сипле сотнею `graphic rebuild loop`. Сеттер `version` у TMP `internal`, тож пишемо через `SerializedObject`. Шрифтів не стосується: `TMP_FontAsset.CreateFontAsset` штампує версію сам.
 - Успадковуючи `Graphic`/`MaskableGraphic`, **не додавати свій `SetVerticesDirty()` у `OnValidate`** — `Graphic.OnValidate` уже кличе `SetAllDirty()`, і це подвоює реєстрацію на перебудову.
+- **Щокадрова анімація UI не сміє чіпати графіку.** У `Update`/`LateUpdate` і в тілах твін-корутин пишемо лише в `localPosition`, `localScale`, `localRotation` і `CanvasRenderer` (`SetColor`/`SetAlpha`) — вони не бруднять графіку. Дотик до `Image.color`, `sizeDelta`, `anchoredPosition`, `sprite`, `fillAmount` чи `SetAllDirty()` просить графіку на перебудову; збіг із проходом канваса дає сотні `graphic rebuild loop` за кадр. `anchoredPosition` небезпечний неочевидно: він шле `OnRectTransformDimensionsChange`, а той кличе `SetVerticesDirty`. Тому розмір анімуємо `localScale` при фіксованому `sizeDelta`, а колір — через `CanvasRenderer`. `SpriteRenderer` це не стосується: він поза канвасом. Перевіряє `Tools/check-ui-animation.py`.
 - У шрифті LiberationSans SDF немає гліфа `↺` — у UI використовуємо текст.
 - Batchmode недоступний, поки відкритий редактор (`Temp/UnityLockfile`); саме для цього є `Tools/run-core-tests.sh`.
 

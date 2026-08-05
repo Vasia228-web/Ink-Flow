@@ -84,7 +84,12 @@ namespace InkFlow.UI
             }
 
             if (glow != null)
-                glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha * _glowBoost);
+            {
+                // Базовий колір — тут, один раз. Спалах при натисканні йде через
+                // CanvasRenderer.SetAlpha, бо Image.color щокадру бруднить графіку.
+                glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha);
+                glow.canvasRenderer.SetAlpha(_glowBoost);
+            }
 
             if (iconTileFill != null)
             {
@@ -170,12 +175,13 @@ namespace InkFlow.UI
             _press = null;
         }
 
+        /// <summary>Спалах гало під пальцем. Лише альфа CanvasRenderer — жодного
+        /// дотику до Image.color, інакше кожен кадр натискання бруднив би графіку.</summary>
         private void UpdateGlow()
         {
             if (glow == null || design == null)
                 return;
-            var (accent, _) = ToneColors(tone);
-            glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha * _glowBoost);
+            glow.canvasRenderer.SetAlpha(_glowBoost);
         }
     }
 }

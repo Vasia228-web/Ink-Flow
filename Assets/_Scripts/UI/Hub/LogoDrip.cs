@@ -38,7 +38,7 @@ namespace InkFlow.UI
             return baseDelay + Random.Range(-jitter, jitter);
         }
 
-        private void Update()
+        private void LateUpdate()
         {
             if (design == null || pool == null || sources.Length == 0)
                 return;
