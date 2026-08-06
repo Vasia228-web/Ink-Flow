@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 7;
+        public const int CurrentTokenVersion = 8;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -579,6 +579,109 @@ namespace InkFlow.Style
         [SerializeField] private PlanetPalette[] planetPalettes = DefaultPlanetPalettes();
 
         public float StarTwinkleFraction => starTwinkleFraction;
+
+        [Header("Фарбування планети")]
+        [Tooltip("Назва планети в шапці: 15 px макета, ls .04em.")]
+        [SerializeField] private float fontSizePaintTitle = 42f;
+        [SerializeField] private float letterSpacingPaintTitle = 4f;
+
+        [Tooltip("«{Планета} завершена!»: 26 px макета.")]
+        [SerializeField] private float fontSizeCompletion = 72f;
+
+        [Tooltip("Розмір зони відносно радіуса планети. У макеті R = 132 і " +
+                 "size = r · 1.72, звідси 1.72/132.")]
+        [SerializeField] private float paintZoneSizeFactor = 0.01303f;
+
+        [Tooltip("Наскільки зони не доходять до лімба (макет: 0.94). Ближче до 1 — " +
+                 "і зона злизується з краю кулі, читаючись як приклеєна ззовні.")]
+        [SerializeField, Range(0.7f, 1f)] private float paintZoneInset = 0.94f;
+
+        [Tooltip("Градусів обертання на одиницю руху пальця.")]
+        [SerializeField] private float paintRotationPerUnit = 0.25f;
+
+        [Tooltip("Згасання вибігу після відпускання. Більше — різкіше спиняється.")]
+        [SerializeField, Min(0.5f)] private float paintRotationDamping = 4f;
+
+        [Tooltip("Швидкість автообертання після завершення планети, градусів/с.")]
+        [SerializeField] private float paintAutoSpinSpeed = 12f;
+
+        [Tooltip("Скільки триває розтікання фарби по зоні.")]
+        [SerializeField, Min(0.1f)] private float paintFillDuration = 0.6f;
+
+        [Tooltip("На скільки піднімається обраний зразок фарби: 8 px макета.")]
+        [SerializeField] private float paintSwatchLift = 22f;
+
+        [Tooltip("За скільки літрів мензурка повна.")]
+        [SerializeField, Min(1f)] private float paintBeakerFullLiters = 10f;
+
+        [Tooltip("Прозорість фарби, якої не вистачає. НЕ нуль: фарба лишається " +
+                 "клікабельною, просто притлумленою.")]
+        [SerializeField, Range(0.2f, 1f)] private float paintUnaffordableAlpha = 0.45f;
+
+        [SerializeField] private Color paintLowFill = new Color(1f, 0.42f, 0.54f, 0.16f);
+        [SerializeField] private Color paintLowStroke = new Color(1f, 0.42f, 0.54f, 0.45f);
+        [SerializeField] private Color paintLowText = Hex("#FF9FB2");
+
+        [Tooltip("Наближення до планети з екрана огляду.")]
+        [SerializeField, Min(0.1f)] private float paintApproachDuration = 0.55f;
+        [SerializeField, Range(0.1f, 1f)] private float paintApproachFromScale = 0.35f;
+
+        [SerializeField, Min(0.1f)] private float paintFlashDuration = 0.7f;
+        [SerializeField, Min(0.1f)] private float paintMoonFlyDuration = 1f;
+
+        [SerializeField, Min(0)] private int paintConfettiCount = 12;
+        [SerializeField] private float paintConfettiSize = 60f;
+        [SerializeField] private float paintConfettiSpread = 160f;
+
+        [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
+        [SerializeField] private PaintInfo[] paints = DefaultPaints();
+
+        public float FontSizePaintTitle => fontSizePaintTitle;
+        public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
+        public float FontSizeCompletion => fontSizeCompletion;
+        public float PaintZoneSizeFactor => paintZoneSizeFactor;
+        public float PaintZoneInset => paintZoneInset;
+        public float PaintRotationPerUnit => paintRotationPerUnit;
+        public float PaintRotationDamping => paintRotationDamping;
+        public float PaintAutoSpinSpeed => paintAutoSpinSpeed;
+        public float PaintFillDuration => paintFillDuration;
+        public float PaintSwatchLift => paintSwatchLift;
+        public float PaintBeakerFullLiters => paintBeakerFullLiters;
+        public float PaintUnaffordableAlpha => paintUnaffordableAlpha;
+        public Color PaintLowFill => paintLowFill;
+        public Color PaintLowStroke => paintLowStroke;
+        public Color PaintLowText => paintLowText;
+        public float PaintApproachDuration => paintApproachDuration;
+        public float PaintApproachFromScale => paintApproachFromScale;
+        public float PaintFlashDuration => paintFlashDuration;
+        public float PaintMoonFlyDuration => paintMoonFlyDuration;
+        public int PaintConfettiCount => paintConfettiCount;
+        public float PaintConfettiSize => paintConfettiSize;
+        public float PaintConfettiSpread => paintConfettiSpread;
+
+        public Color Paint(PaintKind kind) => PaintAt(kind).Color;
+        public string PaintName(PaintKind kind) => PaintAt(kind).Name;
+
+        private PaintInfo PaintAt(PaintKind kind)
+        {
+            var i = (int)kind;
+            if (paints == null || paints.Length == 0)
+                return default;
+            return paints[i >= 0 && i < paints.Length ? i : 0];
+        }
+
+        /// <summary>Вісім фарб рівно з макета (PLANET_PAINTS).</summary>
+        private static PaintInfo[] DefaultPaints() => new[]
+        {
+            new PaintInfo(Hex("#3B7BFF"), "Океан"),
+            new PaintInfo(Hex("#00D9C0"), "Бірюза"),
+            new PaintInfo(Hex("#3FA34D"), "Ліс"),
+            new PaintInfo(Hex("#DFF1FF"), "Крига"),
+            new PaintInfo(Hex("#E0B46A"), "Пісок"),
+            new PaintInfo(Hex("#FF5A3C"), "Лава"),
+            new PaintInfo(Hex("#FF2D8A"), "Малина"),
+            new PaintInfo(Hex("#9D4DFF"), "Фіолет")
+        };
 
         public float FontSizeGalaxyTitle => fontSizeGalaxyTitle;
         public float FontSizeNextGalaxy => fontSizeNextGalaxy;

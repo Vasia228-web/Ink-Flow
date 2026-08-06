@@ -25,6 +25,10 @@ namespace InkFlow.UI
             public Vector3 Origin;
             public Color Color;
             public float Size;
+
+            /// <summary>Горизонтальний знос за час падіння. Нуль — звичайна краплина,
+            /// ненульовий — розліт конфеті.</summary>
+            public float Drift;
             public float Time;
             public bool Active;
         }
@@ -82,7 +86,7 @@ namespace InkFlow.UI
         /// краплина просто не з'являється: пропущена декоративна крапля краща
         /// за розширення пулу під час кадру.
         /// </summary>
-        public void Emit(Vector2 localPosition, Color color, float sourceSize)
+        public void Emit(Vector2 localPosition, Color color, float sourceSize, float drift = 0f)
         {
             if (design == null)
                 return;
@@ -101,6 +105,7 @@ namespace InkFlow.UI
                 _drips[i].Origin = new Vector3(localPosition.x, localPosition.y, 0f);
                 _drips[i].Color = color;
                 _drips[i].Size = sourceSize * design.DripSize;
+                _drips[i].Drift = drift;
                 _drips[i].Rect.localPosition = _drips[i].Origin;
                 _drips[i].Rect.gameObject.SetActive(true);
                 // Колір — після SetActive: Graphic.OnDisable чистить CanvasRenderer.
@@ -148,8 +153,8 @@ namespace InkFlow.UI
 
                 var k = size / BaseSize;
                 _drips[i].Rect.localScale = new Vector3(k, k * stretch, 1f);
-                _drips[i].Rect.localPosition =
-                    _drips[i].Origin + new Vector3(0f, -distance * fall, 0f);
+                _drips[i].Rect.localPosition = _drips[i].Origin + new Vector3(
+                    _drips[i].Drift * fallPhase, -distance * fall, 0f);
                 _drips[i].Renderer.SetAlpha(_drips[i].Color.a * (1f - fallPhase * fallPhase));
             }
         }

@@ -21,6 +21,7 @@ Shader "InkFlow/Planet"
         _Mode ("Mode", Float) = 0
         _Type ("Planet type", Float) = 0
         _Spin ("Seconds per turn", Float) = 30
+        _Rotation ("Manual rotation (rad)", Float) = 0
         _Seed ("Seed", Float) = 0
         _Painted ("Painted fraction", Range(0,1)) = 1
         _Locked ("Locked", Range(0,1)) = 0
@@ -99,6 +100,7 @@ Shader "InkFlow/Planet"
             float _Mode;
             float _Type;
             float _Spin;
+            float _Rotation;
             float _Seed;
             float _Painted;
             float _Locked;
@@ -239,8 +241,10 @@ Shader "InkFlow/Planet"
                     float3 n = float3(p.x, p.y, z);
 
                     // Обертання навколо власної осі: крутимо точку вибірки, не пікселі.
+                    // _Spin = 0 зупиняє автообертання, і планету крутить _Rotation
+                    // з пальця — саме так працює екран фарбування.
                     float turns = _Spin > 0.0001 ? _Time.y / _Spin : 0.0;
-                    float a = turns * 6.2831853;
+                    float a = turns * 6.2831853 + _Rotation;
                     float ca = cos(a), sa = sin(a);
                     float3 q = float3(n.x * ca - n.z * sa, n.y, n.x * sa + n.z * ca);
 
