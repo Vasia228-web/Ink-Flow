@@ -26,8 +26,8 @@ namespace InkFlow.UI
         private static readonly int SeedId = Shader.PropertyToID("_Seed");
 
         private Material? _material;
-        private RectTransform _rect = null!;
-        private CanvasRenderer _renderer = null!;
+        private RectTransform? _rect;
+        private CanvasRenderer? _renderer;
         private Coroutine? _fill;
 
         /// <summary>Зона, яку показує цей маркер. null — маркер вільний.</summary>
@@ -37,11 +37,12 @@ namespace InkFlow.UI
         /// робить localScale, бо sizeDelta просив би перебудову графіки.</summary>
         public float BaseSize { get; private set; }
 
-        private void Awake()
-        {
-            _rect = (RectTransform)transform;
-            _renderer = GetComponent<CanvasRenderer>();
-        }
+        // Ліниво, а не в Awake: у Edit Mode Awake не виконується, і збирач сцени
+        // отримав би null одразу на Bind().
+        private RectTransform Rect => _rect != null ? _rect : _rect = (RectTransform)transform;
+
+        private CanvasRenderer Renderer =>
+            _renderer != null ? _renderer : _renderer = GetComponent<CanvasRenderer>();
 
         public void Bind(PlanetZone zone, float baseSize)
         {
@@ -49,7 +50,7 @@ namespace InkFlow.UI
             BaseSize = baseSize;
 
             EnsureMaterial();
-            _rect.sizeDelta = new Vector2(baseSize, baseSize);
+            Rect.sizeDelta = new Vector2(baseSize, baseSize);
 
             if (_material == null || design == null)
                 return;
@@ -74,9 +75,9 @@ namespace InkFlow.UI
         /// <summary>Ставить ракурс: зсув, стиснення й прозорість на краю кулі.</summary>
         public void Project(Vector2 localPosition, float scale, float alpha)
         {
-            _rect.localPosition = new Vector3(localPosition.x, localPosition.y, 0f);
-            _rect.localScale = new Vector3(scale, scale, 1f);
-            _renderer.SetAlpha(alpha);
+            Rect.localPosition = new Vector3(localPosition.x, localPosition.y, 0f);
+            Rect.localScale = new Vector3(scale, scale, 1f);
+            Renderer.SetAlpha(alpha);
         }
 
         /// <summary>

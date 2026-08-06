@@ -28,15 +28,12 @@ namespace InkFlow.UI
         [SerializeField] private RectTransform beakerFill;
         [SerializeField] private TMP_Text litersLabel;
 
-        private float _beakerWidth;
         private System.Action<PaintKind>? _onPick;
 
         public PaintKind Kind => kind;
 
         private void Awake()
         {
-            if (beakerFill != null)
-                _beakerWidth = beakerFill.sizeDelta.x;
             if (button != null)
                 button.onClick.AddListener(() => _onPick?.Invoke(kind));
         }
@@ -93,11 +90,13 @@ namespace InkFlow.UI
             if (lift != null)
                 lift.localPosition = new Vector3(0f, selected ? design.PaintSwatchLift : 0f, 0f);
 
-            if (beakerFill != null)
+            if (beakerFill != null && beakerFill.parent is RectTransform beaker)
             {
-                // Мензурка повна на 10 л — далі шкала просто впирається.
+                // Повну ширину беремо з підкладки мензурки, а не кешуємо при старті:
+                // кеш у Awake не заповнився б у Edit Mode, а зняти його з самої
+                // заливки не можна — вона вже стиснута попереднім Refresh.
                 var k = Mathf.Clamp01(liters / design.PaintBeakerFullLiters);
-                beakerFill.sizeDelta = new Vector2(_beakerWidth * k, beakerFill.sizeDelta.y);
+                beakerFill.sizeDelta = new Vector2(beaker.rect.width * k, beakerFill.sizeDelta.y);
                 if (beakerFill.TryGetComponent<Image>(out var fill))
                     fill.color = color;
             }

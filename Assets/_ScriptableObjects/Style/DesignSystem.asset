@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 7
+  tokenVersion: 8
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -293,3 +293,42 @@ MonoBehaviour:
     land: {r: 1, g: 0.8392157, b: 0.9411765, a: 1}
     atmosphere: {r: 1, g: 1, b: 1, a: 1}
     secondsPerTurn: 16
+  fontSizePaintTitle: 42
+  letterSpacingPaintTitle: 4
+  fontSizeCompletion: 72
+  paintZoneSizeFactor: 0.01303
+  paintZoneInset: 0.94
+  paintRotationPerUnit: 0.25
+  paintRotationDamping: 4
+  paintAutoSpinSpeed: 12
+  paintFillDuration: 0.6
+  paintSwatchLift: 22
+  paintBeakerFullLiters: 10
+  paintUnaffordableAlpha: 0.45
+  paintLowFill: {r: 1, g: 0.42, b: 0.54, a: 0.16}
+  paintLowStroke: {r: 1, g: 0.42, b: 0.54, a: 0.45}
+  paintLowText: {r: 1, g: 0.62352943, b: 0.69803923, a: 1}
+  paintApproachDuration: 0.55
+  paintApproachFromScale: 0.35
+  paintFlashDuration: 0.7
+  paintMoonFlyDuration: 1
+  paintConfettiCount: 12
+  paintConfettiSize: 60
+  paintConfettiSpread: 160
+  paints:
+  - color: {r: 0.23137255, g: 0.48235294, b: 1, a: 1}
+    name: "\u041E\u043A\u0435\u0430\u043D"
+  - color: {r: 0, g: 0.8509804, b: 0.7529412, a: 1}
+    name: "\u0411\u0456\u0440\u044E\u0437\u0430"
+  - color: {r: 0.24705882, g: 0.6392157, b: 0.3019608, a: 1}
+    name: "\u041B\u0456\u0441"
+  - color: {r: 0.8745098, g: 0.94509804, b: 1, a: 1}
+    name: "\u041A\u0440\u0438\u0433\u0430"
+  - color: {r: 0.8784314, g: 0.7058824, b: 0.41568628, a: 1}
+    name: "\u041F\u0456\u0441\u043E\u043A"
+  - color: {r: 1, g: 0.3529412, b: 0.23529412, a: 1}
+    name: "\u041B\u0430\u0432\u0430"
+  - color: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
+    name: "\u041C\u0430\u043B\u0438\u043D\u0430"
+  - color: {r: 0.6156863, g: 0.3019608, b: 1, a: 1}
+    name: "\u0424\u0456\u043E\u043B\u0435\u0442"

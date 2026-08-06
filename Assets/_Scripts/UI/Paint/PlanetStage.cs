@@ -34,7 +34,7 @@ namespace InkFlow.UI
         private const float VisibilityThreshold = -0.18f;
 
         private PlanetSurface? _surface;
-        private RectTransform _rect = null!;
+        private RectTransform? _rect;
         private Material? _discMaterial;
 
         private float _rotation;      // градуси
@@ -53,7 +53,9 @@ namespace InkFlow.UI
         /// <summary>Автообертання після завершення планети.</summary>
         public bool AutoSpin { get; set; }
 
-        private void Awake() => _rect = (RectTransform)transform;
+        // Ліниво, а НЕ в Awake: у Edit Mode Awake не виконується взагалі, а
+        // Apply() приходить із OnValidate — і поле лишалось би null.
+        private RectTransform Rect => _rect != null ? _rect : _rect = (RectTransform)transform;
 
         public void Bind(PlanetSurface surface, Material discMaterial)
         {
@@ -63,7 +65,7 @@ namespace InkFlow.UI
             _velocity = 0f;
             _rotatedByPlayer = false;
 
-            var radius = _rect.rect.width * 0.5f;
+            var radius = Rect.rect.width * 0.5f;
             for (var i = 0; i < markers.Length; i++)
             {
                 var marker = markers[i];
@@ -143,7 +145,7 @@ namespace InkFlow.UI
                 return;
 
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    _rect, eventData.position, eventData.pressEventCamera, out var local))
+                    Rect, eventData.position, eventData.pressEventCamera, out var local))
                 return;
 
             var hit = Pick(local, out var originUv);
@@ -161,7 +163,7 @@ namespace InkFlow.UI
             if (_surface == null || design == null)
                 return null;
 
-            var radius = _rect.rect.width * 0.5f;
+            var radius = Rect.rect.width * 0.5f;
             PlanetZone? best = null;
             var bestDepth = float.NegativeInfinity;
 
@@ -242,7 +244,7 @@ namespace InkFlow.UI
             if (_discMaterial != null)
                 _discMaterial.SetFloat(RotationId, _rotation * Mathf.Deg2Rad);
 
-            var radius = _rect.rect.width * 0.5f;
+            var radius = Rect.rect.width * 0.5f;
             for (var i = 0; i < markers.Length; i++)
             {
                 var marker = markers[i];
