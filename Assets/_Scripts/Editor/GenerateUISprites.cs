@@ -69,6 +69,10 @@ namespace InkFlow.Editor
             // прямокутник, а тут потрібне саме коло.
             WriteSprite("circle-outline.png", CreateCircleOutline(), pixelsPerUnit: CircleSize,
                 border: Vector4.zero);
+
+            // ✓ (U+2713) у Nunito немає — рівно та сама історія, що й із ★.
+            // Малюємо фігурою, а не символом: інакше TMP щоразу підставляє квадрат.
+            WriteSprite("icon-check.png", CreateCheck(), pixelsPerUnit: IconSize, border: Vector4.zero);
             WriteSprite("circle-gloss.png", CreateGloss(), pixelsPerUnit: CircleSize, border: Vector4.zero);
 
             // Border = радіус кута: центр тягнеться, кути лишаються круглими.
@@ -256,6 +260,42 @@ namespace InkFlow.Editor
             tex.SetPixels(pixels);
             tex.Apply();
             return tex;
+        }
+
+        /// <summary>Галочка: дві товсті ланки з круглими кінцями.</summary>
+        private static Texture2D CreateCheck()
+        {
+            var tex = NewTexture(IconSize);
+            var pixels = new Color[IconSize * IconSize];
+            var thickness = IconSize * 0.115f;
+
+            // Координати в частках сторони, вісь Y — угору.
+            var a = new Vector2(0.22f, 0.52f);
+            var b = new Vector2(0.42f, 0.30f);
+            var c = new Vector2(0.80f, 0.72f);
+
+            for (var y = 0; y < IconSize; y++)
+            {
+                for (var x = 0; x < IconSize; x++)
+                {
+                    var p = new Vector2((x + 0.5f) / IconSize, (y + 0.5f) / IconSize);
+                    var d = Mathf.Min(SegmentDistance(p, a, b), SegmentDistance(p, b, c)) * IconSize;
+                    var alpha = Mathf.Clamp01((thickness * 0.5f - d) / 1.5f + 0.5f);
+                    pixels[y * IconSize + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(alpha));
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>Відстань від точки до відрізка — основа для ланок галочки.</summary>
+        private static float SegmentDistance(Vector2 p, Vector2 a, Vector2 b)
+        {
+            var ab = b - a;
+            var t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-6f, Vector2.Dot(ab, ab)));
+            return Vector2.Distance(p, a + ab * t);
         }
 
         /// <summary>Суцільний білий квадрат: носій UV для шейдерних квадів.</summary>

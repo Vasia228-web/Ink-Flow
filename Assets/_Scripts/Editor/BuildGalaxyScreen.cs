@@ -71,7 +71,7 @@ namespace InkFlow.Editor
             var circle = LoadSprite("circle-soft");
             var circleOutline = LoadSprite("circle-outline");
             var quad = LoadSprite("white-quad");
-            var glow = LoadSprite("glow");
+            var check = LoadSprite("icon-check");
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var currencyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CurrencyWidget.prefab");
@@ -83,7 +83,7 @@ namespace InkFlow.Editor
             if (circle == null) missing.Add($"{SpriteFolder}/circle-soft.png");
             if (circleOutline == null) missing.Add($"{SpriteFolder}/circle-outline.png");
             if (quad == null) missing.Add($"{SpriteFolder}/white-quad.png");
-            if (glow == null) missing.Add($"{SpriteFolder}/glow.png");
+            if (check == null) missing.Add($"{SpriteFolder}/icon-check.png");
             if (shader == null) missing.Add(ShaderPath);
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (currencyPrefab == null) missing.Add($"{PrefabFolder}/CurrencyWidget.prefab");
@@ -118,7 +118,7 @@ namespace InkFlow.Editor
 
             var header = BuildHeader(screenGo, design!, font, circle!, circleOutline!, currencyPrefab!,
                 out var backButton, out var title, out var progress, out var currency);
-            var bottom = BuildBottom(screenGo, design!, font, rounded!, glow!, circle!,
+            var bottom = BuildBottom(screenGo, design!, font, rounded!, circle!,
                 out var doneBadge, out var planetName, out var planetZones,
                 out var paintButton, out var paintFill, out var paintLabel,
                 out var pagination, out var dots);
@@ -215,7 +215,7 @@ namespace InkFlow.Editor
         // крапки 7 (активна 18×7) gap 6, ряд padding 12px 0 16px.
 
         private static RectTransform BuildBottom(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded, Sprite glow, Sprite circle,
+            TMP_FontAsset? font, Sprite rounded, Sprite circle,
             out RectTransform doneBadge, out TMP_Text planetName, out TMP_Text planetZones,
             out Button paintButton, out GradientImage paintFill, out TMP_Text paintLabel,
             out RectTransform pagination, out Image[] dots)
@@ -273,16 +273,10 @@ namespace InkFlow.Editor
             Place(paintFill, new Vector2(0f, buttonY), new Vector2(M(200f), buttonHeight),
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
 
-            // Тепле світіння під кнопкою: box-shadow 0 10px 26px rgba(255,45,138,.42).
-            var buttonGlowGo = Child(buttonGo, "Glow");
-            Stretch(buttonGlowGo, -M(10f));
-            var buttonGlow = buttonGlowGo.AddComponent<Image>();
-            buttonGlow.sprite = glow;
-            buttonGlow.type = Image.Type.Sliced;
-            buttonGlow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / M(10f);
-            buttonGlow.color = DesignSystem.WithAlpha(design.AccentPrimary, 0.42f);
-            buttonGlow.raycastTarget = false;
-            buttonGlowGo.transform.SetAsFirstSibling();
+            // Гало під кнопкою навмисно НЕМАЄ. У макеті це м'яка тінь
+            // (box-shadow 0 10px 26px), а наш glow.png — рант із радіусом кута 56 px
+            // спрайта; на пігулці з радіусом 72 він обводив кнопку прямокутником.
+            // М'яку тінь дасть купол nebula.png, якщо колись знадобиться.
 
             paintLabel = Label(buttonGo, "Label", "Фарбувати", design, font,
                 design.FontSizePaintButton, design.TextPrimary, TextAlignmentOptions.Center);
@@ -311,9 +305,15 @@ namespace InkFlow.Editor
             Place(badge, new Vector2(-M(90f), M(84f) + badgeSize * 0.5f), new Vector2(badgeSize, badgeSize),
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
 
-            var check = Label(badgeGo, "Check", "✓", design, font,
-                M(13f), new Color(0.05f, 0.17f, 0.16f, 1f), TextAlignmentOptions.Center);
-            Stretch(check.gameObject);
+            // Галочка — спрайт, не символ: ✓ (U+2713) у Nunito немає, і TMP щоразу
+            // писав би «not found in font asset», підставляючи квадрат.
+            var checkGo = Child(badgeGo, "Check");
+            var check = checkGo.AddComponent<Image>();
+            check.sprite = LoadSprite("icon-check");
+            check.color = new Color(0.05f, 0.17f, 0.16f, 1f);
+            check.raycastTarget = false;
+            Place(check, Vector2.zero, new Vector2(M(12f), M(12f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             return block;
         }
