@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
+using static InkFlow.Editor.UiBuilder;
 
 namespace InkFlow.Editor
 {
@@ -27,14 +28,9 @@ namespace InkFlow.Editor
     {
         private const string ScenePath = "Assets/Scenes/Hub.unity";
         private const string PrefabFolder = "Assets/_Prefabs/UI";
-        private const string SpriteFolder = "Assets/_Sprites/UI";
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
-
-        /// <summary>Спрайт-асет іконок вішаємо на кожен напис явно: покладатись на
-        /// TMP Settings ризиковано — одна забута галочка й ★ знову стає квадратом.</summary>
-        private static TMP_SpriteAsset? _iconSprites;
 
         // ── Числа макета (px) → reference-одиниці ──
         private const float K = 1080f / 390f;
@@ -68,8 +64,8 @@ namespace InkFlow.Editor
             // Асети — строго після NewScene (див. коментар у InkFlowBootstrap).
             design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
-            _iconSprites = AssetDatabase.LoadAssetAtPath<TMP_SpriteAsset>(SpriteAssetPath);
-            if (_iconSprites == null)
+            IconSprites = AssetDatabase.LoadAssetAtPath<TMP_SpriteAsset>(SpriteAssetPath);
+            if (IconSprites == null)
                 Debug.LogWarning($"[InkFlow] Немає {SpriteAssetPath} — ★ не відрендериться. " +
                                  "Спершу: Ink Flow → Setup → Build UI Kit.");
             var rounded = LoadSprite("rounded-rect");
@@ -701,97 +697,5 @@ namespace InkFlow.Editor
             }
         }
 
-        // ───────────────────────── Утиліти ─────────────────────────
-
-        private static void CreateCamera(DesignSystem design)
-        {
-            var go = new GameObject("Main Camera") { tag = "MainCamera" };
-            var camera = go.AddComponent<Camera>();
-            camera.orthographic = true;
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = design.BackgroundEdge;
-            go.transform.position = new Vector3(0f, 0f, -10f);
-        }
-
-        private static Sprite LoadSprite(string file) =>
-            AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/{file}.png");
-
-        private static GameObject Child(GameObject parent, string name)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent.transform, false);
-            return go;
-        }
-
-        private static GameObject Child(RectTransform parent, string name) => Child(parent.gameObject, name);
-
-        private static void Stretch(GameObject go, float inset = 0f)
-        {
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = new Vector2(inset, inset);
-            rect.offsetMax = new Vector2(-inset, -inset);
-        }
-
-        private static TMP_Text Label(GameObject parent, string name, string text, DesignSystem design,
-            TMP_FontAsset? font, float size, Color color, TextAlignmentOptions alignment)
-        {
-            var go = Child(parent, name);
-            var label = go.AddComponent<TextMeshProUGUI>();
-            label.text = text;
-            label.fontSize = size;
-            label.color = color;
-            label.alignment = alignment;
-            label.raycastTarget = false;
-            if (font != null)
-                label.font = font;
-            if (_iconSprites != null)
-                label.spriteAsset = _iconSprites;
-            return label;
-        }
-
-        private static TMP_Text Label(RectTransform parent, string name, string text, DesignSystem design,
-            TMP_FontAsset? font, float size, Color color, TextAlignmentOptions alignment) =>
-            Label(parent.gameObject, name, text, design, font, size, color, alignment);
-
-        private static void Place(Component component, Vector2 position, Vector2 size,
-            Vector2 anchor, Vector2 pivot)
-        {
-            var rect = component.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = anchor;
-            rect.pivot = pivot;
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-        }
-
-        private static void Wire(Object target, params (string field, Object value)[] fields)
-        {
-            var so = new SerializedObject(target);
-            foreach (var (field, value) in fields)
-            {
-                if (value == null)
-                {
-                    Debug.LogError($"[InkFlow] null у поле '{field}' на {target.GetType().Name}");
-                    continue;
-                }
-
-                var property = so.FindProperty(field);
-                if (property == null)
-                {
-                    Debug.LogError($"[InkFlow] Поле '{field}' не знайдено на {target.GetType().Name}");
-                    continue;
-                }
-
-                property.objectReferenceValue = value;
-            }
-
-            so.ApplyModifiedPropertiesWithoutUndo();
-
-            var check = new SerializedObject(target);
-            foreach (var (field, value) in fields)
-                if (value != null && check.FindProperty(field)?.objectReferenceValue == null)
-                    Debug.LogError($"[InkFlow] Поле '{field}' на {target.GetType().Name} записалось як null.");
-        }
     }
 }

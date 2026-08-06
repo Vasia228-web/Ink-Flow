@@ -60,6 +60,15 @@ namespace InkFlow.Editor
             // Туманність окремим спрайтом: circle-soft — це суцільний диск із краєм
             // у 1.5 px, і саме тому туманність читалась як куля з чіткою межею.
             WriteSprite("nebula.png", CreateNebula(), pixelsPerUnit: NebulaSize, border: Vector4.zero);
+
+            // Біла площина під квади процедурних планет. Без спрайта Image видає
+            // UV = (0,0,0,0), і шейдер отримав би нуль замість координат квада.
+            WriteSprite("white-quad.png", CreateWhiteQuad(), pixelsPerUnit: 4, border: Vector4.zero);
+
+            // Обведення кола для круглої кнопки «‹»: rounded-rect-outline дає
+            // прямокутник, а тут потрібне саме коло.
+            WriteSprite("circle-outline.png", CreateCircleOutline(), pixelsPerUnit: CircleSize,
+                border: Vector4.zero);
             WriteSprite("circle-gloss.png", CreateGloss(), pixelsPerUnit: CircleSize, border: Vector4.zero);
 
             // Border = радіус кута: центр тягнеться, кути лишаються круглими.
@@ -98,7 +107,7 @@ namespace InkFlow.Editor
 
             AssetDatabase.Refresh();
             Debug.Log($"[InkFlow] UI-спрайти згенеровано в {Folder}: circle-soft, circle-gloss, nebula, " +
-                      "rounded-rect + outline (9-slice), glow (9-slice), icon-star, icon-retry, " +
+                      "rounded-rect + outline (9-slice), glow (9-slice), white-quad, circle-outline, icon-star, icon-retry, " +
                       "icon-galaxy, icon-shop, icon-ranks, icon-profile.");
         }
 
@@ -241,6 +250,42 @@ namespace InkFlow.Editor
 
                     // Квадратичне згасання читається як світіння; лінійне дає видимий кант.
                     pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, t * t);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>Суцільний білий квадрат: носій UV для шейдерних квадів.</summary>
+        private static Texture2D CreateWhiteQuad()
+        {
+            var tex = NewTexture(4);
+            var pixels = new Color[16];
+            for (var i = 0; i < pixels.Length; i++)
+                pixels[i] = Color.white;
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>Кільце завтовшки OutlineThickness по контуру кола.</summary>
+        private static Texture2D CreateCircleOutline()
+        {
+            var tex = NewTexture(CircleSize);
+            var pixels = new Color[CircleSize * CircleSize];
+            var center = (CircleSize - 1) * 0.5f;
+            var radius = center - 1f;
+
+            for (var y = 0; y < CircleSize; y++)
+            {
+                for (var x = 0; x < CircleSize; x++)
+                {
+                    var d = Mathf.Sqrt((x - center) * (x - center) + (y - center) * (y - center));
+                    // Відстань до самого контуру: смуга завширшки OutlineThickness.
+                    var band = Mathf.Clamp01((OutlineThickness * 0.5f - Mathf.Abs(d - radius)) / 1.5f);
+                    pixels[y * CircleSize + x] = new Color(1f, 1f, 1f, band);
                 }
             }
 

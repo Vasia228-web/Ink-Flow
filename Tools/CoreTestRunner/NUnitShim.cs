@@ -49,6 +49,32 @@ namespace NUnit.Framework
                 throw new AssertionException(message ?? $"Expected NOT: {expected ?? "null"}");
         }
 
+        // Порівняння величин. Шим реалізує лише те, чим справді користуються тести:
+        // додавати сюди метод варто тоді, коли він знадобився, а не «про запас».
+        public static void LessOrEqual(IComparable actual, IComparable limit, string message = null)
+        {
+            if (actual.CompareTo(limit) > 0)
+                throw new AssertionException(message ?? $"Expected: <= {limit}, but was: {actual}");
+        }
+
+        public static void GreaterOrEqual(IComparable actual, IComparable limit, string message = null)
+        {
+            if (actual.CompareTo(limit) < 0)
+                throw new AssertionException(message ?? $"Expected: >= {limit}, but was: {actual}");
+        }
+
+        public static void Less(IComparable actual, IComparable limit, string message = null)
+        {
+            if (actual.CompareTo(limit) >= 0)
+                throw new AssertionException(message ?? $"Expected: < {limit}, but was: {actual}");
+        }
+
+        public static void Greater(IComparable actual, IComparable limit, string message = null)
+        {
+            if (actual.CompareTo(limit) <= 0)
+                throw new AssertionException(message ?? $"Expected: > {limit}, but was: {actual}");
+        }
+
         public static void IsNull(object value, string message = null)
         {
             if (value != null)

@@ -90,6 +90,14 @@ InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 
 Продуктивність: краплини — з пулу (`DripPool`, один LateUpdate по масиву структур, нуль алокацій), гало — статичні спрайти, туманність — один прозорий квад. **Ніякого post-process Bloom** — повноекранний прохід коштував би кадру на iPhone SE.
 
+**Екран Галактика (v7).** Розмітка з макета: шапка `padding 0 18 6`, кнопка «‹» 40 кругла, заголовок 13/800 `ls .1em`, підпис 11/700; карусель — крок **176**, масштаб `max(.34, 1−|d|·.4)`, прозорість `max(.14, 1−|d|·.5)`, планета **186** (фінальна **208**); низ — назва 25/800, зони 13/700, кнопка `padding 14/46 r26` градієнт `#ff2d8a → #ffb300`, крапки 7 (активна 18×7).
+
+**Планети — шейдер, не спрайти.** `InkFlow/Planet` в одному проході малює сферу, кільце (задня й передня половини), дугу прогресу й серпанок — режим задає `_Mode`. Дев'ять поверхонь відрізняються гілкою за `_Type`: материки й шапки, кратери, тріщини, смуги, вихор, лавові жили, дюни, перламутр. Шум **тривимірний, на самій сфері**: двовимірний по (довгота, широта) дав би видимий шов на меридіані. Обертання рахує `_Time` у шейдері — на C# щокадру не виконується нічого, крім орбіти місяців, і правило «анімація не бруднить графіку» тримається саме тому. Дві октави замість трьох — 8 хешів на піксель, це і є бюджет 60 fps на SE.
+
+Непофарбовані зони робить не окрема геометрія, а поріг: `_Painted` порівнюється з низькочастотним полем, тож межа йде «материками», а не шумом по пікселях.
+
+**Один екран на дві ролі.** `GalaxyArgs { PlayerId Owner; bool ReadOnly }`. При `ReadOnly` зникають кнопка «Фарбувати» й пагінація — перегляд чужої галактики з Рейтингів піде цим самим екраном. Копія розійшлася б із оригіналом на першій правці розкладки.
+
 **★ і ↺ — спрайти, не гліфи.** У Nunito їх немає, і в жодному OFL-шрифті Google, який варто тягнути заради двох знаків; у макеті вони теж намальовані фігурами. Тому `icon-star.png` / `icon-retry.png`. Це і є причина, чому зникли warning-и про відсутні гліфи.
 
 Збірка `InkFlow.Style` — розширення карти §2: лист без залежностей, на який посилаються і Gameplay, і UI (обидва потребують палітру, але не бачать одне одного).
@@ -138,6 +146,7 @@ bash Tools/check-compile.sh
 ```bash
 python3 Tools/check-ui-animation.py
 ```
+Екрани (у Edit Mode): `Build UI Kit` → `Build Hub Screen` → `Build Galaxy Screen`.
 Разова генерація UI (у Edit Mode): `Ink Flow → Setup → Build UI Kit` — створює спрайти, TMP-шрифт, `DesignSystem.asset`, префаби атомів і сцену `Assets/Scenes/UIKit.unity`. Шрифти качаються окремо: `bash Tools/fetch-fonts.sh`.
 Бере **власні response-файли Unity** з `Library/Bee/artifacts/*.dag/` і компілює кожну збірку окремо (перенаправляючи лише `-out`). Тобто перевіряє точно тими посиланнями, define-ами й аналізаторами, якими збирає редактор.
 
@@ -172,6 +181,8 @@ python3 Tools/check-ui-animation.py
 - **Рукописному `TMP_SpriteAsset` треба штампувати `m_Version = "1.1.0"`.** `UpdateLookupTables()` перевіряє `material != null && string.IsNullOrEmpty(m_Version)` і без версії вважає асет успадкованим зі старого формату: `UpgradeSpriteAsset()` **очищає** `m_SpriteCharacterTable`/`m_GlyphTable` й перебудовує їх із legacy-списку `spriteInfoList` — а він у нас порожній, бо ми наповнюємо одразу сучасні таблиці. Наслідків два: ★ зникає, і — оскільки таблиці будуються ліниво з `TMP_Text.ParseInputText` усередині `Canvas.SendWillRenderCanvases()` — апгрейд кличе `SetDirty` + `SaveAssets()` прямо в циклі перебудови й сипле сотнею `graphic rebuild loop`. Сеттер `version` у TMP `internal`, тож пишемо через `SerializedObject`. Шрифтів не стосується: `TMP_FontAsset.CreateFontAsset` штампує версію сам.
 - Успадковуючи `Graphic`/`MaskableGraphic`, **не додавати свій `SetVerticesDirty()` у `OnValidate`** — `Graphic.OnValidate` уже кличе `SetAllDirty()`, і це подвоює реєстрацію на перебудову.
 - **Щокадрова анімація UI не сміє чіпати графіку.** У `Update`/`LateUpdate` і в тілах твін-корутин пишемо лише в `localPosition`, `localScale`, `localRotation` і `CanvasRenderer` (`SetColor`/`SetAlpha`) — вони не бруднять графіку. Дотик до `Image.color`, `sizeDelta`, `anchoredPosition`, `sprite`, `fillAmount` чи `SetAllDirty()` просить графіку на перебудову; збіг із проходом канваса дає сотні `graphic rebuild loop` за кадр. `anchoredPosition` небезпечний неочевидно: він шле `OnRectTransformDimensionsChange`, а той кличе `SetVerticesDirty`. Тому розмір анімуємо `localScale` при фіксованому `sizeDelta`, а колір — через `CanvasRenderer`. `SpriteRenderer` це не стосується: він поза канвасом. Перевіряє `Tools/check-ui-animation.py`.
+- **`init`-аксесори не компілюються**: вони вимагають `System.Runtime.CompilerServices.IsExternalInit`, якого в .NET Standard 2.1 Unity немає — CS0518. Для незмінних властивостей — `get;` і конструктор.
+- **Headless-раннер вважає фікстурою будь-який клас із `[Test]`-методами**, як і справжній NUnit. Доки він вимагав `[TestFixture]`, клас без атрибута мовчки не запускався, хоч у редакторі виконувався б — той самий хибний зелений, від якого раннер і створювався.
 - У шрифті LiberationSans SDF немає гліфа `↺` — у UI використовуємо текст.
 - Batchmode недоступний, поки відкритий редактор (`Temp/UnityLockfile`); саме для цього є `Tools/run-core-tests.sh`.
 

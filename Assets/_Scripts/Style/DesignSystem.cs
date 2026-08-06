@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 6;
+        public const int CurrentTokenVersion = 7;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -508,7 +508,131 @@ namespace InkFlow.Style
         public Color NebulaTint => Color.Lerp(backgroundInner, accentSecondary, nebulaTintMix);
         public float NebulaBreathPeriod => nebulaBreathPeriod;
         public float NebulaBreathAmount => nebulaBreathAmount;
+        [Header("Галактика")]
+        [Tooltip("Заголовок галактики і підпис зон: 13 px макета.")]
+        [SerializeField] private float fontSizeGalaxyTitle = 36f;
+
+        [Tooltip("Назва наступної галактики у прев'ю: 16 px макета.")]
+        [SerializeField] private float fontSizeNextGalaxy = 44f;
+
+        [Tooltip("Напис на кнопці «Фарбувати»: 18 px макета.")]
+        [SerializeField] private float fontSizePaintButton = 50f;
+
+        [Tooltip("Розрядка заголовка галактики: .1em макета (проти .14em у хабі).")]
+        [SerializeField] private float letterSpacingGalaxyTitle = 10f;
+
+        [Tooltip("Заливка круглої скляної кнопки «‹»: rgba(255,255,255,.07) макета. " +
+                 "Тут біле скло, а не темне: кнопка лежить на фоні, а не на контенті.")]
+        [SerializeField] private Color circleButtonFill = new Color(1f, 1f, 1f, 0.07f);
+
+
+        [Tooltip("Діаметр планети у фокусі: 186 px макета.")]
+        [SerializeField] private float planetSize = 515f;
+
+        [Tooltip("Фінальна планета галактики більша: 208 px макета.")]
+        [SerializeField] private float planetSizeFinale = 576f;
+
+        [Tooltip("Крок каруселі між сусідніми планетами: 176 px макета.")]
+        [SerializeField] private float planetCarouselStep = 487f;
+
+        [Tooltip("Наскільки меншає планета за кожен крок від центру (макет: 0.4).")]
+        [SerializeField, Range(0.1f, 0.8f)] private float planetCarouselScaleFalloff = 0.4f;
+
+        [SerializeField, Range(0.1f, 1f)] private float planetCarouselMinScale = 0.34f;
+
+        [Tooltip("Наскільки тьмянішає планета за кожен крок від центру (макет: 0.5).")]
+        [SerializeField, Range(0.1f, 1f)] private float planetCarouselAlphaFalloff = 0.5f;
+
+        [SerializeField, Range(0f, 1f)] private float planetCarouselMinAlpha = 0.14f;
+
+        [Tooltip("Час прилипання до центру. Коротше — різко, довше — кисіль.")]
+        [SerializeField, Range(0.05f, 0.6f)] private float planetCarouselSnapTime = 0.16f;
+
+        [Tooltip("З якої швидкості змах перегортає на планету далі, індексів/с.")]
+        [SerializeField, Min(0.2f)] private float planetCarouselFlickVelocity = 2.2f;
+
+        [Tooltip("Серпанок атмосфери відносно діаметра планети (макет: 1.24).")]
+        [SerializeField] private float planetAtmosphereScale = 1.24f;
+
+        [Tooltip("Кільце прогресу по орбіті (макет: 1.15).")]
+        [SerializeField] private float planetProgressRingScale = 1.15f;
+
+        [SerializeField] private float planetRingWidthScale = 1.9f;
+        [SerializeField] private float planetRingHeightScale = 0.6f;
+
+        [SerializeField] private float planetMoonOrbitScale = 0.62f;
+        [SerializeField, Min(1f)] private float planetMoonPeriod = 8f;
+
+        [Tooltip("Назва планети внизу екрана: 25 px макета.")]
+        [SerializeField] private float fontSizePlanetName = 69f;
+
+        [Tooltip("Крапка пагінації: 7 px макета, активна — 18 завширшки.")]
+        [SerializeField] private float paginationDotSize = 19f;
+        [SerializeField] private float paginationDotActiveWidth = 50f;
+        [SerializeField] private Color paginationDotInactive = new Color(1f, 1f, 1f, 0.28f);
+
+        [Tooltip("Заливка неактивної кнопки: rgba(255,255,255,.06) макета.")]
+        [SerializeField] private Color buttonDisabledFill = new Color(1f, 1f, 1f, 0.06f);
+
+        [Tooltip("Палітри поверхонь, СТРОГО в порядку PlanetType. " +
+                 "Довжина мусить дорівнювати PlanetTypes.Count.")]
+        [SerializeField] private PlanetPalette[] planetPalettes = DefaultPlanetPalettes();
+
         public float StarTwinkleFraction => starTwinkleFraction;
+
+        public float FontSizeGalaxyTitle => fontSizeGalaxyTitle;
+        public float FontSizeNextGalaxy => fontSizeNextGalaxy;
+        public float FontSizePaintButton => fontSizePaintButton;
+        public float LetterSpacingGalaxyTitle => letterSpacingGalaxyTitle;
+        public Color CircleButtonFill => circleButtonFill;
+        public float PlanetSize => planetSize;
+        public float PlanetSizeFinale => planetSizeFinale;
+        public float PlanetCarouselStep => planetCarouselStep;
+        public float PlanetCarouselScaleFalloff => planetCarouselScaleFalloff;
+        public float PlanetCarouselMinScale => planetCarouselMinScale;
+        public float PlanetCarouselAlphaFalloff => planetCarouselAlphaFalloff;
+        public float PlanetCarouselMinAlpha => planetCarouselMinAlpha;
+        public float PlanetCarouselSnapTime => planetCarouselSnapTime;
+        public float PlanetCarouselFlickVelocity => planetCarouselFlickVelocity;
+        public float PlanetAtmosphereScale => planetAtmosphereScale;
+        public float PlanetProgressRingScale => planetProgressRingScale;
+        public float PlanetRingWidthScale => planetRingWidthScale;
+        public float PlanetRingHeightScale => planetRingHeightScale;
+        public float PlanetMoonOrbitScale => planetMoonOrbitScale;
+        public float PlanetMoonPeriod => planetMoonPeriod;
+        public float FontSizePlanetName => fontSizePlanetName;
+        public float PaginationDotSize => paginationDotSize;
+        public float PaginationDotActiveWidth => paginationDotActiveWidth;
+        public Color PaginationDotInactive => paginationDotInactive;
+        public Color ButtonDisabledFill => buttonDisabledFill;
+
+        /// <summary>
+        /// Палітри дев'яти типів рівно з макета (масив PLANETS, поле pal).
+        /// Порядок збігається з PlanetType — інакше Ocean дістане поверхню Rocky,
+        /// і помітно це буде лише очима на екрані.
+        /// </summary>
+        private static PlanetPalette[] DefaultPlanetPalettes() => new[]
+        {
+            new PlanetPalette(Hex("#1F6F8F"), Hex("#2FA38A"), Hex("#7FE0FF"), 26f), // Ocean
+            new PlanetPalette(Hex("#9C7A5A"), Hex("#5F4630"), Hex("#E7C9A0"), 34f), // Rocky
+            new PlanetPalette(Hex("#BFE0F0"), Hex("#6FA8C9"), Hex("#D6F2FF"), 32f), // Ice
+            new PlanetPalette(Hex("#2F6FD0"), Hex("#3FA65A"), Hex("#8FD0FF"), 30f), // Earth
+            new PlanetPalette(Hex("#D8B37A"), Hex("#B98F55"), Hex("#F0D9A8"), 24f), // Rings
+            new PlanetPalette(Hex("#8A5FB0"), Hex("#CAA2E0"), Hex("#D8B8FF"), 18f), // Gas
+            new PlanetPalette(Hex("#3A2320"), Hex("#FF5A28"), Hex("#FF8A3C"), 30f), // Volcano
+            new PlanetPalette(Hex("#CF9450"), Hex("#E6B46A"), Hex("#F4D29A"), 30f), // Desert
+            new PlanetPalette(Hex("#E9DCFF"), Hex("#FFD6F0"), Hex("#FFFFFF"), 16f)  // Pearl
+        };
+
+        /// <summary>Палітра поверхні за типом планети. Поза межами — перша, щоб
+        /// вкорочений масив давав тьмяну планету, а не виняток посеред свайпу.</summary>
+        public PlanetPalette Planet(PlanetType type)
+        {
+            var i = (int)type;
+            if (planetPalettes == null || planetPalettes.Length == 0)
+                return default;
+            return planetPalettes[i >= 0 && i < planetPalettes.Length ? i : 0];
+        }
 
         public float PressScale => pressScale;
         public float PressDownDuration => pressDownDuration;
