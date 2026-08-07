@@ -36,14 +36,14 @@ namespace NUnit.Framework
                 throw new AssertionException(message ?? "Expected: false, but was: true");
         }
 
-        public static void AreEqual(object expected, object actual, string message = null)
+        public static void AreEqual(object? expected, object? actual, string message = null)
         {
             if (!EqualityComparer<object>.Default.Equals(Normalize(expected), Normalize(actual)))
                 throw new AssertionException(
                     message ?? $"Expected: {expected ?? "null"}, but was: {actual ?? "null"}");
         }
 
-        public static void AreNotEqual(object expected, object actual, string message = null)
+        public static void AreNotEqual(object? expected, object? actual, string message = null)
         {
             if (EqualityComparer<object>.Default.Equals(Normalize(expected), Normalize(actual)))
                 throw new AssertionException(message ?? $"Expected NOT: {expected ?? "null"}");
@@ -75,13 +75,27 @@ namespace NUnit.Framework
                 throw new AssertionException(message ?? $"Expected: > {limit}, but was: {actual}");
         }
 
-        public static void IsNull(object value, string message = null)
+        // Порівняння ЗА ПОСИЛАННЯМ. Не те саме, що AreEqual: у магазині важливо,
+        // що банер тижня показує той самий об'єкт, а не копію з тими ж полями.
+        public static void AreSame(object? expected, object? actual, string message = null)
+        {
+            if (!ReferenceEquals(expected, actual))
+                throw new AssertionException(message ?? "Expected the same instance, but they differ.");
+        }
+
+        public static void AreNotSame(object? expected, object? actual, string message = null)
+        {
+            if (ReferenceEquals(expected, actual))
+                throw new AssertionException(message ?? "Expected different instances, but got the same.");
+        }
+
+        public static void IsNull(object? value, string message = null)
         {
             if (value != null)
                 throw new AssertionException(message ?? $"Expected: null, but was: {value}");
         }
 
-        public static void IsNotNull(object value, string message = null)
+        public static void IsNotNull(object? value, string message = null)
         {
             if (value == null)
                 throw new AssertionException(message ?? "Expected: not null, but was: null");

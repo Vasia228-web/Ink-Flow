@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 8;
+        public const int CurrentTokenVersion = 9;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -580,6 +580,39 @@ namespace InkFlow.Style
 
         public float StarTwinkleFraction => starTwinkleFraction;
 
+        [Header("Магазин")]
+        [Tooltip("Назва фарби й напис на кнопці картки: 13.5 px макета.")]
+        [SerializeField] private float fontSizeShopCard = 37f;
+
+        [Tooltip("Ціна на картці: 14.5 px макета.")]
+        [SerializeField] private float fontSizeShopPrice = 40f;
+
+        [Tooltip("Розрядка «МАГАЗИН»: .18em макета.")]
+        [SerializeField] private float letterSpacingShopTitle = 18f;
+
+        [Tooltip("Найтьмяніший текст — «порожньо» на картці фарби.")]
+        [SerializeField] private Color textFaintest = new Color(1f, 1f, 1f, 0.3f);
+
+        [Tooltip("Ціна, коли нафти не вистачає. М'яко-червона, не тривожна.")]
+        [SerializeField] private Color shopUnaffordablePrice = Hex("#FF7A97");
+
+        [Tooltip("Текст на світлій заливці: на «Персику» чи «М'яті» білий зникає.")]
+        [SerializeField] private Color shopOnLightText = Hex("#1C0F33");
+
+        [SerializeField, Range(0f, 0.6f)] private float shopSpecialGlowAlpha = 0.19f;
+        [SerializeField, Range(0f, 0.6f)] private float shopHotGlowAlpha = 0.22f;
+
+        [SerializeField] private Color shopTabActiveFrom = new Color(1f, 0.176f, 0.541f, 0.92f);
+        [SerializeField] private Color shopTabActiveTo = new Color(0.616f, 0.302f, 1f, 0.9f);
+
+        [Tooltip("Підтон банера «Фарба тижня» в колір самої фарби.")]
+        [SerializeField, Range(0f, 0.5f)] private float shopWeeklyTintFrom = 0.16f;
+        [SerializeField, Range(0f, 0.5f)] private float shopWeeklyTintTo = 0.1f;
+        [SerializeField, Range(0f, 0.6f)] private float shopWeeklyGlowAlpha = 0.26f;
+
+        [Tooltip("Відступ заливки від стінок мензурки: 1 px макета.")]
+        [SerializeField] private float shopBeakerInset = 3f;
+
         [Header("Фарбування планети")]
         [Tooltip("Назва планети в шапці: 15 px макета, ls .04em.")]
         [SerializeField] private float fontSizePaintTitle = 42f;
@@ -636,6 +669,20 @@ namespace InkFlow.Style
         [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
         [SerializeField] private PaintInfo[] paints = DefaultPaints();
 
+        public float FontSizeShopCard => fontSizeShopCard;
+        public float FontSizeShopPrice => fontSizeShopPrice;
+        public float LetterSpacingShopTitle => letterSpacingShopTitle;
+        public Color TextFaintest => textFaintest;
+        public Color ShopUnaffordablePrice => shopUnaffordablePrice;
+        public Color ShopOnLightText => shopOnLightText;
+        public float ShopSpecialGlowAlpha => shopSpecialGlowAlpha;
+        public float ShopHotGlowAlpha => shopHotGlowAlpha;
+        public Color ShopTabActiveFrom => shopTabActiveFrom;
+        public Color ShopTabActiveTo => shopTabActiveTo;
+        public float ShopWeeklyTintFrom => shopWeeklyTintFrom;
+        public float ShopWeeklyTintTo => shopWeeklyTintTo;
+        public float ShopWeeklyGlowAlpha => shopWeeklyGlowAlpha;
+        public float ShopBeakerInset => shopBeakerInset;
         public float FontSizePaintTitle => fontSizePaintTitle;
         public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
         public float FontSizeCompletion => fontSizeCompletion;

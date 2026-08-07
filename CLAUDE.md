@@ -106,6 +106,14 @@ InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 
 Обертання планети йде через `_Rotation` у шейдері планети (`_Spin = 0` вимикає автообертання). Автообертання повертається як нагорода — у момент, коли залито останню зону.
 
+**Магазин (v9).** Шапка `padding 0 18 12`, «МАГАЗИН» 15/800 `ls .18em`, «+» 30 кругла; таби `margin 0 18 14, padding 4, r22`, чип `r18` 15/800, активний градієнт `rgba(255,45,138,.92) → rgba(157,77,255,.9)`; банер тижня `r24 padding 16`, куля 74; картка фарби **154×197** `r22`, куля 62, кнопка `padding 9/0 r15`; пакет нафти — крапля 46/58/72/88.
+
+**Мензурка — індикатор, не декор.** Вертикальна капсула `15×44` у куті картки (`top 15, right 11`), залита знизу вгору на `owned / 10` (`ShopCatalog.BeakerCapacity`). Порожня має і тьмянішу заливку, і тоншу обводку — «нуль» мусить читатись боковим зором, без цифр. Повну висоту в'юха бере з колби щоразу, а не кешує: кеш у `Awake` не заповниться в Edit Mode, а зняти його із самої заливки не можна — вона вже стиснута попереднім оновленням.
+
+**Вкладені скроли.** `ScrollRect` забирає жест собі незалежно від напрямку й не передає батьківському, тож ряд карток з'їдав би вертикальні свайпи — а це майже вся площа сторінки. `NestedScrollForwarder` на початку жесту дивиться, чого більше — руху по X чи по Y — і для вертикального вимикає внутрішній скрол та веде жест у зовнішній. **Порядок компонентів має значення**: форвардер мусить стояти перед `ScrollRect`, інакше отримає подію другим.
+
+**Ціни й знижки — у `ShopCatalog`, не в UI.** Інакше «−10%» на кнопці й списана сума розійшлися б, і помітив би це лише гравець. Невдала покупка не змінює нічого — ані гаманця, ані запасу.
+
 **★ і ↺ — спрайти, не гліфи.** У Nunito їх немає, і в жодному OFL-шрифті Google, який варто тягнути заради двох знаків; у макеті вони теж намальовані фігурами. Тому `icon-star.png` / `icon-retry.png`. Це і є причина, чому зникли warning-и про відсутні гліфи.
 
 Збірка `InkFlow.Style` — розширення карти §2: лист без залежностей, на який посилаються і Gameplay, і UI (обидва потребують палітру, але не бачать одне одного).
@@ -154,7 +162,7 @@ bash Tools/check-compile.sh
 ```bash
 python3 Tools/check-ui-animation.py
 ```
-Екрани (у Edit Mode): `Build UI Kit` → `Build Hub Screen` → `Build Galaxy Screen` → `Build Paint Screen`.
+Екрани (у Edit Mode): `Build UI Kit` → `Build Hub Screen` → `Build Galaxy Screen` → `Build Paint Screen` → `Build Shop Screen`.
 Разова генерація UI (у Edit Mode): `Ink Flow → Setup → Build UI Kit` — створює спрайти, TMP-шрифт, `DesignSystem.asset`, префаби атомів і сцену `Assets/Scenes/UIKit.unity`. Шрифти качаються окремо: `bash Tools/fetch-fonts.sh`.
 Бере **власні response-файли Unity** з `Library/Bee/artifacts/*.dag/` і компілює кожну збірку окремо (перенаправляючи лише `-out`). Тобто перевіряє точно тими посиланнями, define-ами й аналізаторами, якими збирає редактор.
 
@@ -188,6 +196,7 @@ python3 Tools/check-ui-animation.py
   - Наслідок, про який легко забути: **бутстрап мусить кликати `Apply()` сам, синхронно, перед `SaveScene`/`SavePrefab`** — відкладена правка в файл уже не потрапить, а `Suspended` глушить її й зовсім. Виняток свідомий: `SafeAreaBinder` не печемо ніколи — safe area залежить від пристрою, не від збірки.
 - **Рукописному `TMP_SpriteAsset` треба штампувати `m_Version = "1.1.0"`.** `UpdateLookupTables()` перевіряє `material != null && string.IsNullOrEmpty(m_Version)` і без версії вважає асет успадкованим зі старого формату: `UpgradeSpriteAsset()` **очищає** `m_SpriteCharacterTable`/`m_GlyphTable` й перебудовує їх із legacy-списку `spriteInfoList` — а він у нас порожній, бо ми наповнюємо одразу сучасні таблиці. Наслідків два: ★ зникає, і — оскільки таблиці будуються ліниво з `TMP_Text.ParseInputText` усередині `Canvas.SendWillRenderCanvases()` — апгрейд кличе `SetDirty` + `SaveAssets()` прямо в циклі перебудови й сипле сотнею `graphic rebuild loop`. Сеттер `version` у TMP `internal`, тож пишемо через `SerializedObject`. Шрифтів не стосується: `TMP_FontAsset.CreateFontAsset` штампує версію сам.
 - Успадковуючи `Graphic`/`MaskableGraphic`, **не додавати свій `SetVerticesDirty()` у `OnValidate`** — `Graphic.OnValidate` уже кличе `SetAllDirty()`, і це подвоює реєстрацію на перебудову.
+- **Meta й Core збираються без UnityEngine — не тягнути туди `Color`.** Модель із `UnityEngine.Color` перестає перевірятись headless-тестами: `Tools/run-core-tests.sh` компілює Core і Meta як звичайний .NET-проєкт. Для кольору в даних є `InkFlow.Core.Rgb`, а `ToColor()` у Style переводить його на межі з в'юхами. Саме на цьому тест-раннер спіймав першу версію `ShopCatalog`.
 - **У Edit Mode `Awake` не виконується — не кешувати в ньому те, що читає `Apply()`.** `Apply()` приходить із `OnValidate` (через `StyleRefresh`) і в редакторі, і при збиранні сцени, а `Awake` для звичайного MonoBehaviour там не викликається взагалі: поле лишається null і дає `NullReferenceException` просто з бутстрапа. Посилання на власний `RectTransform`/`CanvasRenderer` беремо ліниво через властивість. Кешувати в `Awake` можна лише те, що читає `Update`/`LateUpdate`/корутина — вони в редакторі теж не працюють, тож порядок гарантований. Окремо підступне: виняток усередині `Apply()` обриває його на півдорозі, і сцена лишається в напівзастосованому стані (у нас так одночасно було видно й екран, і картку завершення).
 - **Щокадрова анімація UI не сміє чіпати графіку.** У `Update`/`LateUpdate` і в тілах твін-корутин пишемо лише в `localPosition`, `localScale`, `localRotation` і `CanvasRenderer` (`SetColor`/`SetAlpha`) — вони не бруднять графіку. Дотик до `Image.color`, `sizeDelta`, `anchoredPosition`, `sprite`, `fillAmount` чи `SetAllDirty()` просить графіку на перебудову; збіг із проходом канваса дає сотні `graphic rebuild loop` за кадр. `anchoredPosition` небезпечний неочевидно: він шле `OnRectTransformDimensionsChange`, а той кличе `SetVerticesDirty`. Тому розмір анімуємо `localScale` при фіксованому `sizeDelta`, а колір — через `CanvasRenderer`. `SpriteRenderer` це не стосується: він поза канвасом. Перевіряє `Tools/check-ui-animation.py`.
 - **`init`-аксесори не компілюються**: вони вимагають `System.Runtime.CompilerServices.IsExternalInit`, якого в .NET Standard 2.1 Unity немає — CS0518. Для незмінних властивостей — `get;` і конструктор.
