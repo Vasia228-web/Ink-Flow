@@ -210,9 +210,12 @@ namespace InkFlow.Editor
             backButton = backGo.AddComponent<Button>();
             backButton.targetGraphic = backFill;
 
+            // Заголовок центруємо у ВІЛЬНОМУ проміжку між кнопкою «‹» і правим
+            // блоком, а не в усій шапці: інакше він з'їжджає праворуч і лізе під
+            // капсулу валюти. Числа — з розрахунку ширини цих блоків.
             title = Label(go, "Title", "МАГАЗИН", design, font,
                 design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, Vector2.zero, new Vector2(M(180f), M(24f)),
+            Place(title, new Vector2(-M(54f), 0f), new Vector2(M(145f), M(24f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             // «+» — короткий шлях у «Нафту». Стоїть праворуч від капсули валюти.
@@ -343,13 +346,20 @@ namespace InkFlow.Editor
 
                 sectionTitles[s] = Label(content, $"SectionTitle{s}", section.Title, design, font,
                     design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Left);
-                Place(sectionTitles[s], new Vector2(SideMargin, y), new Vector2(M(160f), titleRow),
+                Place(sectionTitles[s], new Vector2(SideMargin, y), new Vector2(M(170f), titleRow),
                     new Vector2(0f, 1f), new Vector2(0f, 1f));
+
+                // Підзаголовок ставимо за ФАКТИЧНОЮ шириною заголовка, а не на
+                // фіксованому відступі: назви різної довжини («Базові» проти
+                // «Спец-ефекти»), і фіксований відступ лишав би діру після коротких.
+                var titleWidth = sectionTitles[s].GetPreferredValues(section.Title).x;
+                if (titleWidth <= 1f)
+                    titleWidth = M(110f);   // TMP ще не порахував — беремо запасне
 
                 sectionSubtitles[s] = Label(content, $"SectionSub{s}", section.Subtitle, design, font,
                     design.FontSizeSmall, design.TextFaint, TextAlignmentOptions.Left);
-                Place(sectionSubtitles[s], new Vector2(SideMargin + M(160f), y - M(3f)),
-                    new Vector2(M(200f), titleRow), new Vector2(0f, 1f), new Vector2(0f, 1f));
+                Place(sectionSubtitles[s], new Vector2(SideMargin + titleWidth + M(9f), y - M(3f)),
+                    new Vector2(M(220f), titleRow), new Vector2(0f, 1f), new Vector2(0f, 1f));
 
                 y -= titleRow + M(9f);
 

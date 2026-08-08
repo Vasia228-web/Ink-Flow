@@ -190,15 +190,17 @@ namespace InkFlow.Editor
             backButton = backGo.AddComponent<Button>();
             backButton.targetGraphic = backFill;
 
-            // Заголовок і підпис — по центру шапки, незалежно від ширини кнопок.
+            // Заголовок центруємо у ВІЛЬНОМУ проміжку між кнопкою «‹» і правим
+            // блоком, а не в усій шапці: інакше він з'їжджає праворуч і лізе під
+            // капсулу валюти. Числа — з розрахунку ширини цих блоків.
             title = Label(go, "GalaxyName", "ГАЛАКТИКА I · ПЕРВІСНА", design, font,
                 design.FontSizeGalaxyTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(0f, M(7f)), new Vector2(M(240f), M(18f)),
+            Place(title, new Vector2(-M(36f), M(7f)), new Vector2(M(182f), M(18f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             progress = Label(go, "GalaxyProgress", "3 / 9 планет", design, font,
                 design.FontSizeSmall, design.TextFaint, TextAlignmentOptions.Center);
-            Place(progress, new Vector2(0f, -M(9f)), new Vector2(M(240f), M(15f)),
+            Place(progress, new Vector2(-M(36f), -M(9f)), new Vector2(M(182f), M(15f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var currencyGo = (GameObject)PrefabUtility.InstantiatePrefab(currencyPrefab, go.transform);

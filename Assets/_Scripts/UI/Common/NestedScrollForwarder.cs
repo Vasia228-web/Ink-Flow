@@ -17,7 +17,9 @@ namespace InkFlow.UI
     /// сам пропускає подію) і ведемо жест у зовнішній. Тому цей компонент мусить
     /// стояти в списку компонентів ПЕРЕД `ScrollRect` — бутстрап додає його першим.
     /// </summary>
-    [RequireComponent(typeof(ScrollRect))]
+    // RequireComponent(ScrollRect) тут БУТИ НЕ МОЖЕ: він додав би ScrollRect
+    // автоматично разом із цим компонентом, і наступний AddComponent<ScrollRect>()
+    // у бутстрапі повернув би null. Посилання й так серіалізоване.
     public sealed class NestedScrollForwarder : MonoBehaviour,
         IBeginDragHandler, IDragHandler, IEndDragHandler
     {

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 8
+  tokenVersion: 9
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -293,6 +293,20 @@ MonoBehaviour:
     land: {r: 1, g: 0.8392157, b: 0.9411765, a: 1}
     atmosphere: {r: 1, g: 1, b: 1, a: 1}
     secondsPerTurn: 16
+  fontSizeShopCard: 37
+  fontSizeShopPrice: 40
+  letterSpacingShopTitle: 18
+  textFaintest: {r: 1, g: 1, b: 1, a: 0.3}
+  shopUnaffordablePrice: {r: 1, g: 0.47843137, b: 0.5921569, a: 1}
+  shopOnLightText: {r: 0.10980392, g: 0.05882353, b: 0.2, a: 1}
+  shopSpecialGlowAlpha: 0.19
+  shopHotGlowAlpha: 0.22
+  shopTabActiveFrom: {r: 1, g: 0.176, b: 0.541, a: 0.92}
+  shopTabActiveTo: {r: 0.616, g: 0.302, b: 1, a: 0.9}
+  shopWeeklyTintFrom: 0.16
+  shopWeeklyTintTo: 0.1
+  shopWeeklyGlowAlpha: 0.26
+  shopBeakerInset: 3
   fontSizePaintTitle: 42
   letterSpacingPaintTitle: 4
   fontSizeCompletion: 72

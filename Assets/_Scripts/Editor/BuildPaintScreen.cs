@@ -198,9 +198,12 @@ namespace InkFlow.Editor
             backButton = backGo.AddComponent<Button>();
             backButton.targetGraphic = backFill;
 
+            // Заголовок центруємо у ВІЛЬНОМУ проміжку між кнопкою «‹» і правим
+            // блоком, а не в усій шапці: інакше він з'їжджає праворуч і лізе під
+            // капсулу валюти. Числа — з розрахунку ширини цих блоків.
             title = Label(go, "PlanetTitle", "Терра Прима", design, font,
                 design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, Vector2.zero, new Vector2(M(200f), M(24f)),
+            Place(title, new Vector2(-M(36f), 0f), new Vector2(M(182f), M(24f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var currencyGo = (GameObject)PrefabUtility.InstantiatePrefab(currencyPrefab, go.transform);
