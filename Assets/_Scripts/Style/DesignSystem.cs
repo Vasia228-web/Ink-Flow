@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 9;
+        public const int CurrentTokenVersion = 10;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -580,6 +580,51 @@ namespace InkFlow.Style
 
         public float StarTwinkleFraction => starTwinkleFraction;
 
+        [Header("Рейтинги")]
+        [Tooltip("Нік і номер у рядку: 15 px макета.")]
+        [SerializeField] private float fontSizeRankRow = 42f;
+
+        [Tooltip("Число метрики в рядку: 18 px макета.")]
+        [SerializeField] private float fontSizeRankValue = 50f;
+
+        [Tooltip("Число першого місця на подіумі: 26 px макета.")]
+        [SerializeField] private float fontSizePodiumFirst = 72f;
+
+        [Tooltip("Число другого й третього місця: 20 px макета.")]
+        [SerializeField] private float fontSizePodiumOther = 55f;
+
+        [Tooltip("Медалі: золото, срібло, бронза. Порядок = місце.")]
+        [SerializeField] private Color[] medals =
+        {
+            Hex("#FFD54A"), Hex("#D7DEE8"), Hex("#E0975A")
+        };
+
+        [Tooltip("Цифра на бейджі місця — темна: на золоті білий не читається.")]
+        [SerializeField] private Color medalText = Hex("#231A08");
+
+        [SerializeField, Range(0f, 1f)] private float podiumGlowAlpha = 0.55f;
+
+        [Tooltip("Секунд на оберт: перше місце помітно живіше за решту.")]
+        [SerializeField] private float podiumSpinFirst = 20f;
+        [SerializeField] private float podiumSpinOther = 26f;
+
+        [Tooltip("Планета й аватар схованого профілю.")]
+        [SerializeField] private Color rankIncognito = Hex("#5C6274");
+
+        [Tooltip("Рядок списку: 56 px макета, проміжок 8.")]
+        [SerializeField] private float rankRowHeight = 155f;
+        [SerializeField] private float rankRowGap = 22f;
+
+        [Tooltip("Запас унизу списку під закріплену картку «Ти».")]
+        [SerializeField] private float rankListBottomPadding = 321f;
+
+        [Tooltip("Підтон картки «Ти» — маджента й фіолет із макета.")]
+        [SerializeField, Range(0f, 0.6f)] private float youCardTintFrom = 0.16f;
+        [SerializeField, Range(0f, 0.6f)] private float youCardTintTo = 0.14f;
+        [SerializeField] private Color youCardStroke = new Color(1f, 0.353f, 0.667f, 0.7f);
+        [SerializeField, Range(0f, 1f)] private float youCardGlowAlpha = 0.4f;
+        [SerializeField] private Color youCardText = Hex("#FFD0E6");
+
         [Header("Магазин")]
         [Tooltip("Назва фарби й напис на кнопці картки: 13.5 px макета.")]
         [SerializeField] private float fontSizeShopCard = 37f;
@@ -668,6 +713,33 @@ namespace InkFlow.Style
 
         [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
         [SerializeField] private PaintInfo[] paints = DefaultPaints();
+
+        public float FontSizeRankRow => fontSizeRankRow;
+        public float FontSizeRankValue => fontSizeRankValue;
+        public float FontSizePodiumFirst => fontSizePodiumFirst;
+        public float FontSizePodiumOther => fontSizePodiumOther;
+        public Color MedalText => medalText;
+        public float PodiumGlowAlpha => podiumGlowAlpha;
+        public float PodiumSpinFirst => podiumSpinFirst;
+        public float PodiumSpinOther => podiumSpinOther;
+        public Color RankIncognito => rankIncognito;
+        public float RankRowHeight => rankRowHeight;
+        public float RankRowGap => rankRowGap;
+        public float RankListBottomPadding => rankListBottomPadding;
+        public float YouCardTintFrom => youCardTintFrom;
+        public float YouCardTintTo => youCardTintTo;
+        public Color YouCardStroke => youCardStroke;
+        public float YouCardGlowAlpha => youCardGlowAlpha;
+        public Color YouCardText => youCardText;
+
+        /// <summary>Колір медалі за місцем (1..3). Поза межами — бронза.</summary>
+        public Color Medal(int place)
+        {
+            var i = place - 1;
+            if (medals == null || medals.Length == 0)
+                return Color.white;
+            return medals[i >= 0 && i < medals.Length ? i : medals.Length - 1];
+        }
 
         public float FontSizeShopCard => fontSizeShopCard;
         public float FontSizeShopPrice => fontSizeShopPrice;
