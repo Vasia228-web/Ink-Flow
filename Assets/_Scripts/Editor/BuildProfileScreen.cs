@@ -73,6 +73,7 @@ namespace InkFlow.Editor
             var star = LoadSprite("icon-star");
             var check = LoadSprite("icon-check");
             var gear = LoadSprite("icon-gear");
+            var pencil = LoadSprite("icon-pencil");
             var planetShader = AssetDatabase.LoadAssetAtPath<Shader>(PlanetShaderPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var dropPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/DropView.prefab");
@@ -83,7 +84,7 @@ namespace InkFlow.Editor
             {
                 (rounded, "rounded-rect"), (outline, "rounded-rect-outline"), (circle, "circle-soft"),
                 (circleOutline, "circle-outline"), (gloss, "circle-gloss"), (quad, "white-quad"),
-                (glow, "glow"), (star, "icon-star"), (check, "icon-check"), (gear, "icon-gear")
+                (glow, "glow"), (star, "icon-star"), (check, "icon-check"), (gear, "icon-gear"), (pencil, "icon-pencil")
             })
                 if (sprite == null) missing.Add($"{SpriteFolder}/{name}.png");
             if (planetShader == null) missing.Add(PlanetShaderPath);
@@ -125,7 +126,7 @@ namespace InkFlow.Editor
             BuildHeader(content, design!, font, circle!, circleOutline!, gear!, ref y,
                 out var backButton, out var title, out var settingsButton);
 
-            BuildIdentity(content, design!, font, rounded!, outline!, circle!, glow!,
+            BuildIdentity(content, design!, font, rounded!, outline!, circle!, glow!, pencil!,
                 dropPrefab!, ref y, out var avatar, out var editButton, out var editFill,
                 out var nick, out var rankCapsule, out var rankGlow, out var rankLabel,
                 out var oilValue, out var oilWord);
@@ -279,8 +280,8 @@ namespace InkFlow.Editor
 
         // ── Візитка ──
         private static void BuildIdentity(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle, Sprite glowSprite, GameObject dropPrefab,
-            ref float y, out DropView avatar, out Button editButton, out GradientImage editFill,
+            Sprite rounded, Sprite outline, Sprite circle, Sprite glowSprite, Sprite pencil,
+            GameObject dropPrefab, ref float y, out DropView avatar, out Button editButton, out GradientImage editFill,
             out TMP_Text nick, out GradientImage rankCapsule, out Image rankGlow,
             out TMP_Text rankLabel, out TMP_Text oilValue, out TMP_Text oilWord)
         {
@@ -302,9 +303,15 @@ namespace InkFlow.Editor
             Place(editFill, new Vector2(-M(14f), 0f), new Vector2(editSize, editSize),
                 new Vector2(1f, 0f), new Vector2(1f, 0.5f));
 
-            var pencil = Label(editGo, "Glyph", "✎", design, font,
-                M(15f), design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(pencil.gameObject);
+            // Олівець — спрайт, не символ: ✎ (U+270E) у Nunito немає, і TMP
+            // підставляв би порожній квадрат.
+            var pencilGo = Child(editGo, "Glyph");
+            var pencilIcon = pencilGo.AddComponent<Image>();
+            pencilIcon.sprite = pencil;
+            pencilIcon.color = design.TextPrimary;
+            pencilIcon.raycastTarget = false;
+            Place(pencilIcon, Vector2.zero, new Vector2(M(15f), M(15f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             editButton = editGo.AddComponent<Button>();
             editButton.targetGraphic = editFill;
@@ -863,9 +870,27 @@ namespace InkFlow.Editor
             Place(lockFill, Vector2.zero, new Vector2(M(19f), M(19f)),
                 new Vector2(1f, 0f), new Vector2(0.5f, 0.5f));
 
-            var lockGlyph = Label(lockGo, "Glyph", "•", design, font,
-                M(12f), design.TextMuted, TextAlignmentOptions.Center);
-            Stretch(lockGlyph.gameObject);
+            // Замок малюємо тими самими прямокутниками, що й на замкненій планеті
+            // в Галактиці: жодних символів, які може не мати шрифт.
+            var lockBodyGo = Child(lockGo, "Body");
+            var lockBody = lockBodyGo.AddComponent<Image>();
+            lockBody.sprite = LoadSprite("rounded-rect");
+            lockBody.type = Image.Type.Sliced;
+            lockBody.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(2f));
+            lockBody.color = design.TextMuted;
+            lockBody.raycastTarget = false;
+            Place(lockBody, new Vector2(0f, -M(1.5f)), new Vector2(M(9f), M(6f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var shackleGo = Child(lockGo, "Shackle");
+            var shackle = shackleGo.AddComponent<Image>();
+            shackle.sprite = LoadSprite("rounded-rect-outline");
+            shackle.type = Image.Type.Sliced;
+            shackle.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(3f));
+            shackle.color = design.TextMuted;
+            shackle.raycastTarget = false;
+            Place(shackle, new Vector2(0f, M(3f)), new Vector2(M(6f), M(7f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var nameLabel = Label(go, "Name", "Досягнення", design, font,
                 design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);

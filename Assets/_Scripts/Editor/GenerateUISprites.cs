@@ -70,6 +70,9 @@ namespace InkFlow.Editor
             WriteSprite("circle-outline.png", CreateCircleOutline(), pixelsPerUnit: CircleSize,
                 border: Vector4.zero);
 
+            // ✎ (U+270E) у Nunito немає — як і ★, ✓ чи ↺. Малюємо фігурою.
+            WriteSprite("icon-pencil.png", CreatePencil(), pixelsPerUnit: IconSize, border: Vector4.zero);
+
             // Шестерня для кнопки налаштувань у профілі.
             WriteSprite("icon-gear.png", CreateGear(), pixelsPerUnit: IconSize, border: Vector4.zero);
 
@@ -257,6 +260,48 @@ namespace InkFlow.Editor
 
                     // Квадратичне згасання читається як світіння; лінійне дає видимий кант.
                     pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, t * t);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>
+        /// Олівець: діагональний брусок, що звужується в вістря, з тонкою
+        /// проріззю-обідком ближче до тупого кінця.
+        /// </summary>
+        private static Texture2D CreatePencil()
+        {
+            var tex = NewTexture(IconSize);
+            var pixels = new Color[IconSize * IconSize];
+
+            // Вістря внизу-ліворуч, тупий кінець угорі-праворуч.
+            var tip = new Vector2(0.24f, 0.24f);
+            var butt = new Vector2(0.78f, 0.78f);
+            var axis = butt - tip;
+            var axisLengthSq = Mathf.Max(1e-6f, Vector2.Dot(axis, axis));
+            var halfWidth = 0.115f;
+
+            for (var y = 0; y < IconSize; y++)
+            {
+                for (var x = 0; x < IconSize; x++)
+                {
+                    var p = new Vector2((x + 0.5f) / IconSize, (y + 0.5f) / IconSize);
+                    var t = Mathf.Clamp01(Vector2.Dot(p - tip, axis) / axisLengthSq);
+                    var d = Vector2.Distance(p, tip + axis * t);
+
+                    // Товщина йде в нуль на самому вістрі — звідси форма олівця,
+                    // а не просто похилої палиці.
+                    var width = halfWidth * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.26f));
+                    var alpha = Mathf.Clamp01((width - d) * IconSize / 1.5f + 0.5f);
+
+                    // Проріз, що відділяє держак від вістря.
+                    if (t > 0.32f && t < 0.36f)
+                        alpha *= 0.15f;
+
+                    pixels[y * IconSize + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(alpha));
                 }
             }
 

@@ -130,6 +130,8 @@ InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 
 **Драбина звань розрізняється не лише кольором.** Пройдене — галочка, поточне — зірка й світіння, наступне — порожній кружок і жовтий підпис «ще N». На маленькому екрані самого кольору для чотирьох станів не вистачає.
 
+**Символ у написі — гліф; піктограма — спрайт.** TMP не падає на відсутньому символі: він мовчки ставить порожній квадрат і пише попередження. Так уже чотири рази ловились ★, ✓, ↺ і ✎. Межа проста: **текстові знаки** (`‹ › № − « »`) додаємо в `GenerateFontAsset.BuildCharacterSet()`, **картинки** (★ ✓ ↺ ✎ замок) малюємо в `GenerateUISprites` і вставляємо як `Image`. Перевіряє `Tools/check-glyphs.py` — він читає набір гліфів із самого `BuildCharacterSet()`, тож розійтись вони не можуть.
+
 **★ і ↺ — спрайти, не гліфи.** У Nunito їх немає, і в жодному OFL-шрифті Google, який варто тягнути заради двох знаків; у макеті вони теж намальовані фігурами. Тому `icon-star.png` / `icon-retry.png`. Це і є причина, чому зникли warning-и про відсутні гліфи.
 
 Збірка `InkFlow.Style` — розширення карти §2: лист без залежностей, на який посилаються і Gameplay, і UI (обидва потребують палітру, але не бачать одне одного).
@@ -177,6 +179,10 @@ bash Tools/check-compile.sh
 Перевірка щокадрової анімації UI — теж перед комітом, якщо чіпав `Update`/`LateUpdate`/твіни:
 ```bash
 python3 Tools/check-ui-animation.py
+```
+Перевірка гліфів — якщо додавав чи міняв написи:
+```bash
+python3 Tools/check-glyphs.py
 ```
 Екрани (у Edit Mode): `Build UI Kit` → `Build Hub Screen` → `Build Galaxy Screen` → `Build Paint Screen` → `Build Shop Screen` → `Build Rankings Screen` → `Build Profile Screen`.
 Разова генерація UI (у Edit Mode): `Ink Flow → Setup → Build UI Kit` — створює спрайти, TMP-шрифт, `DesignSystem.asset`, префаби атомів і сцену `Assets/Scenes/UIKit.unity`. Шрифти качаються окремо: `bash Tools/fetch-fonts.sh`.

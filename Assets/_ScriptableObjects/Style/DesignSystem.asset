@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 10
+  tokenVersion: 11
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -293,6 +293,17 @@ MonoBehaviour:
     land: {r: 1, g: 0.8392157, b: 0.9411765, a: 1}
     atmosphere: {r: 1, g: 1, b: 1, a: 1}
     secondsPerTurn: 16
+  fontSizeProfileNick: 83
+  fontSizeProfileStat: 75
+  rankNodeAchieved: {r: 1, g: 1, b: 1, a: 0.08}
+  rankNodeLocked: {r: 0.04, g: 0.024, b: 0.086, a: 0.9}
+  rankNodeStrokeDim: {r: 1, g: 1, b: 1, a: 0.08}
+  rankGlowAlpha: 0.5
+  rankCapsuleGlowAlpha: 0.45
+  badgeLockedFill: {r: 1, g: 1, b: 1, a: 0.05}
+  badgeGlowAlpha: 0.35
+  showcaseSpin: 40
+  toastDuration: 2.2
   fontSizeRankRow: 42
   fontSizeRankValue: 50
   fontSizePodiumFirst: 72
