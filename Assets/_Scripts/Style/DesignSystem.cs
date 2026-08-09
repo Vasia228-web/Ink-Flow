@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 11;
+        public const int CurrentTokenVersion = 12;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -580,6 +580,50 @@ namespace InkFlow.Style
 
         public float StarTwinkleFraction => starTwinkleFraction;
 
+        [Header("Карта рівнів")]
+        [Tooltip("Номер на вузлі: 19 px макета, на поточному — 24.")]
+        [SerializeField] private float fontSizeLevelNode = 53f;
+        [SerializeField] private float fontSizeLevelNodeCurrent = 66f;
+
+        [Tooltip("Клякс — не колір палітри, а майже чорна куля з фіолетовим нутром.")]
+        [SerializeField] private Color bossNodeFrom = Hex("#3B2258");
+        [SerializeField] private Color bossNodeTo = Hex("#080312");
+        [SerializeField] private Color bossCaption = Hex("#C9A2FF");
+
+        [SerializeField] private Color lockedNodeFrom = new Color(1f, 1f, 1f, 0.1f);
+        [SerializeField] private Color lockedNodeTo = new Color(1f, 1f, 1f, 0.02f);
+        [SerializeField] private Color lockedNodeStroke = new Color(1f, 1f, 1f, 0.09f);
+
+        [Tooltip("Світиться лише поточний вузол і бос — решта не сперечається з ними.")]
+        [SerializeField, Range(0f, 1f)] private float levelNodeGlowAlpha = 0.5f;
+
+        [Tooltip("Відступ підпису під вузлом: 5 px макета.")]
+        [SerializeField] private float levelCaptionOffset = 14f;
+
+        [Tooltip("Порожня зірочка під вузлом.")]
+        [SerializeField] private Color starPipEmpty = new Color(1f, 1f, 1f, 0.2f);
+
+        [Tooltip("Слід: пройдена ділянка, замкнена, і чорнильне згущення перед босом.")]
+        [SerializeField] private Color trailPassed = new Color(0.616f, 0.302f, 1f, 0.5f);
+        [SerializeField] private Color trailLocked = new Color(1f, 1f, 1f, 0.13f);
+        [SerializeField] private Color trailInk = new Color(0.149f, 0.047f, 0.251f, 0.55f);
+        [SerializeField] private Color trailInkDeep = new Color(0.055f, 0.016f, 0.094f, 0.97f);
+
+        [SerializeField] private Color trailBonus = new Color(1f, 0.835f, 0.29f, 0.4f);
+        [SerializeField] private float trailBonusWidth = 17f;
+
+        [Tooltip("Де стоїть поточний рівень при автоскролі: 0.5 — центр, " +
+                 "0.56 — трохи вище, щоб було видно більше шляху попереду.")]
+        [SerializeField, Range(0.3f, 0.8f)] private float levelMapFocus = 0.56f;
+
+        [Tooltip("Відмова при тапі на замкнений вузол.")]
+        [SerializeField, Min(0.05f)] private float levelShakeDuration = 0.32f;
+        [SerializeField] private float levelShakeAmplitude = 14f;
+
+        [Tooltip("Картка боса темніша за звичайну.")]
+        [SerializeField] private Color bossSheetFrom = new Color(0.114f, 0.055f, 0.176f, 0.96f);
+        [SerializeField] private Color bossSheetTo = new Color(0.055f, 0.024f, 0.094f, 0.96f);
+
         [Header("Профіль")]
         [Tooltip("Нік на візитці: 30 px макета.")]
         [SerializeField] private float fontSizeProfileNick = 83f;
@@ -745,6 +789,28 @@ namespace InkFlow.Style
         [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
         [SerializeField] private PaintInfo[] paints = DefaultPaints();
 
+        public float FontSizeLevelNode => fontSizeLevelNode;
+        public float FontSizeLevelNodeCurrent => fontSizeLevelNodeCurrent;
+        public Color BossNodeFrom => bossNodeFrom;
+        public Color BossNodeTo => bossNodeTo;
+        public Color BossCaption => bossCaption;
+        public Color LockedNodeFrom => lockedNodeFrom;
+        public Color LockedNodeTo => lockedNodeTo;
+        public Color LockedNodeStroke => lockedNodeStroke;
+        public float LevelNodeGlowAlpha => levelNodeGlowAlpha;
+        public float LevelCaptionOffset => levelCaptionOffset;
+        public Color StarPipEmpty => starPipEmpty;
+        public Color TrailPassed => trailPassed;
+        public Color TrailLocked => trailLocked;
+        public Color TrailInk => trailInk;
+        public Color TrailInkDeep => trailInkDeep;
+        public Color TrailBonus => trailBonus;
+        public float TrailBonusWidth => trailBonusWidth;
+        public float LevelMapFocus => levelMapFocus;
+        public float LevelShakeDuration => levelShakeDuration;
+        public float LevelShakeAmplitude => levelShakeAmplitude;
+        public Color BossSheetFrom => bossSheetFrom;
+        public Color BossSheetTo => bossSheetTo;
         public float FontSizeProfileNick => fontSizeProfileNick;
         public float FontSizeProfileStat => fontSizeProfileStat;
         public Color RankNodeAchieved => rankNodeAchieved;

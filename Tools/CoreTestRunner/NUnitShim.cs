@@ -89,6 +89,17 @@ namespace NUnit.Framework
                 throw new AssertionException(message ?? "Expected different instances, but got the same.");
         }
 
+        // Порівняння з допуском. Без нього тест на float або падає на 1e-7,
+        // або пишеться через Math.Abs — і тоді повідомлення про падіння
+        // не показує, які саме числа розійшлися.
+        public static void AreEqual(double expected, double actual, double tolerance,
+            string message = null)
+        {
+            if (Math.Abs(expected - actual) > tolerance)
+                throw new AssertionException(
+                    message ?? $"Expected: {expected} ± {tolerance}, but was: {actual}");
+        }
+
         public static void IsNull(object? value, string message = null)
         {
             if (value != null)
@@ -100,6 +111,12 @@ namespace NUnit.Framework
             if (value == null)
                 throw new AssertionException(message ?? "Expected: not null, but was: null");
         }
+
+        // NUnit має обидві назви — і IsNotNull, і NotNull. Тести пишуться проти
+        // справжнього NUnit, тож шим мусить приймати ту саму пару.
+        public static void NotNull(object? value, string message = null) => IsNotNull(value, message);
+
+        public static void Null(object? value, string message = null) => IsNull(value, message);
 
         public static void Fail(string message = null) =>
             throw new AssertionException(message ?? "Assert.Fail");
