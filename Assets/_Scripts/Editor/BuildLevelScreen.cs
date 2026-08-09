@@ -332,11 +332,18 @@ namespace InkFlow.Editor
             canvasRect.anchoredPosition = Vector2.zero;
             canvasRect.sizeDelta = new Vector2(side, side);
 
+            var audioGo = Child(go, "Feedback");
+            var audio = audioGo.AddComponent<AudioSource>();
+            audio.playOnAwake = false;
+            var feedback = audioGo.AddComponent<BoardFeedback>();
+            Wire(feedback, ("source", audio));
+
             var pool = go.AddComponent<DropPool>();
             Wire(pool, ("prefab", dropPrefab), ("contentRoot", canvasRect));
 
             var board = go.AddComponent<BoardView>();
-            Wire(board, ("design", design), ("pool", pool), ("canvasRect", canvasRect));
+            Wire(board, ("design", design), ("pool", pool), ("canvasRect", canvasRect),
+                ("feedback", feedback));
             return board;
         }
 

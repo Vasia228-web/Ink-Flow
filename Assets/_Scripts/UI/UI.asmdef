@@ -5,6 +5,7 @@
         "InkFlow.Core",
         "InkFlow.Style",
         "InkFlow.Meta",
+        "InkFlow.Platform",
         "UnityEngine.UI",
         "Unity.TextMeshPro"
     ],

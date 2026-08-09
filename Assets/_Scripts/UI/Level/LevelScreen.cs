@@ -10,16 +10,24 @@ namespace InkFlow.UI
     /// <summary>З яким рівнем відкривати екран партії.</summary>
     public sealed class LevelArgs : ScreenArgs
     {
-        public LevelArgs(int level, LevelData? data = null)
+        public LevelArgs(int level, LevelData? data = null, BalanceData? balance = null)
         {
             Level = level;
             Data = data;
+            Balance = balance;
         }
 
         public int Level { get; }
 
         /// <summary>Готова розкладка. Якщо null — беремо стартову за номером.</summary>
         public LevelData? Data { get; }
+
+        /// <summary>
+        /// Баланс із BalanceConfig.asset. Якщо null — базовий: екран лишається
+        /// запускним сам по собі, але в грі його підставляє композиційний корінь,
+        /// інакше правки балансу не доходили б до партії.
+        /// </summary>
+        public BalanceData? Balance { get; }
     }
 
     /// <summary>
@@ -30,7 +38,7 @@ namespace InkFlow.UI
     /// вона повернула. Саме тому «перемога/поразка/тупік» тут читаються з
     /// <see cref="GameState"/>, а не рахуються вдруге.
     /// </summary>
-    public sealed class LevelScreen : ScreenBase
+    public sealed class LevelScreen : ScreenBase, IGameCommands
     {
         [SerializeField] private DesignSystem design;
 
@@ -66,6 +74,7 @@ namespace InkFlow.UI
 
         private PuzzleSession? _session;
         private LevelData? _level;
+        private BalanceData _balance = BalanceData.Default;
         private Coroutine? _playback;
         private Coroutine? _warnPulse;
         private bool _warning;
@@ -109,6 +118,7 @@ namespace InkFlow.UI
             var request = args as LevelArgs;
             var number = request?.Level ?? 1;
             _level = request?.Data ?? LevelFor(number);
+            _balance = request?.Balance ?? BalanceData.Default;
 
             StartSession();
             Apply();
@@ -132,7 +142,7 @@ namespace InkFlow.UI
             if (_level == null)
                 return;
 
-            _session = new PuzzleSession(_level, BalanceData.Default);
+            _session = new PuzzleSession(_level, _balance);
             GameEvents.RaiseSessionStarted(_session);
 
             if (board != null)
@@ -341,6 +351,19 @@ namespace InkFlow.UI
 
             if (won && _level != null)
                 LevelCleared?.Invoke(_level.LevelId, stars);
+        }
+
+        /// <summary>
+        /// Підказка від застою (<see cref="IGameCommands"/>): підсвітити одну
+        /// доступну пару. Пару шукає Core — той самий обхід, яким він доводить,
+        /// що поле ще живе.
+        /// </summary>
+        public void RequestHint()
+        {
+            if (_session == null || _session.IsOver)
+                return;
+            if (DeadlockDetector.TryFindMove(_session.Grid, out var from, out var to))
+                GameEvents.RaiseHint(from, to);
         }
 
         private void OnPrimary()

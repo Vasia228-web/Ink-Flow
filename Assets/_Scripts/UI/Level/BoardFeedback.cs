@@ -1,15 +1,19 @@
 using InkFlow.Platform;
 using UnityEngine;
 
-namespace InkFlow.Gameplay
+namespace InkFlow.UI
 {
     /// <summary>
     /// Звук + гаптика ланцюга. Кожна наступна ланка звучить вище і б'є сильніше —
     /// саме це робить ланцюг «найкайфовішим моментом гри» (майстер-док §3).
     /// Клип генерується процедурно: плейсхолдер без бінарних асетів у репозиторії.
+    ///
+    /// Переїхав із Gameplay разом зі світовою дошкою: тепер поле — UGUI-екран,
+    /// а він Gameplay не бачить. Саме заради цього компонента збірка UI отримала
+    /// посилання на Platform — гаптику підставляє композиційний корінь.
     /// </summary>
     [RequireComponent(typeof(AudioSource))]
-    public sealed class ChainFeedback : MonoBehaviour
+    public sealed class BoardFeedback : MonoBehaviour
     {
         [SerializeField] private AudioSource source;
         [SerializeField] private float basePitch = 1f;

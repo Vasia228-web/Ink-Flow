@@ -2,11 +2,7 @@
     "name": "InkFlow.Gameplay",
     "rootNamespace": "InkFlow.Gameplay",
     "references": [
-        "InkFlow.Core",
-        "InkFlow.Platform",
-        "Unity.InputSystem",
-        "Unity.TextMeshPro",
-        "UnityEngine.UI"
+        "InkFlow.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

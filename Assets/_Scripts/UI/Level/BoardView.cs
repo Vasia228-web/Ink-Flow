@@ -24,6 +24,7 @@ namespace InkFlow.UI
         [SerializeField] private DesignSystem design;
         [SerializeField] private DropPool pool;
         [SerializeField] private RectTransform canvasRect;
+        [SerializeField] private BoardFeedback? feedback;
         private readonly Dictionary<GridPos, DropView> _drops = new Dictionary<GridPos, DropView>(64);
         private readonly List<GridPos> _stale = new List<GridPos>(64);
 
@@ -211,6 +212,8 @@ namespace InkFlow.UI
         {
             // Крапля-джерело фізично ЇДЕ до цілі, а не зникає: без цього гравець
             // не бачить, що саме злилось, коли ходів багато й вони швидкі.
+            feedback?.PlayMerge();
+
             if (_drops.TryGetValue(e.Source, out var moving))
             {
                 moving.SetNearMiss(false);
@@ -267,6 +270,10 @@ namespace InkFlow.UI
 
         private IEnumerator PlayBurst(GameEvent e)
         {
+            // Кожна наступна ланка звучить вище — саме це робить ланцюг подією,
+            // а не просто зникненням крапель.
+            feedback?.PlayBurst(e.ChainIndex);
+
             if (_drops.TryGetValue(e.Position, out var view))
             {
                 // Анімацію веде сама крапля: її LateUpdate щокадру пише localScale,

@@ -18,13 +18,20 @@ Unity **6000.5.4f1**, 2D URP, C# 9 (nullable enabled в Core), IL2CPP + .NET Sta
 ```
 InkFlow.Core        ← ЖОДНИХ посилань, noEngineReferences: true (навіть UnityEngine)
 InkFlow.Platform    ← інтерфейси сервісів + Null-реалізації
-InkFlow.Gameplay    ← Core + Platform + UnityEngine
-InkFlow.UI          ← Core + Meta (НЕ Gameplay: обмін через GameEvents/IGameCommands)
 InkFlow.Meta        ← Core
+InkFlow.Style       ← Core (дизайн-токени; лист, який бачить лише UI)
+InkFlow.Gameplay    ← Core (лишились тільки ScriptableObject-обгортки конфігів)
+InkFlow.UI          ← Core + Style + Meta + Platform (НЕ Gameplay)
 InkFlow.App         ← усе вище (композиційний корінь)
 InkFlow.Editor      ← усе (бутстрап, авторинг рівнів, симулятори)
 InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 ```
+
+**Ігрове поле живе в UI, а не в Gameplay.** Світова дошка (`GridView` на `SpriteRenderer`, `CellView`, `CellPool`, `SwipeInput`, `GamePresenter`, сцена `Game.unity`) видалена: партія тепер — такий самий екран, як магазин чи профіль. Наслідки, які варто знати:
+- від `InkFlow.Gameplay` лишились `BalanceConfig` і `LevelDefinition` — обгортки Core-даних для інспектора;
+- усе спільне переїхало в Core: `SwipeGesture`, `BoardGeometry`, `BoardJitter`, `InputRouter`, `MergeRules.IsNearMiss`;
+- `ChainFeedback` став `UI/Level/BoardFeedback` — саме заради нього UI отримав посилання на `Platform` (гаптику підставляє композиційний корінь);
+- `IGameCommands` тепер реалізує `LevelScreen`.
 
 `GameEvents` і `IGameCommands` живуть у **Core** — саме тому UI бачить стан партії, не посилаючись на Gameplay.
 
@@ -148,7 +155,7 @@ InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 
 **Джиттер — косметика поверх строгої сітки.** Модель нічого про нього не знає: сусідство, свайпи й хрест вибуху рахуються по цілих (X, Y). `BoardJitter` дає зсув від сіда рівня — та сама партія завжди виглядає однаково, і рестарт поле не «перетрушує». Ряд зсувається як ціле (`RowStagger`), окрема крапля — трохи (`DefaultAmplitude`); саме це читається як упаковка, а не як шум. Інваріант тримає тест: сусіди не торкаються за жодного сіда й за жодного розміру сітки. Зворотне перетворення (точка → клітинка) джиттер **не** враховує: зона влучання лишається строгим квадратом, інакше свайп біля межі спрацьовував би не туди, куди видно.
 
-**Правила жесту — у Core, не у в'ю.** `SwipeGesture` знає поріг свайпу, домінуючу вісь і тап-тап; пікселі й вказівник лишаються у в'ю. Дощок дві — світова (`Gameplay/GridView`, SpriteRenderer) і екранна (`UI/BoardView`, UGUI), — і поки «що вважати свайпом» жило в кожній окремо, вони могли розійтись. Там само `InputRouter`: переїхав із Gameplay у Core з тієї ж причини.
+**Правила жесту — у Core, не у в'ю.** `SwipeGesture` знає поріг свайпу, домінуючу вісь і тап-тап; пікселі й вказівник лишаються у в'ю. Правило одне на проєкт: воно народилось при заміні світової дошки на екранну, коли з'ясувалось, що «що вважати свайпом» жило всередині в'ю і поїхало б разом із нею. Там само `InputRouter` — переїхав із Gameplay у Core з тієї ж причини.
 
 **Дошка нічого не вирішує.** `GameSession.ApplyMove` повертає `MoveResult`, і модель на цей момент уже у фінальному стані — `BoardView.PlayEvents` лише відтворює шлях до нього подія за подією, а наприкінці робить синхронізуючий `Repaint`. Інпут замкнено на весь час програвання. Перемога / поразка / тупік читаються з `GameState`, а не рахуються вдруге.
 
@@ -179,11 +186,11 @@ InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode
 ## Статус
 
 - ✅ **Ядро (архідок §4-6)**: модель, стрічка подій `MoveResult`, усі формули §5, детермінований XorShift, сесії Puzzle/Endless/Boss, солвер рівнів.
-- ✅ **Feel (§8)**: `GridView.PlayEvents` — переливання merge, стискання+частинки вибуху, поп-ін фарбування, бризки, near-miss glow, тряска з 3-ї ланки, звук зі зростаючим pitch. Інпут блокується під час програвання; `FeelConfig.AnimationSpeed = 0` дає миттєвий режим.
+- ✅ **Feel (§8)**: `BoardView.PlayEvents` — переливання merge, роздування-схлопування вибуху, поп-ін фарбування, near-miss glow, тряска поля з 3-ї ланки, звук зі зростаючим pitch (`BoardFeedback`). Інпут замкнено на час програвання; нульові тривалості в `DesignSystem` дають миттєвий режим.
 - ✅ **Шари Meta/Platform/App**: гаманець, денний ліміт, нагороди, версіоноване збереження з міграціями й атомарним записом; Null-реалізації всіх платформних сервісів; `GameBootstrap` як єдиний композиційний корінь.
 - ✅ **Тести**: 54 headless-тести, усі 7 обов'язкових запобіжників §14.
 - ✅ **Симулятори (§15)**: `LevelSolver` (доводить розв'язність, дає мінімум ходів), `EconomySimulator` (30 днів → CSV).
-- ⚠️ **Потребує запуску в редакторі**: `Ink Flow → Setup → Bootstrap Scene` (генерує спрайт, префаби, конфіги, рівні, Addressables-групу, сцену) і `Ink Flow → Setup → Apply Mobile Project Settings`.
+- ⚠️ **Потребує запуску в редакторі**: `Ink Flow → Setup → Bootstrap Assets` (конфіги, стартові рівні, Addressables-група) і `Ink Flow → Setup → Apply Mobile Project Settings`. Сцени екранів збираються окремими `Build …` (порядок — у розділі «Команди»).
 - ⛔ **Не зроблено (Фази 5-6, потребує акаунтів/SDK)**: реальні Android/iOS-реалізації Platform, UGS (Auth/Cloud Save/Leaderboards),  PrivacyInfo.xcprivacy, ATT, keystore, публікація.
 
 Гілка: `phase-1-core`. Попередні: `phase-1-core-loop`, `phase-2-feel-animations` (змерджені в `main` до реархітектури).
@@ -221,11 +228,11 @@ python3 Tools/check-glyphs.py
 ## Конвенції
 
 - **Нова механіка = спершу тест у `InkFlow.Core.Tests`, потім реалізація, потім вигляд.**
-- **Будь-яке нове число → в конфіг** (`BalanceConfig`/`FeelConfig`), не в код.
+- **Будь-яке нове число → в конфіг**: правила балансу — `BalanceConfig`, усе, що видно на екрані (кольори, радіуси, тривалості) — `DesignSystem`. Не в код і не в префаб.
 - Рівні: `Assets/_ScriptableObjects/Levels/Level_XXX.asset`, Addressables-група `Levels`, адреса `Levels/Level_001`. Розкладки живуть у `Core/Config/StarterLevels.cs` — одне джерело для генератора асетів і тесту розв'язності.
 - Координати: **X — колонка, Y — ряд знизу вгору**. Верхній ряд «дострілює» до боса.
 - MonoBehaviour: `[SerializeField]` + приватні поля. Ніяких `FindObjectOfType` у геймплеї.
-- Жодного `Instantiate`/`Destroy` під час партії — тільки `CellPool`/`ParticlePool`.
+- Жодного `Instantiate`/`Destroy` під час партії — тільки `DropPool`.
 - Editor-меню: `Ink Flow/Setup/*`, `Ink Flow/Simulate/*`.
 
 ## Особливості середовища (перевірено)
@@ -239,7 +246,7 @@ python3 Tools/check-glyphs.py
 - Згенеровані асети (`Scenes/Game.unity`, `_Prefabs/*`) **не тримаємо в репозиторії руками** — їх повністю створює бутстрап. Інакше після рефакторингу вони лишаються з мертвими GUID («The referenced script is missing»).
 
 - Editor-бутстрап мусить вантажити асети **строго після** `EditorSceneManager.NewScene`: закриття сцени вивантажує незакорінені асети, і раніше отриманий референс тихо стає «fake null», який записується в сцену порожнім полем. `Wire()` це валідує й кричить у консоль.
-- **В `Awake` не можна створювати GameObject-и й додавати компоненти.** Unity в цій фазі ще не розсилає `SendMessage`-колбеки, і кожен створений об'єкт дає пачку попереджень «SendMessage cannot be called during Awake, CheckConsistency, or OnValidate» (`OnDidAddComponent`, `OnTransformParentChanged`, `OnRectTransformDimensionsChange`…) — по 8 на об'єкт. Пули наповнюємо у `Start`: це перша безпечна точка, і вона гарантовано настає раніше за будь-який `Update`. `CellPool`/`ParticlePool` цим не страждають, бо в `Awake` лише конструюють `ObjectPool<T>`, а інстанціюють ліниво.
+- **В `Awake` не можна створювати GameObject-и й додавати компоненти.** Unity в цій фазі ще не розсилає `SendMessage`-колбеки, і кожен створений об'єкт дає пачку попереджень «SendMessage cannot be called during Awake, CheckConsistency, or OnValidate» (`OnDidAddComponent`, `OnTransformParentChanged`, `OnRectTransformDimensionsChange`…) — по 8 на об'єкт. Пули наповнюємо у `Start`: це перша безпечна точка, і вона гарантовано настає раніше за будь-який `Update`. `DropPool` наповнюється саме там.
 - **Ні `OnValidate`, ні `OnEnable` не сміють чіпати Graphic-и синхронно.** Редактор може викликати їх просто посеред перебудови канвасу, і тоді кожен дотик до кольору чи розміру дає `Trying to add … for graphic rebuild while we are already inside a graphic rebuild loop`. Обидва входи йдуть через `StyleRefresh.Schedule` (`EditorApplication.delayCall`).
   - `OnValidate` ловиться, коли editor-скрипт застосовує `SerializedObject`.
   - **`OnEnable` — менш очевидний і саме він дав другу хвилю помилок:** у Edit Mode він спрацьовує на кожному `AddComponent` та `InstantiatePrefab`, тобто рівно там, де бутстрап будує ієрархію. Імена в консолі вказують на винуватця точно: `DropIcon`/`Gloss` — це `CurrencyWidget.Apply()`, `Nebula` — `NebulaGlow.Apply()`.

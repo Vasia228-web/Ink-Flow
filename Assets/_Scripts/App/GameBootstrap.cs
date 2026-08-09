@@ -2,6 +2,7 @@ using InkFlow.Core;
 using InkFlow.Gameplay;
 using InkFlow.Meta;
 using InkFlow.Platform;
+using InkFlow.UI;
 using UnityEngine;
 
 namespace InkFlow.App
@@ -18,19 +19,12 @@ namespace InkFlow.App
 
         [Header("Сцена")]
         [SerializeField] private LevelCatalog levelCatalog;
-        [SerializeField] private GamePresenter presenter;
-        [SerializeField] private ChainFeedback chainFeedback;
+        [SerializeField] private LevelScreen levelScreen;
+        [SerializeField] private BoardFeedback boardFeedback;
 
         [Header("Старт")]
-        [Tooltip("Рівень, що вантажиться при запуску сцени Game.")]
+        [Tooltip("Рівень, що вантажиться при запуску сцени партії.")]
         [SerializeField, Min(1)] private int startLevelId = 1;
-
-        [Tooltip("Замість рівня запустити партію «Нескінченний».")]
-        [SerializeField] private bool startEndless;
-
-        [SerializeField] private int endlessWidth = 6;
-        [SerializeField] private int endlessHeight = 6;
-        [SerializeField, Range(2, 6)] private int endlessColors = 4;
 
         private ISaveStorage _storage;
         private SaveFile _save;
@@ -47,16 +41,10 @@ namespace InkFlow.App
             RegisterPlatformServices();
             LoadSave();
 
-            chainFeedback?.SetHaptics(ServiceLocator.Get<IHapticService>());
+            boardFeedback?.SetHaptics(ServiceLocator.Get<IHapticService>());
         }
 
-        private void Start()
-        {
-            if (startEndless)
-                StartEndless();
-            else
-                levelCatalog.Load(startLevelId, StartPuzzle, Debug.LogError);
-        }
+        private void Start() => levelCatalog.Load(startLevelId, StartPuzzle, Debug.LogError);
 
         /// <summary>
         /// Поки що всі сервіси — Null/Log-реалізації: гра повністю грабельна без жодного SDK.
@@ -87,26 +75,12 @@ namespace InkFlow.App
             ServiceLocator.Register(_storage);
         }
 
-        private void StartPuzzle(LevelData level)
-        {
-            var balance = balanceConfig.ToBalanceData();
-            GameSession session = level.IsBoss
-                ? new BossSession(level, balance)
-                : new PuzzleSession(level, balance);
-            presenter.StartSession(session);
-        }
-
-        private void StartEndless()
-        {
-            var balance = balanceConfig.ToBalanceData();
-            // Endless сідиться часом старту — тут рандом бажаний (§6).
-            var seed = unchecked((uint)System.DateTime.UtcNow.Ticks);
-            var session = new EndlessSession(
-                new EndlessData(endlessWidth, endlessHeight, endlessColors),
-                balance,
-                new XorShiftRandom(seed));
-            presenter.StartSession(session);
-        }
+        /// <summary>
+        /// Баланс приходить із BalanceConfig.asset саме тут: екран не має права
+        /// брати BalanceData.Default, інакше правки балансу нічого не міняли б у грі.
+        /// </summary>
+        private void StartPuzzle(LevelData level) =>
+            levelScreen.OnEnter(new LevelArgs(level.LevelId, level, balanceConfig.ToBalanceData()));
 
         /// <summary>
         /// На мобільних це ЄДИНИЙ надійний момент зберегтися: OnApplicationQuit
