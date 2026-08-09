@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 12;
+        public const int CurrentTokenVersion = 13;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -580,6 +580,55 @@ namespace InkFlow.Style
 
         public float StarTwinkleFraction => starTwinkleFraction;
 
+        [Header("Ігрове поле")]
+        [Tooltip("Частка порогу, з якої крапля вважається «ось-ось лопне». " +
+                 "Предикат рахує Core — тут лише число.")]
+        [SerializeField, Range(0.5f, 0.99f)] private float nearMissFraction = 0.8f;
+
+        [Tooltip("Вибрана тап-тапом крапля трохи більша.")]
+        [SerializeField, Range(1f, 1.4f)] private float dropSelectedScale = 1.12f;
+
+        [Tooltip("Крапля їде до сусіда при злитті.")]
+        [SerializeField, Min(0f)] private float boardMergeDuration = 0.22f;
+
+        [Tooltip("Відхилений свайп: відскок і назад. Хід не витрачається.")]
+        [SerializeField, Min(0f)] private float boardRejectDuration = 0.32f;
+        [SerializeField, Range(0f, 0.6f)] private float boardRejectFraction = 0.28f;
+
+        [Tooltip("Вибух однієї краплі.")]
+        [SerializeField, Min(0f)] private float boardBurstDuration = 0.24f;
+
+        [Tooltip("Пауза між ланками ланцюга — саме вона робить ланцюг читабельним.")]
+        [SerializeField, Min(0f)] private float boardInterBurstDelay = 0.06f;
+
+        [Tooltip("Тряска поля на важкому вибуху.")]
+        [SerializeField, Min(0f)] private float boardShakeDuration = 0.43f;
+        [SerializeField] private float boardShakeAmplitude = 14f;
+
+        [Tooltip("З якої ланки ланцюга трясти поле.")]
+        [SerializeField, Min(1)] private int boardShakeFromLink = 3;
+
+        [Header("HUD партії")]
+        [SerializeField] private float fontSizeStatLabel = 27f;
+        [SerializeField] private float fontSizeMovesNumber = 73f;
+        [SerializeField] private float fontSizeGoal = 40f;
+        [SerializeField] private float fontSizeGameTitle = 32f;
+
+        [Tooltip("Капсули статистики: заливка й обведення.")]
+        [SerializeField] private Color statCapsuleFill = new Color(1f, 1f, 1f, 0.06f);
+        [SerializeField] private Color statCapsuleStroke = new Color(1f, 1f, 1f, 0.11f);
+
+        [Tooltip("Ходів лишилось стільки або менше — капсула попереджає.")]
+        [SerializeField, Min(1)] private int movesWarnFrom = 3;
+
+        [SerializeField] private Color movesWarnText = Hex("#FF8095");
+        [SerializeField] private Color movesWarnStroke = new Color(1f, 0.47f, 0.57f, 0.7f);
+        [SerializeField] private Color movesCalmGlow = new Color(0f, 0.851f, 0.753f, 0.15f);
+        [SerializeField] private Color movesWarnGlow = new Color(1f, 0.275f, 0.392f, 0.35f);
+
+        [Tooltip("Період пульсу капсули ходів у попереджувальному стані.")]
+        [SerializeField, Min(0.1f)] private float movesWarnPulseDuration = 1.5f;
+
         [Header("Карта рівнів")]
         [Tooltip("Номер на вузлі: 19 px макета, на поточному — 24.")]
         [SerializeField] private float fontSizeLevelNode = 53f;
@@ -789,6 +838,28 @@ namespace InkFlow.Style
         [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
         [SerializeField] private PaintInfo[] paints = DefaultPaints();
 
+        public float NearMissFraction => nearMissFraction;
+        public float DropSelectedScale => dropSelectedScale;
+        public float BoardMergeDuration => boardMergeDuration;
+        public float BoardRejectDuration => boardRejectDuration;
+        public float BoardRejectFraction => boardRejectFraction;
+        public float BoardBurstDuration => boardBurstDuration;
+        public float BoardInterBurstDelay => boardInterBurstDelay;
+        public float BoardShakeDuration => boardShakeDuration;
+        public float BoardShakeAmplitude => boardShakeAmplitude;
+        public int BoardShakeFromLink => boardShakeFromLink;
+        public float FontSizeStatLabel => fontSizeStatLabel;
+        public float FontSizeMovesNumber => fontSizeMovesNumber;
+        public float FontSizeGoal => fontSizeGoal;
+        public float FontSizeGameTitle => fontSizeGameTitle;
+        public Color StatCapsuleFill => statCapsuleFill;
+        public Color StatCapsuleStroke => statCapsuleStroke;
+        public int MovesWarnFrom => movesWarnFrom;
+        public Color MovesWarnText => movesWarnText;
+        public Color MovesWarnStroke => movesWarnStroke;
+        public Color MovesCalmGlow => movesCalmGlow;
+        public Color MovesWarnGlow => movesWarnGlow;
+        public float MovesWarnPulseDuration => movesWarnPulseDuration;
         public float FontSizeLevelNode => fontSizeLevelNode;
         public float FontSizeLevelNodeCurrent => fontSizeLevelNodeCurrent;
         public Color BossNodeFrom => bossNodeFrom;

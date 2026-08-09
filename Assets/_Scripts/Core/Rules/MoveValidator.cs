@@ -43,6 +43,21 @@ namespace InkFlow.Core
 
         public static bool ReachesThreshold(int density, BalanceData balance) =>
             density >= balance.BurstThreshold;
+
+        /// <summary>
+        /// «Ось-ось лопне»: крапля вже близько до порогу, але ще не дійшла.
+        /// При порозі 10 і частці 0.8 це густоти 8 і 9.
+        ///
+        /// Предикат живе в Core, хоч сама частка — число відчуття (`FeelConfig`):
+        /// інакше «яскравіша крапля» і «крапля, яка справді лопне наступним ходом»
+        /// розійшлися б, і гравець довіряв би підказці, яка бреше.
+        /// </summary>
+        public static bool IsNearMiss(int density, float fraction, BalanceData balance)
+        {
+            if (density <= 0 || ReachesThreshold(density, balance))
+                return false;
+            return density >= fraction * balance.BurstThreshold;
+        }
     }
 
     /// <summary>

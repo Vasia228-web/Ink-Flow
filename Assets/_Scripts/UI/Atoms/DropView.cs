@@ -51,6 +51,10 @@ namespace InkFlow.UI
         private float _nextDrip;
         private bool _nearMiss;
         private bool _pulsing;
+        private bool _selected;
+
+        /// <summary>Масштабом тимчасово керує хтось ззовні (вибух) — дихання мовчить.</summary>
+        private bool _scriptedScale;
 
         /// <summary>Точка спокою глянцю: щокадрова анімація рахується від неї.</summary>
         private Vector3 _glossRest;
@@ -85,6 +89,26 @@ namespace InkFlow.UI
         private void OnValidate() => StyleRefresh.Schedule(this, Apply);
 #endif
 
+        /// <summary>
+        /// Налаштування для ігрового поля. Три відмінності від краплі в інтерфейсі:
+        /// не капає (їх на полі десятки, і краплини злились би в дощ), не ловить
+        /// вказівник (жест веде дошка цілком, інакше кожна крапля перехоплювала б
+        /// свій шматок свайпу) і має розмір числа під конкретну сітку.
+        /// </summary>
+        public void ConfigureForBoard(float densityFontSize)
+        {
+            emitsDrips = false;
+
+            if (body != null) body.raycastTarget = false;
+            if (gloss != null) gloss.raycastTarget = false;
+            if (glow != null) glow.raycastTarget = false;
+            if (densityLabel != null)
+            {
+                densityLabel.raycastTarget = false;
+                densityLabel.fontSize = densityFontSize;
+            }
+        }
+
         /// <summary>Задає колір і густоту краплі.</summary>
         public void Show(InkColor color, int value)
         {
@@ -95,6 +119,13 @@ namespace InkFlow.UI
 
         /// <summary>Крапля на порозі вибуху: пульсуюче гало (near-miss із макета).</summary>
         public void SetNearMiss(bool active) => _nearMiss = active;
+
+        /// <summary>
+        /// Вибрана тап-тапом: трохи більша. Масштаб множиться в тому ж LateUpdate,
+        /// що й дихання, — інакше вони перезаписували б одне одного щокадру,
+        /// і вибір то з'являвся б, то зникав.
+        /// </summary>
+        public void SetSelected(bool active) => _selected = active;
 
         public void Apply()
         {
@@ -141,7 +172,7 @@ namespace InkFlow.UI
 
             TickDrip();
 
-            if (_squash != null)
+            if (_squash != null || _scriptedScale)
                 return;
 
             var scale = Vector3.one;
@@ -184,6 +215,9 @@ namespace InkFlow.UI
             }
 
             _pulsing = _nearMiss;
+
+            if (_selected)
+                scale *= design.DropSelectedScale;
 
             transform.localScale = scale;
             transform.localRotation = Quaternion.Euler(0f, 0f, tilt);
@@ -230,6 +264,28 @@ namespace InkFlow.UI
             if (_squash != null)
                 StopCoroutine(_squash);
             _squash = StartCoroutine(LandRoutine());
+        }
+
+        /// <summary>
+        /// Вибух: крапля спершу роздувається, потім схлопується. Дошка чекає на цю
+        /// корутину, тож послідовність ланцюга лишається послідовністю.
+        /// </summary>
+        public IEnumerator BurstRoutine(float duration)
+        {
+            _scriptedScale = true;
+            _nearMiss = false;
+
+            for (var t = 0f; t < duration; t += Time.deltaTime)
+            {
+                var k = Mathf.Clamp01(t / duration);
+                // Перша третина — тиск назовні, решта — схлопування в нуль.
+                var scale = k < 0.3f ? 1f + k * 1.6f : Mathf.Lerp(1.48f, 0f, (k - 0.3f) / 0.7f);
+                transform.localScale = Vector3.one * scale;
+                yield return null;
+            }
+
+            transform.localScale = Vector3.zero;
+            _scriptedScale = false;
         }
 
         private IEnumerator LandRoutine()

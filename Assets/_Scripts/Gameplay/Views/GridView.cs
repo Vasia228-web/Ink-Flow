@@ -40,7 +40,7 @@ namespace InkFlow.Gameplay
         private readonly Dictionary<GridPos, CellView> _views = new Dictionary<GridPos, CellView>();
         private readonly List<GridPos> _stale = new List<GridPos>(64);
         private GridModel _grid;
-        private int _burstThreshold = 10;
+        private BalanceData _balance = BalanceData.Default;
 
         public float CellSize => cellSize;
         private float Spacing => cellSize + cellGap;
@@ -48,7 +48,7 @@ namespace InkFlow.Gameplay
         public void Bind(GameSession session)
         {
             _grid = session.Grid;
-            _burstThreshold = session.Balance.BurstThreshold;
+            _balance = session.Balance;
             Repaint();
         }
 
@@ -230,7 +230,9 @@ namespace InkFlow.Gameplay
 
             view.Show(cell, ColorOf(cell.Color));
             // Near-miss: крапля на порозі вибуху пульсує — гравець бачить «майже».
-            view.SetNearMiss(!cell.IsEmpty && cell.Density >= feel.NearMissFraction * _burstThreshold);
+            // Предикат рахує Core, щоб підсвітка не розійшлася з тим, що справді лопне.
+            view.SetNearMiss(!cell.IsEmpty &&
+                MergeRules.IsNearMiss(cell.Density, feel.NearMissFraction, _balance));
             return view;
         }
 

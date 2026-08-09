@@ -120,6 +120,40 @@ namespace InkFlow.Core.Tests
                 Assert.AreEqual(2, GridPos.ManhattanDistance(default, offset));
         }
 
+        [Test]
+        public void NearMiss_IsTheBandJustBelowTheThreshold()
+        {
+            var balance = Balance();
+
+            // Порог 10, частка 0.8 — смуга «ось-ось лопне» це рівно 8 і 9.
+            Assert.IsFalse(MergeRules.IsNearMiss(7, 0.8f, balance));
+            Assert.IsTrue(MergeRules.IsNearMiss(8, 0.8f, balance));
+            Assert.IsTrue(MergeRules.IsNearMiss(9, 0.8f, balance));
+
+            // Десятка вже не «майже»: вона лопнула. Підсвітка на ній була б брехнею —
+            // такої краплі на полі не існує.
+            Assert.IsFalse(MergeRules.IsNearMiss(10, 0.8f, balance));
+            Assert.IsFalse(MergeRules.IsNearMiss(13, 0.8f, balance));
+
+            Assert.IsFalse(MergeRules.IsNearMiss(0, 0.8f, balance));
+        }
+
+        [Test]
+        public void NearMiss_NeverOverlapsWithBursting_ForAnyThreshold()
+        {
+            foreach (var threshold in new[] { 4, 6, 10, 16 })
+            {
+                var balance = new BalanceData(burstThreshold: threshold);
+                for (var density = 0; density <= threshold * 2; density++)
+                {
+                    var near = MergeRules.IsNearMiss(density, 0.8f, balance);
+                    var bursts = MergeRules.ReachesThreshold(density, balance);
+                    Assert.IsFalse(near && bursts,
+                        $"поріг {threshold}, густота {density}: одночасно «майже» і «вибух»");
+                }
+            }
+        }
+
         // ---------- §5.4 Ефект на клітинку ----------
 
         [Test]

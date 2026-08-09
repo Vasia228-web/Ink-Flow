@@ -37,9 +37,13 @@ DANGER = [
     (r"SetMaterialDirty\(", "SetMaterialDirty"),
 ]
 
+# Будь-який метод, що повертає IEnumerator, — потенційна щокадрова петля:
+# всередині майже напевно є `yield return null`. Спершу тут стояв список суфіксів
+# (Routine/Tween/Anim), і корутини з іншими іменами — PlayMerge, PlayReject —
+# перевірку просто обходили. Ім'я не є ознакою; тип повернення є.
 PER_FRAME = re.compile(
-    r"void\s+(?:Update|LateUpdate)\s*\(\s*\)"
-    r"|IEnumerator\s+\w*(?:Routine|Tween|Anim\w*)\s*\("
+    r"void\s+(?:Update|LateUpdate|FixedUpdate)\s*\(\s*\)"
+    r"|IEnumerator\s+\w+\s*\("
 )
 
 
