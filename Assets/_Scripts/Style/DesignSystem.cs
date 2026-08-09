@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 10;
+        public const int CurrentTokenVersion = 11;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -580,6 +580,37 @@ namespace InkFlow.Style
 
         public float StarTwinkleFraction => starTwinkleFraction;
 
+        [Header("Профіль")]
+        [Tooltip("Нік на візитці: 30 px макета.")]
+        [SerializeField] private float fontSizeProfileNick = 83f;
+
+        [Tooltip("Число на плитці статистики: 27 px макета.")]
+        [SerializeField] private float fontSizeProfileStat = 75f;
+
+        [Tooltip("Кружок пройденого звання.")]
+        [SerializeField] private Color rankNodeAchieved = new Color(1f, 1f, 1f, 0.08f);
+
+        [Tooltip("Кружок ще не відкритого звання — темний, майже фон.")]
+        [SerializeField] private Color rankNodeLocked = new Color(0.04f, 0.024f, 0.086f, 0.9f);
+
+        [SerializeField] private Color rankNodeStrokeDim = new Color(1f, 1f, 1f, 0.08f);
+
+        [Tooltip("Світіння поточного звання — головний акцент блоку.")]
+        [SerializeField, Range(0f, 1f)] private float rankGlowAlpha = 0.5f;
+
+        [SerializeField, Range(0f, 1f)] private float rankCapsuleGlowAlpha = 0.45f;
+
+        [Tooltip("Заливка неотриманого бейджа досягнення.")]
+        [SerializeField] private Color badgeLockedFill = new Color(1f, 1f, 1f, 0.05f);
+
+        [SerializeField, Range(0f, 1f)] private float badgeGlowAlpha = 0.35f;
+
+        [Tooltip("Секунд на оберт планети у вітрині. Повільно — вона не для дії.")]
+        [SerializeField, Min(1f)] private float showcaseSpin = 40f;
+
+        [Tooltip("Скільки висить підказка про умову досягнення.")]
+        [SerializeField, Min(0.5f)] private float toastDuration = 2.2f;
+
         [Header("Рейтинги")]
         [Tooltip("Нік і номер у рядку: 15 px макета.")]
         [SerializeField] private float fontSizeRankRow = 42f;
@@ -714,6 +745,17 @@ namespace InkFlow.Style
         [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
         [SerializeField] private PaintInfo[] paints = DefaultPaints();
 
+        public float FontSizeProfileNick => fontSizeProfileNick;
+        public float FontSizeProfileStat => fontSizeProfileStat;
+        public Color RankNodeAchieved => rankNodeAchieved;
+        public Color RankNodeLocked => rankNodeLocked;
+        public Color RankNodeStrokeDim => rankNodeStrokeDim;
+        public float RankGlowAlpha => rankGlowAlpha;
+        public float RankCapsuleGlowAlpha => rankCapsuleGlowAlpha;
+        public Color BadgeLockedFill => badgeLockedFill;
+        public float BadgeGlowAlpha => badgeGlowAlpha;
+        public float ShowcaseSpin => showcaseSpin;
+        public float ToastDuration => toastDuration;
         public float FontSizeRankRow => fontSizeRankRow;
         public float FontSizeRankValue => fontSizeRankValue;
         public float FontSizePodiumFirst => fontSizePodiumFirst;

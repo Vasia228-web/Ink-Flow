@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 9
+  tokenVersion: 10
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -293,6 +293,27 @@ MonoBehaviour:
     land: {r: 1, g: 0.8392157, b: 0.9411765, a: 1}
     atmosphere: {r: 1, g: 1, b: 1, a: 1}
     secondsPerTurn: 16
+  fontSizeRankRow: 42
+  fontSizeRankValue: 50
+  fontSizePodiumFirst: 72
+  fontSizePodiumOther: 55
+  medals:
+  - {r: 1, g: 0.8352941, b: 0.2901961, a: 1}
+  - {r: 0.84313726, g: 0.87058824, b: 0.9098039, a: 1}
+  - {r: 0.8784314, g: 0.5921569, b: 0.3529412, a: 1}
+  medalText: {r: 0.13725491, g: 0.101960786, b: 0.03137255, a: 1}
+  podiumGlowAlpha: 0.55
+  podiumSpinFirst: 20
+  podiumSpinOther: 26
+  rankIncognito: {r: 0.36078432, g: 0.38431373, b: 0.45490196, a: 1}
+  rankRowHeight: 155
+  rankRowGap: 22
+  rankListBottomPadding: 321
+  youCardTintFrom: 0.16
+  youCardTintTo: 0.14
+  youCardStroke: {r: 1, g: 0.353, b: 0.667, a: 0.7}
+  youCardGlowAlpha: 0.4
+  youCardText: {r: 1, g: 0.8156863, b: 0.9019608, a: 1}
   fontSizeShopCard: 37
   fontSizeShopPrice: 40
   letterSpacingShopTitle: 18

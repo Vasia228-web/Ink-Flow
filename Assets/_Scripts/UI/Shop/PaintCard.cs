@@ -22,10 +22,8 @@ namespace InkFlow.UI
         [SerializeField] private Image specialGlow;
 
         [Header("Мензурка")]
-        [SerializeField] private Image beakerBackground;
-        [SerializeField] private Image beakerStroke;
-        [SerializeField] private RectTransform beakerFill;
-        [SerializeField] private Image beakerFillImage;
+        [Tooltip("Спільний компонент — той самий, що в палітрі профілю.")]
+        [SerializeField] private BeakerGauge beaker;
 
         [Header("Вміст")]
         [SerializeField] private GradientImage drop;
@@ -129,35 +127,9 @@ namespace InkFlow.UI
                 if (design.Font != null) priceUnitLabel.font = design.Font;
             }
 
-            ApplyBeaker(product);
+            beaker?.Show(product.OwnedLiters, product.Primary.ToColor());
             ApplyCard(product);
             ApplyBuyButton(product);
-        }
-
-        private void ApplyBeaker(PaintProduct product)
-        {
-            var filled = !product.IsEmpty;
-
-            if (beakerBackground != null)
-                beakerBackground.color = new Color(1f, 1f, 1f, filled ? 0.09f : 0.05f);
-
-            // Порожня мензурка має тоншу обводку — так «нуль» видно без цифр.
-            if (beakerStroke != null)
-                beakerStroke.color = new Color(1f, 1f, 1f, filled ? 0.3f : 0.12f);
-
-            if (beakerFill == null || beakerFill.parent is not RectTransform tube)
-                return;
-
-            // Повну висоту беремо з колби, а не кешуємо: кеш у Awake не заповнився б
-            // у Edit Mode, а зняти його з самої заливки не можна — вона вже стиснута.
-            var k = Mathf.Clamp01(product.OwnedLiters / ShopCatalog.BeakerCapacity);
-            var inset = design.ShopBeakerInset;
-            beakerFill.sizeDelta = new Vector2(
-                beakerFill.sizeDelta.x,
-                Mathf.Max(0f, (tube.rect.height - inset * 2f) * k));
-
-            if (beakerFillImage != null)
-                beakerFillImage.color = product.Primary.ToColor();
         }
 
         private void ApplyCard(PaintProduct product)

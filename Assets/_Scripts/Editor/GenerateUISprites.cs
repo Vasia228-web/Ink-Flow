@@ -70,6 +70,9 @@ namespace InkFlow.Editor
             WriteSprite("circle-outline.png", CreateCircleOutline(), pixelsPerUnit: CircleSize,
                 border: Vector4.zero);
 
+            // Шестерня для кнопки налаштувань у профілі.
+            WriteSprite("icon-gear.png", CreateGear(), pixelsPerUnit: IconSize, border: Vector4.zero);
+
             // ✓ (U+2713) у Nunito немає — рівно та сама історія, що й із ★.
             // Малюємо фігурою, а не символом: інакше TMP щоразу підставляє квадрат.
             WriteSprite("icon-check.png", CreateCheck(), pixelsPerUnit: IconSize, border: Vector4.zero);
@@ -254,6 +257,46 @@ namespace InkFlow.Editor
 
                     // Квадратичне згасання читається як світіння; лінійне дає видимий кант.
                     pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, t * t);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>Шестерня: кільце з вісьмома зубцями по колу.</summary>
+        private static Texture2D CreateGear()
+        {
+            var tex = NewTexture(IconSize);
+            var pixels = new Color[IconSize * IconSize];
+            var center = (IconSize - 1) * 0.5f;
+            var ringOuter = IconSize * 0.30f;
+            var ringInner = IconSize * 0.17f;
+            var toothOuter = IconSize * 0.44f;
+            var toothHalf = 0.19f;   // піврозмір зубця в радіанах
+
+            for (var y = 0; y < IconSize; y++)
+            {
+                for (var x = 0; x < IconSize; x++)
+                {
+                    var dx = x - center;
+                    var dy = y - center;
+                    var d = Mathf.Sqrt(dx * dx + dy * dy);
+                    var angle = Mathf.Atan2(dy, dx);
+
+                    // Кільце.
+                    var ring = Mathf.Clamp01((d - ringInner) / 1.5f) *
+                               Mathf.Clamp01((ringOuter - d) / 1.5f);
+
+                    // Зубці: вісім секторів між кільцем і зовнішнім радіусом.
+                    var sector = Mathf.Repeat(angle + Mathf.PI, Mathf.PI * 2f / 8f) - Mathf.PI / 8f;
+                    var inTooth = Mathf.Abs(sector) < toothHalf ? 1f : 0f;
+                    var tooth = inTooth *
+                                Mathf.Clamp01((d - ringOuter * 0.86f) / 1.5f) *
+                                Mathf.Clamp01((toothOuter - d) / 1.5f);
+
+                    pixels[y * IconSize + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(ring + tooth));
                 }
             }
 

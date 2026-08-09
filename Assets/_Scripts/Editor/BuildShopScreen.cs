@@ -646,11 +646,15 @@ namespace InkFlow.Editor
             var buyButton = buyGo.AddComponent<Button>();
             buyButton.targetGraphic = buyFill;
 
+            var beaker = tubeGo.AddComponent<BeakerGauge>();
+            Wire(beaker,
+                ("design", design), ("background", beakerBackground), ("stroke", beakerStroke),
+                ("fill", beakerFill), ("fillImage", beakerFillImage));
+
             var card = go.AddComponent<PaintCard>();
             Wire(card,
                 ("design", design), ("cardStroke", cardStroke), ("specialGlow", specialGlow),
-                ("beakerBackground", beakerBackground), ("beakerStroke", beakerStroke),
-                ("beakerFill", beakerFill), ("beakerFillImage", beakerFillImage),
+                ("beaker", beaker),
                 ("drop", drop), ("nameLabel", nameLabel), ("ownedLabel", ownedLabel),
                 ("priceLabel", priceLabel), ("priceUnitLabel", priceUnit),
                 ("buyButton", buyButton), ("buyFill", buyFill), ("buyStroke", buyStroke),
