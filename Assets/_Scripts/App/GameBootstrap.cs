@@ -20,11 +20,19 @@ namespace InkFlow.App
         [Header("Сцена")]
         [SerializeField] private LevelCatalog levelCatalog;
         [SerializeField] private LevelScreen levelScreen;
+        [SerializeField] private EndlessScreen endlessScreen;
         [SerializeField] private BoardFeedback boardFeedback;
 
         [Header("Старт")]
         [Tooltip("Рівень, що вантажиться при запуску сцени партії.")]
         [SerializeField, Min(1)] private int startLevelId = 1;
+
+        [Tooltip("Замість рівня відкрити «Нескінченний».")]
+        [SerializeField] private bool startEndless;
+
+        [SerializeField] private int endlessWidth = 6;
+        [SerializeField] private int endlessHeight = 6;
+        [SerializeField, Range(2, 6)] private int endlessColors = 4;
 
         private ISaveStorage _storage;
         private SaveFile _save;
@@ -44,7 +52,13 @@ namespace InkFlow.App
             boardFeedback?.SetHaptics(ServiceLocator.Get<IHapticService>());
         }
 
-        private void Start() => levelCatalog.Load(startLevelId, StartPuzzle, Debug.LogError);
+        private void Start()
+        {
+            if (startEndless)
+                StartEndless();
+            else
+                levelCatalog.Load(startLevelId, StartPuzzle, Debug.LogError);
+        }
 
         /// <summary>
         /// Поки що всі сервіси — Null/Log-реалізації: гра повністю грабельна без жодного SDK.
@@ -83,6 +97,25 @@ namespace InkFlow.App
             levelScreen.OnEnter(new LevelArgs(level.LevelId, level, balanceConfig.ToBalanceData()));
 
         /// <summary>
+        /// Нескінченний. Економіку віддаємо ЯВНО: екран не має доступу до
+        /// ServiceLocator (той живе в App), і саме тому не може ані взяти
+        /// дефолтний баланс, ані порахувати нагороду за власними числами.
+        /// </summary>
+        private void StartEndless()
+        {
+            if (endlessScreen == null)
+            {
+                Debug.LogError("[InkFlow] startEndless увімкнено, але EndlessScreen не підв'язаний.");
+                return;
+            }
+
+            endlessScreen.BindEconomy(_wallet, _rewards, _save.Progress);
+            endlessScreen.OnEnter(new EndlessArgs(
+                balanceConfig.ToBalanceData(),
+                new EndlessData(endlessWidth, endlessHeight, endlessColors)));
+        }
+
+        /// <summary>
         /// На мобільних це ЄДИНИЙ надійний момент зберегтися: OnApplicationQuit
         /// часто не викликається взагалі (§10, §12).
         /// </summary>
@@ -97,6 +130,8 @@ namespace InkFlow.App
             if (_storage == null || _save == null)
                 return;
 
+            // Рекорд Нескінченного пише сам екран у _save.Progress — тут лише
+            // фіксуємо гаманець і денний ліміт, решта вже в об'єкті збереження.
             _save.Wallet.OilDrops = _wallet.OilDrops;
             _save.Wallet.PlaysToday = _dailyLimit.PlaysToday;
             _save.Wallet.DayUtc = _dailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 11
+  tokenVersion: 13
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -293,6 +293,50 @@ MonoBehaviour:
     land: {r: 1, g: 0.8392157, b: 0.9411765, a: 1}
     atmosphere: {r: 1, g: 1, b: 1, a: 1}
     secondsPerTurn: 16
+  nearMissFraction: 0.8
+  dropSelectedScale: 1.12
+  boardMergeDuration: 0.22
+  boardRejectDuration: 0.32
+  boardRejectFraction: 0.28
+  boardBurstDuration: 0.24
+  boardInterBurstDelay: 0.06
+  boardShakeDuration: 0.43
+  boardShakeAmplitude: 14
+  boardShakeFromLink: 3
+  fontSizeStatLabel: 27
+  fontSizeMovesNumber: 73
+  fontSizeGoal: 40
+  fontSizeGameTitle: 32
+  statCapsuleFill: {r: 1, g: 1, b: 1, a: 0.06}
+  statCapsuleStroke: {r: 1, g: 1, b: 1, a: 0.11}
+  movesWarnFrom: 3
+  movesWarnText: {r: 1, g: 0.5019608, b: 0.58431375, a: 1}
+  movesWarnStroke: {r: 1, g: 0.47, b: 0.57, a: 0.7}
+  movesCalmGlow: {r: 0, g: 0.851, b: 0.753, a: 0.15}
+  movesWarnGlow: {r: 1, g: 0.275, b: 0.392, a: 0.35}
+  movesWarnPulseDuration: 1.5
+  fontSizeLevelNode: 53
+  fontSizeLevelNodeCurrent: 66
+  bossNodeFrom: {r: 0.23137255, g: 0.13333334, b: 0.34509805, a: 1}
+  bossNodeTo: {r: 0.03137255, g: 0.011764706, b: 0.07058824, a: 1}
+  bossCaption: {r: 0.7882353, g: 0.63529414, b: 1, a: 1}
+  lockedNodeFrom: {r: 1, g: 1, b: 1, a: 0.1}
+  lockedNodeTo: {r: 1, g: 1, b: 1, a: 0.02}
+  lockedNodeStroke: {r: 1, g: 1, b: 1, a: 0.09}
+  levelNodeGlowAlpha: 0.5
+  levelCaptionOffset: 14
+  starPipEmpty: {r: 1, g: 1, b: 1, a: 0.2}
+  trailPassed: {r: 0.616, g: 0.302, b: 1, a: 0.5}
+  trailLocked: {r: 1, g: 1, b: 1, a: 0.13}
+  trailInk: {r: 0.149, g: 0.047, b: 0.251, a: 0.55}
+  trailInkDeep: {r: 0.055, g: 0.016, b: 0.094, a: 0.97}
+  trailBonus: {r: 1, g: 0.835, b: 0.29, a: 0.4}
+  trailBonusWidth: 17
+  levelMapFocus: 0.56
+  levelShakeDuration: 0.32
+  levelShakeAmplitude: 14
+  bossSheetFrom: {r: 0.114, g: 0.055, b: 0.176, a: 0.96}
+  bossSheetTo: {r: 0.055, g: 0.024, b: 0.094, a: 0.96}
   fontSizeProfileNick: 83
   fontSizeProfileStat: 75
   rankNodeAchieved: {r: 1, g: 1, b: 1, a: 0.08}

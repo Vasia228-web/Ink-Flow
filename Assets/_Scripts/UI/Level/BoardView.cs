@@ -27,6 +27,22 @@ namespace InkFlow.UI
         [SerializeField] private BoardFeedback? feedback;
         private readonly Dictionary<GridPos, DropView> _drops = new Dictionary<GridPos, DropView>(64);
         private readonly List<GridPos> _stale = new List<GridPos>(64);
+        private readonly List<Falling> _falling = new List<Falling>(64);
+
+        /// <summary>Крапля в польоті: цільова точка й номер хвилі (стовпця).</summary>
+        private readonly struct Falling
+        {
+            public Falling(RectTransform rect, Vector3 from, int wave)
+            {
+                Rect = rect;
+                From = from;
+                Wave = wave;
+            }
+
+            public RectTransform Rect { get; }
+            public Vector3 From { get; }
+            public int Wave { get; }
+        }
 
         private GameSession? _session;
         private BoardGeometry _geometry;
@@ -41,6 +57,12 @@ namespace InkFlow.UI
 
         /// <summary>Гравець просить хід. Валідність вирішує Core.</summary>
         public InputRouter Router { get; } = new InputRouter();
+
+        /// <summary>
+        /// Ланка ланцюга щойно програлась; аргумент — її номер від одиниці.
+        /// Дошка не малює множник сама: він спливає по центру ЕКРАНА, а не поля.
+        /// </summary>
+        public System.Action<int>? ChainAdvanced;
 
         public GridModel? Grid => _session?.Grid;
 
@@ -175,8 +197,24 @@ namespace InkFlow.UI
                 yield break;
             }
 
-            foreach (var e in result.Events)
+            for (var i = 0; i < result.Events.Count; i++)
             {
+                var e = result.Events[i];
+
+                // Долив іде пачкою: краплі падають по стовпцях, а не по одній
+                // на кадр. Збираємо весь хвіст Refill і програємо разом.
+                if (e.Type == GameEventType.Refill)
+                {
+                    var last = i;
+                    while (last + 1 < result.Events.Count &&
+                           result.Events[last + 1].Type == GameEventType.Refill)
+                        last++;
+
+                    yield return PlayRefill(result, i, last);
+                    i = last;
+                    continue;
+                }
+
                 switch (e.Type)
                 {
                     case GameEventType.Merge:
@@ -199,7 +237,6 @@ namespace InkFlow.UI
 
                     case GameEventType.Thaw:
                     case GameEventType.BlotCleared:
-                    case GameEventType.Refill:
                         ShowAt(e.Position);
                         break;
                 }
@@ -283,9 +320,78 @@ namespace InkFlow.UI
             }
 
             Shake(e.ChainIndex + 1);
+            ChainAdvanced?.Invoke(e.ChainIndex + 1);
 
             if (design.BoardInterBurstDelay > 0f)
                 yield return new WaitForSeconds(design.BoardInterBurstDelay);
+        }
+
+        /// <summary>
+        /// Долив: краплі падають зверху. Стовпці стартують із затримкою один
+        /// за одним, тож видно, звідки сиплеться, а не «все з'явилось разом».
+        /// </summary>
+        private IEnumerator PlayRefill(MoveResult result, int first, int last)
+        {
+            var duration = design.RefillFallDuration;
+            var fall = design.RefillFallDistance * Scale;
+
+            // Чистимо на вході, а не лише на виході: рестарт може обірвати
+            // корутину посеред польоту, і хвіст лишився б у списку.
+            _falling.Clear();
+
+            var column = int.MinValue;
+            var wave = -1;
+
+            for (var i = first; i <= last; i++)
+            {
+                var e = result.Events[i];
+                var view = ShowAt(e.Position);
+                if (view == null)
+                    continue;
+
+                if (e.Position.X != column)
+                {
+                    column = e.Position.X;
+                    wave++;
+                }
+
+                var rect = (RectTransform)view.transform;
+                // Стартова точка — над полем; сам твін нижче рухає localPosition,
+                // тому й тут пишемо в нього, а не в anchoredPosition.
+                rect.localPosition += new Vector3(0f, fall, 0f);
+                _falling.Add(new Falling(rect, rect.localPosition, wave));
+            }
+
+            if (_falling.Count == 0)
+                yield break;
+
+            if (duration <= 0f)
+            {
+                foreach (var item in _falling)
+                    item.Rect.localPosition = item.From - new Vector3(0f, fall, 0f);
+                _falling.Clear();
+                yield break;
+            }
+
+            var stagger = design.RefillColumnDelay;
+            var total = duration + stagger * (wave + 1);
+
+            for (var t = 0f; t < total; t += Time.deltaTime)
+            {
+                foreach (var item in _falling)
+                {
+                    var local = (t - stagger * item.Wave) / duration;
+                    if (local < 0f)
+                        continue;
+                    var k = design.CurveLand.Evaluate(Mathf.Clamp01(local));
+                    item.Rect.localPosition = item.From - new Vector3(0f, fall * k, 0f);
+                }
+                yield return null;
+            }
+
+            foreach (var entry in _falling)
+                entry.Rect.localPosition = entry.From - new Vector3(0f, fall, 0f);
+            _falling.Clear();
         }
 
         private void PlayAppear(GameEvent e)

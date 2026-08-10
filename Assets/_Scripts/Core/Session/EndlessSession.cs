@@ -16,6 +16,7 @@ namespace InkFlow.Core
     {
         private readonly EndlessData _config;
         private readonly List<GridPos> _freshDrops = new List<GridPos>(64);
+        private readonly DropQueue _queue = new DropQueue();
 
         public EndlessSession(EndlessData config, BalanceData balance, IRandomSource random)
             : base(new GridModel(
@@ -31,6 +32,18 @@ namespace InkFlow.Core
 
         /// <summary>Ходи в Endless не обмежені — партія живе, поки є хід.</summary>
         protected override bool ConsumesMoves => false;
+
+        /// <summary>
+        /// Черга наступних крапель. Долив бере краплі саме звідси, тож показане
+        /// гравцеві прев'ю — це не ілюстрація, а те, що справді впаде.
+        /// </summary>
+        public DropQueue Queue => _queue;
+
+        /// <summary>Скільки вибухів зроблено в межах поточного рівня припливу (0..TideStep−1).</summary>
+        public int TideProgress => TotalBursts % Balance.TideStep;
+
+        /// <summary>Прогрес до наступного підвищення припливу, 0..1 — для шкали під бейджем.</summary>
+        public float TideFraction => (float)TideProgress / Balance.TideStep;
 
         /// <summary>Приплив: +1 до мінімальної густоти нових крапель кожні TideStep вибухів (§5.9).</summary>
         public int TideLevel => TotalBursts / Balance.TideStep;
@@ -63,26 +76,47 @@ namespace InkFlow.Core
             }
         }
 
-        /// <summary>Нові краплі падають зверху у вільні клітинки. Заповнює список «свіжих».</summary>
+        /// <summary>
+        /// Нові краплі падають зверху у вільні клітинки. Заповнює список «свіжих».
+        ///
+        /// Обхід іде ПО СТОВПЦЯХ згори вниз — у тому ж порядку, в якому екран
+        /// показує падіння. Порядок подій тут і порядок анімації мусять збігатись,
+        /// інакше крапля «падала» б у клітинку, яку долили раніше.
+        /// </summary>
         private void Refill(MoveResult? result)
         {
             _freshDrops.Clear();
-            for (var y = Grid.Height - 1; y >= 0; y--)
+            for (var x = 0; x < Grid.Width; x++)
             {
-                for (var x = 0; x < Grid.Width; x++)
+                for (var y = Grid.Height - 1; y >= 0; y--)
                 {
                     var pos = new GridPos(x, y);
                     var existing = Grid[pos];
                     if (!existing.IsFree)
                         continue;
 
-                    var cell = new Cell(RandomColor(), RandomDensity(), existing.Flags);
+                    var next = TakeFromQueue();
+                    var cell = new Cell(next.Color, next.Density, existing.Flags);
                     Grid[pos] = cell;
                     _freshDrops.Add(pos);
                     result?.Add(GameEvent.Refill(pos, cell.Color, cell.Density));
                 }
             }
         }
+
+        /// <summary>
+        /// Знімає найближчу краплю з черги й одразу дозаповнює хвіст.
+        /// Нова крапля генерується з ПОТОЧНИМ припливом: якщо він щойно виріс,
+        /// жирніші краплі стануть видні в кінці черги, а не підміняться в її голові.
+        /// </summary>
+        private QueuedDrop TakeFromQueue()
+        {
+            var drop = _queue.Dequeue();
+            _queue.Enqueue(NextDrop());
+            return drop;
+        }
+
+        private QueuedDrop NextDrop() => new QueuedDrop(RandomColor(), RandomDensity());
 
         /// <summary>
         /// Гарантія: краплі, які долила ГРА, не мають права залишити гравця без ходу.
@@ -159,6 +193,10 @@ namespace InkFlow.Core
 
         private void StartFreshBoard()
         {
+            _queue.Clear();
+            while (_queue.Count < DropQueue.PreviewCount)
+                _queue.Enqueue(NextDrop());
+
             foreach (var pos in Grid.AllPositions())
                 Grid[pos] = Cell.Empty;
             Refill(null);

@@ -629,6 +629,71 @@ namespace InkFlow.Style
         [Tooltip("Період пульсу капсули ходів у попереджувальному стані.")]
         [SerializeField, Min(0.1f)] private float movesWarnPulseDuration = 1.5f;
 
+        [Header("Нескінченний")]
+        [Tooltip("Числа рахунку й рекорду: 27 px макета.")]
+        [SerializeField] private float fontSizeScoreNumber = 75f;
+
+        [Tooltip("Черга: голова більша за хвіст — 17 проти 13.")]
+        [SerializeField] private float fontSizeQueueHead = 47f;
+        [SerializeField] private float fontSizeQueueTail = 36f;
+        [SerializeField] private float queueHeadSize = 116f;
+        [SerializeField] private float queueTailSize = 89f;
+        [SerializeField] private Color queueHeadRing = new Color(1f, 1f, 1f, 0.28f);
+
+        [Tooltip("Капсули світяться різним: рахунок — бірюзою, рекорд — золотом.")]
+        [SerializeField] private Color scoreCapsuleGlow = new Color(0f, 0.851f, 0.753f, 0.18f);
+        [SerializeField] private Color recordCapsuleGlow = new Color(1f, 0.702f, 0f, 0.18f);
+
+        [Tooltip("Спалах у момент, коли рахунок перегнав рекорд — не після смерті.")]
+        [SerializeField, Min(0.1f)] private float recordFlashDuration = 0.9f;
+
+        [SerializeField] private float fontSizeTideBadge = 35f;
+        [SerializeField] private Color tideText = Hex("#8FF0E4");
+        [SerializeField] private Color tideBadgeIdle = new Color(1f, 1f, 1f, 0.05f);
+        [SerializeField] private Color tideBadgeActiveFrom = new Color(0f, 0.851f, 0.753f, 0.24f);
+        [SerializeField] private Color tideBadgeActiveTo = new Color(0.231f, 0.482f, 1f, 0.22f);
+        [SerializeField] private Color tideBarTrack = new Color(1f, 1f, 1f, 0.14f);
+        [SerializeField, Min(0.1f)] private float tideFlashDuration = 1f;
+
+        [Tooltip("Множник ланцюга спливає по центру екрана: 60 px макета.")]
+        [SerializeField] private float fontSizeComboPop = 166f;
+        [SerializeField, Min(0.1f)] private float comboPopDuration = 1.1f;
+        [SerializeField] private float comboPopRise = 120f;
+
+        [Tooltip("Скільки порожніх клітинок лишилось, щоб попередити про переповнення.")]
+        [SerializeField, Min(1)] private int overflowWarnFrom = 3;
+        [SerializeField] private Color overflowWarn = new Color(1f, 0.235f, 0.353f, 0.5f);
+        [SerializeField, Min(0.2f)] private float overflowPulseDuration = 2.1f;
+
+        [Tooltip("Скільки секунд без ходу — і підказка сама підсвітить пару.")]
+        [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
+
+        [Header("Кінець партії (Нескінченний)")]
+        [SerializeField] private float fontSizeOverScore = 155f;
+        [SerializeField] private float fontSizeOverLabel = 30f;
+        [SerializeField] private float fontSizeRecordChip = 36f;
+        [SerializeField] private float fontSizeRewardNumber = 47f;
+        [SerializeField] private float fontSizeOverBest = 37f;
+        [SerializeField] private float fontSizeOverPrimary = 53f;
+        [SerializeField] private float fontSizeOverSecondary = 39f;
+        [SerializeField] private Color overCardFrom = new Color(0.180f, 0.102f, 0.290f, 0.96f);
+        [SerializeField] private Color overCardTo = new Color(0.094f, 0.051f, 0.165f, 0.96f);
+        [SerializeField] private Color overScrim = new Color(0.047f, 0.020f, 0.094f, 0.78f);
+        [SerializeField] private Color recordChipFrom = Hex("#FFD54A");
+        [SerializeField] private Color recordChipTo = Hex("#FFB300");
+        [SerializeField] private Color recordChipText = Hex("#2A1A02");
+
+        [Tooltip("Нагорода набігає цифрами, а не з'являється готовою.")]
+        [SerializeField, Min(0.1f)] private float rewardCountDuration = 0.9f;
+
+        [Tooltip("Скільки летить конфеті за новий рекорд.")]
+        [SerializeField, Min(0.2f)] private float confettiFallDuration = 2.2f;
+
+        [Tooltip("Долив: краплі падають зверху по стовпцях.")]
+        [SerializeField, Min(0f)] private float refillFallDuration = 0.16f;
+        [SerializeField, Min(0f)] private float refillColumnDelay = 0.03f;
+        [SerializeField] private float refillFallDistance = 220f;
+
         [Header("Карта рівнів")]
         [Tooltip("Номер на вузлі: 19 px макета, на поточному — 24.")]
         [SerializeField] private float fontSizeLevelNode = 53f;
@@ -860,6 +925,47 @@ namespace InkFlow.Style
         public Color MovesCalmGlow => movesCalmGlow;
         public Color MovesWarnGlow => movesWarnGlow;
         public float MovesWarnPulseDuration => movesWarnPulseDuration;
+        public float FontSizeScoreNumber => fontSizeScoreNumber;
+        public float FontSizeQueueHead => fontSizeQueueHead;
+        public float FontSizeQueueTail => fontSizeQueueTail;
+        public float QueueHeadSize => queueHeadSize;
+        public float QueueTailSize => queueTailSize;
+        public Color QueueHeadRing => queueHeadRing;
+        public Color ScoreCapsuleGlow => scoreCapsuleGlow;
+        public Color RecordCapsuleGlow => recordCapsuleGlow;
+        public float RecordFlashDuration => recordFlashDuration;
+        public float FontSizeTideBadge => fontSizeTideBadge;
+        public Color TideText => tideText;
+        public Color TideBadgeIdle => tideBadgeIdle;
+        public Color TideBadgeActiveFrom => tideBadgeActiveFrom;
+        public Color TideBadgeActiveTo => tideBadgeActiveTo;
+        public Color TideBarTrack => tideBarTrack;
+        public float TideFlashDuration => tideFlashDuration;
+        public float FontSizeComboPop => fontSizeComboPop;
+        public float ComboPopDuration => comboPopDuration;
+        public float ComboPopRise => comboPopRise;
+        public int OverflowWarnFrom => overflowWarnFrom;
+        public Color OverflowWarn => overflowWarn;
+        public float OverflowPulseDuration => overflowPulseDuration;
+        public float HintIdleDelay => hintIdleDelay;
+        public float FontSizeOverScore => fontSizeOverScore;
+        public float FontSizeOverLabel => fontSizeOverLabel;
+        public float FontSizeRecordChip => fontSizeRecordChip;
+        public float FontSizeRewardNumber => fontSizeRewardNumber;
+        public float FontSizeOverBest => fontSizeOverBest;
+        public float FontSizeOverPrimary => fontSizeOverPrimary;
+        public float FontSizeOverSecondary => fontSizeOverSecondary;
+        public Color OverCardFrom => overCardFrom;
+        public Color OverCardTo => overCardTo;
+        public Color OverScrim => overScrim;
+        public Color RecordChipFrom => recordChipFrom;
+        public Color RecordChipTo => recordChipTo;
+        public Color RecordChipText => recordChipText;
+        public float RewardCountDuration => rewardCountDuration;
+        public float ConfettiFallDuration => confettiFallDuration;
+        public float RefillFallDuration => refillFallDuration;
+        public float RefillColumnDelay => refillColumnDelay;
+        public float RefillFallDistance => refillFallDistance;
         public float FontSizeLevelNode => fontSizeLevelNode;
         public float FontSizeLevelNodeCurrent => fontSizeLevelNodeCurrent;
         public Color BossNodeFrom => bossNodeFrom;
