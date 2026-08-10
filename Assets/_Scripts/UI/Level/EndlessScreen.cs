@@ -121,9 +121,6 @@ namespace InkFlow.UI
         /// <summary>Назад у хаб.</summary>
         public System.Action? BackRequested;
 
-        /// <summary>Партія скінчилась: підсумковий рахунок і нарахована нафта.</summary>
-        public System.Action<int, long>? RunFinished;
-
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
@@ -585,7 +582,6 @@ namespace InkFlow.UI
             if (_record.Commit() && isActiveAndEnabled)
                 _confetti = StartCoroutine(ConfettiRoutine());
 
-            RunFinished?.Invoke(score, reward);
         }
 
         /// <summary>

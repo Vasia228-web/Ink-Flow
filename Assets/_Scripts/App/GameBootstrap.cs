@@ -11,6 +11,11 @@ namespace InkFlow.App
     /// Композиційний корінь (§8). ЄДИНЕ місце, де створюються сервіси й вирішується,
     /// яка реалізація Platform використовується — решта коду знає лише інтерфейси (§2 правило 4).
     /// Свідомо без DI-контейнера: він додав би час старту й магію в стектрейсах (§1).
+    ///
+    /// Живе в `Main.unity` — ТОЧЦІ ВХОДУ застосунку (єдина сцена в Build Settings).
+    /// Сам нічого не відкриває: підставляє числа й сервіси в <see cref="AppRouter"/>,
+    /// а той уже ставить хаб коренем навігації. Пряме відкриття екрана лишилось
+    /// тільки для налагодження — `debugStartLevel` / `debugStartEndless`.
     /// </summary>
     public sealed class GameBootstrap : MonoBehaviour
     {
@@ -19,16 +24,17 @@ namespace InkFlow.App
 
         [Header("Сцена")]
         [SerializeField] private LevelCatalog levelCatalog;
+        [SerializeField] private AppRouter router;
         [SerializeField] private LevelScreen levelScreen;
         [SerializeField] private EndlessScreen endlessScreen;
         [SerializeField] private BoardFeedback boardFeedback;
 
-        [Header("Старт")]
-        [Tooltip("Рівень, що вантажиться при запуску сцени партії.")]
-        [SerializeField, Min(1)] private int startLevelId = 1;
+        [Header("Налагодження")]
+        [Tooltip("Відкрити одразу рівень замість хаба. 0 — звичайний запуск.")]
+        [SerializeField, Min(0)] private int debugStartLevel;
 
-        [Tooltip("Замість рівня відкрити «Нескінченний».")]
-        [SerializeField] private bool startEndless;
+        [Tooltip("Відкрити одразу «Нескінченний» замість хаба.")]
+        [SerializeField] private bool debugStartEndless;
 
         [SerializeField] private int endlessWidth = 6;
         [SerializeField] private int endlessHeight = 6;
@@ -50,14 +56,28 @@ namespace InkFlow.App
             LoadSave();
 
             boardFeedback?.SetHaptics(ServiceLocator.Get<IHapticService>());
+
+            // Роутер живе в UI і про BalanceConfig.asset нічого не знає —
+            // числа й гаманець йому підставляємо звідси, ще до Start.
+            if (router != null)
+                router.Configure(balanceConfig.ToBalanceData(), _wallet, _save.Progress);
+
+            // Нескінченний бере рекорд і нагороди з того самого збереження.
+            if (endlessScreen != null)
+                endlessScreen.BindEconomy(_wallet, _rewards, _save.Progress);
         }
 
+        /// <summary>
+        /// Звичайний запуск нічого не відкриває: корінь навігації ставить
+        /// <see cref="AppRouter"/> у своєму Start. Гілки нижче — лише для
+        /// налагодження одного екрана без проходу через хаб.
+        /// </summary>
         private void Start()
         {
-            if (startEndless)
+            if (debugStartEndless)
                 StartEndless();
-            else
-                levelCatalog.Load(startLevelId, StartPuzzle, Debug.LogError);
+            else if (debugStartLevel > 0)
+                levelCatalog.Load(debugStartLevel, StartPuzzle, Debug.LogError);
         }
 
         /// <summary>
@@ -105,11 +125,10 @@ namespace InkFlow.App
         {
             if (endlessScreen == null)
             {
-                Debug.LogError("[InkFlow] startEndless увімкнено, але EndlessScreen не підв'язаний.");
+                Debug.LogError("[InkFlow] debugStartEndless увімкнено, але EndlessScreen не підв'язаний.");
                 return;
             }
 
-            endlessScreen.BindEconomy(_wallet, _rewards, _save.Progress);
             endlessScreen.OnEnter(new EndlessArgs(
                 balanceConfig.ToBalanceData(),
                 new EndlessData(endlessWidth, endlessHeight, endlessColors)));

@@ -192,6 +192,9 @@ namespace InkFlow.Editor
             uiRoot.ApplyScaler();
             screen.Apply();
 
+            // Префаб — те, з чого BuildMainScene збирає застосунок.
+            SaveScreenPrefab(screenGo);
+
             InkFlowBootstrap.EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
             Debug.Log($"[InkFlow] Рейтинги зібрано: {ScenePath} (коефіцієнт {K:0.000}).");

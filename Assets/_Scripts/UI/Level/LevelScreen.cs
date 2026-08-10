@@ -85,6 +85,13 @@ namespace InkFlow.UI
         /// <summary>Рівень пройдено: номер і зірки.</summary>
         public System.Action<int, int>? LevelCleared;
 
+        /// <summary>
+        /// «Далі» на картці перемоги. Окремо від <see cref="BackRequested"/>, бо
+        /// веде не назад, а на наступний рівень — і ЗАМІНОЮ, а не пушем: інакше
+        /// стек ріс би з кожним пройденим рівнем.
+        /// </summary>
+        public System.Action<int>? NextLevelRequested;
+
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
@@ -368,10 +375,13 @@ namespace InkFlow.UI
 
         private void OnPrimary()
         {
-            if (_session?.State == GameState.Won)
-                BackRequested?.Invoke();
-            else
+            if (_session?.State != GameState.Won)
+            {
                 Restart();
+                return;
+            }
+
+            NextLevelRequested?.Invoke((_level?.LevelId ?? 1) + 1);
         }
 
         private void HideOutcome()

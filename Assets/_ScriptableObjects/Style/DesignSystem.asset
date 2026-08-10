@@ -315,6 +315,47 @@ MonoBehaviour:
   movesCalmGlow: {r: 0, g: 0.851, b: 0.753, a: 0.15}
   movesWarnGlow: {r: 1, g: 0.275, b: 0.392, a: 0.35}
   movesWarnPulseDuration: 1.5
+  fontSizeScoreNumber: 75
+  fontSizeQueueHead: 47
+  fontSizeQueueTail: 36
+  queueHeadSize: 116
+  queueTailSize: 89
+  queueHeadRing: {r: 1, g: 1, b: 1, a: 0.28}
+  scoreCapsuleGlow: {r: 0, g: 0.851, b: 0.753, a: 0.18}
+  recordCapsuleGlow: {r: 1, g: 0.702, b: 0, a: 0.18}
+  recordFlashDuration: 0.9
+  fontSizeTideBadge: 35
+  tideText: {r: 0.56078434, g: 0.9411765, b: 0.89411765, a: 1}
+  tideBadgeIdle: {r: 1, g: 1, b: 1, a: 0.05}
+  tideBadgeActiveFrom: {r: 0, g: 0.851, b: 0.753, a: 0.24}
+  tideBadgeActiveTo: {r: 0.231, g: 0.482, b: 1, a: 0.22}
+  tideBarTrack: {r: 1, g: 1, b: 1, a: 0.14}
+  tideFlashDuration: 1
+  fontSizeComboPop: 166
+  comboPopDuration: 1.1
+  comboPopRise: 120
+  overflowWarnFrom: 3
+  overflowWarn: {r: 1, g: 0.235, b: 0.353, a: 0.5}
+  overflowPulseDuration: 2.1
+  hintIdleDelay: 5
+  fontSizeOverScore: 155
+  fontSizeOverLabel: 30
+  fontSizeRecordChip: 36
+  fontSizeRewardNumber: 47
+  fontSizeOverBest: 37
+  fontSizeOverPrimary: 53
+  fontSizeOverSecondary: 39
+  overCardFrom: {r: 0.18, g: 0.102, b: 0.29, a: 0.96}
+  overCardTo: {r: 0.094, g: 0.051, b: 0.165, a: 0.96}
+  overScrim: {r: 0.047, g: 0.02, b: 0.094, a: 0.78}
+  recordChipFrom: {r: 1, g: 0.8352941, b: 0.2901961, a: 1}
+  recordChipTo: {r: 1, g: 0.7019608, b: 0, a: 1}
+  recordChipText: {r: 0.16470589, g: 0.101960786, b: 0.007843138, a: 1}
+  rewardCountDuration: 0.9
+  confettiFallDuration: 2.2
+  refillFallDuration: 0.16
+  refillColumnDelay: 0.03
+  refillFallDistance: 220
   fontSizeLevelNode: 53
   fontSizeLevelNodeCurrent: 66
   bossNodeFrom: {r: 0.23137255, g: 0.13333334, b: 0.34509805, a: 1}

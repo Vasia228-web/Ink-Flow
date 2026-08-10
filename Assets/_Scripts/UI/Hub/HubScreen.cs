@@ -50,6 +50,26 @@ namespace InkFlow.UI
         private void OnValidate() => StyleRefresh.Schedule(this, Apply);
 #endif
 
+        /// <summary>Картка «Рівні».</summary>
+        public System.Action? LevelsRequested;
+
+        /// <summary>Картка «Нескінченний».</summary>
+        public System.Action? EndlessRequested;
+
+        /// <summary>Вкладка нижньої навігації: galaxy / shop / ranks / profile.</summary>
+        public System.Action<string>? TabRequested;
+
+        private void Awake()
+        {
+            // Хаб не знає, куди ведуть його картки — лише повідомляє, що їх натиснули.
+            if (levelsCard != null)
+                levelsCard.Clicked += () => LevelsRequested?.Invoke();
+            if (endlessCard != null)
+                endlessCard.Clicked += () => EndlessRequested?.Invoke();
+            if (navBar != null)
+                navBar.TabSelected += id => TabRequested?.Invoke(id);
+        }
+
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);

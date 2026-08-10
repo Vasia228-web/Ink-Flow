@@ -300,7 +300,10 @@ namespace InkFlow.UI
 
         private void OnNodeTapped(LevelNode node)
         {
-            if (node.Locked)
+            // Бос поки що недоступний за будь-яких зірок: рендеру Клякса немає,
+            // і пустити гравця туди означало б завести його в глухий кут.
+            // Прибрати цю умову — рівно там, де з'явиться бос-в'ю.
+            if (node.Locked || node.Kind == LevelNodeKind.Boss)
             {
                 // Замкнений вузол картки не відкриває — лише коротко смикається.
                 ShakeNode(node);

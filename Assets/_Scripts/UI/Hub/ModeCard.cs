@@ -135,9 +135,16 @@ namespace InkFlow.UI
             _ => (design.AccentPrimary, design.AccentSecondary)
         };
 
+        /// <summary>Картку натиснули. Куди вона веде — вирішує не вона.</summary>
+        public System.Action? Clicked;
+
         public void OnPointerDown(PointerEventData eventData) => Press(true);
 
-        public void OnPointerUp(PointerEventData eventData) => Press(false);
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            Press(false);
+            Clicked?.Invoke();
+        }
 
         /// <summary>Стискання під пальцем і пружне повернення з overshoot.</summary>
         private void Press(bool down)

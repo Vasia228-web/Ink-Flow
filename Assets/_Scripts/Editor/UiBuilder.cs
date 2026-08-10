@@ -36,6 +36,8 @@ namespace InkFlow.Editor
         internal static Sprite LoadSprite(string file) =>
             AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/{file}.png");
 
+        internal const string ScreenPrefabFolder = "Assets/_Prefabs/Screens";
+
         internal static GameObject Child(GameObject parent, string name)
         {
             var go = new GameObject(name, typeof(RectTransform));
@@ -75,6 +77,23 @@ namespace InkFlow.Editor
         internal static TMP_Text Label(RectTransform parent, string name, string text, DesignSystem design,
             TMP_FontAsset? font, float size, Color color, TextAlignmentOptions alignment) =>
             Label(parent.gameObject, name, text, design, font, size, color, alignment);
+
+        /// <summary>
+        /// Зберігає корінь екрана префабом у {ScreenPrefabFolder}.
+        ///
+        /// Заради цього префаба все й робиться: `BuildMainScene` складає з дев'яти
+        /// таких коренів один застосунок, не дублюючи жодного рядка розкладки.
+        /// Окремі сцени екранів лишаються — на них зручно правити один екран,
+        /// не тягаючи решту.
+        /// </summary>
+        internal static void SaveScreenPrefab(GameObject screenRoot)
+        {
+            InkFlowBootstrap.EnsureFolder(ScreenPrefabFolder);
+            var path = $"{ScreenPrefabFolder}/{screenRoot.name}.prefab";
+            PrefabUtility.SaveAsPrefabAsset(screenRoot, path, out var ok);
+            if (!ok)
+                Debug.LogError($"[InkFlow] Не вдалося зберегти префаб екрана: {path}");
+        }
 
         internal static void Place(Component component, Vector2 position, Vector2 size,
             Vector2 anchor, Vector2 pivot)
