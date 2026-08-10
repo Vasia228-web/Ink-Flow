@@ -161,6 +161,15 @@ namespace InkFlow.UI
                 // Розмір числа залежить від сітки, тож налаштовуємо при кожній видачі
                 // з пулу, а не один раз у префабі.
                 view.ConfigureForBoard(_geometry.Font * Scale);
+
+                // Якір — ЛІВИЙ ВЕРХНІЙ кут полотна, бо саме звідти BoardGeometry
+                // рахує центри клітинок. У префабі DropView якір центральний
+                // (він розрахований на інтерфейс), і без цього рядка все поле
+                // з'їжджало б на пів полотна вправо-вниз.
+                var fresh = (RectTransform)view.transform;
+                fresh.anchorMin = fresh.anchorMax = new Vector2(0f, 1f);
+                fresh.pivot = new Vector2(0.5f, 0.5f);
+
                 _drops[pos] = view;
             }
 

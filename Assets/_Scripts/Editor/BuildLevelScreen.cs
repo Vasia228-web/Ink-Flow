@@ -312,12 +312,16 @@ namespace InkFlow.Editor
             var go = Child(parent, "Board");
             var rect = go.GetComponent<RectTransform>();
             var side = M(BoardGeometry.Canvas);
-            // Прив'язка до верху й фіксована сторона: поле не має «пливти» від
-            // висоти екрана, інакше рівні різного розміру стояли б на різній висоті.
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -top);
-            rect.sizeDelta = new Vector2(side, side);
+
+            // У макеті поле стоїть у `flex:1; align-items:center` — центрується
+            // у вільному місці під HUD, а не притискається до нього. Стрибків
+            // між рівнями це не дає: полотно завжди 358, незалежно від сітки —
+            // за це відповідає BoardGeometry.
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = new Vector2(-side * 0.5f, 0f);
+            rect.offsetMax = new Vector2(side * 0.5f, -top);
 
             // Прозорий ловець: жест веде дошка цілком, а не кожна крапля окремо.
             var catcher = go.AddComponent<Image>();

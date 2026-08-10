@@ -278,24 +278,31 @@ namespace InkFlow.Editor
             Vector2 anchor, float width, float height, string caption, string value, Color valueColor,
             out Image fill, out Image stroke, out Image glow, out TMP_Text label, out TMP_Text number)
         {
+            // Корінь капсули має РОЗМІР капсули, а всередині все розтягується
+            // по ньому. Доти гало ставилось тим самим якорем, що й заливка, —
+            // тобто росло від краю в один бік і вилазило світлою плямою
+            // у проміжок між капсулами.
             var go = Child(parent, name);
+            var rootRect = go.GetComponent<RectTransform>();
+            rootRect.anchorMin = rootRect.anchorMax = anchor;
+            rootRect.pivot = anchor;
+            rootRect.anchoredPosition = Vector2.zero;
+            rootRect.sizeDelta = new Vector2(width, height);
 
-            // Гало ПІД капсулою — радіальний спрайт, бо світиться вся капсула,
-            // а не її контур.
             var glowGo = Child(go, "Glow");
+            Stretch(glowGo, -M(14f));
             glow = glowGo.AddComponent<Image>();
             glow.sprite = nebula;
             glow.raycastTarget = false;
-            Place(glow, Vector2.zero, new Vector2(width * 1.5f, height * 2f), anchor, anchor);
 
             var fillGo = Child(go, "Fill");
+            Stretch(fillGo);
             fill = fillGo.AddComponent<Image>();
             fill.sprite = rounded;
             fill.type = Image.Type.Sliced;
             fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
             fill.color = design.StatCapsuleFill;
             fill.raycastTarget = false;
-            Place(fill, Vector2.zero, new Vector2(width, height), anchor, anchor);
 
             var strokeGo = Child(fillGo, "Stroke");
             Stretch(strokeGo);
@@ -430,10 +437,16 @@ namespace InkFlow.Editor
             var go = Child(parent, "Board");
             var rect = go.GetComponent<RectTransform>();
             var side = M(BoardGeometry.Canvas);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -top);
-            rect.sizeDelta = new Vector2(side, side);
+
+            // У макеті поле стоїть у контейнері `flex:1; align-items:center` —
+            // тобто центрується у ВІЛЬНОМУ місці під чергою, а не притискається
+            // до неї згори. Тому розтягуємось від `top` до низу екрана й
+            // центруємо квадрат усередині.
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = new Vector2(-side * 0.5f, 0f);
+            rect.offsetMax = new Vector2(side * 0.5f, -top);
 
             var catcher = go.AddComponent<Image>();
             catcher.color = Color.clear;

@@ -215,10 +215,13 @@ namespace InkFlow.Editor
             var root = NewUIObject("DropView", new Vector2(160f, 160f));
             try
             {
-                // Розмір гало — з дизайн-системи; DropView перераховує його ще й у рантаймі,
-                // бо крапля на сітці менша за префаб.
-                var glowSize = 160f * design.DropGlowScale;
-                var glowGo = NewChild(root, "Glow", new Vector2(glowSize, glowSize));
+                // Гало РОЗТЯГНУТЕ по краплі, а множник сидить у localScale.
+                // Доти DropView.Apply() писав йому sizeDelta — і кожне таке
+                // писання посеред OnValidate давало «SendMessage cannot be called
+                // during Awake…», бо змінений розмір розсилає
+                // OnRectTransformDimensionsChange по дереву.
+                var glowGo = NewChild(root, "Glow", Vector2.zero, stretch: true);
+                glowGo.transform.localScale = Vector3.one * design.DropGlowScale;
                 var glow = glowGo.AddComponent<Image>();
                 glow.sprite = circle;
                 glow.raycastTarget = false;

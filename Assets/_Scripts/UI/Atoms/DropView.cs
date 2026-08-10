@@ -143,15 +143,12 @@ namespace InkFlow.UI
             if (glow != null)
             {
                 glow.color = design.InkGlow(ink);
-                // Розмір гало — з дизайн-системи, а не з префаба: на сітці 6×6 завелике
-                // світіння зливає сусідні краплі в одну пляму.
-                if (glow.rectTransform != null)
-                {
-                    glow.rectTransform.anchorMin = glow.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-                    glow.rectTransform.sizeDelta = ((RectTransform)transform).rect.size * design.DropGlowScale;
-                }
-
-                glow.transform.localScale = Vector3.one;
+                // Розмір гало — множником у localScale, а не sizeDelta: сам rect
+                // розтягнутий по краплі ще в префабі. Писання sizeDelta звідси
+                // розсилало OnRectTransformDimensionsChange, а Apply() приходить
+                // із OnValidate — звідти й бралися «SendMessage cannot be called
+                // during Awake, CheckConsistency, or OnValidate».
+                glow.transform.localScale = Vector3.one * design.DropGlowScale;
             }
 
             if (densityLabel != null)
@@ -198,10 +195,10 @@ namespace InkFlow.UI
             if (_nearMiss && glow != null)
             {
                 var pulse = 0.5f + 0.5f * Mathf.Sin(Time.time / design.MotionNearMissDuration * Mathf.PI * 2f);
-                // Пік пульсу обмежений NearMissGlowScale — саме з нього рахується крок сітки,
-                // тож гало ніколи не виходить за межі клітинки.
-                var peak = design.DropNearMissGlowScale / Mathf.Max(0.01f, design.DropGlowScale);
-                glow.transform.localScale = Vector3.one * Mathf.Lerp(1f, peak, pulse);
+                // Пік пульсу — рівно NearMissGlowScale: саме з нього рахується крок
+                // сітки, тож гало ніколи не виходить за межі клітинки.
+                glow.transform.localScale = Vector3.one *
+                    Mathf.Lerp(design.DropGlowScale, design.DropNearMissGlowScale, pulse);
                 // Яскравість — через CanvasRenderer: Image.color щокадру кликав би
                 // SetVerticesDirty і ламав перебудову канваса.
                 glow.canvasRenderer.SetAlpha(0.5f + 0.5f * pulse);
@@ -209,9 +206,10 @@ namespace InkFlow.UI
             }
             else if (_pulsing && glow != null)
             {
-                // Пульс щойно вимкнули — повертаємо повну яскравість один раз,
+                // Пульс щойно вимкнули — повертаємо спокійний вигляд один раз,
                 // а не щокадру.
                 glow.canvasRenderer.SetAlpha(1f);
+                glow.transform.localScale = Vector3.one * design.DropGlowScale;
             }
 
             _pulsing = _nearMiss;
