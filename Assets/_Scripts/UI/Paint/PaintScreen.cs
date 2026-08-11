@@ -108,7 +108,12 @@ namespace InkFlow.UI
             _ = args as PaintArgs; // поки планета одна — мокова «Терра Прима»
 
             _surface = PlanetSurface.CreateTerra();
-            _stock = PaintStock.CreateMock();
+            _stock = State?.Paints ?? PaintStock.CreateMock();
+
+            // Що вже залито — зі збереження. Розкладка приходить сірою, тож
+            // без цього рядка планета щоразу виглядала б новою.
+            if (State != null)
+                GalaxyState.Apply(_surface, State.Galaxy);
             _selectedZone = null;
             _hintHidden = false;
             _celebrated = false;
@@ -123,7 +128,7 @@ namespace InkFlow.UI
                 return;
 
             _surface ??= PlanetSurface.CreateTerra();
-            _stock ??= PaintStock.CreateMock();
+            _stock ??= State?.Paints ?? PaintStock.CreateMock();
 
             ApplyFont(planetTitle, design.FontSizePaintTitle, design.TextPrimary,
                 FontStyles.Bold, design.LetterSpacingPaintTitle);
@@ -341,10 +346,20 @@ namespace InkFlow.UI
                 return;
             }
 
-            if (!_stock.Spend(_selectedPaint, _selectedZone.Cost))
-                return;
-
-            _selectedZone.Painted = _selectedPaint;
+            // У грі списання, запис у галактику й збереження робить стан однією
+            // операцією: інакше «літри списались, а зона не збереглась» ставало б
+            // питанням того, який рядок виконався до збою.
+            if (State != null && _surface != null)
+            {
+                if (!State.PaintZone(_surface, _selectedZone, _selectedPaint))
+                    return;
+            }
+            else
+            {
+                if (!_stock.Spend(_selectedPaint, _selectedZone.Cost))
+                    return;
+                _selectedZone.Painted = _selectedPaint;
+            }
 
             var marker = stage?.MarkerFor(_selectedZone);
             marker?.PlayFill(new PaintKindColor(_selectedPaint, design.Paint(_selectedPaint)),

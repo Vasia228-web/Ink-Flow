@@ -128,8 +128,27 @@ namespace InkFlow.UI
             base.OnEnter(args);
             _oilTab = (args as ShopArgs)?.OilTab ?? false;
             _catalog = ShopCatalog.CreateMock();
-            _wallet = new Wallet(mockOil);
+            _wallet = State?.Wallet ?? new Wallet(mockOil);
+            SyncOwnedFromState();
             Apply();
+        }
+
+        /// <summary>
+        /// Переносить залишки палітри у картки товарів. Мензурка на картці
+        /// показує запас ТОНУ, який ця фарба поповнює: у гравця в палітрі
+        /// вісім кольорів, а товарів дев'ятнадцять.
+        /// </summary>
+        private void SyncOwnedFromState()
+        {
+            if (State == null || _catalog == null)
+                return;
+
+            for (var s = 0; s < _catalog.Sections.Count; s++)
+            {
+                var items = _catalog.Sections[s].Items;
+                for (var i = 0; i < items.Count; i++)
+                    items[i].OwnedLiters = State.Paints[items[i].Feeds];
+            }
         }
 
         public void Apply()
@@ -138,7 +157,7 @@ namespace InkFlow.UI
                 return;
 
             _catalog ??= ShopCatalog.CreateMock();
-            _wallet ??= new Wallet(mockOil);
+            _wallet ??= State?.Wallet ?? new Wallet(mockOil);
 
             ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
                 FontStyles.Bold, design.LetterSpacingShopTitle);
@@ -395,13 +414,17 @@ namespace InkFlow.UI
                 return;
 
             var liters = ShopCatalog.Quantities[_quantityIndex].Liters;
-            if (!_catalog.Buy(_buying, liters, _wallet))
+            if (!_catalog.Buy(_buying, liters, _wallet, State?.Paints))
             {
                 // Не вистачило — ведемо в «Нафту», а не мовчимо.
                 CloseSheet();
                 SetTab(true);
                 return;
             }
+
+            // Покупка — одна з точок автозбереження: закрити гру одразу після
+            // неї не має коштувати гравцю списаної нафти.
+            State?.Persist();
 
             CloseSheet();
             ApplySections();

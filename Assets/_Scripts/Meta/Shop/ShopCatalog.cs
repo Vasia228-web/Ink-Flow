@@ -28,7 +28,7 @@ namespace InkFlow.Meta
     public sealed class PaintProduct
     {
         public PaintProduct(string id, string name, PaintTier tier, PaintFinish finish,
-            Rgb primary, Rgb secondary, int pricePerLiter, float ownedLiters = 0f)
+            Rgb primary, Rgb secondary, int pricePerLiter, PaintKind feeds, float ownedLiters = 0f)
         {
             Id = id;
             Name = name;
@@ -37,6 +37,7 @@ namespace InkFlow.Meta
             Primary = primary;
             Secondary = secondary;
             PricePerLiter = pricePerLiter;
+            Feeds = feeds;
             OwnedLiters = ownedLiters;
         }
 
@@ -50,6 +51,17 @@ namespace InkFlow.Meta
         public Rgb Secondary { get; }
 
         public int PricePerLiter { get; }
+
+        /// <summary>
+        /// Яку фарбу палітри поповнює покупка.
+        ///
+        /// Товарів у магазині дев'ятнадцять, а зони фарбуються вісьмома
+        /// <see cref="PaintKind"/> — без цього зв'язку куплений літр не потрапляв
+        /// би НІКУДИ, і цикл «купую → фарбую» існував би лише на словах.
+        /// Кілька товарів свідомо ведуть в один тон: у магазині вони різні
+        /// назвою й ціною, у палітрі — той самий колір.
+        /// </summary>
+        public PaintKind Feeds { get; }
         public float OwnedLiters { get; set; }
 
         /// <summary>Спец-ефекти виділяються рамкою й підсвіткою картки.</summary>
@@ -193,7 +205,12 @@ namespace InkFlow.Meta
         /// Купує літри за нафту. Повертає false, якщо не вистачає — і не змінює
         /// нічого: ані гаманця, ані запасу.
         /// </summary>
-        public bool Buy(PaintProduct paint, int liters, Wallet wallet)
+        /// <summary>
+        /// Покупка. Якщо передано запас палітри — літри лягають і в нього:
+        /// саме так куплена фарба стає доступною для фарбування зон.
+        /// Невдала покупка не змінює НІЧОГО — ані гаманця, ані запасу.
+        /// </summary>
+        public bool Buy(PaintProduct paint, int liters, Wallet wallet, PaintStock? stock = null)
         {
             if (liters <= 0)
                 return false;
@@ -203,6 +220,7 @@ namespace InkFlow.Meta
                 return false;
 
             paint.OwnedLiters += liters;
+            stock?.Set(paint.Feeds, stock[paint.Feeds] + liters);
             Purchased?.Invoke(paint, liters);
             return true;
         }
@@ -223,42 +241,42 @@ namespace InkFlow.Meta
         {
             var basic = new List<PaintProduct>
             {
-                Solid("b_m", "Малина", PaintTier.Basic, "#FF2D8A", 12, 2.5f),
-                Solid("b_t", "Бірюза", PaintTier.Basic, "#00D9C0", 12),
-                Solid("b_a", "Бурштин", PaintTier.Basic, "#FFB300", 12, 1f),
-                Solid("b_l", "Лайм", PaintTier.Basic, "#9BE636", 12),
-                Solid("b_v", "Фіолет", PaintTier.Basic, "#9D4DFF", 12, 4f),
-                Solid("b_b", "Кобальт", PaintTier.Basic, "#3B7BFF", 12)
+                Solid("b_m", "Малина", PaintTier.Basic, "#FF2D8A", 12, PaintKind.Berry),
+                Solid("b_t", "Бірюза", PaintTier.Basic, "#00D9C0", 12, PaintKind.Teal),
+                Solid("b_a", "Бурштин", PaintTier.Basic, "#FFB300", 12, PaintKind.Sand),
+                Solid("b_l", "Лайм", PaintTier.Basic, "#9BE636", 12, PaintKind.Forest),
+                Solid("b_v", "Фіолет", PaintTier.Basic, "#9D4DFF", 12, PaintKind.Violet),
+                Solid("b_b", "Кобальт", PaintTier.Basic, "#3B7BFF", 12, PaintKind.Ocean)
             };
 
             var rich = new List<PaintProduct>
             {
-                Solid("r_w", "Вино", PaintTier.Rich, "#8E1E4D", 22),
-                Solid("r_d", "Глибінь", PaintTier.Rich, "#0A6B7A", 22, 0.5f),
-                Solid("r_p", "Слива", PaintTier.Rich, "#6A2B9E", 22),
-                Solid("r_pe", "Персик", PaintTier.Rich, "#FFB894", 20, 3f),
-                Solid("r_mi", "М'ята", PaintTier.Rich, "#8FE8C0", 20),
-                Solid("r_li", "Бузок", PaintTier.Rich, "#CBB0FF", 20)
+                Solid("r_w", "Вино", PaintTier.Rich, "#8E1E4D", 22, PaintKind.Berry),
+                Solid("r_d", "Глибінь", PaintTier.Rich, "#0A6B7A", 22, PaintKind.Ocean),
+                Solid("r_p", "Слива", PaintTier.Rich, "#6A2B9E", 22, PaintKind.Violet),
+                Solid("r_pe", "Персик", PaintTier.Rich, "#FFB894", 20, PaintKind.Sand),
+                Solid("r_mi", "М'ята", PaintTier.Rich, "#8FE8C0", 20, PaintKind.Teal),
+                Solid("r_li", "Бузок", PaintTier.Rich, "#CBB0FF", 20, PaintKind.Ice)
             };
 
-            var ocean = Gradient("g_oce", "Океан", "#00D9C0", "#3B7BFF", 48);
+            var ocean = Gradient("g_oce", "Океан", "#00D9C0", "#3B7BFF", 48, PaintKind.Ocean);
             var gradients = new List<PaintProduct>
             {
-                Gradient("g_sun", "Захід сонця", "#FF2D8A", "#FFB300", 48, 1.5f),
+                Gradient("g_sun", "Захід сонця", "#FF2D8A", "#FFB300", 48, PaintKind.Lava),
                 ocean,
-                Gradient("g_neb", "Туманність", "#9D4DFF", "#FF5BB0", 48)
+                Gradient("g_neb", "Туманність", "#9D4DFF", "#FF5BB0", 48, PaintKind.Violet)
             };
 
             var special = new List<PaintProduct>
             {
                 new PaintProduct("s_met", "Металік", PaintTier.Special, PaintFinish.Metal,
-                    Hex("#D8B25A"), Hex("#F4DD90"), 90),
+                    Hex("#D8B25A"), Hex("#F4DD90"), 90, PaintKind.Sand),
                 new PaintProduct("s_pea", "Перламутр", PaintTier.Special, PaintFinish.Pearl,
-                    Hex("#E9DCFF"), Hex("#CDB6F0"), 90),
+                    Hex("#E9DCFF"), Hex("#CDB6F0"), 90, PaintKind.Ice),
                 new PaintProduct("s_neo", "Неон", PaintTier.Special, PaintFinish.Neon,
-                    Hex("#00FFC3"), Hex("#00FFC3"), 120),
+                    Hex("#00FFC3"), Hex("#00FFC3"), 120, PaintKind.Teal),
                 new PaintProduct("s_cos", "Космос", PaintTier.Special, PaintFinish.Cosmos,
-                    Hex("#9D4DFF"), Hex("#1C1246"), 200)
+                    Hex("#9D4DFF"), Hex("#1C1246"), 200, PaintKind.Lava)
             };
 
             var sections = new List<PaintSection>
@@ -293,12 +311,12 @@ namespace InkFlow.Meta
         }
 
         private static PaintProduct Solid(string id, string name, PaintTier tier,
-            string hex, int price, float owned = 0f) =>
-            new PaintProduct(id, name, tier, PaintFinish.Solid, Hex(hex), Hex(hex), price, owned);
+            string hex, int price, PaintKind feeds, float owned = 0f) =>
+            new PaintProduct(id, name, tier, PaintFinish.Solid, Hex(hex), Hex(hex), price, feeds, owned);
 
         private static PaintProduct Gradient(string id, string name,
-            string from, string to, int price, float owned = 0f) =>
+            string from, string to, int price, PaintKind feeds, float owned = 0f) =>
             new PaintProduct(id, name, PaintTier.Gradient, PaintFinish.Gradient,
-                Hex(from), Hex(to), price, owned);
+                Hex(from), Hex(to), price, feeds, owned);
     }
 }
