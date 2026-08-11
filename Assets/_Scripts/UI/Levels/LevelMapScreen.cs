@@ -91,7 +91,7 @@ namespace InkFlow.UI
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            _map = LevelMap.CreateMock();
+            _map = BuildMap();
             Apply();
             if (isActiveAndEnabled)
                 StartCoroutine(ScrollToCurrent());
@@ -102,7 +102,7 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            _map ??= LevelMap.CreateMock();
+            _map ??= BuildMap();
 
             ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
                 FontStyles.Bold, design.LetterSpacingShopTitle);
@@ -117,6 +117,23 @@ namespace InkFlow.UI
             _lastScroll = float.MaxValue;
             Recycle(true);
             CloseSheet();
+        }
+
+        /// <summary>
+        /// Карта з реального прогресу; мокова лишається для сцени-майстерні,
+        /// де стану гравця немає. Перебудовується на КОЖНОМУ вході: гравець
+        /// щойно міг пройти рівень, і карта мусить це показати.
+        /// </summary>
+        private LevelMap BuildMap()
+        {
+            if (State == null)
+                return LevelMap.CreateMock();
+
+            State.DailyLimit.RollOverIfNeeded(System.DateTime.UtcNow);
+            return LevelMap.FromProgress(
+                State.Progress,
+                State.DailyLimit.PlaysToday,
+                State.Economy.FullRewardPlays);
         }
 
         private void ApplyDaily()

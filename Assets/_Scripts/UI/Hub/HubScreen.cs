@@ -37,6 +37,9 @@ namespace InkFlow.UI
         [SerializeField] private NavBar navBar;
 
         [Header("Мокові дані")]
+        // Мокові числа лишаються ТІЛЬКИ для сцени-майстерні Hub.unity: там
+        // стану гравця немає, а порожній екран нічого не показав би про
+        // розкладку. У грі всі вони перекриваються реальними.
         [SerializeField] private string mockName = "Нова";
         [SerializeField] private string mockTitle = "Художниця галактик";
         [SerializeField] private long mockOil = 1250;
@@ -79,6 +82,34 @@ namespace InkFlow.UI
         /// <summary>Підв'язати справжній гаманець замість мокових даних.</summary>
         public void Bind(Wallet wallet) => currency?.Bind(wallet);
 
+        public override void BindState(PlayerState state)
+        {
+            base.BindState(state);
+            Bind(state.Wallet);
+            StyleRefresh.Schedule(this, Apply);
+        }
+
+        /// <summary>
+        /// Наступний рівень для картки «Рівні»: найдалі пройдений плюс один.
+        /// Саме він відкритий, і саме його гравець побачить на карті поточним.
+        /// </summary>
+        private int LevelLine() =>
+            State != null ? LevelProgress.HighestCleared(State.Progress) + 1 : mockLevel;
+
+        private int StarsLine() =>
+            State != null ? LevelProgress.TotalStars(State.Progress) : mockStars;
+
+        private long RecordLine() =>
+            State != null ? State.Progress.EndlessRecord : mockRecord;
+
+        /// <summary>
+        /// Звання за кількістю завершених планет. Той самий поріг, що й у
+        /// драбині Профілю — тримається на одному масиві, тож розійтись
+        /// заголовок хаба й драбина не можуть.
+        /// </summary>
+        private static string CurrentRank(PlayerState state) =>
+            PlayerRanks.TitleFor(GalaxyState.CompletedPlanets(state.Galaxy, GalaxyProgress.CreateMock()));
+
         public void Apply()
         {
             if (design == null)
@@ -86,8 +117,10 @@ namespace InkFlow.UI
 
             ApplyFont(playerName, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold);
             ApplyFont(playerTitle, design.FontSizeSmall, design.TextFaint, FontStyles.Normal);
-            if (playerName != null) playerName.text = mockName;
-            if (playerTitle != null) playerTitle.text = mockTitle;
+            if (playerName != null)
+                playerName.text = State?.Nick ?? mockName;
+            if (playerTitle != null)
+                playerTitle.text = State != null ? CurrentRank(State) : mockTitle;
 
             if (logo != null)
             {
@@ -117,13 +150,16 @@ namespace InkFlow.UI
             // TMP шукає відсутні гліфи лише у fallback-ШРИФТАХ, а не у спрайт-асеті,
             // і замінює їх на порожній квадрат.
             levelsCard?.SetText("Рівні", "Розчисти сітку",
-                $"Рівень {mockLevel} · <sprite name=\"star\"> {mockStars}");
-            endlessCard?.SetText("Нескінченний", "Набирай рекорд", $"Рекорд · {mockRecord:N0}");
+                $"Рівень {LevelLine()} · <sprite name=\"star\"> {StarsLine()}");
+            endlessCard?.SetText("Нескінченний", "Набирай рекорд", $"Рекорд · {RecordLine():N0}");
             levelsCard?.Apply();
             endlessCard?.Apply();
 
             avatar?.Apply();
-            currency?.SetPreviewAmount(mockOil);
+            // У грі валюту показує підписка на гаманець (Bind), у майстерні —
+            // разове число. Друге не має затирати перше.
+            if (State == null)
+                currency?.SetPreviewAmount(mockOil);
             currency?.Apply();
             navBar?.Apply();
         }

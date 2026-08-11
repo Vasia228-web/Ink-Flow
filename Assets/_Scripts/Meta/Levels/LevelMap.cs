@@ -188,6 +188,59 @@ namespace InkFlow.Meta
         private static float Mathf_Sin(float v) => (float)System.Math.Sin(v);
         private static float Mathf_Round(float v) => (float)System.Math.Round(v);
 
+        /// <summary>
+        /// Карта з РЕАЛЬНОГО прогресу гравця.
+        ///
+        /// Відкритий рівень — наступний після найдалі пройденого: не «всі, за які
+        /// є запис», бо запис із нулем зірок означає «заходив і програв», а не
+        /// «пройшов». Поточним стає перший незакритий вузол.
+        /// </summary>
+        public static LevelMap FromProgress(ProgressData progress, int dailyDone, int dailyCap)
+        {
+            const int total = MockTotal;
+            var cleared = LevelProgress.HighestCleared(progress);
+            var current = cleared + 1;
+            if (current > total)
+                current = total;
+
+            var nodes = new List<LevelNode>(total + 3);
+            for (var n = 1; n <= total; n++)
+            {
+                var kind = IsBossLevel(n) ? LevelNodeKind.Boss : LevelNodeKind.Normal;
+                nodes.Add(new LevelNode(n, kind)
+                {
+                    Stars = LevelProgress.StarsFor(progress, n),
+                    Locked = n > current,
+                    IsCurrent = n == current,
+                    PlayableLevel = n
+                });
+            }
+
+            var stars = LevelProgress.TotalStars(progress);
+            foreach (var bonus in Bonuses)
+                nodes.Add(new LevelNode(bonus.After, LevelNodeKind.Bonus)
+                {
+                    StarsRequired = bonus.Required,
+                    BonusOffsetX = bonus.OffsetX,
+                    PlayableLevel = bonus.Level,
+                    Locked = stars < bonus.Required
+                });
+
+            return new LevelMap(nodes, total, dailyDone, dailyCap);
+        }
+
+        /// <summary>
+        /// Бонусні гілки — одні й ті самі для мокової й реальної карти.
+        /// Відкриваються СУМОЮ зірок, а не номером рівня: по них можна
+        /// повернутись пізніше, доробивши старі рівні.
+        /// </summary>
+        private static readonly (int After, int Required, int Level, float OffsetX)[] Bonuses =
+        {
+            (6, 25, 101, 132f),
+            (11, 25, 102, -128f),
+            (17, 55, 103, 130f)
+        };
+
         /// <summary>Скільки вузлів на карті — дев-панель відкриває саме стільки.</summary>
         public const int MockTotal = 24;
 
@@ -223,14 +276,7 @@ namespace InkFlow.Meta
 
             // Бонуси відкриваються сумою зірок, а не номером рівня, — тому їх
             // можна взяти й пізніше, повернувшись за зірками.
-            var bonuses = new[]
-            {
-                (After: 6, Required: 25, Level: 101, OffsetX: 132f),
-                (After: 11, Required: 25, Level: 102, OffsetX: -128f),
-                (After: 17, Required: 55, Level: 103, OffsetX: 130f)
-            };
-
-            foreach (var bonus in bonuses)
+            foreach (var bonus in Bonuses)
                 nodes.Add(new LevelNode(bonus.After, LevelNodeKind.Bonus)
                 {
                     StarsRequired = bonus.Required,
