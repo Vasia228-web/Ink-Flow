@@ -188,13 +188,16 @@ namespace InkFlow.Meta
         private static float Mathf_Sin(float v) => (float)System.Math.Sin(v);
         private static float Mathf_Round(float v) => (float)System.Math.Round(v);
 
+        /// <summary>Скільки вузлів на карті — дев-панель відкриває саме стільки.</summary>
+        public const int MockTotal = 24;
+
         /// <summary>
-        /// Мокова карта: 24 рівні, поточний — дванадцятий (як у статистиці профілю),
-        /// три бонусні гілки після 6, 11 і 17.
+        /// Мокова карта: 24 рівні, поточний — дванадцятий, три бонусні гілки.
+        /// Лишається для сцени-майстерні; у грі карта будується з прогресу.
         /// </summary>
         public static LevelMap CreateMock(int current = 12)
         {
-            const int total = 24;
+            const int total = MockTotal;
             var earned = new Dictionary<int, int>
             {
                 { 1, 3 }, { 2, 2 }, { 3, 3 }, { 4, 2 }, { 5, 3 }, { 6, 1 },

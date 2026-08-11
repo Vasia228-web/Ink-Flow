@@ -160,6 +160,13 @@ namespace InkFlow.Editor
                 ("levelScreen", screens["LevelScreen"]),
                 ("endlessScreen", screens["EndlessScreen"]));
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // Дев-панель живе поруч із бутстрапом і в релізний білд не потрапляє:
+            // весь її файл під #if.
+            var devPanel = bootstrapGo.AddComponent<DevPanel>();
+            Wire(devPanel, ("bootstrap", bootstrap));
+#endif
+
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
             eventSystem.AddComponent<InputSystemUIInputModule>();

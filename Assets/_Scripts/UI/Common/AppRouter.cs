@@ -188,6 +188,17 @@ namespace InkFlow.UI
             }
         }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>Дев-панель: після скидання збереження повертаємось у хаб із чистим стеком.</summary>
+        public void RestartFromHub()
+        {
+            if (navigation == null || hub == null)
+                return;
+            HideAll();
+            navigation.SetRoot(hub);
+        }
+#endif
+
         private void Push(ScreenBase? screen, ScreenArgs? args = null)
         {
             if (screen == null)

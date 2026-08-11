@@ -25,6 +25,13 @@ namespace InkFlow.Meta
             _backupPath = _path + ".bak";
         }
 
+        /// <summary>Шлях за замовчуванням — його показує дев-панель.</summary>
+        public static string DefaultPath =>
+            Path.Combine(Application.persistentDataPath, "save.json");
+
+        /// <summary>Повний шлях цього сховища.</summary>
+        public string Path_ => _path;
+
         public bool Exists => File.Exists(_path);
 
         public SaveFile Load()

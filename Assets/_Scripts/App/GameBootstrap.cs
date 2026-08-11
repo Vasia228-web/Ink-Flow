@@ -153,6 +153,33 @@ namespace InkFlow.App
 
         private void PersistSave() => _state?.Persist();
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>
+        /// Дев-панель: стерти файл і почати як новий гравець. Стан перебудовується
+        /// НА МІСЦІ, без перезавантаження сцени — інакше довелось би заново
+        /// проходити всю ініціалізацію сервісів, а вони вже зареєстровані.
+        /// </summary>
+        public void ResetSaveAndRestart()
+        {
+            _storage?.Delete();
+
+            var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
+            _state = PlayerState.NewPlayer(economy, _storage);
+            _state.Persist();
+
+            ServiceLocator.Register(_state);
+            ServiceLocator.Register(_state.Wallet);
+            ServiceLocator.Register(_state.DailyLimit);
+            ServiceLocator.Register(_state.Rewards);
+
+            if (router != null)
+            {
+                router.Configure(balanceConfig.ToBalanceData(), _state);
+                router.RestartFromHub();
+            }
+        }
+#endif
+
         private void OnDestroy()
         {
             PersistSave();
