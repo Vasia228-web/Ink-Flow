@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using InkFlow.Core;
 using InkFlow.Meta;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace InkFlow.App
 {
@@ -68,16 +69,16 @@ namespace InkFlow.App
 
         private void Update()
         {
-            // Довгий тап у кут. Читаємо і мишу, і дотик: у Simulator працює
-            // перше, на пристрої — друге.
-            var pressed = Input.GetMouseButton(0) || Input.touchCount > 0;
-            if (!pressed)
+            // Через Input System, а НЕ через старий UnityEngine.Input: у
+            // Player Settings стоїть Active Input Handling = Input System
+            // Package, і старий клас там кидає InvalidOperationException —
+            // щокадру, тобто сотнями за секунду.
+            if (!TryGetPress(out var point))
             {
                 _holdSince = -1f;
                 return;
             }
 
-            var point = Input.touchCount > 0 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
             var inCorner = point.x < Screen.width * cornerFraction &&
                            point.y > Screen.height * (1f - cornerFraction);
 
@@ -94,6 +95,30 @@ namespace InkFlow.App
                 _open = !_open;
                 _holdSince = -1f;
             }
+        }
+
+        /// <summary>
+        /// Чи є зараз натискання і де. Читаємо і дотик, і мишу: у Simulator
+        /// працює друге, на пристрої — перше.
+        /// </summary>
+        private static bool TryGetPress(out Vector2 point)
+        {
+            var touch = Touchscreen.current;
+            if (touch != null && touch.primaryTouch.press.isPressed)
+            {
+                point = touch.primaryTouch.position.ReadValue();
+                return true;
+            }
+
+            var mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.isPressed)
+            {
+                point = mouse.position.ReadValue();
+                return true;
+            }
+
+            point = default;
+            return false;
         }
 
         private void OnGUI()

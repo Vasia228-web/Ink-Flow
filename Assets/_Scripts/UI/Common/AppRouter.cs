@@ -75,6 +75,14 @@ namespace InkFlow.UI
                 return;
             }
 
+            // Без стану екрани мовчки показують мокові числа — найгірший вид
+            // поломки, бо виглядає правдоподібно. Кричимо.
+            if (_state == null)
+                Debug.LogError(
+                    "[InkFlow] AppRouter.Configure не викликано — екрани покажуть МОКОВІ дані " +
+                    "(нік «Нова», 1250 нафти, рівень 12). Перевір, чи підв'язаний GameBootstrap.router " +
+                    "у Main.unity, і перезбери сцену: Ink Flow → Setup → Build Main Scene.");
+
             HideAll();
             navigation.SetRoot(hub);
         }

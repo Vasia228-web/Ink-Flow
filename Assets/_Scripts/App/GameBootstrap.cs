@@ -62,6 +62,10 @@ namespace InkFlow.App
             // підставляємо звідси, ще до Start.
             if (router != null)
                 router.Configure(balanceConfig.ToBalanceData(), _state);
+            else
+                Debug.LogError(
+                    "[InkFlow] GameBootstrap.router не підв'язаний — стан гравця нікуди не потрапить, " +
+                    "і всі екрани покажуть мокові дані. Перезбери: Ink Flow → Setup → Build Main Scene.");
         }
 
         /// <summary>
