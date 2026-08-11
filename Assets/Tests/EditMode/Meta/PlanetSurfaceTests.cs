@@ -12,19 +12,52 @@ namespace InkFlow.Tests.Meta
     public sealed class PlanetSurfaceTests
     {
         [Test]
-        public void MockTerra_MatchesMockup()
+        public void Terra_HasEightZonesAndStartsUnpainted()
         {
-            var surface = PlanetSurface.CreateMockTerra();
+            var surface = PlanetSurface.CreateTerra();
 
             Assert.AreEqual(8, surface.Zones.Count, "У макеті TERRA_ZONES — вісім зон.");
-            Assert.AreEqual(5, surface.PaintedCount, "У макеті підпис «5 / 8 зон».");
+
+            // Розкладка — статичні дані планети. Що залито, вирішує збереження,
+            // тож нова планета сіра цілком; п'ять залитих зон із макета були
+            // ілюстрацією, а не станом гри.
+            Assert.AreEqual(0, surface.PaintedCount);
             Assert.IsFalse(surface.IsComplete);
+        }
+
+        [Test]
+        public void Terra_HasAZoneAffordableWithASingleLitre()
+        {
+            var surface = PlanetSurface.CreateTerra();
+
+            // Ключ до старту без гранту: перший куплений літр мусить щось фарбувати.
+            var cheapest = int.MaxValue;
+            foreach (var zone in surface.Zones)
+                if (zone.Cost < cheapest)
+                    cheapest = zone.Cost;
+
+            Assert.AreEqual(1, cheapest,
+                "на першій планеті має бути зона за один літр — інакше цикл " +
+                "«граю → купую → фарбую» рветься на першій же покупці");
+        }
+
+        [Test]
+        public void Zones_CostWithinMasterDocRange()
+        {
+            var surface = PlanetSurface.CreateTerra();
+
+            foreach (var zone in surface.Zones)
+            {
+                Assert.GreaterOrEqual(zone.Cost, PlanetZone.MinCost, zone.Name);
+                Assert.LessOrEqual(zone.Cost, PlanetZone.MaxCost,
+                    $"{zone.Name}: майстер-док §8 — маленька ~1 л, велика ~3 л");
+            }
         }
 
         [Test]
         public void Zones_HaveSaneCoordinatesAndCost()
         {
-            var surface = PlanetSurface.CreateMockTerra();
+            var surface = PlanetSurface.CreateTerra();
 
             foreach (var zone in surface.Zones)
             {
@@ -40,7 +73,7 @@ namespace InkFlow.Tests.Meta
         [Test]
         public void Surface_BecomesCompleteWhenEveryZonePainted()
         {
-            var surface = PlanetSurface.CreateMockTerra();
+            var surface = PlanetSurface.CreateTerra();
 
             foreach (var zone in surface.Zones)
                 zone.Painted = PaintKind.Ocean;
@@ -52,7 +85,7 @@ namespace InkFlow.Tests.Meta
         [Test]
         public void Find_ReturnsNullForUnknownId()
         {
-            var surface = PlanetSurface.CreateMockTerra();
+            var surface = PlanetSurface.CreateTerra();
 
             Assert.IsNotNull(surface.Find("z1"));
             Assert.IsNull(surface.Find("нема такої"));

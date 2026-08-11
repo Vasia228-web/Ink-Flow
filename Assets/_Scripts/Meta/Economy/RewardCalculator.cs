@@ -38,6 +38,15 @@ namespace InkFlow.Meta
             _endlessMilestones = endlessMilestones ?? new long[] { 5000, 10000, 25000, 50000 };
         }
 
+        /// <summary>
+        /// З конфіга економіки — саме так його створює композиційний корінь.
+        /// Конструктор із числами лишається для тестів.
+        /// </summary>
+        public RewardCalculator(EconomyData economy)
+            : this(economy.BaseLevelReward, economy.BossMultiplier, economy.EndlessMilestones)
+        {
+        }
+
         /// <summary>Нафта за рівень = база × зірки (× 3 на босі) × денний множник.</summary>
         public long ForLevel(in GameResult result, float dailyMultiplier)
         {

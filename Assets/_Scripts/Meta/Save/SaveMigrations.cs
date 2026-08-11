@@ -20,6 +20,17 @@ namespace InkFlow.Meta
                     save.Settings.ProfileHidden = false;
                     save.Version = 2;
                     return save;
+                },
+
+                // v2 → v3: з'явився нік гравця. Старим файлам ставимо типовий —
+                // порожній рядок показувався б порожнім місцем у шапці хаба.
+                [2] = save =>
+                {
+                    save.Profile ??= new ProfileData();
+                    if (save.Profile.Nick is null || save.Profile.Nick.Length == 0)
+                        save.Profile.Nick = ProfileData.DefaultNick;
+                    save.Version = 3;
+                    return save;
                 }
             };
 

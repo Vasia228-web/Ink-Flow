@@ -36,8 +36,17 @@ namespace InkFlow.Meta
         /// <summary>Радіус плями в одиницях макета (24..42).</summary>
         public float Radius { get; }
 
-        /// <summary>Скільки літрів коштує залити цю зону.</summary>
+        /// <summary>
+        /// Скільки літрів коштує залити цю зону: 1 — маленька, 3 — велика
+        /// (майстер-док §8). Раніше стояло 2/3/4, і через це новачок після
+        /// першого рівня міг купити рівно один літр, яким не фарбувалось НІЩО —
+        /// цикл «граю → купую → фарбую» рвався на самому початку.
+        /// </summary>
         public int Cost { get; }
+
+        /// <summary>Межі вартості за майстер-доком. Тримає тест.</summary>
+        public const int MinCost = 1;
+        public const int MaxCost = 3;
 
         /// <summary>Чим пофарбовано. null — зона ще сіра.</summary>
         public PaintKind? Painted { get; set; }
@@ -81,19 +90,26 @@ namespace InkFlow.Meta
             return null;
         }
 
-        /// <summary>Вісім зон «Терри Прими» рівно за макетом: п'ять залито, три сірі.</summary>
-        public static PlanetSurface CreateMockTerra()
+        /// <summary>
+        /// Вісім зон «Терри Прими»: розкладка з макета. Це СТАТИЧНІ дані планети —
+        /// що саме залито, вирішує збереження (<see cref="ApplyPainted"/>),
+        /// а не цей метод. Тому тут усі зони сірі.
+        /// </summary>
+        public static PlanetSurface CreateTerra()
         {
+            // Ціна йде за розміром плями: 24-30 → 1 л, 32-34 → 2 л, 40-42 → 3 л.
+            // «Острови Норд» — найдешевша зона першої планети: саме її новачок
+            // фарбує першим купленим літром.
             var zones = new List<PlanetZone>
             {
-                new PlanetZone("z1", "Північна шапка", 20f, 64f, 30f, 2) { Painted = PaintKind.Ice },
-                new PlanetZone("z2", "Південна шапка", 205f, -64f, 30f, 2) { Painted = PaintKind.Ice },
-                new PlanetZone("z3", "Західний океан", 58f, 6f, 42f, 4) { Painted = PaintKind.Ocean },
-                new PlanetZone("z4", "Східний океан", 228f, -8f, 42f, 4),
-                new PlanetZone("z5", "Південне море", 300f, -32f, 34f, 3) { Painted = PaintKind.Ocean },
-                new PlanetZone("z6", "Континент Аврора", 110f, 18f, 40f, 3) { Painted = PaintKind.Forest },
-                new PlanetZone("z7", "Континент Меридіан", 250f, -2f, 32f, 3),
-                new PlanetZone("z8", "Острови Норд", 168f, 40f, 24f, 2)
+                new PlanetZone("z1", "Північна шапка", 20f, 64f, 30f, 1),
+                new PlanetZone("z2", "Південна шапка", 205f, -64f, 30f, 1),
+                new PlanetZone("z3", "Західний океан", 58f, 6f, 42f, 3),
+                new PlanetZone("z4", "Східний океан", 228f, -8f, 42f, 3),
+                new PlanetZone("z5", "Південне море", 300f, -32f, 34f, 2),
+                new PlanetZone("z6", "Континент Аврора", 110f, 18f, 40f, 3),
+                new PlanetZone("z7", "Континент Меридіан", 250f, -2f, 32f, 2),
+                new PlanetZone("z8", "Острови Норд", 168f, 40f, 24f, 1)
             };
 
             return new PlanetSurface(PlanetType.Earth, "Терра Прима", zones);
@@ -131,7 +147,7 @@ namespace InkFlow.Meta
             return true;
         }
 
-        /// <summary>Стартовий запас із макета (PAINT_L0).</summary>
+        /// <summary>Запас із макета — лишається для сцен-майстерень окремих екранів.</summary>
         public static PaintStock CreateMock()
         {
             var stock = new PaintStock();

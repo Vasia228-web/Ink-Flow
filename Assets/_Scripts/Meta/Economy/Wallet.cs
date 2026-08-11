@@ -60,6 +60,12 @@ namespace InkFlow.Meta
         private readonly int _fullRewardPlays;
         private readonly float _reducedRate;
 
+        /// <summary>З конфіга економіки — так його створює композиційний корінь.</summary>
+        public DailyLimitTracker(EconomyData economy)
+            : this(economy.FullRewardPlays, economy.ReducedRewardRate)
+        {
+        }
+
         public DailyLimitTracker(int fullRewardPlays = 10, float reducedRate = 0.25f)
         {
             _fullRewardPlays = fullRewardPlays;

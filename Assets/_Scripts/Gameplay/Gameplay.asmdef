@@ -2,7 +2,8 @@
     "name": "InkFlow.Gameplay",
     "rootNamespace": "InkFlow.Gameplay",
     "references": [
-        "InkFlow.Core"
+        "InkFlow.Core",
+        "InkFlow.Meta"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

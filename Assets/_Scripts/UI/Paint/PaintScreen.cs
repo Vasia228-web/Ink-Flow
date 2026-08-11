@@ -107,7 +107,7 @@ namespace InkFlow.UI
             base.OnEnter(args);
             _ = args as PaintArgs; // поки планета одна — мокова «Терра Прима»
 
-            _surface = PlanetSurface.CreateMockTerra();
+            _surface = PlanetSurface.CreateTerra();
             _stock = PaintStock.CreateMock();
             _selectedZone = null;
             _hintHidden = false;
@@ -122,7 +122,7 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            _surface ??= PlanetSurface.CreateMockTerra();
+            _surface ??= PlanetSurface.CreateTerra();
             _stock ??= PaintStock.CreateMock();
 
             ApplyFont(planetTitle, design.FontSizePaintTitle, design.TextPrimary,

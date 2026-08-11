@@ -51,29 +51,55 @@ namespace NUnit.Framework
 
         // Порівняння величин. Шим реалізує лише те, чим справді користуються тести:
         // додавати сюди метод варто тоді, коли він знадобився, а не «про запас».
+        //
+        // Числа зводяться до спільного типу перед порівнянням: справжній NUnit
+        // порівнює int з long без питань, а CompareTo — кидає
+        // «Object must be of type Int64». Без цього тест, зелений у редакторі,
+        // падав би тільки headless.
         public static void LessOrEqual(IComparable actual, IComparable limit, string message = null)
         {
-            if (actual.CompareTo(limit) > 0)
+            if (Compare(actual, limit) > 0)
                 throw new AssertionException(message ?? $"Expected: <= {limit}, but was: {actual}");
         }
 
         public static void GreaterOrEqual(IComparable actual, IComparable limit, string message = null)
         {
-            if (actual.CompareTo(limit) < 0)
+            if (Compare(actual, limit) < 0)
                 throw new AssertionException(message ?? $"Expected: >= {limit}, but was: {actual}");
         }
 
         public static void Less(IComparable actual, IComparable limit, string message = null)
         {
-            if (actual.CompareTo(limit) >= 0)
+            if (Compare(actual, limit) >= 0)
                 throw new AssertionException(message ?? $"Expected: < {limit}, but was: {actual}");
         }
 
         public static void Greater(IComparable actual, IComparable limit, string message = null)
         {
-            if (actual.CompareTo(limit) <= 0)
+            if (Compare(actual, limit) <= 0)
                 throw new AssertionException(message ?? $"Expected: > {limit}, but was: {actual}");
         }
+
+        private static int Compare(IComparable actual, IComparable limit)
+        {
+            if (IsNumeric(actual) && IsNumeric(limit))
+            {
+                // Через decimal, а не double: він точний на цілих аж до 10^28,
+                // тож порівняння long не з'їде на великих значеннях.
+                var a = Convert.ToDecimal(actual);
+                var b = Convert.ToDecimal(limit);
+                return a.CompareTo(b);
+            }
+
+            return actual.CompareTo(limit);
+        }
+
+        private static bool IsNumeric(object value) => value switch
+        {
+            sbyte or byte or short or ushort or int or uint or long or ulong
+                or float or double or decimal => true,
+            _ => false
+        };
 
         // Порівняння ЗА ПОСИЛАННЯМ. Не те саме, що AreEqual: у магазині важливо,
         // що банер тижня показує той самий об'єкт, а не копію з тими ж полями.

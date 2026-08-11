@@ -12,14 +12,27 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         public int Version = CurrentVersion;
+        public ProfileData Profile = new ProfileData();
         public WalletData Wallet = new WalletData();
         public PaintsData Paints = new PaintsData();
         public GalaxyData Galaxy = new GalaxyData();
         public ProgressData Progress = new ProgressData();
         public SettingsData Settings = new SettingsData();
+    }
+
+    [Serializable]
+    public sealed class ProfileData
+    {
+        /// <summary>
+        /// Нік. За замовчуванням «Гравець» — окремого онбординг-екрана поки немає,
+        /// міняється в Профілі олівцем біля аватара.
+        /// </summary>
+        public string Nick = DefaultNick;
+
+        public const string DefaultNick = "Гравець";
     }
 
     [Serializable]
