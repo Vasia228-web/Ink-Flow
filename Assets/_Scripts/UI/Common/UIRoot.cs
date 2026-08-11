@@ -30,7 +30,7 @@ namespace InkFlow.UI
         private void Awake() => ApplyScaler();
 
 #if UNITY_EDITOR
-        private void OnValidate() => StyleRefresh.Schedule(this, ApplyScaler);
+        private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, ApplyScaler);
 #endif
 
         /// <summary>

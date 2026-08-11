@@ -86,7 +86,7 @@ namespace InkFlow.UI
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
-        private void OnValidate() => StyleRefresh.Schedule(this, Apply);
+        private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 #endif
 
         /// <summary>

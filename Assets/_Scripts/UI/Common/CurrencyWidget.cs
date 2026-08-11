@@ -31,7 +31,7 @@ namespace InkFlow.UI
         }
 
 #if UNITY_EDITOR
-        private void OnValidate() => StyleRefresh.Schedule(this, Apply);
+        private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 #endif
 
         public void Bind(Wallet wallet)

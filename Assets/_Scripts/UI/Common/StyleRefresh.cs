@@ -20,8 +20,10 @@ namespace InkFlow.UI
     /// </list>
     ///
     /// <c>delayCall</c> виконує ту саму роботу наступним кадром, коли цикл уже
-    /// закритий. У Play Mode нічого не відкладаємо: там обидва колбеки приходять
-    /// у нормальному порядку, а екран мусить бути правильним з першого кадру.
+    /// закритий. Для <c>OnEnable</c> у Play Mode відкладати не треба — там колбек
+    /// приходить у нормальному порядку, а екран мусить бути правильним з першого
+    /// кадру. Для <c>OnValidate</c> — треба ЗАВЖДИ, див.
+    /// <see cref="ScheduleFromValidate"/>.
     /// </summary>
     public static class StyleRefresh
     {
@@ -34,6 +36,36 @@ namespace InkFlow.UI
         /// </summary>
         public static bool Suspended { get; set; }
 #endif
+
+        /// <summary>
+        /// Вхід САМЕ з <c>OnValidate</c>. Відкладає завжди — і в Edit Mode, і в Play.
+        ///
+        /// Причина: під час входу в Play Mode <c>Application.isPlaying</c> уже true,
+        /// але Unity ще десеріалізує сцену, і <c>SendMessage</c>-колбеки заборонені.
+        /// Синхронний <c>Apply()</c> звідти пише <c>sizeDelta</c> дочірнім об'єктам,
+        /// а це розсилає <c>OnRectTransformDimensionsChange</c> — і на кожен об'єкт
+        /// прилітає «SendMessage cannot be called during Awake, CheckConsistency,
+        /// or OnValidate». На карті рівнів це давало по попередженню на кожен
+        /// вузол і відрізок сліду.
+        ///
+        /// Нічого не втрачається: правку в інспекторі видно наступним тіком
+        /// редактора, а стан екрана однаково перечитується в <c>OnEnable</c>.
+        /// </summary>
+        public static void ScheduleFromValidate(Object owner, System.Action apply)
+        {
+#if UNITY_EDITOR
+            if (Suspended)
+                return;
+
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (owner != null)
+                    apply();
+            };
+#else
+            apply();
+#endif
+        }
 
         public static void Schedule(Object owner, System.Action apply)
         {
