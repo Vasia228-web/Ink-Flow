@@ -32,6 +32,9 @@ namespace InkFlow.UI
         [SerializeField] private RankingsScreen rankings;
         [SerializeField] private ProfileScreen profile;
 
+        [Header("Діалоги")]
+        [SerializeField] private NickPrompt? nickPrompt;
+
         private BalanceData _balance = BalanceData.Default;
         private PlayerState? _state;
 
@@ -163,7 +166,29 @@ namespace InkFlow.UI
                 profile.ShopRequested += () => Push(shop, new ShopArgs(oilTab: false));
                 profile.SettingsRequested += () =>
                     Debug.Log("[InkFlow] Налаштування ще не зроблені — екрана немає.");
+                profile.NickEditRequested += OpenNickPrompt;
             }
+        }
+
+        /// <summary>
+        /// Зміна ніка. Окремого онбординг-екрана поки немає — тут простий
+        /// діалог поверх профілю; коли робитимемо перший запуск цілком,
+        /// він переїде туди.
+        /// </summary>
+        private void OpenNickPrompt()
+        {
+            if (_state == null || nickPrompt == null)
+                return;
+
+            nickPrompt.Show(_state.Nick, nick =>
+            {
+                _state.Nick = nick;
+                _state.Persist();
+
+                // Нік видно і в хабі, і в рейтингах — перечитуємо обидва.
+                hub?.Refresh();
+                profile?.Refresh();
+            });
         }
 
         private void OnHubTab(string id)

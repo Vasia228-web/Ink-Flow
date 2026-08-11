@@ -8,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
+using TMPro;
 using UnityEngine.UI;
 using static InkFlow.Editor.UiBuilder;
 
@@ -135,6 +136,10 @@ namespace InkFlow.Editor
                 screens[name] = screen;
             }
 
+            // Діалог ніка лежить ПОВЕРХ усіх екранів: він не бере участі в
+            // навігації й не має ховатись разом з екраном, з якого відкритий.
+            var prompt = BuildNickPrompt(safe, design!);
+
             var routerGo = Child(safe, "AppRouter");
             var router = routerGo.AddComponent<AppRouter>();
             Wire(router,
@@ -147,7 +152,8 @@ namespace InkFlow.Editor
                 ("paint", screens["PaintScreen"]),
                 ("shop", screens["ShopScreen"]),
                 ("rankings", screens["RankingsScreen"]),
-                ("profile", screens["ProfileScreen"]));
+                ("profile", screens["ProfileScreen"]),
+                ("nickPrompt", prompt));
 
             var bootstrapGo = new GameObject("GameBootstrap");
             var bootstrap = bootstrapGo.AddComponent<GameBootstrap>();
@@ -179,6 +185,94 @@ namespace InkFlow.Editor
 
             Debug.Log($"[InkFlow] Головну сцену зібрано: {ScenePath} — " +
                       $"{ScreenNames.Length} екранів під одним NavigationStack.");
+        }
+
+        /// <summary>
+        /// Діалог зміни ніка. Розкладка проста настільки, що окремий збирач
+        /// їй не потрібен — усе поміщається тут.
+        /// </summary>
+        private static NickPrompt BuildNickPrompt(GameObject parent, DesignSystem design)
+        {
+            const float k = 1080f / 390f;
+            var go = Child(parent, "NickPrompt");
+            Stretch(go);
+
+            var scrim = go.AddComponent<Image>();
+            scrim.color = design.OverScrim;
+
+            var panelGo = Child(go, "Panel");
+            var panel = panelGo.AddComponent<GradientImage>();
+            panel.sprite = LoadSprite("rounded-rect");
+            panel.type = Image.Type.Sliced;
+            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(28f * k));
+            panel.SetGradient(design.OverCardFrom, design.OverCardTo);
+            Place(panel, Vector2.zero, new Vector2(Mathf.Round(300f * k), Mathf.Round(190f * k)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var title = Label(panelGo, "Title", "Як тебе звати?", design, design.Font,
+                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
+            Place(title, new Vector2(0f, -Mathf.Round(26f * k)),
+                new Vector2(Mathf.Round(260f * k), Mathf.Round(30f * k)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+
+            var fieldGo = Child(panelGo, "Field");
+            var fieldBg = fieldGo.AddComponent<Image>();
+            fieldBg.sprite = LoadSprite("rounded-rect");
+            fieldBg.type = Image.Type.Sliced;
+            fieldBg.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(16f * k));
+            fieldBg.color = design.GlassFill;
+            Place(fieldBg, new Vector2(0f, -Mathf.Round(76f * k)),
+                new Vector2(Mathf.Round(252f * k), Mathf.Round(46f * k)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+
+            var textGo = Child(fieldGo, "Text");
+            Stretch(textGo, Mathf.Round(12f * k));
+            var text = textGo.AddComponent<TextMeshProUGUI>();
+            text.fontSize = design.FontSizeSubtitle;
+            text.color = design.TextPrimary;
+            text.alignment = TextAlignmentOptions.Left;
+            if (design.Font != null) text.font = design.Font;
+
+            var input = fieldGo.AddComponent<TMP_InputField>();
+            input.textViewport = (RectTransform)textGo.transform;
+            input.textComponent = text;
+            input.characterLimit = NickPrompt.MaxLength;
+
+            var okGo = Child(panelGo, "Confirm");
+            var okFill = okGo.AddComponent<GradientImage>();
+            okFill.sprite = LoadSprite("rounded-rect");
+            okFill.type = Image.Type.Sliced;
+            okFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(22f * k));
+            okFill.SetGradient(design.AccentTeal, design.AccentBlue);
+            Place(okFill, new Vector2(Mathf.Round(62f * k), Mathf.Round(20f * k)),
+                new Vector2(Mathf.Round(120f * k), Mathf.Round(46f * k)),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            var okLabel = Label(okGo, "Label", "Готово", design, design.Font,
+                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
+            Stretch(okLabel.gameObject);
+            var ok = okGo.AddComponent<Button>();
+            ok.targetGraphic = okFill;
+
+            var cancelGo = Child(panelGo, "Cancel");
+            var cancelLabel = Label(cancelGo, "Label", "Скасувати", design, design.Font,
+                design.FontSizeShopCard, design.TextMuted, TextAlignmentOptions.Center);
+            cancelLabel.raycastTarget = true;
+            Stretch(cancelLabel.gameObject);
+            Place(cancelLabel, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            var cancelRect = cancelGo.GetComponent<RectTransform>();
+            cancelRect.anchorMin = cancelRect.anchorMax = new Vector2(0.5f, 0f);
+            cancelRect.pivot = new Vector2(0.5f, 0f);
+            cancelRect.anchoredPosition = new Vector2(-Mathf.Round(70f * k), Mathf.Round(20f * k));
+            cancelRect.sizeDelta = new Vector2(Mathf.Round(110f * k), Mathf.Round(46f * k));
+            var cancel = cancelGo.AddComponent<Button>();
+            cancel.targetGraphic = cancelLabel;
+
+            var prompt = go.AddComponent<NickPrompt>();
+            Wire(prompt, ("root", go.GetComponent<RectTransform>()), ("field", input),
+                ("confirmButton", ok), ("cancelButton", cancel));
+
+            go.SetActive(false);
+            return prompt;
         }
 
         /// <summary>

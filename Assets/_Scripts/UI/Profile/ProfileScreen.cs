@@ -88,6 +88,9 @@ namespace InkFlow.UI
         /// <summary>Короткий шлях у магазин із палітри.</summary>
         public System.Action? ShopRequested;
 
+        /// <summary>Гравець хоче змінити нік — олівець біля аватара.</summary>
+        public System.Action? NickEditRequested;
+
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
@@ -102,6 +105,8 @@ namespace InkFlow.UI
                 settingsButton.onClick.AddListener(() => SettingsRequested?.Invoke());
             if (paletteShopButton != null)
                 paletteShopButton.onClick.AddListener(() => ShopRequested?.Invoke());
+            if (editAvatarButton != null)
+                editAvatarButton.onClick.AddListener(() => NickEditRequested?.Invoke());
 
             for (var i = 0; i < thumbButtons.Length; i++)
             {
@@ -120,6 +125,13 @@ namespace InkFlow.UI
         {
             base.OnEnter(args);
             _profile = State != null ? PlayerProfile.FromState(State) : PlayerProfile.CreateMock();
+            Apply();
+        }
+
+        /// <summary>Перечитати стан без повторного входу на екран.</summary>
+        public void Refresh()
+        {
+            _profile = null;
             Apply();
         }
 

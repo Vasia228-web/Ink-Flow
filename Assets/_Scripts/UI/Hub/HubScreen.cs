@@ -110,6 +110,12 @@ namespace InkFlow.UI
         private static string CurrentRank(PlayerState state) =>
             PlayerRanks.TitleFor(GalaxyState.CompletedPlanets(state.Galaxy, GalaxyProgress.CreateMock()));
 
+        /// <summary>Перечитати стан без повторного входу на екран.</summary>
+        public void Refresh()
+        {
+            Apply();
+        }
+
         public void Apply()
         {
             if (design == null)
