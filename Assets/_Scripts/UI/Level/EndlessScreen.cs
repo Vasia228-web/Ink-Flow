@@ -157,12 +157,13 @@ namespace InkFlow.UI
         /// збереження, нагорода — через той самий RewardCalculator, що й решта гри.
         /// Без цього екран рахував би нагороду за своїми числами.
         /// </summary>
-        public void BindEconomy(Wallet wallet, RewardCalculator rewards, ProgressData progress)
+        public override void BindState(PlayerState state)
         {
-            _wallet = wallet;
-            _rewards = rewards;
-            _progress = progress;
-            _record = new LiveRecord(progress.EndlessRecord);
+            base.BindState(state);
+            _wallet = state.Wallet;
+            _rewards = state.Rewards;
+            _progress = state.Progress;
+            _record = new LiveRecord(state.Progress.EndlessRecord);
         }
 
         public override void OnEnter(ScreenArgs args)
@@ -608,6 +609,11 @@ namespace InkFlow.UI
                 _wallet.Add(forRecord, RewardSource.EndlessRecord);
             if (forMilestones > 0)
                 _wallet.Add(forMilestones, RewardSource.EndlessMilestone);
+
+            // Рекорд і нафта мусять пережити закриття гри одразу, а не чекати
+            // згортання застосунку: партія в Нескінченному може бути останньою
+            // за сесію.
+            State?.Persist();
 
             return forRecord + forMilestones;
         }

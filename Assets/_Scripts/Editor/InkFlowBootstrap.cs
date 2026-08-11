@@ -24,6 +24,7 @@ namespace InkFlow.Editor
     public static class InkFlowBootstrap
     {
         private const string BalanceConfigPath = "Assets/_ScriptableObjects/Balance/BalanceConfig.asset";
+        private const string EconomyConfigPath = "Assets/_ScriptableObjects/Balance/EconomyConfig.asset";
 
         [MenuItem("Ink Flow/Setup/Bootstrap Assets")]
         public static void BootstrapAssets()
@@ -128,6 +129,7 @@ namespace InkFlow.Editor
         {
             EnsureFolder("Assets/_ScriptableObjects/Balance");
             EnsureAsset<BalanceConfig>(BalanceConfigPath);
+            EnsureAsset<EconomyConfig>(EconomyConfigPath);
         }
 
         private static void EnsureAsset<T>(string path) where T : ScriptableObject

@@ -33,20 +33,33 @@ namespace InkFlow.UI
         [SerializeField] private ProfileScreen profile;
 
         private BalanceData _balance = BalanceData.Default;
-        private Wallet? _wallet;
-        private ProgressData? _progress;
+        private PlayerState? _state;
+
+        /// <summary>Стан гравця — його ж роздаємо екранам.</summary>
+        public PlayerState? State => _state;
 
         /// <summary>
-        /// Числа, які екранам не належать. Підставляє композиційний корінь —
-        /// сам роутер живе в UI і про `BalanceConfig.asset` нічого не знає.
+        /// Стан і числа, які екранам не належить створювати самим. Підставляє
+        /// композиційний корінь — сам роутер живе в UI і про `BalanceConfig.asset`
+        /// нічого не знає.
+        ///
+        /// Роздаємо ОДИН екземпляр стану всім екранам: кожен, хто зробив би собі
+        /// копію, показував би застарілі числа після покупки в сусідньому екрані.
         /// </summary>
-        public void Configure(BalanceData balance, Wallet wallet, ProgressData progress)
+        public void Configure(BalanceData balance, PlayerState state)
         {
             _balance = balance;
-            _wallet = wallet;
-            _progress = progress;
-            if (hub != null && wallet != null)
-                hub.Bind(wallet);
+            _state = state;
+
+            hub?.BindState(state);
+            levelMap?.BindState(state);
+            galaxy?.BindState(state);
+            paint?.BindState(state);
+            shop?.BindState(state);
+            rankings?.BindState(state);
+            profile?.BindState(state);
+            endless?.BindState(state);
+            level?.BindState(state);
         }
 
         private void Awake() => WireGraph();
@@ -103,7 +116,11 @@ namespace InkFlow.UI
                 level.BackRequested += Pop;
                 // Результат рівня йде у збереження, а не просто в анімацію зірок:
                 // без цього пройдений рівень забувався б при виході з гри.
-                level.LevelCleared += (id, stars) => LevelProgress.Record(_progress!, id, stars);
+                // Підсумок партії — одним викликом у стан: зірки, нафта й запис
+                // у файл разом. Розкидані по екранах, вони рано чи пізно
+                // розійшлися б.
+                level.LevelCleared += (id, stars) =>
+                    _state?.CompleteLevel(id, stars, isBoss: false, System.DateTime.UtcNow);
                 // Заміна, не пуш: після десяти рівнів поспіль «‹» вело б через усі десять.
                 level.NextLevelRequested += id =>
                     navigation?.Replace(level, new LevelArgs(id, null, _balance));

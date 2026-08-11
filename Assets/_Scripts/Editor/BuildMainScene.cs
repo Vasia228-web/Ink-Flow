@@ -36,6 +36,7 @@ namespace InkFlow.Editor
         private const string PrefabFolder = "Assets/_Prefabs/UI";
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string BalancePath = "Assets/_ScriptableObjects/Balance/BalanceConfig.asset";
+        private const string EconomyPath = "Assets/_ScriptableObjects/Balance/EconomyConfig.asset";
 
         /// <summary>Імена префабів у порядку, в якому вони лягають у сцену.</summary>
         private static readonly string[] ScreenNames =
@@ -61,11 +62,13 @@ namespace InkFlow.Editor
 
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             var balance = AssetDatabase.LoadAssetAtPath<BalanceConfig>(BalancePath);
+            var economy = AssetDatabase.LoadAssetAtPath<EconomyConfig>(EconomyPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
 
             var missing = new List<string>();
             if (design == null) missing.Add(DesignSystemPath);
             if (balance == null) missing.Add(BalancePath);
+            if (economy == null) missing.Add(EconomyPath);
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
 
             var prefabs = new Dictionary<string, GameObject>();
@@ -151,6 +154,7 @@ namespace InkFlow.Editor
             var catalog = bootstrapGo.AddComponent<LevelCatalog>();
             Wire(bootstrap,
                 ("balanceConfig", balance!),
+                ("economyConfig", economy!),
                 ("levelCatalog", catalog),
                 ("router", router),
                 ("levelScreen", screens["LevelScreen"]),

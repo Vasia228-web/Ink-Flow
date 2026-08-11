@@ -1,3 +1,4 @@
+using InkFlow.Meta;
 using UnityEngine;
 
 namespace InkFlow.UI
@@ -15,6 +16,18 @@ namespace InkFlow.UI
     /// </summary>
     public abstract class ScreenBase : MonoBehaviour
     {
+        /// <summary>
+        /// Реальний стан гравця. Null — екран відкрито окремою сценою-майстернею;
+        /// у цьому режимі він показує мокові дані й НІЧОГО не зберігає.
+        ///
+        /// Екземпляр один на застосунок: якби кожен екран зробив собі копію,
+        /// після покупки в магазині сусідній екран показував би старі числа.
+        /// </summary>
+        protected PlayerState? State { get; private set; }
+
+        /// <summary>Підставляє композиційний корінь через <see cref="AppRouter"/>.</summary>
+        public virtual void BindState(PlayerState state) => State = state;
+
         public virtual void OnEnter(ScreenArgs args) => gameObject.SetActive(true);
 
         public virtual void OnExit() => gameObject.SetActive(false);

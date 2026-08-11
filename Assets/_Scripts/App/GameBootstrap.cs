@@ -21,6 +21,7 @@ namespace InkFlow.App
     {
         [Header("Конфіги")]
         [SerializeField] private BalanceConfig balanceConfig;
+        [SerializeField] private EconomyConfig economyConfig;
 
         [Header("Сцена")]
         [SerializeField] private LevelCatalog levelCatalog;
@@ -41,10 +42,10 @@ namespace InkFlow.App
         [SerializeField, Range(2, 6)] private int endlessColors = 4;
 
         private ISaveStorage _storage;
-        private SaveFile _save;
-        private Wallet _wallet;
-        private DailyLimitTracker _dailyLimit;
-        private RewardCalculator _rewards;
+        private PlayerState _state;
+
+        /// <summary>Стан гравця — дев-панель дістає його саме звідси.</summary>
+        public PlayerState State => _state;
 
         private void Awake()
         {
@@ -57,14 +58,10 @@ namespace InkFlow.App
 
             boardFeedback?.SetHaptics(ServiceLocator.Get<IHapticService>());
 
-            // Роутер живе в UI і про BalanceConfig.asset нічого не знає —
-            // числа й гаманець йому підставляємо звідси, ще до Start.
+            // Роутер живе в UI і про конфіги нічого не знає — стан гравця
+            // підставляємо звідси, ще до Start.
             if (router != null)
-                router.Configure(balanceConfig.ToBalanceData(), _wallet, _save.Progress);
-
-            // Нескінченний бере рекорд і нагороди з того самого збереження.
-            if (endlessScreen != null)
-                endlessScreen.BindEconomy(_wallet, _rewards, _save.Progress);
+                router.Configure(balanceConfig.ToBalanceData(), _state);
         }
 
         /// <summary>
@@ -94,18 +91,28 @@ namespace InkFlow.App
             ServiceLocator.Register<INotificationService>(new NullNotifications());
         }
 
+        /// <summary>
+        /// Читає збереження або створює нового гравця. Міграції вже застосовані
+        /// сховищем — сюди приходить файл поточної версії.
+        /// </summary>
         private void LoadSave()
         {
             _storage = new JsonSaveStorage();
-            _save = _storage.Load();
+            var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
 
-            _wallet = new Wallet(_save.Wallet.OilDrops);
-            _dailyLimit = new DailyLimitTracker();
-            _rewards = new RewardCalculator();
+            _state = _storage.Exists
+                ? new PlayerState(_storage.Load(), economy, _storage)
+                : PlayerState.NewPlayer(economy, _storage);
 
-            ServiceLocator.Register(_wallet);
-            ServiceLocator.Register(_dailyLimit);
-            ServiceLocator.Register(_rewards);
+            // Новому гравцю файл треба створити одразу: інакше перший же збій
+            // до кінця першої партії виглядав би як «гра не запам'ятала нічого».
+            if (!_storage.Exists)
+                _state.Persist();
+
+            ServiceLocator.Register(_state);
+            ServiceLocator.Register(_state.Wallet);
+            ServiceLocator.Register(_state.DailyLimit);
+            ServiceLocator.Register(_state.Rewards);
             ServiceLocator.Register(_storage);
         }
 
@@ -144,18 +151,7 @@ namespace InkFlow.App
                 PersistSave();
         }
 
-        private void PersistSave()
-        {
-            if (_storage == null || _save == null)
-                return;
-
-            // Рекорд Нескінченного пише сам екран у _save.Progress — тут лише
-            // фіксуємо гаманець і денний ліміт, решта вже в об'єкті збереження.
-            _save.Wallet.OilDrops = _wallet.OilDrops;
-            _save.Wallet.PlaysToday = _dailyLimit.PlaysToday;
-            _save.Wallet.DayUtc = _dailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");
-            _storage.Save(_save);
-        }
+        private void PersistSave() => _state?.Persist();
 
         private void OnDestroy()
         {

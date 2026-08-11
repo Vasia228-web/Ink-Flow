@@ -96,5 +96,29 @@ namespace InkFlow.Meta
             PlaysToday = Math.Max(0, playsToday);
             CurrentDayUtc = dayUtc.Date;
         }
+
+        /// <summary>
+        /// Відновлення зі збереження. Дата у файлі — рядок «yyyy-MM-dd»; нечитабельна
+        /// або порожня означає «сьогодні», а не нуль: зіпсована дата не має
+        /// перетворюватись на 01.01.0001 і давати гравцю вічний повний множник.
+        /// </summary>
+        public void Restore(int playsToday, string? dayUtc)
+        {
+            var day = DateTime.UtcNow.Date;
+            if (dayUtc is not null && dayUtc.Length > 0 &&
+                DateTime.TryParse(dayUtc, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal, out var parsed))
+                day = parsed.Date;
+
+            Load(playsToday, day);
+            RollOverIfNeeded(DateTime.UtcNow);
+        }
+
+        /// <summary>Дев-панель: «промотати добу» — інакше ліміт 10/10 не перевірити.</summary>
+        public void DebugResetDay()
+        {
+            PlaysToday = 0;
+            CurrentDayUtc = DateTime.UtcNow.Date;
+        }
     }
 }

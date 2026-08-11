@@ -4,14 +4,6 @@ using UnityEngine;
 
 namespace InkFlow.Meta
 {
-    public interface ISaveStorage
-    {
-        bool Exists { get; }
-        SaveFile Load();
-        void Save(SaveFile save);
-        void Delete();
-    }
-
     /// <summary>
     /// JSON-збереження в Application.persistentDataPath — працює однаково на iOS та Android (§10).
     ///
