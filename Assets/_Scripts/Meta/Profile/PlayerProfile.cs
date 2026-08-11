@@ -145,6 +145,96 @@ namespace InkFlow.Meta
         private static Rgb Hex(string hex) => Rgb.FromHex(hex);
 
         /// <summary>Профіль рівно з еталонних скріншотів.</summary>
+        /// <summary>
+        /// Профіль із РЕАЛЬНОГО стану гравця.
+        ///
+        /// Драбина звань, статистика й вітрина рахуються, а не зберігаються:
+        /// це похідні від зон, зірок і рекорду. Окреме поле «звання» у файлі
+        /// рано чи пізно розійшлося б із фактичною кількістю планет.
+        /// </summary>
+        public static PlayerProfile FromState(PlayerState state)
+        {
+            var galaxy = GalaxyProgress.FromSave(state.Galaxy);
+            var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, galaxy);
+            var rankIndex = PlayerRanks.IndexFor(planetsDone);
+
+            var ladder = new List<RankStep>(PlayerRanks.Ladder.Length);
+            for (var i = 0; i < PlayerRanks.Ladder.Length; i++)
+            {
+                var step = PlayerRanks.Ladder[i];
+                if (i < rankIndex)
+                    ladder.Add(new RankStep(step.Title, RankStepState.Achieved));
+                else if (i == rankIndex)
+                    ladder.Add(new RankStep(step.Title, RankStepState.Current, "Твоє звання зараз"));
+                else if (i == rankIndex + 1)
+                    ladder.Add(new RankStep(step.Title, RankStepState.Next,
+                        $"ще {PlayerRanks.PlanetsToNext(planetsDone)} планет"));
+                else
+                    ladder.Add(new RankStep(step.Title, RankStepState.Locked));
+            }
+
+            var stats = new List<ProfileStat>
+            {
+                new ProfileStat(planetsDone.ToString(), "Планет розфарбовано", Hex("#00D9C0")),
+                new ProfileStat(galaxy.DoneCount >= galaxy.Planets.Count ? "1" : "0",
+                    "Галактик завершено", Hex("#9D4DFF")),
+                new ProfileStat(state.Progress.EndlessRecord.ToString("N0"),
+                    "Рекорд · Нескінченний", Hex("#FFB300")),
+                new ProfileStat(LevelProgress.TotalStars(state.Progress).ToString(),
+                    "Зірок у рівнях", Hex("#9BE636"), star: true)
+            };
+
+            // Вітрина — завершені планети. Порожня, поки жодної не закінчено:
+            // показувати там незароблене означало б брехати гравцю про прогрес.
+            var showcase = new List<ShowcasePlanet>();
+            for (var i = 0; i < galaxy.Planets.Count && showcase.Count < 3; i++)
+            {
+                var planet = galaxy.Planets[i];
+                if (planet.State == PlanetState.Done)
+                    showcase.Add(new ShowcasePlanet($"p{i}", planet.Name, planet.Type));
+            }
+
+            var achievements = BuildAchievements(state, planetsDone);
+            var litersSpent = SpentLiters(state);
+
+            return new PlayerProfile(
+                state.Nick, PlayerRanks.TitleFor(planetsDone), state.Wallet.OilDrops,
+                state.Paints, ladder, stats, showcase, achievements, litersSpent);
+        }
+
+        /// <summary>Скільки літрів витрачено на зони — сума вартостей зафарбованого.</summary>
+        private static float SpentLiters(PlayerState state)
+        {
+            // Вартість зони знає розкладка планети, а у файлі лежить лише факт
+            // фарбування — тому проходимо по розкладці, а не по списку фактів.
+            var spent = 0f;
+            var surface = PlanetSurface.CreateTerra();
+            var planetId = GalaxyState.PlanetId(surface.Type);
+            for (var i = 0; i < surface.Zones.Count; i++)
+                if (GalaxyState.IsPainted(state.Galaxy, planetId, surface.Zones[i].Id))
+                    spent += surface.Zones[i].Cost;
+            return spent;
+        }
+
+        private static List<Achievement> BuildAchievements(PlayerState state, int planetsDone)
+        {
+            var stars = LevelProgress.TotalStars(state.Progress);
+            var distinct = PaintInventory.DistinctPaints(state.Paints);
+
+            return new List<Achievement>
+            {
+                new Achievement("a_gal", "Перша планета", Hex("#00D9C0"), planetsDone >= 1,
+                    "Заверши свою першу планету"),
+                new Achievement("a_lit", "10 літрів", Hex("#FFB300"),
+                    PaintInventory.TotalLiters(state.Paints) >= 10f,
+                    "Май десять літрів фарби одночасно"),
+                new Achievement("a_col", "Колекціонер", Hex("#9D4DFF"), distinct >= 6,
+                    "Збери шість різних фарб"),
+                new Achievement("a_str", "Тридцять зірок", Hex("#9BE636"), stars >= 30,
+                    "Набери тридцять зірок у рівнях")
+            };
+        }
+
         public static PlayerProfile CreateMock()
         {
             var ladder = new List<RankStep>

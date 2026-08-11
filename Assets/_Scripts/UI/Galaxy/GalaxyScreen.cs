@@ -66,7 +66,9 @@ namespace InkFlow.UI
             var galaxyArgs = args as GalaxyArgs ?? GalaxyArgs.Own;
             _readOnly = galaxyArgs.ReadOnly;
             _galaxy = galaxyArgs.Owner.IsSelf
-                ? GalaxyProgress.CreateMock()
+                // Своя галактика — з реального збереження; чужа лишається
+                // моковою, бо бекенду немає (Фаза 6).
+                ? (State != null ? GalaxyProgress.FromSave(State.Galaxy) : GalaxyProgress.CreateMock())
                 : GalaxyProgress.CreateMockForOther(mockOtherPlanetsDone);
 
             Apply();
@@ -77,7 +79,7 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            _galaxy ??= GalaxyProgress.CreateMock();
+            _galaxy ??= State != null ? GalaxyProgress.FromSave(State.Galaxy) : GalaxyProgress.CreateMock();
 
             // Розміри з макета: 13 / 11 / 25 / 13 / 18 / 16 / 12 px.
             ApplyFont(galaxyName, design.FontSizeGalaxyTitle, design.TextPrimary,

@@ -119,7 +119,7 @@ namespace InkFlow.UI
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            _profile = PlayerProfile.CreateMock();
+            _profile = State != null ? PlayerProfile.FromState(State) : PlayerProfile.CreateMock();
             Apply();
         }
 
@@ -128,7 +128,7 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            _profile ??= PlayerProfile.CreateMock();
+            _profile ??= State != null ? PlayerProfile.FromState(State) : PlayerProfile.CreateMock();
 
             ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
                 FontStyles.Bold, design.LetterSpacingShopTitle);

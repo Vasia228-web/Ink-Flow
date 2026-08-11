@@ -219,5 +219,35 @@ namespace InkFlow.Meta
 
             return new Leaderboard(players, you);
         }
+
+        /// <summary>
+        /// Мокова таблиця з РЕАЛЬНОЮ карткою «Ти».
+        ///
+        /// Світовий список лишається вигаданим — бекенду немає (Фаза 6), і
+        /// підміняти його чимось «схожим на правду» було б гірше за чесний мок.
+        /// А от свої числа гравець мусить бачити справжні: позиція в таблиці
+        /// рахується від них, тож і вона стає чесною.
+        /// </summary>
+        public static Leaderboard WithRealPlayer(PlayerState state, GalaxyProgress galaxy)
+        {
+            var source = CreateMock();
+            var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, galaxy);
+            var record = state.Progress.EndlessRecord;
+
+            var you = new RankPlayer("you", state.Nick, PlanetType.Earth, Hex("#FF2D8A"))
+            {
+                IsYou = true,
+                IsFriend = true,
+                GalaxiesDone = galaxy.DoneCount >= galaxy.Planets.Count ? 1 : 0,
+                PlanetsWeek = planetsDone,
+                PlanetsAll = planetsDone,
+                GalaxiesWeek = 0,
+                GalaxiesAll = galaxy.DoneCount >= galaxy.Planets.Count ? 1 : 0,
+                RecordWeek = record,
+                RecordAll = record
+            };
+
+            return new Leaderboard(source.Players, you);
+        }
     }
 }

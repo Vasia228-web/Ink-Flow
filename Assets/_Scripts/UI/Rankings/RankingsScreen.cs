@@ -140,19 +140,28 @@ namespace InkFlow.UI
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            _board = Leaderboard.CreateMock();
+            _board = BuildBoard();
             Apply();
         }
 
         private void OpenPlayer(RankPlayer player) =>
             PlayerOpened?.Invoke(new GalaxyArgs(new PlayerId(player.Id), true));
 
+        /// <summary>
+        /// Світовий список — мок (бекенду немає), картка «Ти» — реальна.
+        /// Позиція в таблиці рахується від справжніх чисел гравця.
+        /// </summary>
+        private Leaderboard BuildBoard() =>
+            State != null
+                ? Leaderboard.WithRealPlayer(State, GalaxyProgress.FromSave(State.Galaxy))
+                : Leaderboard.CreateMock();
+
         public void Apply()
         {
             if (design == null)
                 return;
 
-            _board ??= Leaderboard.CreateMock();
+            _board ??= BuildBoard();
 
             ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
                 FontStyles.Bold, design.LetterSpacingShopTitle);

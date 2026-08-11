@@ -76,6 +76,53 @@ namespace InkFlow.Meta
         }
 
         /// <summary>
+        /// Галактика з РЕАЛЬНОГО збереження.
+        ///
+        /// Розкладка (назви, кількості зон, кільця й місяці) — статичні дані,
+        /// вони приходять із <see cref="CreateMock"/>. Стани рахуються тут:
+        /// завершена — усі зони залито, поточна — ПЕРША незавершена, решта
+        /// замкнена. Тому нова гра відкриває рівно одну планету, і жодного
+        /// окремого поля «розблоковано» у файлі тримати не треба.
+        /// </summary>
+        public static GalaxyProgress FromSave(GalaxyData? data)
+        {
+            var layout = CreateMock();
+            var planets = new List<PlanetProgress>(layout.Planets.Count);
+            var currentFound = false;
+
+            for (var i = 0; i < layout.Planets.Count; i++)
+            {
+                var source = layout.Planets[i];
+                var painted = GalaxyState.PaintedCount(data, GalaxyState.PlanetId(source.Type));
+                if (painted > source.TotalZones)
+                    painted = source.TotalZones;
+
+                var done = source.TotalZones > 0 && painted >= source.TotalZones;
+                var state = PlanetState.Locked;
+                if (done)
+                {
+                    state = PlanetState.Done;
+                }
+                else if (!currentFound)
+                {
+                    state = PlanetState.Current;
+                    currentFound = true;
+                }
+
+                planets.Add(new PlanetProgress(source.Type, source.Name, source.TotalZones)
+                {
+                    PaintedZones = painted,
+                    State = state,
+                    HasMoons = source.HasMoons,
+                    HasRing = source.HasRing,
+                    IsFinale = source.IsFinale
+                });
+            }
+
+            return new GalaxyProgress(layout.Name, layout.NextName, planets);
+        }
+
+        /// <summary>
         /// Мокові дані «Галактики I» рівно за макетом: назви, кількості зон і стани.
         /// Тимчасові — коли з'явиться збереження, сюди прийде реальний прогрес.
         /// </summary>
