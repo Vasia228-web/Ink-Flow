@@ -119,10 +119,55 @@ namespace InkFlow.Tests.Meta
         {
             var catalog = ShopCatalog.CreateMock();
 
-            // «Порожньо» керує і написом, і виглядом мензурки — поріг має бути надійним.
+            // Каталог — це ПРАЙС, а не запас гравця: стартові літри з макета
+            // прибрано, бо в новачка їх немає. Залишки в картки кладе екран
+            // із PaintStock.
             Assert.IsTrue(catalog.Find("b_t")!.IsEmpty);
-            Assert.IsFalse(catalog.Find("b_m")!.IsEmpty);
+            Assert.IsTrue(catalog.Find("b_m")!.IsEmpty);
+
+            // «Порожньо» керує і написом, і виглядом мензурки — поріг має бути надійним.
+            catalog.Find("r_d")!.OwnedLiters = 0.5f;
             Assert.IsFalse(catalog.Find("r_d")!.IsEmpty, "0.5 л — це не порожньо.");
+        }
+
+        [Test]
+        public void EveryProductFeedsAPaletteColour()
+        {
+            var catalog = ShopCatalog.CreateMock();
+
+            // Товар без зв'язку з палітрою був би нафтою на вітер: куплений
+            // літр не потрапив би в жодну мензурку.
+            foreach (var section in catalog.Sections)
+                foreach (var item in section.Items)
+                    Assert.Less((int)item.Feeds, InkFlow.Core.PaintKinds.Count, item.Name);
+        }
+
+        [Test]
+        public void Buy_AddsLitresToThePaletteStock()
+        {
+            var catalog = ShopCatalog.CreateMock();
+            var wallet = new Wallet(1000);
+            var stock = new PaintStock();
+            var paint = catalog.Find("b_b")!;
+
+            Assert.IsTrue(catalog.Buy(paint, 2, wallet, stock));
+
+            Assert.AreEqual(2f, stock[paint.Feeds], 0.001f,
+                "куплені літри мусять лягти саме в тон, який товар поповнює");
+        }
+
+        [Test]
+        public void Buy_FailingLeavesTheStockUntouched()
+        {
+            var catalog = ShopCatalog.CreateMock();
+            var wallet = new Wallet(1);
+            var stock = new PaintStock();
+            var paint = catalog.Find("b_b")!;
+
+            Assert.IsFalse(catalog.Buy(paint, 5, wallet, stock));
+
+            Assert.AreEqual(0f, stock[paint.Feeds], 0.001f);
+            Assert.AreEqual(1, wallet.OilDrops);
         }
 
         [Test]

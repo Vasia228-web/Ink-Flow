@@ -368,7 +368,7 @@ namespace InkFlow.UI
             RefreshPalette();
             RefreshFillButton();
 
-            if (_surface.IsComplete && !_celebrated)
+            if (_surface != null && _surface.IsComplete && !_celebrated)
             {
                 _celebrated = true;
                 StartCoroutine(CelebrationRoutine());
