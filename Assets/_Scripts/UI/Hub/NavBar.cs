@@ -27,6 +27,13 @@ namespace InkFlow.UI
             [Tooltip("Колір іконки, коли вкладка активна.")]
             public Color activeColor = Color.white;
 
+            /// <summary>
+            /// Іконка вже кольорова (Галактика). Її не можна тонувати
+            /// activeColor — три різні плями злилися б в один відтінок;
+            /// приглушується лише прозорістю.
+            /// </summary>
+            public bool colorful;
+
             [Tooltip("Кольорові шари іконки (плями на планеті, фарба у відрі). " +
                      "Гаснуть разом із вкладкою, але не до сірого.")]
             public Graphic[] accents = System.Array.Empty<Graphic>();
@@ -148,10 +155,13 @@ namespace InkFlow.UI
                 // Неактивна вкладка приглушена, але НЕ сіра: колір лишається,
                 // просто тьмяніє. Сірий силует читається як вимкнений, а не як «інша вкладка».
                 var icon = tabs[i].icon;
+                // Кольорову іконку (Галактика) тонувати не можна — приглушуємо
+                // тільки альфою, інакше три різні плями злилися б в один тон.
                 if (icon != null && icon.TryGetComponent<Image>(out var image))
-                    image.color = active
-                        ? tabs[i].activeColor
-                        : DesignSystem.WithAlpha(tabs[i].activeColor, InactiveTint);
+                {
+                    var full = tabs[i].colorful ? Color.white : tabs[i].activeColor;
+                    image.color = active ? full : DesignSystem.WithAlpha(full, InactiveTint);
+                }
 
                 foreach (var accent in tabs[i].accents)
                 {

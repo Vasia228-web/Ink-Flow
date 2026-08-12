@@ -101,6 +101,12 @@ namespace InkFlow.Editor
             WriteSprite("glow.png", CreateGlow(), pixelsPerUnit: 100,
                 border: new Vector4(gb, gb, gb, gb));
 
+            // Гало КАРТКИ — окремий спрайт без внутрішнього краю: у glow.png
+            // згасання йде і всередину, і назовні, і після стиснення множником
+            // PPU обидва краї сходяться в яскраве замкнене кільце.
+            WriteSprite("card-glow.png", CreateCardGlow(), pixelsPerUnit: 100,
+                border: new Vector4(gb, gb, gb, gb));
+
             // ★ і ↺ немає в Nunito (і в жодному OFL-шрифті Google, який варто тягнути
             // заради двох знаків). У макеті вони теж намальовані фігурами, а не набрані
             // текстом — тому робимо їх іконками: жодних warning-ів про відсутні гліфи
@@ -110,6 +116,7 @@ namespace InkFlow.Editor
 
             // Іконки нижньої навігації. У макеті вони складені з <div>-фігур; тут
             // малюємо ті самі силуети процедурно — білими, колір задає DesignSystem.
+            // Виняток — «Галактика»: вона кольорова, див. CreateGalaxyIcon.
             WriteSprite("icon-galaxy.png", CreateGalaxyIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
             WriteSprite("icon-shop.png", CreateShopIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
             WriteSprite("icon-ranks.png", CreateRanksIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
@@ -222,6 +229,46 @@ namespace InkFlow.Editor
                     // Кант лежить усередині від контуру.
                     var alpha = Mathf.Clamp01((OutlineThickness - Mathf.Abs(d + OutlineThickness * 0.5f)) / 1.2f);
                     pixels[y * RoundedSize + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>
+        /// М'яке гало картки: заокруглений силует, прозорий усередині, з
+        /// ОДНОСТОРОННІМ згасанням назовні.
+        ///
+        /// Чим відрізняється від `glow`: у того згасання є і всередину
+        /// (`GlowInnerFade`), і назовні, і після стиснення множником PPU обидва
+        /// краї сходяться у ВУЗЬКУ яскраву смугу — замкнене кільце навколо
+        /// картки, схоже на обведення в редакторі. Тут внутрішнього краю немає
+        /// взагалі: альфа максимальна рівно на межі силуету й гасне назовні за
+        /// кубічним законом, тобто щільна біля картки й швидко сходить нанівець.
+        /// </summary>
+        private static Texture2D CreateCardGlow()
+        {
+            var tex = NewTexture(GlowSize);
+            var pixels = new Color[GlowSize * GlowSize];
+            var inset = GlowFalloff;
+            var max = GlowSize - 1;
+
+            for (var y = 0; y < GlowSize; y++)
+            {
+                for (var x = 0; x < GlowSize; x++)
+                {
+                    var cx = Mathf.Clamp(x, inset + GlowRadius, max - inset - GlowRadius);
+                    var cy = Mathf.Clamp(y, inset + GlowRadius, max - inset - GlowRadius);
+                    var d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - GlowRadius;
+
+                    // Усередині — рівно нуль: картка непрозора, і будь-яке
+                    // світло під нею лише брудніло б скло.
+                    var t = d <= 0f ? 1f : Mathf.Clamp01(1f - d / GlowFalloff);
+                    var alpha = d <= 0f ? 0f : t * t * t;
+
+                    pixels[y * GlowSize + x] = new Color(1f, 1f, 1f, alpha);
                 }
             }
 
@@ -574,19 +621,85 @@ namespace InkFlow.Editor
         // ───────────────────────── Іконки навігації ─────────────────────────
         // Малюємо в нормалізованих координатах 0..1, щоб числа читались як пропорції.
 
-        /// <summary>Планета з кільцем — вкладка «Галактика».</summary>
-        private static Texture2D CreateGalaxyIcon() => DrawIcon((u, v) =>
+        /// <summary>
+        /// Планета з кільцем — вкладка «Галактика». Єдина КОЛЬОРОВА іконка
+        /// навігації: три плями-континенти мають бути маджентою, бірюзою й
+        /// зеленим одночасно, а одноканальна маска дала б лише один тон.
+        ///
+        /// Ключове в силуеті — перекриття: задня половина кільця ховається ЗА
+        /// кулею, передня лягає ПОВЕРХ неї. Без цього кільце читається як
+        /// окремий овал під планетою, а не як кільце навколо неї.
+        /// </summary>
+        private static Texture2D CreateGalaxyIcon() => DrawColorIcon((u, v) =>
         {
-            var d = Dist(u, v, 0.5f, 0.52f);
-            var planet = Cover(0.30f - d);
+            const float cx = 0.5f, cy = 0.5f, radius = 0.29f;
 
-            // Кільце — еліпс, нахилений на -20°, з вирізаною серединою.
-            var (rx, ry) = Rotate(u - 0.5f, v - 0.52f, -20f);
-            var ring = Mathf.Sqrt(rx * rx / (0.46f * 0.46f) + ry * ry / (0.15f * 0.15f));
-            var ringBand = Cover(0.06f - Mathf.Abs(ring - 1f) * 0.5f);
+            // Кільце: еліпс, нахилений на 22°. Тонке — товщина 0.030 проти
+            // радіуса 0.29, тобто десята частина кулі.
+            var (rx, ry) = Rotate(u - cx, v - cy, -22f);
+            var ring = Mathf.Sqrt(rx * rx / (0.455f * 0.455f) + ry * ry / (0.148f * 0.148f));
+            var ringBand = Cover((0.085f - Mathf.Abs(ring - 1f)) * 3.2f);
+            var ringColor = new Color(0.78f, 0.72f, 0.95f, 1f);
 
-            return Mathf.Max(planet, ringBand);
+            var d = Dist(u, v, cx, cy);
+            var body = Cover((radius - d) * 26f);
+
+            // Задня половина кільця — та, що вище центру: саме вона йде за кулю.
+            var behind = ry > 0f;
+
+            var result = new Color(0f, 0f, 0f, 0f);
+            if (behind && ringBand > 0f)
+                result = Blend(result, ringColor, ringBand * 0.85f);
+
+            if (body > 0f)
+            {
+                // Тіло: насичений фіолетовий, темніший до нижнього-правого краю.
+                var shade = Mathf.Clamp01(1f - (d / radius) * 0.55f);
+                var planet = new Color(0.42f * shade + 0.16f, 0.20f * shade + 0.06f,
+                                       0.78f * shade + 0.20f, 1f);
+                result = Blend(result, planet, body);
+
+                // Три плями-континенти: чіткі, з видимою межею.
+                var spots = new (float U, float V, float R, Color C)[]
+                {
+                    (0.435f, 0.585f, 0.085f, new Color(1f, 0.18f, 0.54f)),
+                    (0.585f, 0.545f, 0.072f, new Color(0f, 0.85f, 0.75f)),
+                    (0.505f, 0.415f, 0.062f, new Color(0.61f, 0.90f, 0.21f))
+                };
+                foreach (var spot in spots)
+                {
+                    var sd = Dist(u, v, spot.U, spot.V);
+                    var mask = Cover((spot.R - sd) * 30f) * body;
+                    if (mask > 0f)
+                        result = Blend(result, spot.C, mask);
+                }
+
+                // Глянець зверху-зліва — те, що робить кулю кулею.
+                var gd = Dist(u, v, cx - radius * 0.36f, cy + radius * 0.38f);
+                var gloss = Cover((radius * 0.42f - gd) * 8f) * body;
+                if (gloss > 0f)
+                    result = Blend(result, new Color(1f, 1f, 1f), gloss * 0.42f);
+            }
+
+            if (!behind && ringBand > 0f)
+                result = Blend(result, ringColor, ringBand);
+
+            return result;
         });
+
+        /// <summary>Накладає колір із заданим покриттям поверх уже намальованого.</summary>
+        private static Color Blend(Color under, Color over, float coverage)
+        {
+            coverage = Mathf.Clamp01(coverage);
+            var a = coverage + under.a * (1f - coverage);
+            if (a <= 0f)
+                return new Color(0f, 0f, 0f, 0f);
+
+            var r = (over.r * coverage + under.r * under.a * (1f - coverage)) / a;
+            var g = (over.g * coverage + under.g * under.a * (1f - coverage)) / a;
+            var b = (over.b * coverage + under.b * under.a * (1f - coverage)) / a;
+            return new Color(r, g, b, a);
+        }
 
         /// <summary>Відро з фарбою — вкладка «Магазин».</summary>
         private static Texture2D CreateShopIcon() => DrawIcon((u, v) =>
@@ -653,6 +766,45 @@ namespace InkFlow.Editor
             Mathf.Clamp01(signedDistance * IconSize * 0.5f);
 
         /// <summary>Малює іконку за функцією покриття з 2×2 суперсемплінгом.</summary>
+        /// <summary>
+        /// Те саме, що <see cref="DrawIcon"/>, але піксель повертає КОЛІР із
+        /// альфою. Потрібне там, де іконка багатоколірна й тонувати її одним
+        /// Image.color не можна.
+        /// </summary>
+        private static Texture2D DrawColorIcon(System.Func<float, float, Color> shade)
+        {
+            var tex = NewTexture(IconSize);
+            var pixels = new Color[IconSize * IconSize];
+
+            for (var y = 0; y < IconSize; y++)
+            {
+                for (var x = 0; x < IconSize; x++)
+                {
+                    // Та сама сітка 2×2, що й у масок: без неї край кулі
+                    // «сходинками» видно вже на двократній щільності.
+                    var r = 0f; var g = 0f; var b = 0f; var a = 0f;
+                    for (var sy = 0; sy < 2; sy++)
+                    for (var sx = 0; sx < 2; sx++)
+                    {
+                        var c = shade((x + 0.25f + sx * 0.5f) / IconSize,
+                                      (y + 0.25f + sy * 0.5f) / IconSize);
+                        r += c.r * c.a * 0.25f;
+                        g += c.g * c.a * 0.25f;
+                        b += c.b * c.a * 0.25f;
+                        a += c.a * 0.25f;
+                    }
+
+                    pixels[y * IconSize + x] = a > 0.0001f
+                        ? new Color(r / a, g / a, b / a, Mathf.Clamp01(a))
+                        : new Color(0f, 0f, 0f, 0f);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
+        }
+
         private static Texture2D DrawIcon(System.Func<float, float, float> coverage)
         {
             var tex = NewTexture(IconSize);

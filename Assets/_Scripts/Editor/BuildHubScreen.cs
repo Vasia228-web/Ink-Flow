@@ -305,7 +305,10 @@ namespace InkFlow.Editor
             var glowGo = Child(card, "Glow");
             Stretch(glowGo, -design.CardGlowRadius);
             var glow = glowGo.AddComponent<Image>();
-            glow.sprite = glowSprite;
+            // card-glow, а НЕ glow: у другого є внутрішній край, і після
+            // стиснення множником PPU він читається як яскраве обведення
+            // навколо картки, а не як світіння.
+            glow.sprite = LoadSprite("card-glow");
             glow.type = Image.Type.Sliced;
             glow.raycastTarget = false;
             // Зону згасання спрайта розтягуємо рівно на CardGlowRadius одиниць:
@@ -507,14 +510,20 @@ namespace InkFlow.Editor
                 underRect.anchoredPosition = new Vector2(0f, -M(4f));
                 underRect.sizeDelta = new Vector2(M(34f), M(20f));
                 var underGlow = underGlowGo.AddComponent<Image>();
-                underGlow.sprite = LoadSprite("circle-soft");
+                // nebula, а не circle-soft: другий — диск із чітким краєм, і на
+                // темному фоні він читався як темна «миска» під іконкою, а не
+                // як світіння. Та сама пастка, що вже була з гало вузлів карти.
+                underGlow.sprite = LoadSprite("nebula");
                 underGlow.raycastTarget = false;
                 underGlowGo.transform.SetAsFirstSibling();
 
                 var iconImage = icon.AddComponent<Image>();
                 iconImage.sprite = LoadSprite(iconFiles[i]);
                 iconImage.raycastTarget = false;
-                iconImage.color = accents[i];
+                // Галактика вже кольорова — її тонувати не можна, інакше
+                // маджента, бірюза й зелений стануть одним відтінком.
+                // NavBar приглушує її прозорістю, як і решту.
+                iconImage.color = i == 0 ? Color.white : accents[i];
 
                 // Кольорові деталі поверх силуету: саме вони роблять іконку живою,
                 // а не монохромним знаком.
@@ -524,13 +533,15 @@ namespace InkFlow.Editor
                     design.FontSizeCaption,
                     i == 0 ? design.NavLabelActive : design.NavLabelInactive,
                     TextAlignmentOptions.Center);
-                Place(label, new Vector2(0f, -M(15f)), new Vector2(M(80f), M(14f)),
+                // Підпис щільніше до іконки, як у макеті: 13 замість 15.
+                Place(label, new Vector2(0f, -M(13f)), new Vector2(M(80f), M(14f)),
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
                 var entry = tabs.GetArrayElementAtIndex(i);
                 entry.FindPropertyRelative("id").stringValue = ids[i];
                 entry.FindPropertyRelative("label").objectReferenceValue = label;
                 entry.FindPropertyRelative("icon").objectReferenceValue = iconRect;
+                entry.FindPropertyRelative("colorful").boolValue = i == 0;
                 entry.FindPropertyRelative("button").objectReferenceValue = button;
                 entry.FindPropertyRelative("activeColor").colorValue = accents[i];
                 entry.FindPropertyRelative("underGlow").objectReferenceValue = underGlow;
@@ -615,32 +626,13 @@ namespace InkFlow.Editor
 
             switch (tabIndex)
             {
-                case 0: // Галактика — плями на планеті
-                {
-                    var spots = new[]
-                    {
-                        (new Vector2(-M(4f), M(3f)), M(8f), design.AccentPrimary),
-                        (new Vector2(M(4f), M(5f)), M(6f), design.AccentLime),
-                        (new Vector2(M(2f), -M(4f)), M(7f), design.AccentTeal)
-                    };
-
-                    var layers = new Graphic[spots.Length];
-                    for (var i = 0; i < spots.Length; i++)
-                    {
-                        var go = Child(icon, $"Spot{i}");
-                        var rect = go.GetComponent<RectTransform>();
-                        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-                        rect.anchoredPosition = spots[i].Item1;
-                        rect.sizeDelta = new Vector2(spots[i].Item2, spots[i].Item2);
-                        var image = go.AddComponent<Image>();
-                        image.sprite = circle;
-                        image.raycastTarget = false;
-                        image.color = spots[i].Item3;
-                        layers[i] = image;
-                    }
-
-                    return layers;
-                }
+                case 0:
+                    // Плями, кільце й глянець тепер намальовані в самому
+                    // спрайті: іконка кольорова, і накладати їх окремими
+                    // кружечками більше не треба. Саме ці «кружечки» й
+                    // розмивали межі — вони лежали ПОВЕРХ кулі напівпрозорим
+                    // circle-soft, а не були її частиною.
+                    return System.Array.Empty<Graphic>();
 
                 case 1: // Магазин — маджентова фарба у відрі з відблиском
                 {

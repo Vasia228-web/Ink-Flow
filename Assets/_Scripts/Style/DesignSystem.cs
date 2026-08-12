@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 13;
+        public const int CurrentTokenVersion = 14;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -277,17 +277,16 @@ namespace InkFlow.Style
         [Tooltip("Темна основа під кольоровим підтоном картки: та сама, що в скла.")]
         [SerializeField] private Color cardBase = new Color32(9, 6, 22, 92);
 
-        [Tooltip("Кольорова рамка картки: rgba(accent,.38) завтовшки 1 px макета.")]
-        [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.38f;
+        [Tooltip("Тонка кольорова рамка по краю картки — 1-2 px макета, не яскраве кільце.")]
+        [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.5f;
 
-        [Tooltip("Ширина згасання гало НАЗОВНІ від контуру, в reference-одиницях. " +
-                 "28 ≈ 10 px макета. Діапазон навмисно вузький (6-14 px): ширше — " +
-                 "і гало перестає бути контуром, стає плямою.")]
-        [SerializeField, Range(16f, 40f)] private float cardGlowRadius = 28f;
+        [Tooltip("Ширина згасання гало НАЗОВНІ від краю картки, в reference-одиницях. " +
+                 "30 ≈ 11 px макета — саме той діапазон 8-12 px, що в макеті.")]
+        [SerializeField, Range(16f, 60f)] private float cardGlowRadius = 30f;
 
-        [Tooltip("Яскравість гало. Спрайт тепер рант, а не заповнений силует, тож " +
-                 "площа світіння менша й альфа може бути вищою за стару 0.085.")]
-        [SerializeField, Range(0f, 0.5f)] private float cardGlowAlpha = 0.2f;
+        [Tooltip("Щільність гало. Піднято після переходу на card-glow: у нього немає " +
+                 "яскравого внутрішнього краю, тож те саме число дає менше світла.")]
+        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.42f;
 
         [Tooltip("У скільки разів яскравішає гало в момент натискання.")]
         [SerializeField, Range(1f, 4f)] private float cardGlowPressBoost = 2.4f;
