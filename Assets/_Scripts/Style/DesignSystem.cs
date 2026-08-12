@@ -277,8 +277,9 @@ namespace InkFlow.Style
         [Tooltip("Темна основа під кольоровим підтоном картки: та сама, що в скла.")]
         [SerializeField] private Color cardBase = new Color32(9, 6, 22, 92);
 
-        [Tooltip("Тонка кольорова рамка по краю картки — 1-2 px макета, не яскраве кільце.")]
-        [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.5f;
+        [Tooltip("Прозорість НЕЙТРАЛЬНОГО обведення картки. Акцентного контуру " +
+                 "тут немає свідомо: він читався як яскраве кільце навколо картки.")]
+        [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.85f;
 
         [Tooltip("Ширина згасання гало НАЗОВНІ від краю картки, в reference-одиницях. " +
                  "30 ≈ 11 px макета — саме той діапазон 8-12 px, що в макеті.")]

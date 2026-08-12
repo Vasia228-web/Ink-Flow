@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96e200a087d5a40fa8fc29e05fd093c8, type: 3}
   m_Name: DesignSystem
   m_EditorClassIdentifier: InkFlow.Style::InkFlow.Style.DesignSystem
-  tokenVersion: 13
+  tokenVersion: 14
   inkPalette:
   - color: 1
     hex: {r: 1, g: 0.1764706, b: 0.5411765, a: 1}
@@ -194,9 +194,9 @@ MonoBehaviour:
   cardTintStrong: 0.09
   cardTintWeak: 0.04
   cardBase: {r: 0.03529412, g: 0.023529412, b: 0.08627451, a: 0.36078432}
-  cardStrokeAlpha: 0.38
-  cardGlowRadius: 28
-  cardGlowAlpha: 0.2
+  cardStrokeAlpha: 0.5
+  cardGlowRadius: 30
+  cardGlowAlpha: 0.42
   cardGlowPressBoost: 2.4
   cardIconTileSize: 144
   statTextLighten: 0.56

@@ -79,7 +79,12 @@ namespace InkFlow.UI
 
             if (stroke != null)
             {
-                stroke.color = DesignSystem.WithAlpha(accent, design.CardStrokeAlpha);
+                // Обведення — НЕЙТРАЛЬНЕ скляне, як у решти панелей, а не акцентне.
+                // Акцентний контур замикався навколо картки суцільним яскравим
+                // кільцем: на темному фоні тонка лінія повного насиченого тону
+                // читається як обведення в редакторі, скільки їй не знижуй альфу.
+                // Колір картці дають гало, плитка іконки й підпис — цього досить.
+                stroke.color = DesignSystem.WithAlpha(design.GlassStroke, design.CardStrokeAlpha);
                 stroke.pixelsPerUnitMultiplier = ppu;
             }
 
