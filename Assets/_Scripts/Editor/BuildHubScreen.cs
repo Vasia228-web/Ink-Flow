@@ -120,7 +120,7 @@ namespace InkFlow.Editor
             var screen = screenGo.AddComponent<HubScreen>();
 
             var header = BuildHeader(screenGo, design!, font, dropPrefab!, currencyPrefab!,
-                out var avatar, out var nameLabel, out var titleLabel, out var currency);
+                out var avatar, out var nameLabel, out var profileButton, out var currency);
             var nav = BuildNavBar(screenGo, design!, font, rounded!, outline!, out var navBar);
             var middle = BuildMiddle(screenGo, design!, font, rounded!, outline!, glowSprite!, circle!,
                 header, nav, out var logo, out var tagline, out var levels, out var endless);
@@ -128,7 +128,7 @@ namespace InkFlow.Editor
 
             Wire(screen,
                 ("design", design!), ("avatar", avatar), ("playerName", nameLabel),
-                ("playerTitle", titleLabel), ("currency", currency), ("logo", logo),
+                ("profileButton", profileButton), ("currency", currency), ("logo", logo),
                 ("tagline", tagline), ("levelsCard", levels), ("endlessCard", endless),
                 ("navBar", navBar));
 
@@ -170,7 +170,8 @@ namespace InkFlow.Editor
 
         private static RectTransform BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             GameObject dropPrefab, GameObject currencyPrefab,
-            out DropView avatar, out TMP_Text nameLabel, out TMP_Text titleLabel, out CurrencyWidget currency)
+            out DropView avatar, out TMP_Text nameLabel, out Button profileButton,
+            out CurrencyWidget currency)
         {
             var side = M(20f);          // 55
             var avatarSize = M(44f);    // 122
@@ -197,23 +198,29 @@ namespace InkFlow.Editor
             avatar.Show(InkColor.Magenta, 0); // 0 = без числа густоти
             avatar.Apply();
 
-            // Два рядки тексту праворуч від аватара: gap 11 → 30.
-            var textGo = Child(header, "Identity");
-            var textRect = textGo.GetComponent<RectTransform>();
-            textRect.anchorMin = textRect.anchorMax = new Vector2(0f, 0.5f);
-            textRect.pivot = new Vector2(0f, 0.5f);
-            textRect.anchoredPosition = new Vector2(avatarSize + M(11f), 0f);
-            textRect.sizeDelta = new Vector2(M(200f), avatarSize);
+            // Блок «аватар + нік» цілком клікабельний і веде в Профіль. Кнопка
+            // обгортає ОБИДВА елементи, а не лише текст: у макеті це один
+            // візуальний блок, і влучати треба по ньому, а не по написові.
+            var identityGo = Child(header, "Identity");
+            var identityRect = identityGo.GetComponent<RectTransform>();
+            identityRect.anchorMin = identityRect.anchorMax = new Vector2(0f, 0.5f);
+            identityRect.pivot = new Vector2(0f, 0.5f);
+            identityRect.anchoredPosition = new Vector2(avatarSize + M(11f), 0f);
+            identityRect.sizeDelta = new Vector2(M(200f), avatarSize);
 
-            // line-height 1.15 при 16 px → рядки на 44 і 30 з проміжком у 3 px макета.
-            nameLabel = Label(textGo, "Name", "Нова", design, font,
-                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.BottomLeft);
-            Place(nameLabel, new Vector2(0f, M(2f)), new Vector2(M(200f), M(22f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+            // Прозорий ловець на всю ширину блока: сам напис вузький, і без
+            // нього тап повз літери не спрацьовував би.
+            var hit = identityGo.AddComponent<Image>();
+            hit.color = Color.clear;
+            profileButton = identityGo.AddComponent<Button>();
+            profileButton.targetGraphic = hit;
 
-            titleLabel = Label(textGo, "Title", "Художниця галактик", design, font,
-                design.FontSizeSmall, design.TextFaint, TextAlignmentOptions.TopLeft);
-            Place(titleLabel, new Vector2(0f, -M(15f)), new Vector2(M(200f), M(16f)),
+            // Один рядок — звання прибрано, воно живе в Профілі, де для нього
+            // є ціла драбина. Тому нік центрується по аватару, а не висить
+            // угорі там, де раніше було два рядки.
+            nameLabel = Label(identityGo, "Name", "Гравець", design, font,
+                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Left);
+            Place(nameLabel, Vector2.zero, new Vector2(M(200f), M(26f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
             // Капсула валюти — правий край шапки.

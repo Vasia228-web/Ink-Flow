@@ -112,6 +112,10 @@ namespace InkFlow.UI
                 hub.LevelsRequested += () => Push(levelMap);
                 hub.EndlessRequested += () => Push(endless, new EndlessArgs(_balance));
                 hub.TabRequested += OnHubTab;
+                // Блок профілю в шапці веде ТОЧНО тим самим маршрутом, що й
+                // вкладка внизу — інакше два входи в один екран рано чи пізно
+                // розійшлися б аргументами.
+                hub.ProfileRequested += () => OnHubTab("profile");
             }
 
             // ── Карта рівнів ──

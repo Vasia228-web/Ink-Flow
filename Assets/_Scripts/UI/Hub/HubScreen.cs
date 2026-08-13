@@ -2,6 +2,7 @@ using InkFlow.Meta;
 using InkFlow.Style;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace InkFlow.UI
 {
@@ -22,7 +23,9 @@ namespace InkFlow.UI
         [Header("Шапка")]
         [SerializeField] private DropView avatar;
         [SerializeField] private TMP_Text playerName;
-        [SerializeField] private TMP_Text playerTitle;
+
+        /// <summary>Увесь блок «аватар + нік» — кнопка в Профіль.</summary>
+        [SerializeField] private Button profileButton;
         [SerializeField] private CurrencyWidget currency;
 
         [Header("Лого")]
@@ -41,7 +44,6 @@ namespace InkFlow.UI
         // стану гравця немає, а порожній екран нічого не показав би про
         // розкладку. У грі всі вони перекриваються реальними.
         [SerializeField] private string mockName = "Нова";
-        [SerializeField] private string mockTitle = "Художниця галактик";
         [SerializeField] private long mockOil = 1250;
         [SerializeField] private int mockLevel = 12;
         [SerializeField] private int mockStars = 27;
@@ -62,6 +64,9 @@ namespace InkFlow.UI
         /// <summary>Вкладка нижньої навігації: galaxy / shop / ranks / profile.</summary>
         public System.Action<string>? TabRequested;
 
+        /// <summary>Тап на блок профілю в шапці.</summary>
+        public System.Action? ProfileRequested;
+
         private void Awake()
         {
             // Хаб не знає, куди ведуть його картки — лише повідомляє, що їх натиснули.
@@ -71,6 +76,12 @@ namespace InkFlow.UI
                 endlessCard.Clicked += () => EndlessRequested?.Invoke();
             if (navBar != null)
                 navBar.TabSelected += id => TabRequested?.Invoke(id);
+            if (profileButton != null)
+            {
+                profileButton.onClick.AddListener(() => ProfileRequested?.Invoke());
+                var press = profileButton.gameObject.AddComponent<PressScale>();
+                press.Bind(design);
+            }
         }
 
         public override void OnEnter(ScreenArgs args)
@@ -102,13 +113,6 @@ namespace InkFlow.UI
         private long RecordLine() =>
             State != null ? State.Progress.EndlessRecord : mockRecord;
 
-        /// <summary>
-        /// Звання за кількістю завершених планет. Той самий поріг, що й у
-        /// драбині Профілю — тримається на одному масиві, тож розійтись
-        /// заголовок хаба й драбина не можуть.
-        /// </summary>
-        private static string CurrentRank(PlayerState state) =>
-            PlayerRanks.TitleFor(GalaxyState.CompletedPlanets(state.Galaxy, GalaxyProgress.CreateMock()));
 
         /// <summary>Перечитати стан без повторного входу на екран.</summary>
         public void Refresh()
@@ -122,11 +126,9 @@ namespace InkFlow.UI
                 return;
 
             ApplyFont(playerName, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold);
-            ApplyFont(playerTitle, design.FontSizeSmall, design.TextFaint, FontStyles.Normal);
             if (playerName != null)
                 playerName.text = State?.Nick ?? mockName;
-            if (playerTitle != null)
-                playerTitle.text = State != null ? CurrentRank(State) : mockTitle;
+
 
             if (logo != null)
             {

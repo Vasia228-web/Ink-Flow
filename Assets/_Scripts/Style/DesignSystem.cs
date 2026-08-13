@@ -285,9 +285,9 @@ namespace InkFlow.Style
                  "30 ≈ 11 px макета — саме той діапазон 8-12 px, що в макеті.")]
         [SerializeField, Range(16f, 60f)] private float cardGlowRadius = 30f;
 
-        [Tooltip("Щільність гало. Піднято після переходу на card-glow: у нього немає " +
-                 "яскравого внутрішнього краю, тож те саме число дає менше світла.")]
-        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.42f;
+        [Tooltip("Щільність гало. Пік лежить під самою карткою, тож на екрані " +
+                 "видно лише його плавний хвіст — розмиту пляму без краю.")]
+        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.30f;
 
         [Tooltip("У скільки разів яскравішає гало в момент натискання.")]
         [SerializeField, Range(1f, 4f)] private float cardGlowPressBoost = 2.4f;
