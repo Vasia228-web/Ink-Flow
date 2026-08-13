@@ -309,19 +309,12 @@ namespace InkFlow.Editor
 
             var card = Child(parent, name);
 
-            var glowGo = Child(card, "Glow");
-            Stretch(glowGo, -design.CardGlowRadius);
-            var glow = glowGo.AddComponent<Image>();
-            // card-glow, а НЕ glow: у другого є внутрішній край, і після
-            // стиснення множником PPU він читається як яскраве обведення
-            // навколо картки, а не як світіння.
-            glow.sprite = LoadSprite("card-glow");
-            glow.type = Image.Type.Sliced;
-            glow.raycastTarget = false;
-            // Зону згасання спрайта розтягуємо рівно на CardGlowRadius одиниць:
-            // множник = (px згасання у спрайті) / (бажана ширина на екрані).
-            // Константу беремо з генератора — інакше зміна спрайта тихо поїхала б.
-            glow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / design.CardGlowRadius;
+            // Зовнішнього гало в картки НЕМАЄ свідомо. Скло напівпрозоре
+            // (CardBase з альфою .36), тож будь-яке світло під ним просвічує
+            // наскрізь і заливає картку зсередини, а його хвіст виходить за
+            // сіру рамку. Колір картці дає підтон САМОЇ основи — він за
+            // побудовою обрізаний тим самим заокругленим прямокутником, що й
+            // рамка, тому вийти за неї не може.
 
             var bgGo = Child(card, "Background");
             Stretch(bgGo);
@@ -401,7 +394,7 @@ namespace InkFlow.Editor
             so.ApplyModifiedPropertiesWithoutUndo();
 
             Wire(component,
-                ("design", design), ("background", background), ("stroke", stroke), ("glow", glow),
+                ("design", design), ("background", background), ("stroke", stroke),
                 ("iconTileFill", tileFill), ("iconTileStroke", tileStroke),
                 ("titleLabel", title), ("subtitleLabel", subtitle), ("statLabel", stat),
                 ("chevronLabel", chevron));

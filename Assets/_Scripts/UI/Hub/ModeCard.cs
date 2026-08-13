@@ -31,7 +31,6 @@ namespace InkFlow.UI
         [Header("Частини")]
         [SerializeField] private GradientImage background;
         [SerializeField] private Image stroke;
-        [SerializeField] private Image glow;
         [SerializeField] private Image iconTileFill;
         [SerializeField] private Image iconTileStroke;
         [SerializeField] private TMP_Text titleLabel;
@@ -41,7 +40,6 @@ namespace InkFlow.UI
 
         private Vector3 _restScale = Vector3.one;
         private Coroutine? _press;
-        private float _glowBoost = 1f;
 
         private void Awake() => _restScale = transform.localScale;
 
@@ -68,10 +66,14 @@ namespace InkFlow.UI
 
             if (background != null)
             {
-                // Темна скляна основа з ледь помітним кольоровим підтоном по діагоналі.
-                // Саме основа, а не заливка кольором: крізь картку мають бути видні зорі.
-                var from = Blend(design.CardBase, accent, design.CardTintStrong);
-                var to = Blend(design.CardBase, secondary, design.CardTintWeak);
+                // Колір картці дає САМА основа, а не світло під нею: підтон
+                // обрізаний тим самим заокругленим прямокутником, що й рамка,
+                // тому за неї не виходить. Тон беремо приглушений — чистий
+                // акцент на всю площу читається як заливка кнопки, а не як скло.
+                var muted = DesignSystem.Darken(accent, 0.42f);
+                var mutedSecond = DesignSystem.Darken(secondary, 0.42f);
+                var from = Blend(design.CardBase, muted, design.CardTintStrong);
+                var to = Blend(design.CardBase, mutedSecond, design.CardTintWeak);
                 background.SetGradient(from, to);
                 background.color = Color.white;
                 background.pixelsPerUnitMultiplier = ppu;
@@ -88,13 +90,6 @@ namespace InkFlow.UI
                 stroke.pixelsPerUnitMultiplier = ppu;
             }
 
-            if (glow != null)
-            {
-                // Базовий колір — тут, один раз. Спалах при натисканні йде через
-                // CanvasRenderer.SetAlpha, бо Image.color щокадру бруднить графіку.
-                glow.color = DesignSystem.WithAlpha(accent, design.CardGlowAlpha);
-                glow.canvasRenderer.SetAlpha(_glowBoost);
-            }
 
             if (iconTileFill != null)
             {
@@ -165,9 +160,6 @@ namespace InkFlow.UI
         {
             var from = transform.localScale;
             var to = down ? _restScale * design.PressScale : _restScale;
-            var glowFrom = _glowBoost;
-            var glowTo = down ? design.CardGlowPressBoost : 1f;
-
             // Стискання різке, повернення пружне — рука має відчути опір, а не желе.
             var duration = down ? design.PressDownDuration : design.PressReleaseDuration;
             var curve = down ? design.CurveEaseInOut : design.CurveBackOut;
@@ -176,24 +168,12 @@ namespace InkFlow.UI
             {
                 var k = curve.Evaluate(t / duration);
                 transform.localScale = Vector3.LerpUnclamped(from, to, k);
-                _glowBoost = Mathf.LerpUnclamped(glowFrom, glowTo, k);
-                UpdateGlow();
                 yield return null;
             }
 
             transform.localScale = to;
-            _glowBoost = glowTo;
-            UpdateGlow();
             _press = null;
         }
 
-        /// <summary>Спалах гало під пальцем. Лише альфа CanvasRenderer — жодного
-        /// дотику до Image.color, інакше кожен кадр натискання бруднив би графіку.</summary>
-        private void UpdateGlow()
-        {
-            if (glow == null || design == null)
-                return;
-            glow.canvasRenderer.SetAlpha(_glowBoost);
-        }
     }
 }

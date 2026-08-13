@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 14;
+        public const int CurrentTokenVersion = 15;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -269,10 +269,10 @@ namespace InkFlow.Style
         [Tooltip("Перша зупинка градієнта картки. Скло, а не заливка: крізь картку " +
                  "мають просвічувати зорі, тож альфа тримається в межах 0.06-0.10. " +
                  "Колір живе в рамці й гало.")]
-        [SerializeField, Range(0f, 0.3f)] private float cardTintStrong = 0.09f;
+        [SerializeField, Range(0f, 0.3f)] private float cardTintStrong = 0.30f;
 
         [Tooltip("Друга зупинка градієнта — майже прозора.")]
-        [SerializeField, Range(0f, 0.3f)] private float cardTintWeak = 0.04f;
+        [SerializeField, Range(0f, 0.3f)] private float cardTintWeak = 0.16f;
 
         [Tooltip("Темна основа під кольоровим підтоном картки: та сама, що в скла.")]
         [SerializeField] private Color cardBase = new Color32(9, 6, 22, 92);
@@ -285,9 +285,9 @@ namespace InkFlow.Style
                  "30 ≈ 11 px макета — саме той діапазон 8-12 px, що в макеті.")]
         [SerializeField, Range(16f, 60f)] private float cardGlowRadius = 30f;
 
-        [Tooltip("Щільність гало. Пік лежить під самою карткою, тож на екрані " +
-                 "видно лише його плавний хвіст — розмиту пляму без краю.")]
-        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0.30f;
+        [Tooltip("Не використовується картками режимів: у них зовнішнього гало немає. " +
+                 "Лишається для інших елементів, які беруть card-glow.")]
+        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0f;
 
         [Tooltip("У скільки разів яскравішає гало в момент натискання.")]
         [SerializeField, Range(1f, 4f)] private float cardGlowPressBoost = 2.4f;
