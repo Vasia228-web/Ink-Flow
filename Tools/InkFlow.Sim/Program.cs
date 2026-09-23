@@ -39,8 +39,10 @@ for (var i = 0; i < args.Length; i++)
             {
                 // Ваги підібрано перебором (--weights): «акуратний» готує чисті лінії, але не
                 // ціною партії — при purityPotential ≥ 0.3 бот беріг кольори й гинув удвічі раніше.
+                // wantedBias лишається 0: бот на один хід, що «цілиться» в колір картинки,
+                // просто береже поле під нього й гине вдвічі раніше (перебір кроку 4).
                 "careful" => new BotWeights(lineCleared: 12f, pureLine: 30f, emptyCell: 1f,
-                    fragmentation: 0.5f, purityPotential: 0.25f),
+                    fragmentation: 0.5f, purityPotential: 0.25f, wantedBias: 0f),
                 "sloppy" => new BotWeights(lineCleared: 12f, pureLine: 0f, emptyCell: 1f,
                     fragmentation: 0.35f, purityPotential: 0f),
                 "default" => BotWeights.Default,
@@ -51,10 +53,10 @@ for (var i = 0; i < args.Length; i++)
         {
             // Довільні ваги для перебору: lineCleared,pureLine,emptyCell,fragmentation,purityPotential.
             var parts = args[++i].Split(',');
-            if (parts.Length != 5)
-                throw new ArgumentException("--weights чекає п'ять чисел через кому");
+            if (parts.Length != 5 && parts.Length != 6)
+                throw new ArgumentException("--weights чекає п'ять або шість чисел через кому (шосте — wantedBias)");
             float W(int k) => float.Parse(parts[k], CultureInfo.InvariantCulture);
-            weights = new BotWeights(W(0), W(1), W(2), W(3), W(4));
+            weights = new BotWeights(W(0), W(1), W(2), W(3), W(4), parts.Length == 6 ? W(5) : 0f);
             botName = "custom(" + args[i] + ")";
             break;
         }
@@ -95,6 +97,12 @@ var baseShare = splashTotal == 0 ? 0f : 100f * results.Sum(r => r.BaseSplashes) 
 var secondaryShare = splashTotal == 0 ? 0f : 100f * results.Sum(r => r.SecondarySplashes) / splashTotal;
 var brownShare = splashTotal == 0 ? 0f : 100f * results.Sum(r => r.BrownSplashes) / splashTotal;
 var noSplash = results.Count(r => r.Splashes == 0);
+var pictures = new Distribution(results.Select(r => (float)r.Pictures).ToArray());
+var zones = new Distribution(results.Select(r => (float)r.Zones).ToArray());
+var fillAtDeath = new Distribution(results.Select(r => 100f * r.PictureFillAtDeath).ToArray());
+var paintTotal = results.Sum(r => (long)r.PaintYielded);
+var missedShare = paintTotal == 0 ? 0f : 100f * results.Sum(r => (long)r.PaintMissed) / paintTotal;
+var noPicture = results.Count(r => r.Pictures == 0);
 var paintPerLine = new Distribution(results.Select(r => r.Lines == 0 ? 0f : (float)r.PaintYielded / r.Lines).ToArray());
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
@@ -123,6 +131,11 @@ if (csv)
     Console.WriteLine($"splash_hue_secondary,%,{secondaryShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
     Console.WriteLine($"splash_hue_brown,%,{brownShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
     Console.WriteLine($"runs_without_splash,%,{(100f * noSplash / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine(pictures.Csv("pictures_completed", "шт"));
+    Console.WriteLine(zones.Csv("zones_completed", "шт"));
+    Console.WriteLine(fillAtDeath.Csv("picture_fill_at_death", "%"));
+    Console.WriteLine($"paint_missed_share,%,{missedShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine($"runs_without_picture,%,{(100f * noPicture / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
     Console.WriteLine(paintPerLine.Csv("paint_per_line", "од"));
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
@@ -146,6 +159,9 @@ Console.WriteLine(paintPerPlacement.Row("фарби на розміщення", 
 Console.WriteLine(paintPerLine.Row("фарби на лінію", "од"));
 Console.WriteLine(splashes.Row("виплесків за партію", "шт"));
 Console.WriteLine(placementsPerSplash.Row("розміщень на виплеск", "шт"));
+Console.WriteLine(pictures.Row("картинок за партію", "шт"));
+Console.WriteLine(zones.Row("зон залито за партію", "шт"));
+Console.WriteLine(fillAtDeath.Row("поточна картинка в момент смерті", "%"));
 Console.WriteLine(pressure.Row("початок тиску (розміщ.)", "шт"));
 Console.WriteLine(pressureShare.Row("початок тиску (% партії)", "%"));
 Console.WriteLine(emptyAtDeath.Row("вільних клітинок у смерть", "шт"));
@@ -154,6 +170,8 @@ Console.WriteLine();
 Console.WriteLine($"тиск не настав узагалі: {neverPressured} з {games} ({100f * neverPressured / games:0.#} %)");
 Console.WriteLine($"відтінки виплесків: чисті {baseShare:0.#} % · вторинні {secondaryShare:0.#} % · коричневі {brownShare:0.#} %");
 Console.WriteLine($"партій без жодного виплеску: {noSplash} з {games} ({100f * noSplash / games:0.#} %)");
+Console.WriteLine($"фарби пропало мимо (відтінок нікому не потрібен): {missedShare:0.#} % від усієї");
+Console.WriteLine($"партій без жодної закінченої картинки: {noPicture} з {games} ({100f * noPicture / games:0.#} %)");
 Console.WriteLine($"смерть одразу після поповнення лотка: {lostAtRefill} з {games} ({100f * lostAtRefill / games:0.#} %)");
 Console.WriteLine($"смертей не з вини гравця (мішок дав неможливий набір, хоч 2-клітинкова влазила): {unfair}");
 return unfair == 0 ? 0 : 1;
@@ -164,6 +182,7 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
     var bot = new RunBot(weights, new XorShiftRandom(unchecked(runSeed ^ 0x9E3779B9u)), noise);
 
     var pressureAt = -1;
+    var zonesCompleted = 0;
     var lostAtRefill = false;
     var guard = 0;
 
@@ -178,6 +197,7 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
 
         // «Тиск» — перше розміщення, після якого хоч одна фігура з руки вже нікуди не
         // влазить: із цього моменту гравець грає не «куди хочу», а «куди можна».
+        zonesCompleted += result.ZonesCompleted;
         if (pressureAt < 0 && !session.IsOver && session.AnyPieceStuck())
             pressureAt = session.PlacementCount;
 
@@ -195,7 +215,8 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
         session.PureLinesCleared, session.BestChain, session.PaintYielded, pressureAt,
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
         session.Splashes, CountHues(session, Hues.IsBase), CountHues(session, Hues.IsSecondary),
-        session.SplashesByHue[(int)Hue.Brown]);
+        session.SplashesByHue[(int)Hue.Brown],
+        session.PicturesCompleted, zonesCompleted, session.PaintMissed, session.Picture.FilledFraction);
 }
 
 static int CountHues(RunSession session, Func<Hue, bool> filter)

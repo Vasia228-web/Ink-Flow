@@ -7,14 +7,21 @@ namespace InkFlow.Core
     public readonly struct BotWeights
     {
         public BotWeights(float lineCleared, float pureLine, float emptyCell, float fragmentation,
-            float purityPotential)
+            float purityPotential, float wantedBias = 0f)
         {
             LineCleared = lineCleared;
             PureLine = pureLine;
             EmptyCell = emptyCell;
             Fragmentation = fragmentation;
             PurityPotential = purityPotential;
+            WantedBias = wantedBias;
         }
+
+        /// <summary>
+        /// Наскільки бот ЦІЛИТЬСЯ в колір, потрібний картинці: множник до потенціалу чистоти
+        /// ліній, де домінує бажаний пігмент. 0 — не бачить картинки взагалі.
+        /// </summary>
+        public float WantedBias { get; }
 
         /// <summary>Цінність зірваної лінії.</summary>
         public float LineCleared { get; }
@@ -120,10 +127,18 @@ namespace InkFlow.Core
             _lines.Clear();
             PlacementRules.CollectFullLines(scratch, _lines);
 
+            session.WantedPigments(out var wantedA, out var wantedB);
             var pureLines = 0;
+            var wantedLines = 0;
             for (var i = 0; i < _lines.Count; i++)
-                if (LineResolver.Resolve(scratch, _lines[i], session.Balance).IsPure)
-                    pureLines++;
+            {
+                var yield = LineResolver.Resolve(scratch, _lines[i], session.Balance);
+                if (!yield.IsPure)
+                    continue;
+                pureLines++;
+                if (yield.Pigment == wantedA || yield.Pigment == wantedB)
+                    wantedLines++;
+            }
 
             for (var i = 0; i < _lines.Count; i++)
             {
@@ -133,9 +148,12 @@ namespace InkFlow.Core
                     scratch[LineResolver.CellAt(line, c)] = Pigment.None;
             }
 
+            var potential = PurityPotential(scratch, wantedA, wantedB, out var wantedPotential);
+
+            // Бажаний колір: чиста лінія ТОГО кольору цінніша і в момент зриву, і як план.
             return _weights.LineCleared * _lines.Count
-                   + _weights.PureLine * pureLines
-                   + _weights.PurityPotential * PurityPotential(scratch)
+                   + _weights.PureLine * (pureLines + _weights.WantedBias * wantedLines)
+                   + _weights.PurityPotential * (potential + _weights.WantedBias * wantedPotential)
                    + _weights.EmptyCell * scratch.CountEmpty()
                    - _weights.Fragmentation * Fragmentation(scratch);
         }
@@ -143,20 +161,30 @@ namespace InkFlow.Core
         /// <summary>
         /// Наскільки поле «готове» до чистих ліній: за кожну лінію — перевага домінантного
         /// пігменту над рештою, і лише додатна частина: гравцю потрібні НЕ всі лінії
-        /// чистими, а хоч якісь.
+        /// чистими, а хоч якісь. Окремо — та сама сума лише по лініях бажаних пігментів.
         /// </summary>
-        private static int PurityPotential(Board board)
+        private static int PurityPotential(Board board, Pigment wantedA, Pigment wantedB, out int wanted)
         {
             var score = 0;
+            wanted = 0;
             for (var y = 0; y < board.Height; y++)
-                score += LineBalance(board, LineKind.Row, y);
+            {
+                var balance = LineBalance(board, LineKind.Row, y, out var dominant);
+                score += balance;
+                if (dominant == wantedA || dominant == wantedB) wanted += balance;
+            }
             for (var x = 0; x < board.Width; x++)
-                score += LineBalance(board, LineKind.Column, x);
+            {
+                var balance = LineBalance(board, LineKind.Column, x, out var dominant);
+                score += balance;
+                if (dominant == wantedA || dominant == wantedB) wanted += balance;
+            }
             return score;
         }
 
-        private static int LineBalance(Board board, LineKind kind, int index)
+        private static int LineBalance(Board board, LineKind kind, int index, out Pigment dominant)
         {
+            dominant = Pigment.None;
             var length = kind == LineKind.Row ? board.Width : board.Height;
             var blue = 0;
             var red = 0;
@@ -173,8 +201,10 @@ namespace InkFlow.Core
             if (filled == 0)
                 return 0;
 
-            var max = blue > red ? blue : red;
-            if (yellow > max) max = yellow;
+            var max = blue;
+            dominant = Pigment.Blue;
+            if (red > max) { max = red; dominant = Pigment.Red; }
+            if (yellow > max) { max = yellow; dominant = Pigment.Yellow; }
 
             var balance = 2 * max - filled;
             if (balance <= 0)

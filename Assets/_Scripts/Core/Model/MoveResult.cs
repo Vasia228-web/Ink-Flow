@@ -38,6 +38,15 @@ namespace InkFlow.Core
         /// <summary>Відтінок останнього виплеску ходу; None, якщо змішувач мовчав.</summary>
         public Hue LastSplashHue { get; private set; }
 
+        /// <summary>Зон картинки закінчено цього ходу.</summary>
+        public int ZonesCompleted { get; private set; }
+
+        /// <summary>Картинок закінчено цього ходу.</summary>
+        public int PicturesCompleted { get; private set; }
+
+        /// <summary>Фарби з виплесків, якій не було куди лягти.</summary>
+        public int PaintMissed { get; private set; }
+
         public int ScoreGained { get; private set; }
 
         /// <summary>Клітинка зрізу події — списки клітинок лежать спільним буфером.</summary>
@@ -53,6 +62,9 @@ namespace InkFlow.Core
             PaintYielded = 0;
             Splashes = 0;
             LastSplashHue = Hue.None;
+            ZonesCompleted = 0;
+            PicturesCompleted = 0;
+            PaintMissed = 0;
             ScoreGained = 0;
         }
 
@@ -108,6 +120,33 @@ namespace InkFlow.Core
             Splashes++;
             LastSplashHue = hue;
         }
+
+        internal void AddZoneFilled(int zone, int amount, int levelAfter, int capacity)
+        {
+            var complete = levelAfter >= capacity;
+            _events.Add(new GameEvent(GameEventType.ZoneFilled, LineKind.Row, Pigment.None,
+                zone, levelAfter, 0f, complete, capacity, amount));
+            if (complete)
+                ZonesCompleted++;
+        }
+
+        internal void AddPictureCompleted(int catalogIndex)
+        {
+            _events.Add(new GameEvent(GameEventType.PictureCompleted, LineKind.Row, Pigment.None,
+                catalogIndex, 0, 0f, false, 0, 0));
+            PicturesCompleted++;
+        }
+
+        internal void AddSplashMissed(Hue hue, int amount)
+        {
+            _events.Add(new GameEvent(GameEventType.SplashMissed, LineKind.Row, Pigment.None,
+                amount, (int)hue, 0f, false, 0, 0));
+            PaintMissed += amount;
+        }
+
+        internal void AddPictureStarted(int catalogIndex) =>
+            _events.Add(new GameEvent(GameEventType.PictureStarted, LineKind.Row, Pigment.None,
+                catalogIndex, 0, 0f, false, 0, 0));
 
         internal void AddTrayRefilled(int round) =>
             _events.Add(new GameEvent(GameEventType.TrayRefilled, LineKind.Row, Pigment.None,

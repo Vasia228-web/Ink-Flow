@@ -9,8 +9,13 @@ namespace InkFlow.Sim
     {
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
             int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath,
-            int splashes = 0, int baseSplashes = 0, int secondarySplashes = 0, int brownSplashes = 0)
+            int splashes = 0, int baseSplashes = 0, int secondarySplashes = 0, int brownSplashes = 0,
+            int pictures = 0, int zones = 0, int paintMissed = 0, float pictureFillAtDeath = 0f)
         {
+            Pictures = pictures;
+            Zones = zones;
+            PaintMissed = paintMissed;
+            PictureFillAtDeath = pictureFillAtDeath;
             Splashes = splashes;
             BaseSplashes = baseSplashes;
             SecondarySplashes = secondarySplashes;
@@ -37,6 +42,12 @@ namespace InkFlow.Sim
         public int BaseSplashes { get; }
         public int SecondarySplashes { get; }
         public int BrownSplashes { get; }
+
+        /// <summary>Картинок закінчено, зон залито, фарби пропало мимо, частка поточної картинки в момент смерті.</summary>
+        public int Pictures { get; }
+        public int Zones { get; }
+        public int PaintMissed { get; }
+        public float PictureFillAtDeath { get; }
 
         public int Placements { get; }
         public int Rounds { get; }

@@ -53,7 +53,8 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text recordLabel;
         [SerializeField] private TMP_Text recordNumber;
 
-        [Header("Баки і змішувач")]
+        [Header("Картинка, баки і змішувач")]
+        [SerializeField] private PictureView picture;
         [SerializeField] private TankView[] tanks = System.Array.Empty<TankView>();
         [SerializeField] private MixerView mixer;
 
@@ -206,6 +207,7 @@ namespace InkFlow.UI
 
             tray?.Show(_session.Tray);
             ApplyTanks(animate: false);
+            picture?.Show(_session.Picture);
             HideOver();
         }
 
@@ -260,21 +262,80 @@ namespace InkFlow.UI
                         break;
                     case GameEventType.MixerFired:
                         fired = true;
-                        mixer?.Fire(new MixerView.Shot
-                        {
-                            Hue = (Hue)ev.Extra,
-                            Taken0 = _taken[0], Taken1 = _taken[1], Taken2 = _taken[2],
-                            After0 = _levelsAfter[0], After1 = _levelsAfter[1], After2 = _levelsAfter[2],
-                            Capacity = capacity
-                        });
-                        for (var i = 0; i < Pigments.Count; i++)
-                            _taken[i] = 0;
+                        e = FireShot(events, e, capacity);
                         break;
                 }
             }
 
             if (!fired && result.PaintYielded > 0)
                 mixer?.Show(_session.Tanks.Levels, capacity, _session.Balance, animate: true);
+        }
+
+        /// <summary>
+        /// Збирає виплеск і те, що сталося з ним на картинці (ZoneFilled / SplashMissed /
+        /// PictureCompleted аж до наступного MixerFired) в один постріл змішувача: мазок
+        /// грає, коли виплеск долетів, а не коли модель уже все порахувала.
+        /// Повертає індекс останньої спожитої події.
+        /// </summary>
+        private int FireShot(System.Collections.Generic.IReadOnlyList<GameEvent> events, int fired, int capacity)
+        {
+            var ev = events[fired];
+            var shot = new MixerView.Shot
+            {
+                Hue = (Hue)ev.Extra,
+                Taken0 = _taken[0], Taken1 = _taken[1], Taken2 = _taken[2],
+                After0 = _levelsAfter[0], After1 = _levelsAfter[1], After2 = _levelsAfter[2],
+                Capacity = capacity
+            };
+            for (var i = 0; i < Pigments.Count; i++)
+                _taken[i] = 0;
+
+            var fills = new System.Collections.Generic.List<(int zone, float fraction)>(2);
+            var completed = false;
+            var missed = false;
+            var last = fired;
+            for (var e = fired + 1; e < events.Count; e++)
+            {
+                var next = events[e];
+                if (next.Type == GameEventType.MixerFired)
+                    break;
+                last = e;
+                switch (next.Type)
+                {
+                    case GameEventType.ZoneFilled:
+                        fills.Add((next.Value, next.CellStart > 0 ? (float)next.Extra / next.CellStart : 1f));
+                        break;
+                    case GameEventType.SplashMissed:
+                        missed = fills.Count == 0;
+                        break;
+                    case GameEventType.PictureCompleted:
+                        completed = true;
+                        break;
+                }
+            }
+
+            shot.Missed = missed;
+            if (picture != null)
+            {
+                shot.Target = picture.ZoneWorldPosition(fills.Count > 0 ? fills[0].zone : -1);
+                var view = picture;
+                var session = _session;
+                shot.Arrived = () =>
+                {
+                    var uv = view.UvOf(shot.Target);
+                    for (var i = 0; i < fills.Count; i++)
+                        view.PlayFill(fills[i].zone, fills[i].fraction, uv);
+                    if (completed)
+                        view.PlayCompleted(() =>
+                        {
+                            if (session != null && session == _session)
+                                view.Show(session.Picture);
+                        });
+                };
+            }
+
+            mixer?.Fire(shot);
+            return last;
         }
 
         private TankView? TankFor(Pigment pigment)
@@ -301,6 +362,7 @@ namespace InkFlow.UI
                     StopCoroutine(routine);
             _playback = _flash = _combo = _overflowPulse = _confetti = _hint = null;
             mixer?.StopAll();
+            picture?.StopAll();
         }
 
         // ── Перетягування ──
@@ -482,6 +544,7 @@ namespace InkFlow.UI
             foreach (var tank in tanks)
                 tank?.Apply();
             mixer?.Apply();
+            picture?.Apply();
             ApplyStats();
         }
 

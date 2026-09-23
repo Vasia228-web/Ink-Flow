@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 17;
+        public const int CurrentTokenVersion = 18;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -652,7 +652,7 @@ namespace InkFlow.Style
 
         [Header("Нескінченний")]
         [Tooltip("Числа рахунку й рекорду: 27 px макета.")]
-        [SerializeField] private float fontSizeScoreNumber = 75f;
+        [SerializeField] private float fontSizeScoreNumber = 52f;
 
         [Tooltip("Капсули світяться різним: рахунок — бірюзою, рекорд — золотом.")]
         [SerializeField] private Color scoreCapsuleGlow = new Color(0f, 0.851f, 0.753f, 0.18f);
@@ -696,6 +696,18 @@ namespace InkFlow.Style
         [SerializeField, Min(0f)] private float mixerSplashRise = 150f;
         [SerializeField, Min(0f)] private float mixerNameOffset = 118f;
         [SerializeField] private float fontSizeHueName = 30f;
+
+        [Tooltip("Картинка над полем: плитка, зони (тьмяна / активна), мазок, спалах завершення.")]
+        [SerializeField] private Color picturePlateFill = new Color(1f, 0.99f, 0.96f, 0.08f);
+        [SerializeField] private Color picturePlateStroke = new Color(1f, 1f, 1f, 0.14f);
+        [SerializeField, Range(0f, 1f)] private float zoneIdleAlpha = 0.07f;
+        [SerializeField, Range(0f, 1f)] private float zoneActiveAlpha = 0.14f;
+        [SerializeField, Min(0f)] private float zoneFillDuration = 0.45f;
+        [SerializeField, Min(0f)] private float pictureCompleteDuration = 1.1f;
+        [SerializeField, Range(0f, 0.3f)] private float pictureCompletePop = 0.06f;
+        [SerializeField, Range(0f, 1f)] private float pictureGlowAlpha = 0.55f;
+        [SerializeField] private float fontSizePictureName = 27f;
+        [SerializeField] private float fontSizePictureCaption = 24f;
 
         [Header("Кінець партії (Нескінченний)")]
         [SerializeField] private float fontSizeOverScore = 155f;
@@ -984,6 +996,16 @@ namespace InkFlow.Style
         public float MixerSplashRise => mixerSplashRise;
         public float MixerNameOffset => mixerNameOffset;
         public float FontSizeHueName => fontSizeHueName;
+        public Color PicturePlateFill => picturePlateFill;
+        public Color PicturePlateStroke => picturePlateStroke;
+        public float ZoneIdleAlpha => zoneIdleAlpha;
+        public float ZoneActiveAlpha => zoneActiveAlpha;
+        public float ZoneFillDuration => zoneFillDuration;
+        public float PictureCompleteDuration => pictureCompleteDuration;
+        public float PictureCompletePop => pictureCompletePop;
+        public float PictureGlowAlpha => pictureGlowAlpha;
+        public float FontSizePictureName => fontSizePictureName;
+        public float FontSizePictureCaption => fontSizePictureCaption;
 
         /// <summary>Колір відтінку зі змішувача. Fallback — білий, щоб помилка була видима.</summary>
         public Color HueColor(Hue hue)

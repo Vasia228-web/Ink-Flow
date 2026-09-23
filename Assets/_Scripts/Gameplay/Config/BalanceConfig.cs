@@ -69,6 +69,12 @@ namespace InkFlow.Gameplay
         [Tooltip("Частка, нижче якої пігмент не помічається: двоє помітних — вторинний відтінок, троє — коричневий.")]
         [SerializeField, Range(0.01f, 0.333f)] private float mixMinorShare = 0.25f;
 
+        [Header("Картинка (§5, §12)")]
+        [Tooltip("Скільки клітинок креслення коштують один виплеск. Стеля зони — ціле число виплесків.")]
+        [SerializeField, Min(1)] private int cellsPerSplash = 12;
+        [Tooltip("Найбільша зона просить не більше стількох виплесків.")]
+        [SerializeField, Min(1)] private int maxSplashesPerZone = 3;
+
         private BalanceData? _cached;
 
         /// <summary>POCO-дзеркало для Core. Кешується: конфіг не змінюється під час партії.</summary>
@@ -81,7 +87,8 @@ namespace InkFlow.Gameplay
             mixedDivisor, pureLineBonus, comboMultipliers,
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
             haloWarningFreeCells, hintIdleSeconds,
-            mixerSplashSize, mixDominantShare, mixMinorShare);
+            mixerSplashSize, mixDominantShare, mixMinorShare,
+            cellsPerSplash, maxSplashesPerZone);
 
         private void OnValidate()
         {

@@ -258,6 +258,119 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(0, session.SplashesByHue[(int)Hue.Blue]);
         }
 
+        [Test]
+        public void Splash_LandsOnThePictureZoneOfItsHue()
+        {
+            var one = PictureCatalogData.Picture("one", "ОДНА", Rarity.Common,
+                new[] { "AAAAAAAA", "AAAAAAAA", "BBBB...." },
+                PictureCatalogData.Zone('A', Hue.Blue, "небо"),
+                PictureCatalogData.Zone('B', Hue.Red, "земля"));
+            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
+                new XorShiftRandom(7u), new PictureCatalogData(new[] { one }));
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            // Виплеск 8 синього → зона «небо» (16 клітинок, стеля 8) залита повністю.
+            var filled = FindEvent(result, GameEventType.ZoneFilled);
+            Assert.AreEqual(0, filled.Value);
+            Assert.AreEqual(8, filled.CellCount, "скільки лягло");
+            Assert.AreEqual(8, filled.Extra, "рівень зони після");
+            Assert.IsTrue(filled.IsPure, "зону закінчено");
+            Assert.IsTrue(session.Picture.IsZoneComplete(0));
+            Assert.AreEqual(1, session.Picture.ActiveZone);
+            Assert.AreEqual(Hue.Red, session.Picture.WantedHue);
+            Assert.AreEqual(0, result.PaintMissed);
+            Assert.IsFalse(result.Has(GameEventType.PictureCompleted));
+        }
+
+        [Test]
+        public void Splash_OfAnUnneededHueIsMissed()
+        {
+            var one = PictureCatalogData.Picture("one", "ОДНА", Rarity.Common,
+                new[] { "AAAA" }, PictureCatalogData.Zone('A', Hue.Red, "усе"));
+            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
+                new XorShiftRandom(7u), new PictureCatalogData(new[] { one }));
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            var missed = FindEvent(result, GameEventType.SplashMissed);
+            Assert.AreEqual(8, missed.Value);
+            Assert.AreEqual((int)Hue.Blue, missed.Extra);
+            Assert.AreEqual(8, session.PaintMissed);
+            Assert.AreEqual(0, session.Picture.TotalFilled);
+        }
+
+        [Test]
+        public void CompletedPicture_IsReplacedByAnotherOneImmediately()
+        {
+            var small = PictureCatalogData.Picture("small", "МАЛА", Rarity.Common,
+                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Blue, "усе"));
+            var other = PictureCatalogData.Picture("other", "ІНША", Rarity.Common,
+                new[] { "BB" }, PictureCatalogData.Zone('B', Hue.Red, "усе"));
+            var catalog = new PictureCatalogData(new[] { small, other });
+            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
+                new XorShiftRandom(3u), catalog);
+            var wanted = session.Picture.CatalogIndex == 0 ? Pigment.Blue : Pigment.Red;
+            var row = wanted == Pigment.Blue ? "bbbbbbb." : "rrrrrrr.";
+            TestBoard.FillRow(session.Board, 0, row);
+            TestBoard.SetTray(session, TestBoard.Piece("2v", wanted));
+            var before = session.Picture.CatalogIndex;
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            Assert.AreEqual(1, result.PicturesCompleted);
+            Assert.AreEqual(1, session.PicturesCompleted);
+            Assert.AreEqual(before, FindEvent(result, GameEventType.PictureCompleted).Value);
+            var started = FindEvent(result, GameEventType.PictureStarted);
+            Assert.AreNotEqual(before, started.Value, "та сама не приходить двічі поспіль");
+            Assert.AreEqual(started.Value, session.Picture.CatalogIndex);
+            Assert.AreEqual(0, session.Picture.TotalFilled, "нова картинка чиста");
+            Assert.AreEqual(0, result.PaintMissed, "стеля зони — рівно виплеск, нічого не пропало");
+            Assert.Less(IndexOf(result, GameEventType.ZoneFilled), IndexOf(result, GameEventType.PictureCompleted));
+            Assert.Less(IndexOf(result, GameEventType.PictureCompleted), IndexOf(result, GameEventType.PictureStarted));
+        }
+
+        [Test]
+        public void Restart_DrawsAFreshPicture()
+        {
+            var session = TestBoard.NewSession();
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+            session.TryPlace(0, new GridPos(7, 0));
+
+            session.Restart();
+
+            Assert.AreEqual(0, session.Picture.TotalFilled);
+            Assert.AreEqual(0, session.PicturesCompleted);
+            Assert.AreEqual(0, session.PaintMissed);
+        }
+
+        [Test]
+        public void WantedPigment_FollowsTheActiveZoneAndTheTanks()
+        {
+            var green = PictureCatalogData.Picture("g", "З", Rarity.Common,
+                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Green, "листя"));
+            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
+                new XorShiftRandom(7u), new PictureCatalogData(new[] { green }));
+
+            session.WantedPigments(out var first, out var second);
+            Assert.AreEqual(Pigment.Blue, first, "порівну — перший за порядком");
+            Assert.AreEqual(Pigment.Yellow, second);
+
+            session.Tanks.Pour(Pigment.Blue, 5);
+            Assert.AreEqual(Pigment.Yellow, session.WantedPigment, "синього вже досить — тягнемо жовтий");
+
+            var red = PictureCatalogData.Picture("r", "Ч", Rarity.Common,
+                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Red, "усе"));
+            var pure = new RunSession(BalanceData.Default, PieceCatalogData.Default,
+                new XorShiftRandom(7u), new PictureCatalogData(new[] { red }));
+            Assert.AreEqual(Pigment.Red, pure.WantedPigment);
+        }
+
         private static int IndexOf(MoveResult result, GameEventType type)
         {
             for (var i = 0; i < result.Events.Count; i++)

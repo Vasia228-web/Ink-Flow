@@ -29,6 +29,10 @@ namespace InkFlow.Editor
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
+        private const string PictureZoneShaderPath = "Assets/_Shaders/InkFlowPictureZone.shader";
+
+        /// <summary>Скільки зон може показати картинка: легендарна — 15+ (§6).</summary>
+        private const int ZoneSlots = 20;
 
         private const float K = 1080f / 390f;
 
@@ -75,6 +79,8 @@ namespace InkFlow.Editor
             var glow = LoadSprite("glow");
             var retry = LoadSprite("icon-retry");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
+            var zoneShader = AssetDatabase.LoadAssetAtPath<Shader>(PictureZoneShaderPath);
+            var pictureArt = AssetDatabase.LoadAssetAtPath<PictureArtCatalog>(GeneratePictureArt.CatalogPath);
 
             var missing = new List<string>();
             if (design == null) missing.Add(DesignSystemPath);
@@ -86,6 +92,8 @@ namespace InkFlow.Editor
             })
                 if (sprite == null) missing.Add($"{SpriteFolder}/{name}.png");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
+            if (zoneShader == null) missing.Add(PictureZoneShaderPath);
+            if (pictureArt == null) missing.Add($"{GeneratePictureArt.CatalogPath} (Ink Flow → Setup → Generate Picture Art)");
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Нескінченний НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -115,12 +123,20 @@ namespace InkFlow.Editor
             Stretch(screenGo);
             var screen = screenGo.AddComponent<EndlessScreen>();
 
+            // Верхній блок (§5: картинка над полем, видно завжди): ліворуч картинка
+            // 150×156, праворуч колонка — капсули рахунку й рекорду над баками зі
+            // змішувачем. Так усе вміщається над полем 358 навіть на 844 px макета.
             var headerHeight = M(40f);
-            var statsTop = headerHeight + M(12f);
-            var statsHeight = M(62f);
-            var tanksTop = statsTop + statsHeight + M(12f);
-            var tanksHeight = M(84f);
-            var boardTop = tanksTop + tanksHeight + M(10f);
+            var blockTop = headerHeight + M(12f);
+            var blockHeight = M(156f);
+            var pictureWidth = M(150f);
+            var columnLeft = pictureWidth + M(12f);
+            var columnWidth = M(358f) - columnLeft;
+            var statsHeight = M(44f);
+            var tanksHeight = M(80f);
+            var columnTop = blockTop + (blockHeight - statsHeight - M(10f) - tanksHeight) * 0.5f;
+            var tanksTop = columnTop + statsHeight + M(10f);
+            var boardTop = blockTop + blockHeight + M(10f);
             var boardSide = M(BoardGeometry.Canvas);
             var trayTop = boardTop + boardSide + M(12f);
             var trayHeight = M(86f);
@@ -128,15 +144,18 @@ namespace InkFlow.Editor
             BuildHeader(screenGo, design!, font, circle!, circleOutline!, retry!,
                 headerHeight, out var backButton, out var title, out var restartButton);
 
+            var picture = BuildPicture(screenGo, design!, font, rounded!, outline!, nebula!, zoneShader!, pictureArt!,
+                blockTop, pictureWidth, blockHeight);
+
             BuildCapsules(screenGo, design!, font, rounded!, outline!, nebula!,
-                statsTop, statsHeight,
+                columnLeft, columnTop, columnWidth, statsHeight,
                 out var scoreCapsule, out var scoreStroke, out var scoreGlow,
                 out var scoreLabel, out var scoreNumber,
                 out var recordCapsule, out var recordStroke, out var recordGlow,
                 out var recordLabel, out var recordNumber);
 
-            var tanks = BuildTanks(screenGo, design!, font, rounded!, outline!, circle!, tanksTop, tanksHeight,
-                out var mixer);
+            var tanks = BuildTanks(screenGo, design!, font, rounded!, outline!, circle!,
+                columnLeft, tanksTop, columnWidth, tanksHeight, out var mixer);
 
             var board = BuildBoard(screenGo, design!, font, rounded!, outline!, boardTop, boardSide,
                 out var boardPlate, out var boardPlateStroke);
@@ -164,7 +183,7 @@ namespace InkFlow.Editor
                 ("recordCapsule", recordCapsule), ("recordCapsuleStroke", recordStroke),
                 ("recordCapsuleGlow", recordGlow), ("recordLabel", recordLabel),
                 ("recordNumber", recordNumber),
-                ("board", board), ("tray", tray), ("mixer", mixer),
+                ("board", board), ("tray", tray), ("mixer", mixer), ("picture", picture),
                 ("boardPlate", boardPlate), ("boardPlateStroke", boardPlateStroke),
                 ("overflowRing", overflowRing), ("comboPop", comboPop),
                 ("overCard", overCard), ("overScrim", overScrim), ("overPanel", overPanel),
@@ -254,22 +273,17 @@ namespace InkFlow.Editor
 
         // ── Дві капсули: РАХУНОК і РЕКОРД ──
         private static void BuildCapsules(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite nebula, float top, float height,
+            Sprite rounded, Sprite outline, Sprite nebula, float left, float top, float width, float height,
             out Image scoreCapsule, out Image scoreStroke, out Image scoreGlow,
             out TMP_Text scoreLabel, out TMP_Text scoreNumber,
             out Image recordCapsule, out Image recordStroke, out Image recordGlow,
             out TMP_Text recordLabel, out TMP_Text recordNumber)
         {
             var go = Child(parent, "Stats");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, -top - height);
-            rect.offsetMax = new Vector2(-SideMargin, -top);
+            TopLeft(go, left, top, width, height);
 
-            var gap = M(10f);
-            var half = (M(390f) - SideMargin * 2f - gap) * 0.5f;
+            var gap = M(8f);
+            var half = (width - gap) * 0.5f;
 
             Capsule(go, "Score", design, font, rounded, outline, nebula,
                 new Vector2(0f, 0.5f), half, height, "РАХУНОК", "0", design.TextPrimary,
@@ -320,26 +334,116 @@ namespace InkFlow.Editor
 
             label = Label(fillGo, "Label", caption, design, font,
                 design.FontSizeStatLabel, design.TextDim, TextAlignmentOptions.Center);
-            Place(label, new Vector2(0f, -M(9f)), new Vector2(width, M(14f)),
+            Place(label, new Vector2(0f, -M(5f)), new Vector2(width, M(12f)),
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
 
             number = Label(fillGo, "Number", value, design, font,
                 design.FontSizeScoreNumber, valueColor, TextAlignmentOptions.Center);
-            Place(number, new Vector2(0f, M(10f)), new Vector2(width, M(30f)),
+            Place(number, new Vector2(0f, M(4f)), new Vector2(width, M(24f)),
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+        }
+
+        /// <summary>Прямокутник від лівого верхнього кута екрана (з бічним полем) у px макета × K.</summary>
+        private static RectTransform TopLeft(GameObject go, float left, float top, float width, float height)
+        {
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(SideMargin + left, -top);
+            rect.sizeDelta = new Vector2(width, height);
+            return rect;
+        }
+
+        // ── Картинка: плитка 150×128 із зонами стосом + назва й підпис зони ──
+        private static PictureView BuildPicture(GameObject parent, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, Sprite nebula, Shader zoneShader, PictureArtCatalog art,
+            float top, float width, float height)
+        {
+            var go = Child(parent, "Picture");
+            TopLeft(go, 0f, top, width, height);
+
+            var plateHeight = M(128f);
+            var plateGo = Child(go, "Plate");
+            var plate = plateGo.GetComponent<RectTransform>();
+            plate.anchorMin = plate.anchorMax = new Vector2(0.5f, 1f);
+            plate.pivot = new Vector2(0.5f, 0.5f);
+            plate.anchoredPosition = new Vector2(0f, -plateHeight * 0.5f);
+            plate.sizeDelta = new Vector2(width, plateHeight);
+
+            var glowGo = Child(plateGo, "Glow");
+            Stretch(glowGo, -M(18f));
+            var glow = glowGo.AddComponent<Image>();
+            glow.sprite = nebula;
+            glow.color = design.AccentGold;
+            glow.raycastTarget = false;
+
+            var fillGo = Child(plateGo, "Fill");
+            Stretch(fillGo);
+            var plateFill = fillGo.AddComponent<Image>();
+            plateFill.sprite = rounded;
+            plateFill.type = Image.Type.Sliced;
+            plateFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
+            plateFill.color = design.PicturePlateFill;
+            plateFill.raycastTarget = false;
+
+            var strokeGo = Child(plateGo, "Stroke");
+            Stretch(strokeGo);
+            var plateStroke = strokeGo.AddComponent<Image>();
+            plateStroke.sprite = outline;
+            plateStroke.type = Image.Type.Sliced;
+            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
+            plateStroke.color = design.PicturePlateStroke;
+            plateStroke.raycastTarget = false;
+
+            // Назва — всередині плитки згори; квадрат зон — під нею.
+            var title = Label(plateGo, "Title", "КИТ · 0/5", design, font,
+                design.FontSizePictureName, design.TextPrimary, TextAlignmentOptions.Center);
+            Place(title, new Vector2(0f, -M(5f)), new Vector2(width, M(14f)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+            var canvasSide = M(104f);
+            var canvasGo = Child(plateGo, "Canvas");
+            var canvas = canvasGo.GetComponent<RectTransform>();
+            canvas.anchorMin = canvas.anchorMax = new Vector2(0.5f, 0f);
+            canvas.pivot = new Vector2(0.5f, 0f);
+            canvas.anchoredPosition = new Vector2(0f, M(6f));
+            canvas.sizeDelta = new Vector2(canvasSide, canvasSide);
+
+            var zones = new PictureZoneView[ZoneSlots];
+            for (var i = 0; i < ZoneSlots; i++)
+            {
+                var zoneGo = Child(canvasGo, $"Zone_{i}");
+                Stretch(zoneGo);
+                var image = zoneGo.AddComponent<Image>();
+                image.raycastTarget = false;
+                image.preserveAspect = true;
+                var zone = zoneGo.AddComponent<PictureZoneView>();
+                Wire(zone, ("design", design), ("zoneShader", zoneShader), ("image", image));
+                zoneGo.SetActive(false);
+                zones[i] = zone;
+            }
+
+            var caption = Label(go, "Caption", "ТІЛО · СИНІЙ", design, font,
+                design.FontSizePictureCaption, design.TextMuted, TextAlignmentOptions.Center);
+            Place(caption, new Vector2(0f, 0f), new Vector2(width, M(24f)),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+
+            var view = go.AddComponent<PictureView>();
+            Wire(view, ("design", design), ("art", art), ("plate", plate), ("plateFill", plateFill),
+                ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas),
+                ("title", title), ("caption", caption));
+            WireArray(view, "zones", zones);
+            view.Apply();
+            return view;
         }
 
         // ── Баки й змішувач: три капсули 26×80 px макета (прототип v3, beakerVMs) + посудина 44×80 ──
         private static TankView[] BuildTanks(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle, float top, float height, out MixerView mixer)
+            Sprite rounded, Sprite outline, Sprite circle, float left, float top, float width, float height,
+            out MixerView mixer)
         {
             var go = Child(parent, "Tanks");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, -top - height);
-            rect.offsetMax = new Vector2(-SideMargin, -top);
+            TopLeft(go, left, top, width, height);
 
             var tankWidth = M(26f);
             var tankHeight = M(80f);
@@ -348,7 +452,7 @@ namespace InkFlow.Editor
             var mixerWidth = M(44f);
             var pigments = Pigments.Base;
             var totalWidth = pigments.Length * tankWidth + (pigments.Length - 1) * gap + mixerGap + mixerWidth;
-            var left = -totalWidth * 0.5f;
+            var groupLeft = -totalWidth * 0.5f;
             var tanks = new TankView[pigments.Length];
 
             for (var i = 0; i < pigments.Length; i++)
@@ -357,7 +461,7 @@ namespace InkFlow.Editor
                 var tankRect = tankGo.GetComponent<RectTransform>();
                 tankRect.anchorMin = tankRect.anchorMax = new Vector2(0.5f, 0.5f);
                 tankRect.pivot = new Vector2(0.5f, 0.5f);
-                tankRect.anchoredPosition = new Vector2(left + tankWidth * 0.5f + i * (tankWidth + gap), 0f);
+                tankRect.anchoredPosition = new Vector2(groupLeft + tankWidth * 0.5f + i * (tankWidth + gap), 0f);
                 tankRect.sizeDelta = new Vector2(tankWidth, tankHeight);
 
                 var track = tankGo.AddComponent<Image>();
@@ -399,7 +503,7 @@ namespace InkFlow.Editor
             var vessel = vesselGo.GetComponent<RectTransform>();
             vessel.anchorMin = vessel.anchorMax = new Vector2(0.5f, 0.5f);
             vessel.pivot = new Vector2(0.5f, 0.5f);
-            vessel.anchoredPosition = new Vector2(left + totalWidth - mixerWidth * 0.5f, 0f);
+            vessel.anchoredPosition = new Vector2(groupLeft + totalWidth - mixerWidth * 0.5f, 0f);
             vessel.sizeDelta = new Vector2(mixerWidth, tankHeight);
 
             var mixerTrack = vesselGo.AddComponent<Image>();

@@ -44,8 +44,14 @@ namespace InkFlow.Core
             int hintIdleSeconds = 5,
             int mixerSplashSize = 8,
             float mixDominantShare = 0.6f,
-            float mixMinorShare = 0.25f)
+            float mixMinorShare = 0.25f,
+            int cellsPerSplash = 12,
+            int maxSplashesPerZone = 3)
         {
+            if (cellsPerSplash < 1)
+                throw new ArgumentOutOfRangeException(nameof(cellsPerSplash));
+            if (maxSplashesPerZone < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxSplashesPerZone));
             if (mixerSplashSize < 1)
                 throw new ArgumentOutOfRangeException(nameof(mixerSplashSize));
             if (mixDominantShare <= 0.5f || mixDominantShare > 1f)
@@ -100,6 +106,30 @@ namespace InkFlow.Core
             MixerSplashSize = mixerSplashSize;
             MixDominantShare = mixDominantShare;
             MixMinorShare = mixMinorShare;
+            CellsPerSplash = cellsPerSplash;
+            MaxSplashesPerZone = maxSplashesPerZone;
+        }
+
+        // ── Картинка (§5, §12) ──
+
+        /// <summary>
+        /// Скільки клітинок креслення «коштують» один виплеск. Стеля зони — ЦІЛЕ число
+        /// виплесків (§12: «~1 виплеск на зону»): маленька зона — один, велика — два-три,
+        /// і тоді після першого видно часткову заливку (§4). Дробова стеля втрачала б
+        /// решту кожного виплеску просто так.
+        /// </summary>
+        public int CellsPerSplash { get; }
+
+        /// <summary>Найбільша зона просить не більше стількох виплесків.</summary>
+        public int MaxSplashesPerZone { get; }
+
+        /// <summary>Стеля зони у фарбі: від одного до MaxSplashesPerZone виплесків.</summary>
+        public int ZoneCapacity(int cells)
+        {
+            var splashes = (int)Math.Round((double)cells / CellsPerSplash, MidpointRounding.AwayFromZero);
+            if (splashes < 1) splashes = 1;
+            if (splashes > MaxSplashesPerZone) splashes = MaxSplashesPerZone;
+            return splashes * MixerSplashSize;
         }
 
         // ── Змішувач (§4, §12) ──

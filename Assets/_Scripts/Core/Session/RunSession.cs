@@ -26,11 +26,13 @@ namespace InkFlow.Core
         private readonly int[] _taken = new int[Pigments.Count];
         private readonly int[] _splashesByHue = new int[Hues.Count + 1];
 
-        public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random)
+        public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random,
+            PictureCatalogData? pictures = null)
         {
             Balance = balance ?? throw new ArgumentNullException(nameof(balance));
             Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             Random = random ?? throw new ArgumentNullException(nameof(random));
+            Pictures = pictures ?? PictureCatalogData.Default;
 
             Board = new Board(balance.GridWidth, balance.GridHeight);
             Tanks = new TankSet();
@@ -38,6 +40,7 @@ namespace InkFlow.Core
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
+            Picture = DrawPicture(exclude: -1);
             RefillTray(_result, silent: true);
         }
 
@@ -60,6 +63,18 @@ namespace InkFlow.Core
 
         /// <summary>Відтінок останнього виплеску партії; None, якщо їх ще не було.</summary>
         public Hue LastSplashHue { get; private set; }
+
+        /// <summary>Колода картинок (§5–6).</summary>
+        public PictureCatalogData Pictures { get; }
+
+        /// <summary>Картинка, яка зараз малюється (§5). Після завершення — одразу наступна.</summary>
+        public PictureProgress Picture { get; private set; }
+
+        /// <summary>Картинок закінчено за партію — головний рекорд документа (§8).</summary>
+        public int PicturesCompleted { get; private set; }
+
+        /// <summary>Фарби з виплесків, якій не було куди лягти.</summary>
+        public int PaintMissed { get; private set; }
 
         /// <summary>Лоток. Порожня комірка означає «фігуру вже поставили» (§2).</summary>
         public PieceDef[] TrayPieces { get; }
@@ -110,10 +125,46 @@ namespace InkFlow.Core
         }
 
         /// <summary>
-        /// Який пігмент бажаний для наступного лотка (крок 4: колір активної зони
-        /// картинки). None — мішок вирішує сам.
+        /// Який пігмент бажаний для наступного лотка (прототип v3: перша фігура лотка —
+        /// кольору активної зони). Чистий відтінок — його пігмент; вторинний — той із двох,
+        /// якого в баках менше, щоб пропорція йшла до потрібного; коричневий — найменший
+        /// із трьох. None — картинку закінчено, мішок вирішує сам.
         /// </summary>
-        public Pigment WantedPigment { get; set; } = Pigment.None;
+        public Pigment WantedPigment
+        {
+            get
+            {
+                WantedPigments(out var first, out _);
+                return first;
+            }
+        }
+
+        /// <summary>Обидва пігменти потрібного відтінку (для вторинного); second = None для чистого.</summary>
+        public void WantedPigments(out Pigment first, out Pigment second)
+        {
+            first = Pigment.None;
+            second = Pigment.None;
+            switch (Picture.WantedHue)
+            {
+                case Hue.Blue: first = Pigment.Blue; return;
+                case Hue.Red: first = Pigment.Red; return;
+                case Hue.Yellow: first = Pigment.Yellow; return;
+                case Hue.Green: Order(Pigment.Blue, Pigment.Yellow, out first, out second); return;
+                case Hue.Orange: Order(Pigment.Red, Pigment.Yellow, out first, out second); return;
+                case Hue.Purple: Order(Pigment.Blue, Pigment.Red, out first, out second); return;
+                case Hue.Brown:
+                    first = Pigment.Blue;
+                    if (Tanks[Pigment.Red] < Tanks[first]) first = Pigment.Red;
+                    if (Tanks[Pigment.Yellow] < Tanks[first]) first = Pigment.Yellow;
+                    return;
+            }
+        }
+
+        private void Order(Pigment a, Pigment b, out Pigment lower, out Pigment higher)
+        {
+            if (Tanks[b] < Tanks[a]) { lower = b; higher = a; }
+            else { lower = a; higher = b; }
+        }
 
         /// <summary>
         /// Хід. Відхилене розміщення нічого не змінює і нічого не витрачає.
@@ -173,6 +224,9 @@ namespace InkFlow.Core
             Array.Clear(_splashesByHue, 0, _splashesByHue.Length);
             Splashes = 0;
             LastSplashHue = Hue.None;
+            PicturesCompleted = 0;
+            PaintMissed = 0;
+            Picture = DrawPicture(exclude: Picture.CatalogIndex);
             Score = 0;
             BestChain = 0;
             PlacementCount = 0;
@@ -273,12 +327,41 @@ namespace InkFlow.Core
                 Splashes++;
                 _splashesByHue[(int)splash.Hue]++;
                 LastSplashHue = splash.Hue;
+
+                // 7г. Виплеск лягає на картинку (§5) — сам, у зону свого відтінку.
+                var missed = Picture.Apply(splash.Hue, splash.Amount, _result);
+                if (missed > 0)
+                {
+                    _result.AddSplashMissed(splash.Hue, missed);
+                    PaintMissed += missed;
+                }
+
+                if (Picture.IsComplete)
+                {
+                    _result.AddPictureCompleted(Picture.CatalogIndex);
+                    PicturesCompleted++;
+                    Picture = DrawPicture(exclude: Picture.CatalogIndex);
+                    _result.AddPictureStarted(Picture.CatalogIndex);
+                }
             }
 
             LinesCleared += count;
             PureLinesCleared += _result.PureLinesCleared;
             PaintYielded += _result.PaintYielded;
             return score;
+        }
+
+        /// <summary>
+        /// Наступна картинка з колоди: будь-яка, крім щойно закінченої, щоб та сама не
+        /// прийшла двічі поспіль. Рідкість і теми (§6) — крок 5.
+        /// </summary>
+        private PictureProgress DrawPicture(int exclude)
+        {
+            var count = Pictures.Count;
+            var index = Random.Next(count);
+            if (count > 1 && index == exclude)
+                index = (index + 1 + Random.Next(count - 1)) % count;
+            return new PictureProgress(Pictures[index], index, Balance);
         }
 
         /// <summary>Рівні баків для тайбрейка мішаної лінії: нічия віддає колір, якого менше.</summary>

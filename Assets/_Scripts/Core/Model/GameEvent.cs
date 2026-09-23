@@ -31,7 +31,19 @@ namespace InkFlow.Core
         TankDrained = 8,
 
         /// <summary>Виплеск змішувача: Value = скільки фарби, Extra = (int)<see cref="Hue"/>.</summary>
-        MixerFired = 9
+        MixerFired = 9,
+
+        /// <summary>Фарба лягла в зону картинки: Value = зона, Extra = рівень зони після, CellStart = стеля зони, CellCount = скільки лягло, IsPure = зону закінчено.</summary>
+        ZoneFilled = 10,
+
+        /// <summary>Усі зони залиті: Value = індекс картинки в колоді.</summary>
+        PictureCompleted = 11,
+
+        /// <summary>Виплеску нікуди лягти — фарба пропала: Value = скільки, Extra = (int)<see cref="Hue"/>.</summary>
+        SplashMissed = 12,
+
+        /// <summary>Прийшла наступна картинка: Value = індекс картинки в колоді.</summary>
+        PictureStarted = 13
     }
 
     /// <summary>

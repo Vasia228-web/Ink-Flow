@@ -31,6 +31,15 @@ namespace InkFlow.UI
             public int After0, After1, After2;
             public int Capacity;
 
+            /// <summary>Куди летить виплеск (світова точка зони картинки); нуль — просто вгору.</summary>
+            public Vector3 Target;
+
+            /// <summary>Виплеску нікуди лягти — він згасає в польоті.</summary>
+            public bool Missed;
+
+            /// <summary>Спрацьовує, коли виплеск долетів: тут картинка грає мазок.</summary>
+            public System.Action? Arrived;
+
             public int Taken(int i) => i == 0 ? Taken0 : i == 1 ? Taken1 : Taken2;
             public int After(int i) => i == 0 ? After0 : i == 1 ? After1 : After2;
         }
@@ -258,6 +267,12 @@ namespace InkFlow.UI
                 : Hue.None;
             var colorAfter = previewAfter == Hue.None ? design.MixerTrackFill : design.HueColor(previewAfter);
 
+            var flyTo = shot.Target == Vector3.zero
+                ? target + new Vector3(0f, design.MixerSplashRise, 0f)
+                : transform.InverseTransformPoint(shot.Target);
+            flyTo.z = 0f;
+            var arrived = false;
+
             if (splash != null)
             {
                 splash.canvasRenderer.SetColor(hueColor);
@@ -267,7 +282,7 @@ namespace InkFlow.UI
             }
             if (hueName != null)
             {
-                hueName.text = HueNames.Of(shot.Hue);
+                hueName.text = shot.Missed ? HueNames.Of(shot.Hue) + " · МИМО" : HueNames.Of(shot.Hue);
                 hueName.canvasRenderer.SetAlpha(1f);
                 hueName.rectTransform.localPosition = target + new Vector3(0f, design.MixerNameOffset, 0f);
                 hueName.rectTransform.localScale = Vector3.one * 0.6f;
@@ -278,11 +293,22 @@ namespace InkFlow.UI
             {
                 var k = Mathf.Clamp01(t / splashDuration);
                 var pop = design.CurveBackOut.Evaluate(Mathf.Clamp01(k / 0.45f));
-                var fade = k < 0.55f ? 1f : 1f - (k - 0.55f) / 0.45f;
+                // Мимо — згасає на півдорозі; влучив — живе до самої зони й гасне вже там.
+                var fade = shot.Missed
+                    ? (k < 0.35f ? 1f : Mathf.Max(0f, 1f - (k - 0.35f) / 0.3f))
+                    : (k < 0.75f ? 1f : 1f - (k - 0.75f) / 0.25f);
+                var flight = design.CurveEaseInOut.Evaluate(Mathf.Clamp01(k / 0.8f));
+                if (!arrived && !shot.Missed && k >= 0.8f)
+                {
+                    arrived = true;
+                    shot.Arrived?.Invoke();
+                }
                 if (splash != null)
                 {
-                    splash.rectTransform.localScale = Vector3.one * pop;
-                    splash.rectTransform.localPosition = target + new Vector3(0f, design.MixerSplashRise * k, 0f);
+                    var p = Vector3.LerpUnclamped(target, flyTo, flight);
+                    p.y += Mathf.Sin(flight * Mathf.PI) * design.MixerStreamArc;
+                    splash.rectTransform.localScale = Vector3.one * (shot.Missed ? pop * (1f - k * 0.6f) : pop);
+                    splash.rectTransform.localPosition = p;
                     splash.canvasRenderer.SetAlpha(fade);
                 }
                 if (hueName != null)
@@ -306,6 +332,9 @@ namespace InkFlow.UI
                 }
                 yield return null;
             }
+
+            if (!arrived && !shot.Missed)
+                shot.Arrived?.Invoke();
 
             if (splash != null)
                 splash.gameObject.SetActive(false);
