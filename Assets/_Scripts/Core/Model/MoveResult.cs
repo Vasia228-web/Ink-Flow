@@ -32,8 +32,11 @@ namespace InkFlow.Core
         /// <summary>Скільки одиниць фарби видали лінії цього ходу (вже з ланцюгом).</summary>
         public int PaintYielded { get; private set; }
 
-        /// <summary>Скільки з них вилилось через повні баки.</summary>
-        public int PaintWasted { get; private set; }
+        /// <summary>Скільки разів спрацював змішувач цього ходу.</summary>
+        public int Splashes { get; private set; }
+
+        /// <summary>Відтінок останнього виплеску ходу; None, якщо змішувач мовчав.</summary>
+        public Hue LastSplashHue { get; private set; }
 
         public int ScoreGained { get; private set; }
 
@@ -48,7 +51,8 @@ namespace InkFlow.Core
             LinesCleared = 0;
             PureLinesCleared = 0;
             PaintYielded = 0;
-            PaintWasted = 0;
+            Splashes = 0;
+            LastSplashHue = Hue.None;
             ScoreGained = 0;
         }
 
@@ -93,11 +97,16 @@ namespace InkFlow.Core
             _events.Add(new GameEvent(GameEventType.PaintPoured, LineKind.Row, pigment,
                 amount, levelAfter, 0f, false, 0, 0));
 
-        internal void AddPaintWasted(Pigment pigment, int amount)
+        internal void AddTankDrained(Pigment pigment, int amount, int levelAfter) =>
+            _events.Add(new GameEvent(GameEventType.TankDrained, LineKind.Row, pigment,
+                amount, levelAfter, 0f, false, 0, 0));
+
+        internal void AddMixerFired(Hue hue, int amount)
         {
-            _events.Add(new GameEvent(GameEventType.PaintWasted, LineKind.Row, pigment,
-                amount, 0, 0f, false, 0, 0));
-            PaintWasted += amount;
+            _events.Add(new GameEvent(GameEventType.MixerFired, LineKind.Row, Pigment.None,
+                amount, (int)hue, 0f, false, 0, 0));
+            Splashes++;
+            LastSplashHue = hue;
         }
 
         internal void AddTrayRefilled(int round) =>

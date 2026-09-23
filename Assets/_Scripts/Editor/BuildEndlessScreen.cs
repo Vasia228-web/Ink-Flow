@@ -15,7 +15,7 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Збирає екран «Нескінченний» нового ядра: шапка, капсули рахунку й рекорду,
-    /// поле 8×8 із блоків і привидів, лоток на три фігури, картка фіналу.
+    /// три баки й змішувач, поле 8×8 із блоків і привидів, лоток на три фігури, картка фіналу.
     /// Меню: Ink Flow → Setup → Build Endless Screen.
     ///
     /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Геометрію поля й лотка дає
@@ -135,7 +135,8 @@ namespace InkFlow.Editor
                 out var recordCapsule, out var recordStroke, out var recordGlow,
                 out var recordLabel, out var recordNumber);
 
-            var tanks = BuildTanks(screenGo, design!, font, rounded!, outline!, tanksTop, tanksHeight);
+            var tanks = BuildTanks(screenGo, design!, font, rounded!, outline!, circle!, tanksTop, tanksHeight,
+                out var mixer);
 
             var board = BuildBoard(screenGo, design!, font, rounded!, outline!, boardTop, boardSide,
                 out var boardPlate, out var boardPlateStroke);
@@ -163,7 +164,7 @@ namespace InkFlow.Editor
                 ("recordCapsule", recordCapsule), ("recordCapsuleStroke", recordStroke),
                 ("recordCapsuleGlow", recordGlow), ("recordLabel", recordLabel),
                 ("recordNumber", recordNumber),
-                ("board", board), ("tray", tray),
+                ("board", board), ("tray", tray), ("mixer", mixer),
                 ("boardPlate", boardPlate), ("boardPlateStroke", boardPlateStroke),
                 ("overflowRing", overflowRing), ("comboPop", comboPop),
                 ("overCard", overCard), ("overScrim", overScrim), ("overPanel", overPanel),
@@ -328,9 +329,9 @@ namespace InkFlow.Editor
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
         }
 
-        // ── Баки: три капсули 26×80 px макета (прототип v3, beakerVMs) ──
+        // ── Баки й змішувач: три капсули 26×80 px макета (прототип v3, beakerVMs) + посудина 44×80 ──
         private static TankView[] BuildTanks(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, float top, float height)
+            Sprite rounded, Sprite outline, Sprite circle, float top, float height, out MixerView mixer)
         {
             var go = Child(parent, "Tanks");
             var rect = go.GetComponent<RectTransform>();
@@ -343,8 +344,11 @@ namespace InkFlow.Editor
             var tankWidth = M(26f);
             var tankHeight = M(80f);
             var gap = M(18f);
+            var mixerGap = M(34f);
+            var mixerWidth = M(44f);
             var pigments = Pigments.Base;
-            var totalWidth = pigments.Length * tankWidth + (pigments.Length - 1) * gap;
+            var totalWidth = pigments.Length * tankWidth + (pigments.Length - 1) * gap + mixerGap + mixerWidth;
+            var left = -totalWidth * 0.5f;
             var tanks = new TankView[pigments.Length];
 
             for (var i = 0; i < pigments.Length; i++)
@@ -353,7 +357,7 @@ namespace InkFlow.Editor
                 var tankRect = tankGo.GetComponent<RectTransform>();
                 tankRect.anchorMin = tankRect.anchorMax = new Vector2(0.5f, 0.5f);
                 tankRect.pivot = new Vector2(0.5f, 0.5f);
-                tankRect.anchoredPosition = new Vector2(-totalWidth * 0.5f + tankWidth * 0.5f + i * (tankWidth + gap), 0f);
+                tankRect.anchoredPosition = new Vector2(left + tankWidth * 0.5f + i * (tankWidth + gap), 0f);
                 tankRect.sizeDelta = new Vector2(tankWidth, tankHeight);
 
                 var track = tankGo.AddComponent<Image>();
@@ -364,20 +368,7 @@ namespace InkFlow.Editor
                 track.raycastTarget = false;
 
                 // Заливка на всю висоту з півотом ЗНИЗУ: рівень — це localScale.y.
-                var fillGo = Child(tankGo, "Fill");
-                var fillRect = fillGo.GetComponent<RectTransform>();
-                fillRect.anchorMin = Vector2.zero;
-                fillRect.anchorMax = Vector2.one;
-                fillRect.pivot = new Vector2(0.5f, 0f);
-                fillRect.offsetMin = new Vector2(M(2f), M(2f));
-                fillRect.offsetMax = new Vector2(-M(2f), -M(2f));
-                fillRect.localScale = new Vector3(1f, 0f, 1f);
-                var fill = fillGo.AddComponent<Image>();
-                fill.sprite = rounded;
-                fill.type = Image.Type.Sliced;
-                fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(6f));
-                fill.color = design.PigmentColor(pigments[i]);
-                fill.raycastTarget = false;
+                var fill = BottomFill(tankGo, rounded, design.PigmentColor(pigments[i]), out var fillRect);
 
                 var strokeGo = Child(tankGo, "Stroke");
                 Stretch(strokeGo);
@@ -403,7 +394,107 @@ namespace InkFlow.Editor
                 tanks[i] = tank;
             }
 
+            // Посудина змішувача — праворуч від баків, ширша: у ній кружляють три краплі.
+            var vesselGo = Child(go, "Mixer");
+            var vessel = vesselGo.GetComponent<RectTransform>();
+            vessel.anchorMin = vessel.anchorMax = new Vector2(0.5f, 0.5f);
+            vessel.pivot = new Vector2(0.5f, 0.5f);
+            vessel.anchoredPosition = new Vector2(left + totalWidth - mixerWidth * 0.5f, 0f);
+            vessel.sizeDelta = new Vector2(mixerWidth, tankHeight);
+
+            var mixerTrack = vesselGo.AddComponent<Image>();
+            mixerTrack.sprite = rounded;
+            mixerTrack.type = Image.Type.Sliced;
+            mixerTrack.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(12f));
+            mixerTrack.color = design.MixerTrackFill;
+            mixerTrack.raycastTarget = false;
+
+            var mixerFill = BottomFill(vesselGo, rounded, design.MixerTrackFill, out var mixerFillRect);
+
+            var orbitGo = Child(vesselGo, "Orbit");
+            var orbit = orbitGo.GetComponent<RectTransform>();
+            orbit.anchorMin = orbit.anchorMax = new Vector2(0.5f, 0.5f);
+            orbit.pivot = new Vector2(0.5f, 0.5f);
+            orbit.anchoredPosition = Vector2.zero;
+            orbit.sizeDelta = Vector2.zero;
+            var drops = new Image[pigments.Length];
+            for (var i = 0; i < pigments.Length; i++)
+                drops[i] = Dot(orbitGo, $"Drop_{pigments[i]}", circle, design.PigmentColor(pigments[i]), M(14f));
+
+            var mixerStrokeGo = Child(vesselGo, "Stroke");
+            Stretch(mixerStrokeGo);
+            var mixerStroke = mixerStrokeGo.AddComponent<Image>();
+            mixerStroke.sprite = outline;
+            mixerStroke.type = Image.Type.Sliced;
+            mixerStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(12f));
+            mixerStroke.color = design.MixerTrackStroke;
+            mixerStroke.raycastTarget = false;
+
+            // Струмені, виплеск і назва відтінку — діти РЯДКА: літають між баками й посудиною.
+            var streams = new Image[pigments.Length];
+            for (var i = 0; i < pigments.Length; i++)
+            {
+                streams[i] = Dot(go, $"Stream_{pigments[i]}", circle, design.PigmentColor(pigments[i]), M(14f));
+                streams[i].gameObject.SetActive(false);
+            }
+
+            var splash = Dot(go, "Splash", circle, Color.white, M(44f));
+            splash.gameObject.SetActive(false);
+
+            var hueName = Label(go, "HueName", "ЗЕЛЕНИЙ", design, font,
+                design.FontSizeHueName, design.TextPrimary, TextAlignmentOptions.Center);
+            Place(hueName, Vector2.zero, new Vector2(M(220f), M(22f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            hueName.gameObject.SetActive(false);
+
+            mixer = go.AddComponent<MixerView>();
+            Wire(mixer, ("design", design), ("vessel", vessel), ("track", mixerTrack),
+                ("stroke", mixerStroke), ("fill", mixerFill), ("fillRect", mixerFillRect),
+                ("orbit", orbit), ("splash", splash), ("hueName", hueName));
+            WireArray(mixer, "tanks", tanks);
+            WireArray(mixer, "drops", drops);
+            WireArray(mixer, "streams", streams);
+            mixer.Apply();
+
             return tanks;
+        }
+
+        /// <summary>Заливка на всю висоту батька з півотом знизу: рівень анімується localScale.y.</summary>
+        private static Image BottomFill(GameObject parent, Sprite rounded, Color color, out RectTransform fillRect)
+        {
+            var fillGo = Child(parent, "Fill");
+            fillRect = fillGo.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.pivot = new Vector2(0.5f, 0f);
+            fillRect.offsetMin = new Vector2(M(2f), M(2f));
+            fillRect.offsetMax = new Vector2(-M(2f), -M(2f));
+            fillRect.localScale = new Vector3(1f, 0f, 1f);
+            var fill = fillGo.AddComponent<Image>();
+            fill.sprite = rounded;
+            fill.type = Image.Type.Sliced;
+            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(6f));
+            fill.color = color;
+            fill.raycastTarget = false;
+            return fill;
+        }
+
+        /// <summary>Кругла крапля-спрайт заданого розміру, центрована в батькові.</summary>
+        private static Image Dot(GameObject parent, string name, Sprite circle, Color color, float size)
+        {
+            var go = Child(parent, name);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(size, size);
+            var image = go.AddComponent<Image>();
+            image.sprite = circle;
+            image.type = Image.Type.Simple;
+            image.preserveAspect = true;
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
         }
 
         // ── Поле: полотно 358 px макета, 64 блоки + 64 привиди ──

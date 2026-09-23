@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 16;
+        public const int CurrentTokenVersion = 17;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -81,6 +81,27 @@ namespace InkFlow.Style
             new PigmentSwatch { pigment = Pigment.Blue, hex = Hex("#3E8BFF") },
             new PigmentSwatch { pigment = Pigment.Red, hex = Hex("#FF4A4A") },
             new PigmentSwatch { pigment = Pigment.Yellow, hex = Hex("#FFD23F") }
+        };
+
+        [Serializable]
+        public struct HueSwatch
+        {
+            public Hue hue;
+            public Color hex;
+        }
+
+        [Header("Відтінки змішувача (§4: синій + жовтий = зелений, червоний + жовтий = помаранчевий, синій + червоний = фіолетовий, усі три = коричневий)")]
+        [Tooltip("Базові три збігаються з пігментами. Вторинні — фізично правильна суміш, підсвічена під темний фон.")]
+        [SerializeField]
+        private HueSwatch[] huePalette =
+        {
+            new HueSwatch { hue = Hue.Blue, hex = Hex("#3E8BFF") },
+            new HueSwatch { hue = Hue.Red, hex = Hex("#FF4A4A") },
+            new HueSwatch { hue = Hue.Yellow, hex = Hex("#FFD23F") },
+            new HueSwatch { hue = Hue.Green, hex = Hex("#3FCF6B") },
+            new HueSwatch { hue = Hue.Orange, hex = Hex("#FF8A3D") },
+            new HueSwatch { hue = Hue.Purple, hex = Hex("#9B5DFF") },
+            new HueSwatch { hue = Hue.Brown, hex = Hex("#A6714A") }
         };
 
         [Header("Космічний фон (radial 130%×90% з точки 50% / -12%)")]
@@ -653,13 +674,28 @@ namespace InkFlow.Style
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
         [SerializeField, Min(0.2f)] private float hintShowDuration = 1.6f;
 
-        [Tooltip("Баки фарби: доріжка, обведення (звичайне / повний бак), число рівня, наливання.")]
+        [Tooltip("Баки фарби: доріжка, обведення, число рівня, наливання. Повний бак = один виплеск.")]
         [SerializeField] private Color tankTrackFill = new Color(1f, 1f, 1f, 0.05f);
         [SerializeField] private Color tankTrackStroke = new Color(1f, 1f, 1f, 0.13f);
-        [SerializeField] private Color tankFullStroke = new Color(1f, 1f, 1f, 0.4f);
         [SerializeField] private float fontSizeTankNumber = 29f;
         [SerializeField, Min(0f)] private float tankFillDuration = 0.5f;
         [SerializeField, Range(0f, 0.3f)] private float tankPourPulse = 0.08f;
+
+        [Tooltip("Змішувач: посудина, орбіта крапель, струмені, спалах і виплеск. Тривалості — в секундах, відстані — у reference-одиницях.")]
+        [SerializeField] private Color mixerTrackFill = new Color(1f, 1f, 1f, 0.07f);
+        [SerializeField] private Color mixerTrackStroke = new Color(1f, 1f, 1f, 0.2f);
+        [SerializeField, Min(0f)] private float mixerOrbitRadius = 22f;
+        [SerializeField, Range(0.1f, 1f)] private float mixerDropMinScale = 0.45f;
+        [SerializeField, Min(0f)] private float mixerIdleSpin = 40f;
+        [SerializeField, Min(0f)] private float mixerFireTurns = 1.5f;
+        [SerializeField, Min(0f)] private float mixerStreamDuration = 0.35f;
+        [SerializeField, Min(0f)] private float mixerStreamArc = 48f;
+        [SerializeField, Min(0f)] private float mixerSwirlDuration = 0.45f;
+        [SerializeField, Range(0f, 0.4f)] private float mixerSqueeze = 0.12f;
+        [SerializeField, Min(0f)] private float mixerSplashDuration = 0.7f;
+        [SerializeField, Min(0f)] private float mixerSplashRise = 150f;
+        [SerializeField, Min(0f)] private float mixerNameOffset = 118f;
+        [SerializeField] private float fontSizeHueName = 30f;
 
         [Header("Кінець партії (Нескінченний)")]
         [SerializeField] private float fontSizeOverScore = 155f;
@@ -931,10 +967,32 @@ namespace InkFlow.Style
         public float HintShowDuration => hintShowDuration;
         public Color TankTrackFill => tankTrackFill;
         public Color TankTrackStroke => tankTrackStroke;
-        public Color TankFullStroke => tankFullStroke;
         public float FontSizeTankNumber => fontSizeTankNumber;
         public float TankFillDuration => tankFillDuration;
         public float TankPourPulse => tankPourPulse;
+        public Color MixerTrackFill => mixerTrackFill;
+        public Color MixerTrackStroke => mixerTrackStroke;
+        public float MixerOrbitRadius => mixerOrbitRadius;
+        public float MixerDropMinScale => mixerDropMinScale;
+        public float MixerIdleSpin => mixerIdleSpin;
+        public float MixerFireTurns => mixerFireTurns;
+        public float MixerStreamDuration => mixerStreamDuration;
+        public float MixerStreamArc => mixerStreamArc;
+        public float MixerSwirlDuration => mixerSwirlDuration;
+        public float MixerSqueeze => mixerSqueeze;
+        public float MixerSplashDuration => mixerSplashDuration;
+        public float MixerSplashRise => mixerSplashRise;
+        public float MixerNameOffset => mixerNameOffset;
+        public float FontSizeHueName => fontSizeHueName;
+
+        /// <summary>Колір відтінку зі змішувача. Fallback — білий, щоб помилка була видима.</summary>
+        public Color HueColor(Hue hue)
+        {
+            for (var i = 0; i < huePalette.Length; i++)
+                if (huePalette[i].hue == hue)
+                    return huePalette[i].hex;
+            return Color.white;
+        }
 
         /// <summary>Колір пігменту ядра. Fallback — білий, щоб помилка була видима.</summary>
         public Color PigmentColor(Pigment pigment)

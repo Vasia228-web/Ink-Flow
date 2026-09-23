@@ -27,8 +27,11 @@ namespace InkFlow.Core
         /// <summary>Фарба влилась у бак: Pigment, Value = скільки, Extra = рівень бака після.</summary>
         PaintPoured = 7,
 
-        /// <summary>Бак повний, фарба вилилась: Pigment, Value = скільки втрачено.</summary>
-        PaintWasted = 8
+        /// <summary>Змішувач забрав із бака: Pigment, Value = скільки, Extra = рівень бака після.</summary>
+        TankDrained = 8,
+
+        /// <summary>Виплеск змішувача: Value = скільки фарби, Extra = (int)<see cref="Hue"/>.</summary>
+        MixerFired = 9
     }
 
     /// <summary>

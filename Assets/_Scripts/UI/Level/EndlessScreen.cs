@@ -53,8 +53,9 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text recordLabel;
         [SerializeField] private TMP_Text recordNumber;
 
-        [Header("Баки")]
+        [Header("Баки і змішувач")]
         [SerializeField] private TankView[] tanks = System.Array.Empty<TankView>();
+        [SerializeField] private MixerView mixer;
 
         [Header("Поле і лоток")]
         [SerializeField] private BoardView board;
@@ -208,18 +209,80 @@ namespace InkFlow.UI
             HideOver();
         }
 
-        /// <summary>Рівні баків — із сесії, після кожного ходу. Анімація наливання — лише на хід.</summary>
+        /// <summary>Рівні баків і змішувача — із сесії, як є. Для старту партії й миттєвих станів.</summary>
         private void ApplyTanks(bool animate)
         {
             if (_session == null)
                 return;
+            var capacity = _session.Mixer.SplashSize;
             for (var i = 0; i < tanks.Length; i++)
             {
                 var tank = tanks[i];
                 if (tank == null)
                     continue;
-                tank.Show(_session.Tanks[tank.Pigment], _session.Tanks.Capacity, animate);
+                tank.Show(_session.Tanks[tank.Pigment], capacity, animate);
             }
+            mixer?.Show(_session.Tanks.Levels, capacity, _session.Balance, animate);
+        }
+
+        private readonly int[] _levelsAfter = new int[Pigments.Count];
+        private readonly int[] _taken = new int[Pigments.Count];
+
+        /// <summary>
+        /// Програє фарбу ходу: наливання в баки — з подій (рівень після кожного), спрацювання
+        /// змішувача — чергою у <see cref="MixerView"/>, яка НЕ блокує поле (§4: «не відволікає»).
+        /// </summary>
+        private void PlayPaint(MoveResult result)
+        {
+            if (_session == null)
+                return;
+            var capacity = _session.Mixer.SplashSize;
+            for (var i = 0; i < Pigments.Count; i++)
+            {
+                _levelsAfter[i] = _session.Tanks.Levels[i];
+                _taken[i] = 0;
+            }
+
+            var fired = false;
+            var events = result.Events;
+            for (var e = 0; e < events.Count; e++)
+            {
+                var ev = events[e];
+                switch (ev.Type)
+                {
+                    case GameEventType.PaintPoured:
+                        _levelsAfter[Pigments.IndexOf(ev.Pigment)] = ev.Extra;
+                        TankFor(ev.Pigment)?.Show(ev.Extra, capacity, animate: true);
+                        break;
+                    case GameEventType.TankDrained:
+                        _taken[Pigments.IndexOf(ev.Pigment)] = ev.Value;
+                        _levelsAfter[Pigments.IndexOf(ev.Pigment)] = ev.Extra;
+                        break;
+                    case GameEventType.MixerFired:
+                        fired = true;
+                        mixer?.Fire(new MixerView.Shot
+                        {
+                            Hue = (Hue)ev.Extra,
+                            Taken0 = _taken[0], Taken1 = _taken[1], Taken2 = _taken[2],
+                            After0 = _levelsAfter[0], After1 = _levelsAfter[1], After2 = _levelsAfter[2],
+                            Capacity = capacity
+                        });
+                        for (var i = 0; i < Pigments.Count; i++)
+                            _taken[i] = 0;
+                        break;
+                }
+            }
+
+            if (!fired && result.PaintYielded > 0)
+                mixer?.Show(_session.Tanks.Levels, capacity, _session.Balance, animate: true);
+        }
+
+        private TankView? TankFor(Pigment pigment)
+        {
+            for (var i = 0; i < tanks.Length; i++)
+                if (tanks[i] != null && tanks[i].Pigment == pigment)
+                    return tanks[i];
+            return null;
         }
 
         /// <summary>Миттєвий рестарт: нова сесія на місці, без перезавантаження сцени.</summary>
@@ -237,6 +300,7 @@ namespace InkFlow.UI
                 if (routine != null)
                     StopCoroutine(routine);
             _playback = _flash = _combo = _overflowPulse = _confetti = _hint = null;
+            mixer?.StopAll();
         }
 
         // ── Перетягування ──
@@ -318,7 +382,7 @@ namespace InkFlow.UI
             yield return board!.PlayEvents(result);
 
             tray?.Show(_session!.Tray);
-            ApplyTanks(animate: true);
+            PlayPaint(result);
             ApplyStats();
             GameEvents.RaiseMovePlayed(result);
 
@@ -417,6 +481,7 @@ namespace InkFlow.UI
             tray?.Apply();
             foreach (var tank in tanks)
                 tank?.Apply();
+            mixer?.Apply();
             ApplyStats();
         }
 

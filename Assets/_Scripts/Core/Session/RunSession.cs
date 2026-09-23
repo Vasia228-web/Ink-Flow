@@ -13,7 +13,8 @@ namespace InkFlow.Core
     ///  1. валідація → 2. клітинки фігури → 3. фігура зникає з лотка → 4. усі повні лінії
     ///  за станом ПІСЛЯ розміщення → 5. вихід кожної лінії за станом ДО очищення (клітинка
     ///  на перетині рахується в обидві) → 6. очищення всіх ліній одночасно → 7. ланцюг
-    ///  і очки → 8. поповнення лотка, якщо порожній → 9. перевірка живості.
+    ///  і очки, фарба в баки, виплески змішувача → 8. поповнення лотка, якщо порожній →
+    ///  9. перевірка живості.
     /// </summary>
     public sealed class RunSession
     {
@@ -22,6 +23,8 @@ namespace InkFlow.Core
         private readonly List<GridPos> _cellBuffer = new List<GridPos>(8);
         private readonly PaintYield[] _yields = new PaintYield[32];
         private readonly TrayGenerator _trays;
+        private readonly int[] _taken = new int[Pigments.Count];
+        private readonly int[] _splashesByHue = new int[Hues.Count + 1];
 
         public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random)
         {
@@ -30,7 +33,8 @@ namespace InkFlow.Core
             Random = random ?? throw new ArgumentNullException(nameof(random));
 
             Board = new Board(balance.GridWidth, balance.GridHeight);
-            Tanks = new TankSet(balance.TankCapacity);
+            Tanks = new TankSet();
+            Mixer = new Mixer(balance);
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
@@ -44,6 +48,18 @@ namespace InkFlow.Core
 
         /// <summary>Три баки фарби (§4). Зірвана лінія ллє сюди, змішувач забирає звідси.</summary>
         public TankSet Tanks { get; }
+
+        /// <summary>Четвертий бак (§4): спрацьовує сам, щойно в трьох разом набралось на виплеск.</summary>
+        public Mixer Mixer { get; }
+
+        /// <summary>Скільки виплесків за партію.</summary>
+        public int Splashes { get; private set; }
+
+        /// <summary>Виплески за відтінками, індекс — (int)<see cref="Hue"/>.</summary>
+        public IReadOnlyList<int> SplashesByHue => _splashesByHue;
+
+        /// <summary>Відтінок останнього виплеску партії; None, якщо їх ще не було.</summary>
+        public Hue LastSplashHue { get; private set; }
 
         /// <summary>Лоток. Порожня комірка означає «фігуру вже поставили» (§2).</summary>
         public PieceDef[] TrayPieces { get; }
@@ -68,8 +84,6 @@ namespace InkFlow.Core
         public int PureLinesCleared { get; private set; }
         public int PaintYielded { get; private set; }
 
-        /// <summary>Скільки фарби за партію вилилось через повні баки.</summary>
-        public int PaintWasted => Tanks.TotalWasted;
 
         /// <summary>Скільки разів мішок мусив зменшувати фігури — метрика якості мішка.</summary>
         public int TrayRescues => _trays.RescuesUsed;
@@ -156,6 +170,9 @@ namespace InkFlow.Core
             Board.Clear();
             Tanks.Reset();
             _trays.Reset();
+            Array.Clear(_splashesByHue, 0, _splashesByHue.Length);
+            Splashes = 0;
+            LastSplashHue = Hue.None;
             Score = 0;
             BestChain = 0;
             PlacementCount = 0;
@@ -232,7 +249,7 @@ namespace InkFlow.Core
             if (count > BestChain)
                 BestChain = count;
 
-            // 7б. Фарба — у бак свого кольору (§4). Понад стелю — виливається.
+            // 7б. Фарба — у бак свого кольору (§4).
             for (var i = 0; i < count; i++)
             {
                 if (_yields[i].Pigment == Pigment.None)
@@ -240,10 +257,22 @@ namespace InkFlow.Core
                 var amount = LineResolver.ApplyCombo(_yields[i].Amount, multiplier);
                 if (amount <= 0)
                     continue;
-                var wasted = Tanks.Pour(_yields[i].Pigment, amount);
-                _result.AddPaintPoured(_yields[i].Pigment, amount - wasted, Tanks[_yields[i].Pigment]);
-                if (wasted > 0)
-                    _result.AddPaintWasted(_yields[i].Pigment, wasted);
+                Tanks.Pour(_yields[i].Pigment, amount);
+                _result.AddPaintPoured(_yields[i].Pigment, amount, Tanks[_yields[i].Pigment]);
+            }
+
+            // 7в. Змішувач (§4): набралось на виплеск — спрацьовує сам; стільки разів,
+            //     скільки набралось. Три струмені (TankDrained) — потім виплеск (MixerFired).
+            while (Mixer.CanFire(Tanks))
+            {
+                var splash = Mixer.Fire(Tanks, _taken);
+                for (var i = 0; i < Pigments.Count; i++)
+                    if (_taken[i] > 0)
+                        _result.AddTankDrained(Pigments.Base[i], _taken[i], Tanks.Levels[i]);
+                _result.AddMixerFired(splash.Hue, splash.Amount);
+                Splashes++;
+                _splashesByHue[(int)splash.Hue]++;
+                LastSplashHue = splash.Hue;
             }
 
             LinesCleared += count;

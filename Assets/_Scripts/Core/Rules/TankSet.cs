@@ -5,24 +5,15 @@ namespace InkFlow.Core
 {
     /// <summary>
     /// Три баки фарби (документ §4): синій, червоний, жовтий. Зірвана лінія віддає
-    /// фарбу в бак свого кольору; звідси її забирає змішувач (крок 3).
+    /// фарбу в бак свого кольору; <see cref="Mixer"/> забирає звідси на виплеск.
     ///
-    /// Стеля — і для показу рівня, і як м'яке покарання за накопичення одного кольору:
-    /// усе понад стелю виливається (<see cref="TotalWasted"/>). Муті чи підмалевка з
-    /// прототипу тут немає — документ їх не знає.
+    /// Стелі немає: змішувач спрацьовує, щойно в трьох баках разом набралось на
+    /// виплеск, тож після ходу сума завжди менша за виплеск. Стеля зі стоком (крок 2)
+    /// била б лише по найкращих ходах — трьох чистих лініях у ланцюзі.
     /// </summary>
     public sealed class TankSet
     {
         private readonly int[] _levels = new int[Pigments.Count];
-
-        public TankSet(int capacity)
-        {
-            if (capacity < 1)
-                throw new ArgumentOutOfRangeException(nameof(capacity));
-            Capacity = capacity;
-        }
-
-        public int Capacity { get; }
 
         /// <summary>Рівень бака пігменту.</summary>
         public int this[Pigment pigment] => _levels[Pigments.IndexOf(pigment)];
@@ -44,15 +35,10 @@ namespace InkFlow.Core
         /// <summary>Скільки фарби видали лінії за партію — контрольна сума.</summary>
         public int TotalReceived { get; private set; }
 
-        /// <summary>Скільки фарби вилилось через стелю за партію.</summary>
-        public int TotalWasted { get; private set; }
+        public bool IsEmpty => Total == 0;
 
-        public float Fraction(Pigment pigment) => (float)this[pigment] / Capacity;
-
-        public bool IsFull(Pigment pigment) => this[pigment] >= Capacity;
-
-        /// <summary>Ллє фарбу в бак. Повертає, скільки вилилось через стелю.</summary>
-        public int Pour(Pigment pigment, int amount)
+        /// <summary>Ллє фарбу в бак.</summary>
+        public void Pour(Pigment pigment, int amount)
         {
             if (pigment == Pigment.None)
                 throw new ArgumentOutOfRangeException(nameof(pigment), "Порожній колір не наливається.");
@@ -60,15 +46,7 @@ namespace InkFlow.Core
                 throw new ArgumentOutOfRangeException(nameof(amount));
 
             TotalReceived += amount;
-            var i = Pigments.IndexOf(pigment);
-            _levels[i] += amount;
-            if (_levels[i] <= Capacity)
-                return 0;
-
-            var wasted = _levels[i] - Capacity;
-            _levels[i] = Capacity;
-            TotalWasted += wasted;
-            return wasted;
+            _levels[Pigments.IndexOf(pigment)] += amount;
         }
 
         /// <summary>Забирає фарбу з бака (змішувач). Більше, ніж є, взяти не можна.</summary>
@@ -86,7 +64,6 @@ namespace InkFlow.Core
         {
             Array.Clear(_levels, 0, _levels.Length);
             TotalReceived = 0;
-            TotalWasted = 0;
         }
     }
 }

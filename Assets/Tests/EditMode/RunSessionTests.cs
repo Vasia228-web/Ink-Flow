@@ -144,7 +144,7 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
-        public void PureRow_PoursItsPaintIntoTheMatchingTank()
+        public void PureRow_PoursItsPaintIntoTheMatchingTankAndFiresTheMixer()
         {
             var session = TestBoard.NewSession();
             TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
@@ -152,42 +152,83 @@ namespace InkFlow.Core.Tests
 
             var result = session.TryPlace(0, new GridPos(7, 0));
 
-            Assert.AreEqual(12, session.Tanks[Pigment.Blue], "чиста синя лінія → синій бак");
-            Assert.AreEqual(0, session.Tanks[Pigment.Red]);
-            Assert.AreEqual(1, result.CountEvents(GameEventType.PaintPoured));
-            var poured = result.Events[result.Events.Count - 1].Type == GameEventType.PaintPoured
-                ? result.Events[result.Events.Count - 1]
-                : FindEvent(result, GameEventType.PaintPoured);
-            Assert.AreEqual(Pigment.Blue, poured.Pigment);
+            var poured = FindEvent(result, GameEventType.PaintPoured);
+            Assert.AreEqual(Pigment.Blue, poured.Pigment, "чиста синя лінія → синій бак");
             Assert.AreEqual(12, poured.Value);
             Assert.AreEqual(12, poured.Extra, "Extra — рівень бака після наливання");
-            Assert.IsFalse(result.Has(GameEventType.PaintWasted));
+
+            // 12 ≥ 8 → змішувач спрацював один раз, забрав 8 синього; лишилось 4.
+            Assert.AreEqual(1, result.Splashes);
+            Assert.AreEqual(1, session.Splashes);
+            Assert.AreEqual(Hue.Blue, result.LastSplashHue);
+            Assert.AreEqual(4, session.Tanks[Pigment.Blue]);
+            Assert.AreEqual(0, session.Tanks[Pigment.Red]);
+            var drained = FindEvent(result, GameEventType.TankDrained);
+            Assert.AreEqual(Pigment.Blue, drained.Pigment);
+            Assert.AreEqual(8, drained.Value);
+            Assert.AreEqual(4, drained.Extra, "Extra — рівень бака після зливу");
+            var fired = FindEvent(result, GameEventType.MixerFired);
+            Assert.AreEqual(8, fired.Value);
+            Assert.AreEqual((int)Hue.Blue, fired.Extra);
+            Assert.AreEqual(1, session.SplashesByHue[(int)Hue.Blue]);
         }
 
         [Test]
-        public void FullTank_WastesTheOverflow()
+        public void Events_PourBeforeDrainBeforeSplash()
         {
             var session = TestBoard.NewSession();
-            session.Tanks.Pour(Pigment.Blue, 35);
             TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
             TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
 
             var result = session.TryPlace(0, new GridPos(7, 0));
 
-            Assert.AreEqual(40, session.Tanks[Pigment.Blue]);
-            Assert.AreEqual(7, result.PaintWasted);
-            Assert.AreEqual(7, session.PaintWasted);
-            var poured = FindEvent(result, GameEventType.PaintPoured);
-            Assert.AreEqual(5, poured.Value, "у бак влізло лише 5");
-            var wasted = FindEvent(result, GameEventType.PaintWasted);
-            Assert.AreEqual(7, wasted.Value);
+            var cleared = IndexOf(result, GameEventType.LineCleared);
+            var poured = IndexOf(result, GameEventType.PaintPoured);
+            var drained = IndexOf(result, GameEventType.TankDrained);
+            var fired = IndexOf(result, GameEventType.MixerFired);
+            Assert.Less(cleared, poured, "спершу лінія зривається, потім фарба ллється");
+            Assert.Less(poured, drained, "потім три струмені в змішувач");
+            Assert.Less(drained, fired, "і аж тоді виплеск");
+        }
+
+        [Test]
+        public void BigYield_FiresTheMixerSeveralTimes()
+        {
+            var session = TestBoard.NewSession();
+            session.Tanks.Pour(Pigment.Yellow, 6);
+            TestBoard.FillRow(session.Board, 0, "yyyyyyy.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Yellow));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            // 6 + 12 = 18 → два виплески по 8, лишилось 2.
+            Assert.AreEqual(2, result.Splashes);
+            Assert.AreEqual(2, result.CountEvents(GameEventType.MixerFired));
+            Assert.AreEqual(2, session.Tanks.Total);
+        }
+
+        [Test]
+        public void MixedTanks_GiveASecondaryHue()
+        {
+            var session = TestBoard.NewSession();
+            session.Tanks.Pour(Pigment.Blue, 4);
+            session.Tanks.Pour(Pigment.Yellow, 3);
+            TestBoard.FillRow(session.Board, 0, "bbbbrrr.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Red));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            // Мішана 4:4 → нічия → червоний (його в баках менше) → +2. Разом 4 / 2 / 3 = 9 ≥ 8:
+            // синій 44 % не домінує, червоний 22 % — нижче порогу помітності → синій + жовтий.
+            Assert.AreEqual(1, result.Splashes);
+            Assert.AreEqual(Hue.Green, result.LastSplashHue, "синій + жовтий = зелений, червоного замало");
         }
 
         [Test]
         public void TieInAMixedLine_GoesToTheEmptierTank()
         {
             var session = TestBoard.NewSession();
-            session.Tanks.Pour(Pigment.Blue, 10);
+            session.Tanks.Pour(Pigment.Blue, 3);
             TestBoard.FillRow(session.Board, 0, "bbbbrrr.");
             TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Red));
 
@@ -196,7 +237,34 @@ namespace InkFlow.Core.Tests
             var cleared = FindEvent(result, GameEventType.LineCleared);
             Assert.AreEqual(Pigment.Red, cleared.Pigment, "4:4 — червоного в баках менше");
             Assert.AreEqual(2, session.Tanks[Pigment.Red]);
-            Assert.AreEqual(10, session.Tanks[Pigment.Blue]);
+            Assert.AreEqual(3, session.Tanks[Pigment.Blue]);
+            Assert.AreEqual(0, result.Splashes, "5 < 8 — змішувач мовчить");
+        }
+
+        [Test]
+        public void Restart_EmptiesTanksAndSplashes()
+        {
+            var session = TestBoard.NewSession();
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+            session.TryPlace(0, new GridPos(7, 0));
+            Assert.AreEqual(1, session.Splashes);
+
+            session.Restart();
+
+            Assert.IsTrue(session.Tanks.IsEmpty);
+            Assert.AreEqual(0, session.Splashes);
+            Assert.AreEqual(Hue.None, session.LastSplashHue);
+            Assert.AreEqual(0, session.SplashesByHue[(int)Hue.Blue]);
+        }
+
+        private static int IndexOf(MoveResult result, GameEventType type)
+        {
+            for (var i = 0; i < result.Events.Count; i++)
+                if (result.Events[i].Type == type)
+                    return i;
+            Assert.Fail($"події {type} немає");
+            return -1;
         }
 
         private static GameEvent FindEvent(MoveResult result, GameEventType type)

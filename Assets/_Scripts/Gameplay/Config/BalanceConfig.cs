@@ -61,9 +61,13 @@ namespace InkFlow.Gameplay
         [SerializeField, Min(1)] private int haloWarningFreeCells = 20;
         [SerializeField, Min(1)] private int hintIdleSeconds = 5;
 
-        [Header("Баки (§4)")]
-        [Tooltip("Стеля бака. Понад неї фарба виливається.")]
-        [SerializeField, Min(1)] private int tankCapacity = 40;
+        [Header("Змішувач (§4, §12)")]
+        [Tooltip("Скільки фарби в одному виплеску. Це ж — повний бак на індикаторі.")]
+        [SerializeField, Min(1)] private int mixerSplashSize = 8;
+        [Tooltip("Частка одного пігменту, від якої виплеск — чистий цей колір.")]
+        [SerializeField, Range(0.51f, 1f)] private float mixDominantShare = 0.6f;
+        [Tooltip("Частка, нижче якої пігмент не помічається: двоє помітних — вторинний відтінок, троє — коричневий.")]
+        [SerializeField, Range(0.01f, 0.333f)] private float mixMinorShare = 0.25f;
 
         private BalanceData? _cached;
 
@@ -77,7 +81,7 @@ namespace InkFlow.Gameplay
             mixedDivisor, pureLineBonus, comboMultipliers,
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
             haloWarningFreeCells, hintIdleSeconds,
-            tankCapacity);
+            mixerSplashSize, mixDominantShare, mixMinorShare);
 
         private void OnValidate()
         {

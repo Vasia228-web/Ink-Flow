@@ -12,8 +12,9 @@ namespace InkFlow.UI
     /// свого пігменту, з числом рівня. Гравець ставить синю фігуру, зриває рядок —
     /// і бачить, як синє ллється в синій бак: зв'язок читається без пояснень.
     ///
-    /// Заливка анімується масштабом (localScale.y при півоті знизу), не розміром:
-    /// щокадрова зміна sizeDelta просила б графіку на перебудову.
+    /// Повний бак = один виплеск змішувача: після ходу в трьох баках разом завжди менше,
+    /// тож заливка не впирається в стелю. Анімується масштабом (localScale.y при півоті
+    /// знизу), не розміром: щокадрова зміна sizeDelta просила б графіку на перебудову.
     /// </summary>
     public sealed class TankView : MonoBehaviour
     {
@@ -29,6 +30,9 @@ namespace InkFlow.UI
         private Coroutine? _tween;
 
         public Pigment Pigment => pigment;
+
+        /// <summary>Звідки летить струмінь у змішувач.</summary>
+        public RectTransform Rect => (RectTransform)transform;
 
         public void Apply()
         {
@@ -62,9 +66,6 @@ namespace InkFlow.UI
                 number.text = level.ToString();
 
             var target = capacity > 0 ? Mathf.Clamp01((float)level / capacity) : 0f;
-            var full = level >= capacity;
-            if (stroke != null)
-                stroke.color = full ? design.TankFullStroke : design.TankTrackStroke;
 
             if (_tween != null)
             {

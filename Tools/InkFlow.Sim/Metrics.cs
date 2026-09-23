@@ -9,9 +9,12 @@ namespace InkFlow.Sim
     {
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
             int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath,
-            int paintWasted = 0)
+            int splashes = 0, int baseSplashes = 0, int secondarySplashes = 0, int brownSplashes = 0)
         {
-            PaintWasted = paintWasted;
+            Splashes = splashes;
+            BaseSplashes = baseSplashes;
+            SecondarySplashes = secondarySplashes;
+            BrownSplashes = brownSplashes;
             Placements = placements;
             Rounds = rounds;
             Score = score;
@@ -29,8 +32,11 @@ namespace InkFlow.Sim
         /// <summary>Скільки клітинок лишалось вільними в момент програшу — міра «дірявості» поля.</summary>
         public int EmptyAtDeath { get; }
 
-        /// <summary>Скільки фарби вилилось через повні баки.</summary>
-        public int PaintWasted { get; }
+        /// <summary>Виплесків змішувача за партію і їхні відтінки: чисті / вторинні / коричневі.</summary>
+        public int Splashes { get; }
+        public int BaseSplashes { get; }
+        public int SecondarySplashes { get; }
+        public int BrownSplashes { get; }
 
         public int Placements { get; }
         public int Rounds { get; }

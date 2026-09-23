@@ -48,6 +48,9 @@ namespace InkFlow.Core.Tests
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(traySize: 0));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(mixedDivisor: 0));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(minPieceSize: 6, maxPieceSize: 5));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(mixerSplashSize: 0));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(mixDominantShare: 0.5f), "рівно половина не домінує");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(mixMinorShare: 0.4f), "понад третину — є пропорції без жодного помітного");
         }
     }
 }

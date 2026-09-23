@@ -42,10 +42,16 @@ namespace InkFlow.Core
             int pureLineScoreBonus = 2,
             int haloWarningFreeCells = 20,
             int hintIdleSeconds = 5,
-            int tankCapacity = 40)
+            int mixerSplashSize = 8,
+            float mixDominantShare = 0.6f,
+            float mixMinorShare = 0.25f)
         {
-            if (tankCapacity < 1)
-                throw new ArgumentOutOfRangeException(nameof(tankCapacity));
+            if (mixerSplashSize < 1)
+                throw new ArgumentOutOfRangeException(nameof(mixerSplashSize));
+            if (mixDominantShare <= 0.5f || mixDominantShare > 1f)
+                throw new ArgumentOutOfRangeException(nameof(mixDominantShare), "Домінувати може лише більша половина.");
+            if (mixMinorShare <= 0f || mixMinorShare > 1f / 3f)
+                throw new ArgumentOutOfRangeException(nameof(mixMinorShare), "Поріг помітності не більший за третину, інакше є пропорції без відтінку.");
             if (gridWidth < 2 || gridHeight < 2)
                 throw new ArgumentOutOfRangeException(nameof(gridWidth), "Поле мінімум 2×2.");
             if (traySize < 1)
@@ -91,17 +97,25 @@ namespace InkFlow.Core
             PureLineScoreBonus = pureLineScoreBonus;
             HaloWarningFreeCells = haloWarningFreeCells;
             HintIdleSeconds = hintIdleSeconds;
-            TankCapacity = tankCapacity;
+            MixerSplashSize = mixerSplashSize;
+            MixDominantShare = mixDominantShare;
+            MixMinorShare = mixMinorShare;
         }
 
-        // ── Баки (§4) ──
+        // ── Змішувач (§4, §12) ──
 
         /// <summary>
-        /// Стеля бака (прототип v3: 40). Понад неї фарба виливається — накопичувати один
-        /// колір без змішувача марно. Змішувач забирає фарбу раніше, ніж бак наповниться,
-        /// якщо гравець зриває різні кольори.
+        /// Скільки фарби йде в один виплеск. Це ж — стеля бака на індикаторі: після ходу
+        /// в трьох баках разом завжди менше за виплеск. 8 = дві-три мішані лінії або
+        /// дві третини чистої вісімки; змішувач спрацьовує приблизно раз на лоток.
         /// </summary>
-        public int TankCapacity { get; }
+        public int MixerSplashSize { get; }
+
+        /// <summary>Частка одного пігменту, від якої виплеск — чистий цей колір (§4: «один колір домінує»).</summary>
+        public float MixDominantShare { get; }
+
+        /// <summary>Частка, нижче якої пігмент у пропорції не помічається. Двоє помітних — вторинний, троє — коричневий.</summary>
+        public float MixMinorShare { get; }
 
         // ── Поле й лоток (§2) ──
 
