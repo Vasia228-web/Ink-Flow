@@ -61,6 +61,10 @@ namespace InkFlow.Gameplay
         [SerializeField, Min(1)] private int haloWarningFreeCells = 20;
         [SerializeField, Min(1)] private int hintIdleSeconds = 5;
 
+        [Header("Баки (§4)")]
+        [Tooltip("Стеля бака. Понад неї фарба виливається.")]
+        [SerializeField, Min(1)] private int tankCapacity = 40;
+
         private BalanceData? _cached;
 
         /// <summary>POCO-дзеркало для Core. Кешується: конфіг не змінюється під час партії.</summary>
@@ -72,7 +76,8 @@ namespace InkFlow.Gameplay
             maxTrayAttempts, trayShrinkAfterAttempts, trayRescueAttempts,
             mixedDivisor, pureLineBonus, comboMultipliers,
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
-            haloWarningFreeCells, hintIdleSeconds);
+            haloWarningFreeCells, hintIdleSeconds,
+            tankCapacity);
 
         private void OnValidate()
         {

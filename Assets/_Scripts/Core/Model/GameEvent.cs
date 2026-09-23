@@ -22,7 +22,13 @@ namespace InkFlow.Core
         GameLost = 5,
 
         /// <summary>Очки за хід: Value = скільки додано, Extra = разом.</summary>
-        ScoreGained = 6
+        ScoreGained = 6,
+
+        /// <summary>Фарба влилась у бак: Pigment, Value = скільки, Extra = рівень бака після.</summary>
+        PaintPoured = 7,
+
+        /// <summary>Бак повний, фарба вилилась: Pigment, Value = скільки втрачено.</summary>
+        PaintWasted = 8
     }
 
     /// <summary>

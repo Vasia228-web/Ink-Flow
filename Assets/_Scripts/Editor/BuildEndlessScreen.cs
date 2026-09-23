@@ -118,7 +118,9 @@ namespace InkFlow.Editor
             var headerHeight = M(40f);
             var statsTop = headerHeight + M(12f);
             var statsHeight = M(62f);
-            var boardTop = statsTop + statsHeight + M(12f);
+            var tanksTop = statsTop + statsHeight + M(12f);
+            var tanksHeight = M(84f);
+            var boardTop = tanksTop + tanksHeight + M(10f);
             var boardSide = M(BoardGeometry.Canvas);
             var trayTop = boardTop + boardSide + M(12f);
             var trayHeight = M(86f);
@@ -132,6 +134,8 @@ namespace InkFlow.Editor
                 out var scoreLabel, out var scoreNumber,
                 out var recordCapsule, out var recordStroke, out var recordGlow,
                 out var recordLabel, out var recordNumber);
+
+            var tanks = BuildTanks(screenGo, design!, font, rounded!, outline!, tanksTop, tanksHeight);
 
             var board = BuildBoard(screenGo, design!, font, rounded!, outline!, boardTop, boardSide,
                 out var boardPlate, out var boardPlateStroke);
@@ -173,6 +177,7 @@ namespace InkFlow.Editor
                 ("overMenu", overMenu), ("overMenuLabel", overMenuLabel),
                 ("confettiRoot", confettiRoot));
             WireArray(screen, "confetti", confetti);
+            WireArray(screen, "tanks", tanks);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -321,6 +326,84 @@ namespace InkFlow.Editor
                 design.FontSizeScoreNumber, valueColor, TextAlignmentOptions.Center);
             Place(number, new Vector2(0f, M(10f)), new Vector2(width, M(30f)),
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+        }
+
+        // ── Баки: три капсули 26×80 px макета (прототип v3, beakerVMs) ──
+        private static TankView[] BuildTanks(GameObject parent, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, float top, float height)
+        {
+            var go = Child(parent, "Tanks");
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.offsetMin = new Vector2(SideMargin, -top - height);
+            rect.offsetMax = new Vector2(-SideMargin, -top);
+
+            var tankWidth = M(26f);
+            var tankHeight = M(80f);
+            var gap = M(18f);
+            var pigments = Pigments.Base;
+            var totalWidth = pigments.Length * tankWidth + (pigments.Length - 1) * gap;
+            var tanks = new TankView[pigments.Length];
+
+            for (var i = 0; i < pigments.Length; i++)
+            {
+                var tankGo = Child(go, $"Tank_{pigments[i]}");
+                var tankRect = tankGo.GetComponent<RectTransform>();
+                tankRect.anchorMin = tankRect.anchorMax = new Vector2(0.5f, 0.5f);
+                tankRect.pivot = new Vector2(0.5f, 0.5f);
+                tankRect.anchoredPosition = new Vector2(-totalWidth * 0.5f + tankWidth * 0.5f + i * (tankWidth + gap), 0f);
+                tankRect.sizeDelta = new Vector2(tankWidth, tankHeight);
+
+                var track = tankGo.AddComponent<Image>();
+                track.sprite = rounded;
+                track.type = Image.Type.Sliced;
+                track.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(8f));
+                track.color = design.TankTrackFill;
+                track.raycastTarget = false;
+
+                // Заливка на всю висоту з півотом ЗНИЗУ: рівень — це localScale.y.
+                var fillGo = Child(tankGo, "Fill");
+                var fillRect = fillGo.GetComponent<RectTransform>();
+                fillRect.anchorMin = Vector2.zero;
+                fillRect.anchorMax = Vector2.one;
+                fillRect.pivot = new Vector2(0.5f, 0f);
+                fillRect.offsetMin = new Vector2(M(2f), M(2f));
+                fillRect.offsetMax = new Vector2(-M(2f), -M(2f));
+                fillRect.localScale = new Vector3(1f, 0f, 1f);
+                var fill = fillGo.AddComponent<Image>();
+                fill.sprite = rounded;
+                fill.type = Image.Type.Sliced;
+                fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(6f));
+                fill.color = design.PigmentColor(pigments[i]);
+                fill.raycastTarget = false;
+
+                var strokeGo = Child(tankGo, "Stroke");
+                Stretch(strokeGo);
+                var stroke = strokeGo.AddComponent<Image>();
+                stroke.sprite = outline;
+                stroke.type = Image.Type.Sliced;
+                stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(8f));
+                stroke.color = design.TankTrackStroke;
+                stroke.raycastTarget = false;
+
+                var number = Label(tankGo, "Number", "0", design, font,
+                    design.FontSizeTankNumber, design.TextPrimary, TextAlignmentOptions.Center);
+                Place(number, new Vector2(0f, M(3f)), new Vector2(tankWidth, M(14f)),
+                    new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+
+                var tank = tankGo.AddComponent<TankView>();
+                Wire(tank, ("design", design), ("track", track), ("stroke", stroke),
+                    ("fill", fill), ("fillRect", fillRect), ("number", number));
+                var so = new SerializedObject(tank);
+                so.FindProperty("pigment").intValue = (int)pigments[i];
+                so.ApplyModifiedPropertiesWithoutUndo();
+                tank.Apply();
+                tanks[i] = tank;
+            }
+
+            return tanks;
         }
 
         // ── Поле: полотно 358 px макета, 64 блоки + 64 привиди ──

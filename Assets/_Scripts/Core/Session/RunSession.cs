@@ -30,6 +30,7 @@ namespace InkFlow.Core
             Random = random ?? throw new ArgumentNullException(nameof(random));
 
             Board = new Board(balance.GridWidth, balance.GridHeight);
+            Tanks = new TankSet(balance.TankCapacity);
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
@@ -40,6 +41,9 @@ namespace InkFlow.Core
         public PieceCatalogData Catalog { get; }
         public IRandomSource Random { get; }
         public Board Board { get; }
+
+        /// <summary>Три баки фарби (§4). Зірвана лінія ллє сюди, змішувач забирає звідси.</summary>
+        public TankSet Tanks { get; }
 
         /// <summary>Лоток. Порожня комірка означає «фігуру вже поставили» (§2).</summary>
         public PieceDef[] TrayPieces { get; }
@@ -63,6 +67,9 @@ namespace InkFlow.Core
         public int LinesCleared { get; private set; }
         public int PureLinesCleared { get; private set; }
         public int PaintYielded { get; private set; }
+
+        /// <summary>Скільки фарби за партію вилилось через повні баки.</summary>
+        public int PaintWasted => Tanks.TotalWasted;
 
         /// <summary>Скільки разів мішок мусив зменшувати фігури — метрика якості мішка.</summary>
         public int TrayRescues => _trays.RescuesUsed;
@@ -147,6 +154,7 @@ namespace InkFlow.Core
         public void Restart()
         {
             Board.Clear();
+            Tanks.Reset();
             _trays.Reset();
             Score = 0;
             BestChain = 0;
@@ -224,14 +232,28 @@ namespace InkFlow.Core
             if (count > BestChain)
                 BestChain = count;
 
+            // 7б. Фарба — у бак свого кольору (§4). Понад стелю — виливається.
+            for (var i = 0; i < count; i++)
+            {
+                if (_yields[i].Pigment == Pigment.None)
+                    continue;
+                var amount = LineResolver.ApplyCombo(_yields[i].Amount, multiplier);
+                if (amount <= 0)
+                    continue;
+                var wasted = Tanks.Pour(_yields[i].Pigment, amount);
+                _result.AddPaintPoured(_yields[i].Pigment, amount - wasted, Tanks[_yields[i].Pigment]);
+                if (wasted > 0)
+                    _result.AddPaintWasted(_yields[i].Pigment, wasted);
+            }
+
             LinesCleared += count;
             PureLinesCleared += _result.PureLinesCleared;
             PaintYielded += _result.PaintYielded;
             return score;
         }
 
-        /// <summary>Рівні баків для тайбрейка мішаної лінії. Баки з'являються на кроці 2.</summary>
-        private IReadOnlyList<int>? TankLevels() => null;
+        /// <summary>Рівні баків для тайбрейка мішаної лінії: нічия віддає колір, якого менше.</summary>
+        private IReadOnlyList<int> TankLevels() => Tanks.Levels;
 
         private void AddScore(int gained)
         {

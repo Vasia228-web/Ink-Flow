@@ -53,6 +53,9 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text recordLabel;
         [SerializeField] private TMP_Text recordNumber;
 
+        [Header("Баки")]
+        [SerializeField] private TankView[] tanks = System.Array.Empty<TankView>();
+
         [Header("Поле і лоток")]
         [SerializeField] private BoardView board;
         [SerializeField] private TrayView tray;
@@ -201,7 +204,22 @@ namespace InkFlow.UI
             }
 
             tray?.Show(_session.Tray);
+            ApplyTanks(animate: false);
             HideOver();
+        }
+
+        /// <summary>Рівні баків — із сесії, після кожного ходу. Анімація наливання — лише на хід.</summary>
+        private void ApplyTanks(bool animate)
+        {
+            if (_session == null)
+                return;
+            for (var i = 0; i < tanks.Length; i++)
+            {
+                var tank = tanks[i];
+                if (tank == null)
+                    continue;
+                tank.Show(_session.Tanks[tank.Pigment], _session.Tanks.Capacity, animate);
+            }
         }
 
         /// <summary>Миттєвий рестарт: нова сесія на місці, без перезавантаження сцени.</summary>
@@ -300,6 +318,7 @@ namespace InkFlow.UI
             yield return board!.PlayEvents(result);
 
             tray?.Show(_session!.Tray);
+            ApplyTanks(animate: true);
             ApplyStats();
             GameEvents.RaiseMovePlayed(result);
 
@@ -396,6 +415,8 @@ namespace InkFlow.UI
             if (comboPop != null) comboPop.gameObject.SetActive(false);
 
             tray?.Apply();
+            foreach (var tank in tanks)
+                tank?.Apply();
             ApplyStats();
         }
 

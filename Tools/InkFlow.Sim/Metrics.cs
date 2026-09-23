@@ -8,8 +8,10 @@ namespace InkFlow.Sim
     public readonly struct RunStats
     {
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
-            int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath)
+            int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath,
+            int paintWasted = 0)
         {
+            PaintWasted = paintWasted;
             Placements = placements;
             Rounds = rounds;
             Score = score;
@@ -26,6 +28,9 @@ namespace InkFlow.Sim
 
         /// <summary>Скільки клітинок лишалось вільними в момент програшу — міра «дірявості» поля.</summary>
         public int EmptyAtDeath { get; }
+
+        /// <summary>Скільки фарби вилилось через повні баки.</summary>
+        public int PaintWasted { get; }
 
         public int Placements { get; }
         public int Rounds { get; }

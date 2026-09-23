@@ -144,6 +144,71 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
+        public void PureRow_PoursItsPaintIntoTheMatchingTank()
+        {
+            var session = TestBoard.NewSession();
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            Assert.AreEqual(12, session.Tanks[Pigment.Blue], "чиста синя лінія → синій бак");
+            Assert.AreEqual(0, session.Tanks[Pigment.Red]);
+            Assert.AreEqual(1, result.CountEvents(GameEventType.PaintPoured));
+            var poured = result.Events[result.Events.Count - 1].Type == GameEventType.PaintPoured
+                ? result.Events[result.Events.Count - 1]
+                : FindEvent(result, GameEventType.PaintPoured);
+            Assert.AreEqual(Pigment.Blue, poured.Pigment);
+            Assert.AreEqual(12, poured.Value);
+            Assert.AreEqual(12, poured.Extra, "Extra — рівень бака після наливання");
+            Assert.IsFalse(result.Has(GameEventType.PaintWasted));
+        }
+
+        [Test]
+        public void FullTank_WastesTheOverflow()
+        {
+            var session = TestBoard.NewSession();
+            session.Tanks.Pour(Pigment.Blue, 35);
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            Assert.AreEqual(40, session.Tanks[Pigment.Blue]);
+            Assert.AreEqual(7, result.PaintWasted);
+            Assert.AreEqual(7, session.PaintWasted);
+            var poured = FindEvent(result, GameEventType.PaintPoured);
+            Assert.AreEqual(5, poured.Value, "у бак влізло лише 5");
+            var wasted = FindEvent(result, GameEventType.PaintWasted);
+            Assert.AreEqual(7, wasted.Value);
+        }
+
+        [Test]
+        public void TieInAMixedLine_GoesToTheEmptierTank()
+        {
+            var session = TestBoard.NewSession();
+            session.Tanks.Pour(Pigment.Blue, 10);
+            TestBoard.FillRow(session.Board, 0, "bbbbrrr.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Red));
+
+            var result = session.TryPlace(0, new GridPos(7, 0));
+
+            var cleared = FindEvent(result, GameEventType.LineCleared);
+            Assert.AreEqual(Pigment.Red, cleared.Pigment, "4:4 — червоного в баках менше");
+            Assert.AreEqual(2, session.Tanks[Pigment.Red]);
+            Assert.AreEqual(10, session.Tanks[Pigment.Blue]);
+        }
+
+        private static GameEvent FindEvent(MoveResult result, GameEventType type)
+        {
+            for (var i = 0; i < result.Events.Count; i++)
+                if (result.Events[i].Type == type)
+                    return result.Events[i];
+            Assert.Fail($"події {type} немає");
+            return default;
+        }
+
+        [Test]
         public void Tray_RefillsOnlyWhenAllThreeArePlaced()
         {
             var session = TestBoard.NewSession();

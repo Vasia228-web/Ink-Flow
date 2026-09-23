@@ -653,6 +653,14 @@ namespace InkFlow.Style
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
         [SerializeField, Min(0.2f)] private float hintShowDuration = 1.6f;
 
+        [Tooltip("Баки фарби: доріжка, обведення (звичайне / повний бак), число рівня, наливання.")]
+        [SerializeField] private Color tankTrackFill = new Color(1f, 1f, 1f, 0.05f);
+        [SerializeField] private Color tankTrackStroke = new Color(1f, 1f, 1f, 0.13f);
+        [SerializeField] private Color tankFullStroke = new Color(1f, 1f, 1f, 0.4f);
+        [SerializeField] private float fontSizeTankNumber = 29f;
+        [SerializeField, Min(0f)] private float tankFillDuration = 0.5f;
+        [SerializeField, Range(0f, 0.3f)] private float tankPourPulse = 0.08f;
+
         [Header("Кінець партії (Нескінченний)")]
         [SerializeField] private float fontSizeOverScore = 155f;
         [SerializeField] private float fontSizeOverLabel = 30f;
@@ -921,6 +929,12 @@ namespace InkFlow.Style
         public float OverflowPulseDuration => overflowPulseDuration;
         public float HintIdleDelay => hintIdleDelay;
         public float HintShowDuration => hintShowDuration;
+        public Color TankTrackFill => tankTrackFill;
+        public Color TankTrackStroke => tankTrackStroke;
+        public Color TankFullStroke => tankFullStroke;
+        public float FontSizeTankNumber => fontSizeTankNumber;
+        public float TankFillDuration => tankFillDuration;
+        public float TankPourPulse => tankPourPulse;
 
         /// <summary>Колір пігменту ядра. Fallback — білий, щоб помилка була видима.</summary>
         public Color PigmentColor(Pigment pigment)

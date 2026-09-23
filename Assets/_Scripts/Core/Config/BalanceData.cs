@@ -41,8 +41,11 @@ namespace InkFlow.Core
             int scorePerLine = 100,
             int pureLineScoreBonus = 2,
             int haloWarningFreeCells = 20,
-            int hintIdleSeconds = 5)
+            int hintIdleSeconds = 5,
+            int tankCapacity = 40)
         {
+            if (tankCapacity < 1)
+                throw new ArgumentOutOfRangeException(nameof(tankCapacity));
             if (gridWidth < 2 || gridHeight < 2)
                 throw new ArgumentOutOfRangeException(nameof(gridWidth), "Поле мінімум 2×2.");
             if (traySize < 1)
@@ -88,7 +91,17 @@ namespace InkFlow.Core
             PureLineScoreBonus = pureLineScoreBonus;
             HaloWarningFreeCells = haloWarningFreeCells;
             HintIdleSeconds = hintIdleSeconds;
+            TankCapacity = tankCapacity;
         }
+
+        // ── Баки (§4) ──
+
+        /// <summary>
+        /// Стеля бака (прототип v3: 40). Понад неї фарба виливається — накопичувати один
+        /// колір без змішувача марно. Змішувач забирає фарбу раніше, ніж бак наповниться,
+        /// якщо гравець зриває різні кольори.
+        /// </summary>
+        public int TankCapacity { get; }
 
         // ── Поле й лоток (§2) ──
 

@@ -32,6 +32,9 @@ namespace InkFlow.Core
         /// <summary>Скільки одиниць фарби видали лінії цього ходу (вже з ланцюгом).</summary>
         public int PaintYielded { get; private set; }
 
+        /// <summary>Скільки з них вилилось через повні баки.</summary>
+        public int PaintWasted { get; private set; }
+
         public int ScoreGained { get; private set; }
 
         /// <summary>Клітинка зрізу події — списки клітинок лежать спільним буфером.</summary>
@@ -45,6 +48,7 @@ namespace InkFlow.Core
             LinesCleared = 0;
             PureLinesCleared = 0;
             PaintYielded = 0;
+            PaintWasted = 0;
             ScoreGained = 0;
         }
 
@@ -83,6 +87,17 @@ namespace InkFlow.Core
             ScoreGained += gained;
             _events.Add(new GameEvent(GameEventType.ScoreGained, LineKind.Row, Pigment.None,
                 gained, total, 0f, false, 0, 0));
+        }
+
+        internal void AddPaintPoured(Pigment pigment, int amount, int levelAfter) =>
+            _events.Add(new GameEvent(GameEventType.PaintPoured, LineKind.Row, pigment,
+                amount, levelAfter, 0f, false, 0, 0));
+
+        internal void AddPaintWasted(Pigment pigment, int amount)
+        {
+            _events.Add(new GameEvent(GameEventType.PaintWasted, LineKind.Row, pigment,
+                amount, 0, 0f, false, 0, 0));
+            PaintWasted += amount;
         }
 
         internal void AddTrayRefilled(int round) =>

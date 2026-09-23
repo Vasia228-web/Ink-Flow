@@ -19,6 +19,7 @@ var games = 1000;
 var seed = 42u;
 var noise = 3f;
 var csv = false;
+var botName = "default";
 var weights = BotWeights.Default;
 
 for (var i = 0; i < args.Length; i++)
@@ -29,8 +30,36 @@ for (var i = 0; i < args.Length; i++)
         case "--seed": seed = uint.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--noise": noise = float.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--csv": csv = true; break;
+        case "--bot":
+            botName = args[++i];
+            // «Акуратний» цілиться в чисті лінії, «неакуратний» не бачить кольору взагалі —
+            // різниця між ними в фарбі і є критерієм кроку 2 («видно різницю між акуратною
+            // й неакуратною грою»).
+            weights = botName switch
+            {
+                // Ваги підібрано перебором (--weights): «акуратний» готує чисті лінії, але не
+                // ціною партії — при purityPotential ≥ 0.3 бот беріг кольори й гинув удвічі раніше.
+                "careful" => new BotWeights(lineCleared: 12f, pureLine: 30f, emptyCell: 1f,
+                    fragmentation: 0.5f, purityPotential: 0.25f),
+                "sloppy" => new BotWeights(lineCleared: 12f, pureLine: 0f, emptyCell: 1f,
+                    fragmentation: 0.35f, purityPotential: 0f),
+                "default" => BotWeights.Default,
+                _ => throw new ArgumentException($"Невідомий бот: {botName} (default | careful | sloppy)")
+            };
+            break;
+        case "--weights":
+        {
+            // Довільні ваги для перебору: lineCleared,pureLine,emptyCell,fragmentation,purityPotential.
+            var parts = args[++i].Split(',');
+            if (parts.Length != 5)
+                throw new ArgumentException("--weights чекає п'ять чисел через кому");
+            float W(int k) => float.Parse(parts[k], CultureInfo.InvariantCulture);
+            weights = new BotWeights(W(0), W(1), W(2), W(3), W(4));
+            botName = "custom(" + args[i] + ")";
+            break;
+        }
         case "--help":
-            Console.WriteLine("--games N  --seed S  --noise F  --csv");
+            Console.WriteLine("--games N  --seed S  --noise F  --bot default|careful|sloppy  --weights a,b,c,d,e  --csv");
             return 0;
         default:
             Console.Error.WriteLine($"Невідомий аргумент: {args[i]}");
@@ -58,6 +87,9 @@ var lines = new Distribution(results.Select(r => (float)r.Lines).ToArray());
 var pureShare = new Distribution(results.Select(r => r.Lines == 0 ? 0f : 100f * r.PureLines / r.Lines).ToArray());
 var bestChain = new Distribution(results.Select(r => (float)r.BestChain).ToArray());
 var paint = new Distribution(results.Select(r => (float)r.PaintYielded).ToArray());
+var paintPerPlacement = new Distribution(results.Select(r => r.Placements == 0 ? 0f : (float)r.PaintYielded / r.Placements).ToArray());
+var wasted = new Distribution(results.Select(r => (float)r.PaintWasted).ToArray());
+var paintPerLine = new Distribution(results.Select(r => r.Lines == 0 ? 0f : (float)r.PaintYielded / r.Lines).ToArray());
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
     .Select(r => 100f * r.PressureAt / Math.Max(1, r.Placements)).ToArray());
@@ -78,6 +110,9 @@ if (csv)
     Console.WriteLine(pureShare.Csv("pure_line_share", "%"));
     Console.WriteLine(bestChain.Csv("best_chain", "ліній"));
     Console.WriteLine(paint.Csv("paint_yielded", "од"));
+    Console.WriteLine(paintPerPlacement.Csv("paint_per_placement", "од"));
+    Console.WriteLine(wasted.Csv("paint_wasted", "од"));
+    Console.WriteLine(paintPerLine.Csv("paint_per_line", "од"));
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
     Console.WriteLine(emptyAtDeath.Csv("empty_cells_at_death", "шт"));
@@ -87,7 +122,7 @@ if (csv)
     return 0;
 }
 
-Console.WriteLine($"Ink Flow · прогін {games} забігів · сід {seed} · шум {noise} · {stopwatch.Elapsed.TotalSeconds:0.0} с");
+Console.WriteLine($"Ink Flow · прогін {games} забігів · бот {botName} · сід {seed} · шум {noise} · {stopwatch.Elapsed.TotalSeconds:0.0} с");
 Console.WriteLine();
 Console.WriteLine(placements.Row("розміщень за партію", "шт"));
 Console.WriteLine(rounds.Row("лотків (раундів)", "шт"));
@@ -96,6 +131,9 @@ Console.WriteLine(lines.Row("ліній за партію", "шт"));
 Console.WriteLine(pureShare.Row("частка чистих ліній", "%"));
 Console.WriteLine(bestChain.Row("найдовший ланцюг", "ліній"));
 Console.WriteLine(paint.Row("фарби за партію", "од"));
+Console.WriteLine(paintPerPlacement.Row("фарби на розміщення", "од"));
+Console.WriteLine(paintPerLine.Row("фарби на лінію", "од"));
+Console.WriteLine(wasted.Row("фарби вилито (баки повні)", "од"));
 Console.WriteLine(pressure.Row("початок тиску (розміщ.)", "шт"));
 Console.WriteLine(pressureShare.Row("початок тиску (% партії)", "%"));
 Console.WriteLine(emptyAtDeath.Row("вільних клітинок у смерть", "шт"));
@@ -141,5 +179,5 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
 
     return new RunStats(session.PlacementCount, session.Round, session.Score, session.LinesCleared,
         session.PureLinesCleared, session.BestChain, session.PaintYielded, pressureAt,
-        session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty());
+        session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(), session.PaintWasted);
 }
