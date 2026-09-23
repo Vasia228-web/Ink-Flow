@@ -110,6 +110,7 @@ namespace InkFlow.UI
         private ProgressData? _progress;
         private PlayerState? _state;
         private Coroutine? _intro;
+        private bool _annulled;
 
         private LiveRecord _record;
         private bool _overflow;
@@ -210,7 +211,9 @@ namespace InkFlow.UI
         {
             // Сід — час старту: у Нескінченному рандом бажаний.
             var seed = unchecked((uint)System.DateTime.UtcNow.Ticks);
-            _session = new RunSession(_balance, PieceCatalogData.Default, new XorShiftRandom(seed));
+            // §7: незавершена картинка гарантовано перша — з тим самим прогресом і лічильником спроб.
+            _session = new RunSession(_balance, PieceCatalogData.Default, new XorShiftRandom(seed),
+                _state?.Pictures, _state?.RunStart);
             GameEvents.RaiseSessionStarted(_session);
 
             _record = new LiveRecord(_progress?.EndlessRecord ?? _record.Stored);
@@ -228,6 +231,7 @@ namespace InkFlow.UI
             tray?.Show(_session.Tray);
             ApplyTanks(animate: false);
             picture?.Show(_session.Picture);
+            picture?.ShowAttempts(_session.StartedWithCarried ? _session.AttemptsLeft : 0);
             HideOver();
             ShowIntro();
         }
@@ -252,7 +256,10 @@ namespace InkFlow.UI
             if (introPanelStroke != null) introPanelStroke.color = design.RarityColor(def.Rarity);
 
             ApplyFont(introKicker, design.FontSizeIntroKicker, design.TextDim, FontStyles.Bold, design.LetterSpacingWide);
-            if (introKicker != null) introKicker.text = theme != null ? $"ЦЬОГО ЗАБІГУ · {theme.Name.ToUpperInvariant()}" : "ЦЬОГО ЗАБІГУ";
+            if (introKicker != null)
+                introKicker.text = _session.StartedWithCarried
+                    ? $"НЕЗАВЕРШЕНА · СПРОБ ЛИШИЛОСЬ: {_session.AttemptsLeft}"
+                    : theme != null ? $"ЦЬОГО ЗАБІГУ · {theme.Name.ToUpperInvariant()}" : "ЦЬОГО ЗАБІГУ";
             ApplyFont(introName, design.FontSizeIntroName, design.TextPrimary, FontStyles.Bold, 0f);
             if (introName != null) introName.text = def.Name;
             ApplyFont(introRarity, design.FontSizeIntroRarity, design.RarityColor(def.Rarity), FontStyles.Bold, design.LetterSpacingWide);
@@ -261,6 +268,8 @@ namespace InkFlow.UI
             if (introHint != null) introHint.text = "Тапни, щоб грати";
 
             introPicture?.ShowCompleted(def, string.Empty);
+            if (_session.StartedWithCarried)
+                introPicture?.ShowAttempts(_session.AttemptsLeft);
 
             if (board != null)
                 board.Router.Locked = true;
@@ -372,6 +381,10 @@ namespace InkFlow.UI
 
             if (!fired && result.PaintYielded > 0)
                 mixer?.Show(_session.Tanks.Levels, capacity, _session.Balance, animate: true);
+
+            // §7 п.3: прогрес незавершеної — у файл на кожне спрацювання змішувача.
+            if (fired)
+                _state?.TrackUnfinished(_session.Picture.CatalogIndex, _session.Picture.Filled);
         }
 
         /// <summary>
@@ -573,6 +586,9 @@ namespace InkFlow.UI
             if (_session != null && _session.IsOver)
             {
                 GameEvents.RaiseSessionEnded(_session.State);
+                // §7: незавершена реєструється або витрачає спробу; на третій — анулюється.
+                _annulled = _state?.SettleUnfinished(_session.Picture.CatalogIndex, _session.Picture.Filled,
+                    _session.StartedWithCarried) ?? false;
                 ShowOver();
             }
         }
@@ -829,7 +845,9 @@ namespace InkFlow.UI
 
             ApplyFont(overBestLabel, design.FontSizeOverBest, design.TextMuted, FontStyles.Bold, 0f);
             if (overBestLabel != null)
-                overBestLabel.text = $"Рекорд · {Format(_record.Shown)} · ланцюг ×{_session.BestChain}";
+                overBestLabel.text = _annulled
+                    ? $"Картинку «{_session.Picture.Def.Name}» анульовано — спроби вичерпано"
+                    : $"Рекорд · {Format(_record.Shown)} · ланцюг ×{_session.BestChain}";
 
             if (overAgainFill != null)
                 overAgainFill.SetGradient(design.AccentTeal, design.AccentBlue);

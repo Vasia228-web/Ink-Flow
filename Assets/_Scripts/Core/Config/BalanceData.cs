@@ -48,8 +48,12 @@ namespace InkFlow.Core
             float mixMinorShare = 0.25f,
             int cellsPerSplash = 12,
             int maxSplashesPerZone = 3,
-            int[]? rarityWeights = null)
+            int[]? rarityWeights = null,
+            int unfinishedAttempts = 3)
         {
+            if (unfinishedAttempts < 1)
+                throw new ArgumentOutOfRangeException(nameof(unfinishedAttempts));
+            UnfinishedAttempts = unfinishedAttempts;
             _rarityWeights = rarityWeights ?? new[] { 70, 25, 5 };
             if (_rarityWeights.Length != 3)
                 throw new ArgumentOutOfRangeException(nameof(rarityWeights), "Три ваги: звичайна, рідкісна, легендарна.");
@@ -123,6 +127,11 @@ namespace InkFlow.Core
             CellsPerSplash = cellsPerSplash;
             MaxSplashesPerZone = maxSplashesPerZone;
         }
+
+        // ── Незавершена картинка (§7, §12) ──
+
+        /// <summary>Скільки забігів дається на порятунок незавершеної. §12: 3 — «замало — гравець злиться; забагато — немає ризику».</summary>
+        public int UnfinishedAttempts { get; }
 
         // ── Рідкість (§6, §12) ──
 

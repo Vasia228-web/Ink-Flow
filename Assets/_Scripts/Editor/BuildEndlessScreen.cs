@@ -420,12 +420,20 @@ namespace InkFlow.Editor
             plateStroke.raycastTarget = false;
 
             TMP_Text? title = null;
+            TMP_Text? attempts = null;
             if (withTitle)
             {
                 title = Label(plateGo, "Title", "КИТ · 0/5", design, font,
                     design.FontSizePictureName, design.TextPrimary, TextAlignmentOptions.Center);
                 Place(title, new Vector2(0f, -M(5f)), new Vector2(width, M(14f)),
                     new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+                // §7 п.5: «Спроб лишилось» видно завжди — під назвою, золотом, лише коли є що рятувати.
+                attempts = Label(plateGo, "Attempts", "СПРОБ · 3", design, font,
+                    design.FontSizePictureCaption, design.AccentGold, TextAlignmentOptions.Center);
+                Place(attempts, new Vector2(0f, -M(19f)), new Vector2(width, M(12f)),
+                    new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+                attempts.gameObject.SetActive(false);
             }
 
             // Квадрат зон — знизу плитки; без назви — по центру.
@@ -472,6 +480,7 @@ namespace InkFlow.Editor
             Wire(view, ("design", design), ("art", art), ("plate", plate), ("plateFill", plateFill),
                 ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas));
             if (title != null) Wire(view, ("title", title));
+            if (attempts != null) Wire(view, ("attempts", attempts));
             if (caption != null) Wire(view, ("caption", caption));
             WireArray(view, "zones", zones);
             view.Apply();

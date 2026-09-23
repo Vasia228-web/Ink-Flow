@@ -39,6 +39,7 @@ namespace InkFlow.Meta
                 {
                     save.Collection ??= new CollectionData();
                     save.Collection.Pictures ??= new List<CollectedPicture>();
+                    save.Collection.Unfinished ??= new UnfinishedData();
                     save.Version = 4;
                     return save;
                 }

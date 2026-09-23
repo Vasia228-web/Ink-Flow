@@ -19,6 +19,7 @@ var games = 1000;
 var seed = 42u;
 var noise = 3f;
 var csv = false;
+var carry = true;
 var botName = "default";
 var weights = BotWeights.Default;
 
@@ -30,6 +31,7 @@ for (var i = 0; i < args.Length; i++)
         case "--seed": seed = uint.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--noise": noise = float.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--csv": csv = true; break;
+        case "--no-carry": carry = false; break;
         case "--bot":
             botName = args[++i];
             // «Акуратний» цілиться в чисті лінії, «неакуратний» не бачить кольору взагалі —
@@ -61,7 +63,7 @@ for (var i = 0; i < args.Length; i++)
             break;
         }
         case "--help":
-            Console.WriteLine("--games N  --seed S  --noise F  --bot default|careful|sloppy  --weights a,b,c,d,e  --csv");
+            Console.WriteLine("--games N  --seed S  --noise F  --bot default|careful|sloppy  --weights a,b,c,d,e[,w]  --no-carry  --csv");
             return 0;
         default:
             Console.Error.WriteLine($"Невідомий аргумент: {args[i]}");
@@ -73,12 +75,27 @@ var balance = BalanceData.Default;
 var catalog = PieceCatalogData.Default;
 var stopwatch = Stopwatch.StartNew();
 var results = new RunStats[games];
+// Незавершені картинки (§7) переносяться між послідовними забігами одного бота — як у гравця.
+var unfinished = new UnfinishedPicture(balance.UnfinishedAttempts);
 
-Parallel.For(0, games, i =>
+// З перенесенням незавершеної забіги залежать один від одного — граємо послідовно,
+// як гравець; без нього — паралельно.
+if (carry)
 {
-    var runSeed = unchecked(seed + (uint)i * 2654435761u);
-    results[i] = PlayOne(balance, catalog, runSeed, noise, weights);
-});
+    for (var i = 0; i < games; i++)
+    {
+        var runSeed = unchecked(seed + (uint)i * 2654435761u);
+        results[i] = PlayOne(balance, catalog, runSeed, noise, weights, unfinished);
+    }
+}
+else
+{
+    Parallel.For(0, games, i =>
+    {
+        var runSeed = unchecked(seed + (uint)i * 2654435761u);
+        results[i] = PlayOne(balance, catalog, runSeed, noise, weights, null);
+    });
+}
 
 stopwatch.Stop();
 
@@ -107,7 +124,10 @@ var rareSeen = results.Sum(r => r.RareSeen);
 var legendarySeen = results.Sum(r => r.LegendarySeen);
 var rareDone = results.Sum(r => r.RareDone);
 var legendaryDone = results.Sum(r => r.LegendaryDone);
-var picturesSeen = results.Sum(r => r.Pictures) + games; // кожна партія бачить щонайменше одну
+var picturesSeen = results.Sum(r => r.Pictures) + games - results.Count(r => r.Carried > 0); // нові витяги: по одному на партію плюс по одному на кожну закінчену, крім перенесених
+var carriedRuns = results.Count(r => r.Carried > 0);
+var rescuedTotal = results.Sum(r => r.Rescued);
+var annulledTotal = results.Sum(r => r.Annulled);
 var paintPerLine = new Distribution(results.Select(r => r.Lines == 0 ? 0f : (float)r.PaintYielded / r.Lines).ToArray());
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
@@ -145,6 +165,9 @@ if (csv)
     Console.WriteLine($"legendary_seen_per_run,шт,{((float)legendarySeen / games).ToString("0.###", CultureInfo.InvariantCulture)},,,,,");
     Console.WriteLine($"rare_done,шт,{rareDone},,,,,");
     Console.WriteLine($"legendary_done,шт,{legendaryDone},,,,,");
+    Console.WriteLine($"runs_started_with_unfinished,%,{(100f * carriedRuns / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine($"unfinished_rescued,шт,{rescuedTotal},,,,,");
+    Console.WriteLine($"unfinished_annulled,шт,{annulledTotal},,,,,");
     Console.WriteLine(paintPerLine.Csv("paint_per_line", "од"));
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
@@ -181,21 +204,30 @@ Console.WriteLine($"відтінки виплесків: чисті {baseShare:0
 Console.WriteLine($"партій без жодного виплеску: {noSplash} з {games} ({100f * noSplash / games:0.#} %)");
 Console.WriteLine($"фарби пропало мимо (відтінок нікому не потрібен): {missedShare:0.#} % від усієї");
 Console.WriteLine($"партій без жодної закінченої картинки: {noPicture} з {games} ({100f * noPicture / games:0.#} %)");
+Console.WriteLine($"незавершені (§7): забігів, що почались із перенесеної — {100f * carriedRuns / games:0.#} %; врятовано {rescuedTotal}, анульовано {annulledTotal}");
 Console.WriteLine($"рідкість побачених картинок: рідкісних {100f * rareSeen / picturesSeen:0.#} % · легендарних {100f * legendarySeen / picturesSeen:0.#} % (§6: 25 / 5); закінчено рідкісних {rareDone}, легендарних {legendaryDone}");
 Console.WriteLine($"смерть одразу після поповнення лотка: {lostAtRefill} з {games} ({100f * lostAtRefill / games:0.#} %)");
 Console.WriteLine($"смертей не з вини гравця (мішок дав неможливий набір, хоч 2-клітинкова влазила): {unfair}");
 return unfair == 0 ? 0 : 1;
 
-static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runSeed, float noise, BotWeights weights)
+static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runSeed, float noise, BotWeights weights,
+    UnfinishedPicture? unfinished)
 {
-    var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed));
+    PictureStart? start = unfinished != null && unfinished.HasPicture
+        ? new PictureStart(unfinished.PictureIndex, unfinished.Filled, unfinished.AttemptsLeft)
+        : (PictureStart?)null;
+    var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed), null, start);
+    var carried = start.HasValue ? 1 : 0;
+    var rescued = 0;
+    var annulled = 0;
     var bot = new RunBot(weights, new XorShiftRandom(unchecked(runSeed ^ 0x9E3779B9u)), noise);
 
     var pressureAt = -1;
     var zonesCompleted = 0;
     var lostAtRefill = false;
-    var rareSeen = session.Picture.Def.Rarity == Rarity.Rare ? 1 : 0;
-    var legendarySeen = session.Picture.Def.Rarity == Rarity.Legendary ? 1 : 0;
+    // Перенесена — не «побачена вперше»: рідкість рахуємо лише за новими витягами.
+    var rareSeen = !start.HasValue && session.Picture.Def.Rarity == Rarity.Rare ? 1 : 0;
+    var legendarySeen = !start.HasValue && session.Picture.Def.Rarity == Rarity.Legendary ? 1 : 0;
     var rareDone = 0;
     var legendaryDone = 0;
     var guard = 0;
@@ -212,6 +244,8 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
         // «Тиск» — перше розміщення, після якого хоч одна фігура з руки вже нікуди не
         // влазить: із цього моменту гравець грає не «куди хочу», а «куди можна».
         zonesCompleted += result.ZonesCompleted;
+        if (unfinished != null && result.Splashes > 0)
+            unfinished.Track(session.Picture.CatalogIndex, session.Picture.Filled);
         for (var e = 0; e < result.Events.Count; e++)
         {
             var ev = result.Events[e];
@@ -220,6 +254,12 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
                 var rarity = session.Pictures[ev.Value].Rarity;
                 if (rarity == Rarity.Rare) rareDone++;
                 else if (rarity == Rarity.Legendary) legendaryDone++;
+                if (unfinished != null)
+                {
+                    if (unfinished.HasPicture && unfinished.PictureIndex == ev.Value && session.StartedWithCarried)
+                        rescued++;
+                    unfinished.Complete(ev.Value);
+                }
             }
             else if (ev.Type == GameEventType.PictureStarted)
             {
@@ -241,13 +281,16 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
             if (catalog[i].Size == catalog.MinSize && PlacementRules.AnyFit(session.Board, catalog[i]))
                 unfair = true;
 
+    if (unfinished != null && unfinished.Settle(session.Picture.CatalogIndex, session.Picture.Filled, session.StartedWithCarried))
+        annulled++;
+
     return new RunStats(session.PlacementCount, session.Round, session.Score, session.LinesCleared,
         session.PureLinesCleared, session.BestChain, session.PaintYielded, pressureAt,
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
         session.Splashes, CountHues(session, Hues.IsBase), CountHues(session, Hues.IsSecondary),
         session.SplashesByHue[(int)Hue.Brown],
         session.PicturesCompleted, zonesCompleted, session.PaintMissed, session.Picture.FilledFraction,
-        rareSeen, legendarySeen, rareDone, legendaryDone);
+        rareSeen, legendarySeen, rareDone, legendaryDone, carried, rescued, annulled);
 }
 
 static int CountHues(RunSession session, Func<Hue, bool> filter)

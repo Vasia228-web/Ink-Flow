@@ -27,6 +27,9 @@ namespace InkFlow.UI
         [SerializeField] private PictureZoneView[] zones = System.Array.Empty<PictureZoneView>();
         [SerializeField] private TMP_Text title;
         [SerializeField] private TMP_Text caption;
+        [SerializeField] private TMP_Text attempts;
+
+        private int _attemptsLeft;
 
         private PictureProgress? _progress;
         private PictureArtCatalog.PictureArt? _art;
@@ -45,7 +48,22 @@ namespace InkFlow.UI
             }
             Font(title, design.FontSizePictureName, design.TextPrimary, design.LetterSpacingWide);
             Font(caption, design.FontSizePictureCaption, design.TextMuted, design.LetterSpacingWide);
+            Font(attempts, design.FontSizePictureCaption, design.AccentGold, design.LetterSpacingWide);
+            if (attempts != null) attempts.gameObject.SetActive(false);
             if (plate != null) plate.localScale = Vector3.one;
+        }
+
+        /// <summary>§7 п.5: «Спроб лишилось: N» видно завжди, поки картинка перенесена; 0 — напису немає.</summary>
+        public void ShowAttempts(int attemptsLeft)
+        {
+            _attemptsLeft = attemptsLeft;
+            if (attempts == null)
+                return;
+            var show = attemptsLeft > 0;
+            if (attempts.gameObject.activeSelf != show)
+                attempts.gameObject.SetActive(show);
+            if (show)
+                attempts.text = $"СПРОБ · {attemptsLeft}";
         }
 
         /// <summary>Показує стан картинки як є. Спрайти — з каталогу за id; без них лишається назва.</summary>
@@ -63,6 +81,7 @@ namespace InkFlow.UI
         public void ShowCompleted(PictureDef def, string captionText)
         {
             _progress = null;
+            ShowAttempts(0);
             BindZones(def, _ => 1f, -1);
             if (title != null)
             {

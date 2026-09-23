@@ -11,8 +11,12 @@ namespace InkFlow.Sim
             int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath,
             int splashes = 0, int baseSplashes = 0, int secondarySplashes = 0, int brownSplashes = 0,
             int pictures = 0, int zones = 0, int paintMissed = 0, float pictureFillAtDeath = 0f,
-            int rareSeen = 0, int legendarySeen = 0, int rareDone = 0, int legendaryDone = 0)
+            int rareSeen = 0, int legendarySeen = 0, int rareDone = 0, int legendaryDone = 0,
+            int carried = 0, int rescued = 0, int annulled = 0)
         {
+            Carried = carried;
+            Rescued = rescued;
+            Annulled = annulled;
             RareSeen = rareSeen;
             LegendarySeen = legendarySeen;
             RareDone = rareDone;
@@ -59,6 +63,11 @@ namespace InkFlow.Sim
         public int LegendarySeen { get; }
         public int RareDone { get; }
         public int LegendaryDone { get; }
+
+        /// <summary>§7: забіг почався з перенесеної; перенесену домальовано; перенесену анульовано.</summary>
+        public int Carried { get; }
+        public int Rescued { get; }
+        public int Annulled { get; }
 
         public int Placements { get; }
         public int Rounds { get; }

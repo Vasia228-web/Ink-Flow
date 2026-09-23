@@ -29,6 +29,17 @@ namespace InkFlow.Meta
     public sealed class CollectionData
     {
         public List<CollectedPicture> Pictures = new List<CollectedPicture>();
+
+        /// <summary>Незавершена картинка (§7). Порожній id — немає.</summary>
+        public UnfinishedData Unfinished = new UnfinishedData();
+    }
+
+    [Serializable]
+    public sealed class UnfinishedData
+    {
+        public string PictureId = string.Empty;
+        public List<int> Filled = new List<int>();
+        public int AttemptsUsed;
     }
 
     [Serializable]

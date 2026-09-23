@@ -66,6 +66,47 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void Unfinished_SurvivesARoundTripByPictureName()
+        {
+            var storage = new MemoryStorage();
+            var state = PlayerState.NewPlayer(EconomyData.Default, storage);
+            var whale = state.Pictures.IndexOf("whale");
+            state.TrackUnfinished(whale, new System.Collections.Generic.List<int> { 8, 2, 0, 0, 0 });
+            Assert.AreEqual(1, storage.Writes, "§7 п.3: прогрес пишеться на спрацювання змішувача");
+            Assert.IsFalse(state.SettleUnfinished(whale, new System.Collections.Generic.List<int> { 8, 3, 0, 0, 0 }, wasCarried: false));
+
+            var reloaded = new PlayerState(storage.Load(), EconomyData.Default, storage);
+            Assert.IsTrue(reloaded.Unfinished.HasPicture);
+            Assert.AreEqual("whale", reloaded.File.Collection.Unfinished.PictureId);
+            Assert.AreEqual(3, reloaded.Unfinished.Filled[1]);
+            Assert.AreEqual(3, reloaded.Unfinished.AttemptsLeft);
+            Assert.IsTrue(reloaded.RunStart.HasValue, "гарантоване випадіння наступного забігу");
+            Assert.AreEqual(whale, reloaded.RunStart!.Value.CatalogIndex);
+        }
+
+        [Test]
+        public void Unfinished_UnknownPictureIdIsDropped()
+        {
+            var save = new SaveFile();
+            save.Collection.Unfinished.PictureId = "вилучена";
+            save.Collection.Unfinished.Filled.Add(5);
+            var state = new PlayerState(save, EconomyData.Default);
+            Assert.IsFalse(state.Unfinished.HasPicture);
+            Assert.IsFalse(state.RunStart.HasValue);
+        }
+
+        [Test]
+        public void CollectPicture_ClosesTheUnfinishedOne()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            var whale = state.Pictures.IndexOf("whale");
+            state.TrackUnfinished(whale, new System.Collections.Generic.List<int> { 8, 0, 0, 0, 0 });
+            state.CollectPicture("whale", Now);
+            Assert.IsFalse(state.Unfinished.HasPicture);
+            Assert.AreEqual(string.Empty, state.File.Collection.Unfinished.PictureId);
+        }
+
+        [Test]
         public void PlayerState_CollectPicture_PersistsImmediately()
         {
             var storage = new MemoryStorage();

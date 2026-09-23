@@ -29,7 +29,7 @@ namespace InkFlow.Core
         private readonly PictureDeck _deck;
 
         public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random,
-            PictureCatalogData? pictures = null)
+            PictureCatalogData? pictures = null, PictureStart? start = null)
         {
             Balance = balance ?? throw new ArgumentNullException(nameof(balance));
             Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -43,9 +43,31 @@ namespace InkFlow.Core
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
-            Picture = DrawPicture(exclude: -1);
+            Picture = start.HasValue ? Carry(start.Value) : DrawPicture(exclude: -1);
             RefillTray(_result, silent: true);
         }
+
+        /// <summary>§7: незавершена гарантовано перша, з тим самим прогресом.</summary>
+        private PictureProgress Carry(PictureStart start)
+        {
+            if (start.CatalogIndex < 0 || start.CatalogIndex >= Pictures.Count)
+                throw new ArgumentOutOfRangeException(nameof(start), "Незавершеної картинки немає в колоді.");
+            var progress = new PictureProgress(Pictures[start.CatalogIndex], start.CatalogIndex, Balance);
+            progress.Restore(start.Filled);
+            StartedWithCarried = true;
+            CarriedIndex = start.CatalogIndex;
+            AttemptsLeft = start.AttemptsLeft;
+            return progress;
+        }
+
+        /// <summary>Забіг почався з незавершеної картинки (§7).</summary>
+        public bool StartedWithCarried { get; private set; }
+
+        /// <summary>Індекс перенесеної картинки; −1, якщо забіг почався з нової.</summary>
+        public int CarriedIndex { get; private set; } = -1;
+
+        /// <summary>Скільки спроб лишилось на перенесену — для напису «Спроб лишилось: N».</summary>
+        public int AttemptsLeft { get; private set; }
 
         public BalanceData Balance { get; }
         public PieceCatalogData Catalog { get; }
@@ -233,6 +255,9 @@ namespace InkFlow.Core
             PicturesCompleted = 0;
             PaintMissed = 0;
             _collected.Clear();
+            StartedWithCarried = false;
+            CarriedIndex = -1;
+            AttemptsLeft = 0;
             Picture = DrawPicture(exclude: Picture.CatalogIndex);
             Score = 0;
             BestChain = 0;

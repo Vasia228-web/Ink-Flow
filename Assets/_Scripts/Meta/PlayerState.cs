@@ -20,11 +20,14 @@ namespace InkFlow.Meta
     {
         private readonly ISaveStorage? _storage;
 
-        public PlayerState(SaveFile save, EconomyData economy, ISaveStorage? storage = null)
+        public PlayerState(SaveFile save, EconomyData economy, ISaveStorage? storage = null,
+            Core.PictureCatalogData? pictures = null, Core.BalanceData? balance = null)
         {
             File = save ?? throw new ArgumentNullException(nameof(save));
             Economy = economy ?? EconomyData.Default;
             _storage = storage;
+            Pictures = pictures ?? Core.PictureCatalogData.Default;
+            Balance = balance ?? Core.BalanceData.Default;
 
             File.Profile ??= new ProfileData();
             File.Wallet ??= new WalletData();
@@ -33,10 +36,12 @@ namespace InkFlow.Meta
             File.Progress ??= new ProgressData();
             File.Settings ??= new SettingsData();
             File.Collection ??= new CollectionData();
+            File.Collection.Unfinished ??= new UnfinishedData();
 
             Wallet = new Wallet(File.Wallet.OilDrops);
             Paints = PaintInventory.Load(File.Paints);
             Collection = PictureCollection.Load(File.Collection);
+            Unfinished = UnfinishedStore.Load(File.Collection.Unfinished, Pictures, Balance);
             Rewards = new RewardCalculator(Economy);
             DailyLimit = new DailyLimitTracker(Economy);
             DailyLimit.Restore(File.Wallet.PlaysToday, File.Wallet.DayUtc);
@@ -51,6 +56,18 @@ namespace InkFlow.Meta
 
         /// <summary>Зібрані картинки (§5, §10). Рекорд колекції = <see cref="PictureCollection.Distinct"/>.</summary>
         public PictureCollection Collection { get; }
+
+        /// <summary>Колода й баланс, з якими читається файл: незавершена зберігається назвою картинки.</summary>
+        public Core.PictureCatalogData Pictures { get; }
+        public Core.BalanceData Balance { get; }
+
+        /// <summary>Незавершена картинка (§7): одна, з прогресом і спробами.</summary>
+        public Core.UnfinishedPicture Unfinished { get; }
+
+        /// <summary>З чого починати наступний забіг: незавершена, якщо є (§7, гарантоване випадіння).</summary>
+        public Core.PictureStart? RunStart => Unfinished.HasPicture
+            ? new Core.PictureStart(Unfinished.PictureIndex, Unfinished.Filled, Unfinished.AttemptsLeft)
+            : (Core.PictureStart?)null;
 
         public ProgressData Progress => File.Progress;
         public GalaxyData Galaxy => File.Galaxy;
@@ -92,8 +109,24 @@ namespace InkFlow.Meta
             File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");
             PaintInventory.Save(Paints, File.Paints);
             PictureCollection.Save(Collection, File.Collection);
+            UnfinishedStore.Save(Unfinished, Pictures, File.Collection.Unfinished);
 
             _storage?.Save(File);
+        }
+
+        /// <summary>Прогрес картинки на спрацювання змішувача (§7, п. 3) — одразу у файл.</summary>
+        public void TrackUnfinished(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled)
+        {
+            Unfinished.Track(pictureIndex, filled);
+            Persist();
+        }
+
+        /// <summary>Кінець забігу: незавершена реєструється або витрачає спробу. Повертає true, якщо анульовано.</summary>
+        public bool SettleUnfinished(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled, bool wasCarried)
+        {
+            var annulled = Unfinished.Settle(pictureIndex, filled, wasCarried);
+            Persist();
+            return annulled;
         }
 
         /// <summary>
@@ -103,6 +136,9 @@ namespace InkFlow.Meta
         public bool CollectPicture(string pictureId, DateTime utcNow)
         {
             var isNew = Collection.Add(pictureId, utcNow);
+            var index = Pictures.IndexOf(pictureId);
+            if (index >= 0)
+                Unfinished.Complete(index);
             Persist();
             return isNew;
         }
