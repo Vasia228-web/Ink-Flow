@@ -1,25 +1,21 @@
 using System.IO;
-using InkFlow.App;
-using InkFlow.Core;
 using InkFlow.Gameplay;
 using InkFlow.UI;
 using TMPro;
 using UnityEditor;
-using UnityEditor.AddressableAssets;
-using UnityEditor.AddressableAssets.Settings;
-using UnityEditor.AddressableAssets.Settings.GroupSchemas;
 using UnityEngine;
 
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Ідемпотентний бутстрап АСЕТІВ: конфіги балансу, стартові рівні й Addressables-група.
+    /// Ідемпотентний бутстрап АСЕТІВ: конфіги балансу й економіки.
     /// Меню: Ink Flow → Setup → Bootstrap Assets. Batch:
     ///   Unity -batchmode -quit -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.InkFlowBootstrap.BootstrapAssets
     ///
-    /// Сцен більше не будує: кожен екран збирає свій Build*Screen, і поле партії —
-    /// теж екран (LevelScreen). Тут лишились спільні службові речі, якими ті збирачі
-    /// користуються: EnsureEditMode, EnsureFolder, Wire.
+    /// Сцен не будує: кожен екран збирає свій Build*Screen. Рівнів і Addressables-групи
+    /// `Levels` більше немає — режим «Рівні» вимкнено (документ §10); стару групу в
+    /// Addressables прибирає автор руками. Тут лишились спільні службові речі, якими
+    /// збирачі користуються: EnsureEditMode, EnsureFolder.
     /// </summary>
     public static class InkFlowBootstrap
     {
@@ -50,11 +46,9 @@ namespace InkFlow.Editor
             }
 
             EnsureConfigs();
-            LevelAuthoring.CreateStarterLevels();
-            EnsureAddressableLevels();
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[InkFlow] Bootstrap завершено: конфіги, рівні й Addressables на місці. " +
+            Debug.Log("[InkFlow] Bootstrap завершено: конфіги на місці. " +
                       "Екрани збираються окремо — Ink Flow → Setup → Build …");
         }
 
@@ -138,57 +132,6 @@ namespace InkFlow.Editor
                 return;
             AssetDatabase.CreateAsset(ScriptableObject.CreateInstance<T>(), path);
         }
-
-        // ---------- Addressables ----------
-
-        private static void EnsureAddressableLevels()
-        {
-            var settings = AddressableAssetSettingsDefaultObject.GetSettings(true);
-            var group = settings.FindGroup("Levels") ?? settings.CreateGroup(
-                "Levels", false, false, true, null,
-                typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema));
-
-            RemoveDanglingEntries(settings, group);
-
-            foreach (var path in LevelAuthoring.LevelAssetPaths())
-            {
-                var guid = AssetDatabase.AssetPathToGUID(path);
-                if (string.IsNullOrEmpty(guid) || AssetDatabase.LoadMainAssetAtPath(path) == null)
-                {
-                    Debug.LogError($"[InkFlow] Рівень не знайдено: {path}");
-                    continue;
-                }
-
-                var entry = settings.CreateOrMoveEntry(guid, group);
-                entry.address = LevelCatalog.AddressPrefix + Path.GetFileNameWithoutExtension(path);
-            }
-
-            settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, null, true, true);
-        }
-
-        /// <summary>
-        /// Прибирає записи на асети, яких уже немає. Addressables зберігають GUID, а не шлях,
-        /// тож перейменований чи видалений рівень лишає «висячий» запис, який ламає
-        /// збірку контенту — і робить це мовчки, аж до білда.
-        /// </summary>
-        private static void RemoveDanglingEntries(AddressableAssetSettings settings, AddressableAssetGroup group)
-        {
-            var stale = new System.Collections.Generic.List<AddressableAssetEntry>();
-            foreach (var entry in group.entries)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(entry.guid);
-                if (string.IsNullOrEmpty(path) || AssetDatabase.LoadMainAssetAtPath(path) == null)
-                    stale.Add(entry);
-            }
-
-            foreach (var entry in stale)
-            {
-                Debug.Log($"[InkFlow] Прибрано висячий Addressables-запис '{entry.address}' (асет видалено).");
-                settings.RemoveAssetEntry(entry.guid, false);
-            }
-        }
-
-        // ---------- Сцена ----------
 
         // ---------- Утиліти ----------
 

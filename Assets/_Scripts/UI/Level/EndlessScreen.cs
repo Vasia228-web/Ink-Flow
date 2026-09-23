@@ -4,6 +4,7 @@ using InkFlow.Meta;
 using InkFlow.Style;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace InkFlow.UI
@@ -11,10 +12,9 @@ namespace InkFlow.UI
     /// <summary>З чим відкривати «Нескінченний».</summary>
     public sealed class EndlessArgs : ScreenArgs
     {
-        public EndlessArgs(BalanceData? balance = null, EndlessData? config = null)
+        public EndlessArgs(BalanceData? balance = null)
         {
             Balance = balance;
-            Config = config;
         }
 
         /// <summary>
@@ -23,18 +23,14 @@ namespace InkFlow.UI
         /// правки балансу не доходили б до партії.
         /// </summary>
         public BalanceData? Balance { get; }
-
-        public EndlessData? Config { get; }
     }
 
     /// <summary>
-    /// Екран «Нескінченний»: рахунок, живий рекорд, черга наступних крапель,
-    /// приплив і чесний фінал.
+    /// Екран «Нескінченний» (документ §11, крок 1): рахунок, живий рекорд, поле 8×8,
+    /// лоток із трьома фігурами, попередження про переповнення й чесний фінал.
     ///
-    /// Правил тут немає — усе рахує <see cref="EndlessSession"/>. Екран лише
-    /// показує її стан і програє те, що вона повернула. Зокрема черга крапель
-    /// НЕ малюється з окремого списку: вона читається з тієї самої
-    /// <see cref="DropQueue"/>, з якої сесія бере краплі для доливу.
+    /// Правил тут немає — усе рахує <see cref="RunSession"/>. Екран лише показує її
+    /// стан, віддає намір гравця (фігура № в клітинку) і програє те, що вона повернула.
     /// </summary>
     public sealed class EndlessScreen : ScreenBase, IGameCommands
     {
@@ -57,22 +53,11 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text recordLabel;
         [SerializeField] private TMP_Text recordNumber;
 
-        [Header("Черга")]
-        [SerializeField] private TMP_Text queueLabel;
-        [SerializeField] private RectTransform queueRow;
-        [SerializeField] private DropView[] queueDrops = System.Array.Empty<DropView>();
-        [SerializeField] private Image queueHeadRing;
-
-        [Header("Приплив")]
-        [SerializeField] private GradientImage tideBadge;
-        [SerializeField] private Image tideBadgeStroke;
-        [SerializeField] private TMP_Text tideLabel;
-        [SerializeField] private Image tideBarTrack;
-        [SerializeField] private RectTransform tideBarFill;
-        [SerializeField] private GradientImage tideBarGradient;
-
-        [Header("Поле")]
+        [Header("Поле і лоток")]
         [SerializeField] private BoardView board;
+        [SerializeField] private TrayView tray;
+        [SerializeField] private Image boardPlate;
+        [SerializeField] private Image boardPlateStroke;
         [SerializeField] private Image overflowRing;
         [SerializeField] private TMP_Text comboPop;
 
@@ -97,24 +82,25 @@ namespace InkFlow.UI
         [SerializeField] private RectTransform confettiRoot;
         [SerializeField] private Image[] confetti = System.Array.Empty<Image>();
 
-        private EndlessSession? _session;
+        private RunSession? _session;
         private BalanceData _balance = BalanceData.Default;
-        private EndlessData _config = new EndlessData();
 
         private Wallet? _wallet;
         private RewardCalculator? _rewards;
         private ProgressData? _progress;
 
         private LiveRecord _record;
-        private int _tideShown;
         private bool _overflow;
+        private int _dragging = -1;
+        private bool _ghostValid;
+        private GridPos _ghostAnchor;
 
         private Coroutine? _playback;
         private Coroutine? _flash;
-        private Coroutine? _tideFlash;
         private Coroutine? _combo;
         private Coroutine? _overflowPulse;
         private Coroutine? _confetti;
+        private Coroutine? _hint;
         private float _idleSince;
         private bool _hintPending;
 
@@ -139,23 +125,37 @@ namespace InkFlow.UI
                 overMenu.onClick.AddListener(() => BackRequested?.Invoke());
             if (board != null)
             {
-                board.Router.MoveRequested += OnMoveRequested;
+                board.Router.PlaceRequested += OnPlaceRequested;
                 board.ChainAdvanced += OnChainAdvanced;
+            }
+
+            if (tray != null)
+            {
+                tray.DragBegan += OnDragBegan;
+                tray.Dragged += OnDragged;
+                tray.DragEnded += OnDragEnded;
             }
         }
 
         private void OnDestroy()
         {
-            if (board == null)
-                return;
-            board.Router.MoveRequested -= OnMoveRequested;
-            board.ChainAdvanced -= OnChainAdvanced;
+            if (board != null)
+            {
+                board.Router.PlaceRequested -= OnPlaceRequested;
+                board.ChainAdvanced -= OnChainAdvanced;
+            }
+
+            if (tray != null)
+            {
+                tray.DragBegan -= OnDragBegan;
+                tray.Dragged -= OnDragged;
+                tray.DragEnded -= OnDragEnded;
+            }
         }
 
         /// <summary>
         /// Економіку підставляє композиційний корінь: рекорд читається зі
         /// збереження, нагорода — через той самий RewardCalculator, що й решта гри.
-        /// Без цього екран рахував би нагороду за своїми числами.
         /// </summary>
         public override void BindState(PlayerState state)
         {
@@ -169,11 +169,8 @@ namespace InkFlow.UI
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-
             var request = args as EndlessArgs;
             _balance = request?.Balance ?? BalanceData.Default;
-            _config = request?.Config ?? new EndlessData();
-
             StartSession();
             Apply();
         }
@@ -186,24 +183,24 @@ namespace InkFlow.UI
 
         private void StartSession()
         {
-            // Сід — час старту: у Нескінченному рандом бажаний, на відміну від
-            // рівнів, де розкладка мусить бути та сама при кожному заході.
+            // Сід — час старту: у Нескінченному рандом бажаний.
             var seed = unchecked((uint)System.DateTime.UtcNow.Ticks);
-            _session = new EndlessSession(_config, _balance, new XorShiftRandom(seed));
+            _session = new RunSession(_balance, PieceCatalogData.Default, new XorShiftRandom(seed));
             GameEvents.RaiseSessionStarted(_session);
 
             _record = new LiveRecord(_progress?.EndlessRecord ?? _record.Stored);
-            _tideShown = _session.TideLevel;
             _overflow = false;
             _hintPending = false;
+            _dragging = -1;
             _idleSince = Time.time;
 
             if (board != null)
             {
                 board.Router.Locked = false;
-                board.Bind(_session, seed: 0);
+                board.Bind(_session);
             }
 
+            tray?.Show(_session.Tray);
             HideOver();
         }
 
@@ -211,27 +208,90 @@ namespace InkFlow.UI
         public void Restart()
         {
             StopAllRoutines();
+            board?.StopAll();
             StartSession();
             Apply();
         }
 
         private void StopAllRoutines()
         {
-            foreach (var routine in new[] { _playback, _flash, _tideFlash, _combo, _overflowPulse, _confetti })
+            foreach (var routine in new[] { _playback, _flash, _combo, _overflowPulse, _confetti, _hint })
                 if (routine != null)
                     StopCoroutine(routine);
-            _playback = _flash = _tideFlash = _combo = _overflowPulse = _confetti = null;
+            _playback = _flash = _combo = _overflowPulse = _confetti = _hint = null;
+        }
+
+        // ── Перетягування ──
+
+        private void OnDragBegan(int index, PointerEventData eventData)
+        {
+            if (_session == null || _session.IsOver || board == null || board.Router.Locked)
+                return;
+            _dragging = index;
+            _ghostValid = false;
+            tray?.Slot(index)?.SetDragging(true);
+            _idleSince = Time.time;
+            _hintPending = false;
+            UpdateGhost(eventData);
+        }
+
+        private void OnDragged(int index, PointerEventData eventData)
+        {
+            if (_dragging != index)
+                return;
+            UpdateGhost(eventData);
+        }
+
+        private void OnDragEnded(int index, PointerEventData eventData)
+        {
+            if (_dragging != index)
+                return;
+            _dragging = -1;
+            tray?.Slot(index)?.SetDragging(false);
+
+            var valid = _ghostValid;
+            var anchor = _ghostAnchor;
+            board?.HideGhost();
+
+            if (valid)
+                board?.Router.RequestPlace(index, anchor);
+        }
+
+        private void UpdateGhost(PointerEventData eventData)
+        {
+            if (_session == null || board == null || _dragging < 0)
+                return;
+
+            var piece = _session.TrayPieces[_dragging];
+            if (piece.IsEmpty)
+                return;
+
+            if (!board.TryCellAt(eventData, out var column, out var row))
+            {
+                _ghostValid = false;
+                board.HideGhost();
+                return;
+            }
+
+            var shape = piece.Shape!;
+            _ghostAnchor = BoardGeometry.AnchorFor(shape, column, row);
+            _ghostValid = PlacementRules.CanPlace(_session.Board, shape, _ghostAnchor);
+            board.ShowGhost(shape, piece.Pigment, _ghostAnchor, _ghostValid);
         }
 
         // ── Хід ──
 
-        private void OnMoveRequested(GridPos from, GridPos to)
+        private void OnPlaceRequested(int trayIndex, GridPos anchor)
         {
             if (_session == null || _session.IsOver || board == null || board.Router.Locked)
                 return;
 
-            var result = _session.ApplyMove(from, to);
+            var result = _session.TryPlace(trayIndex, anchor);
+            if (!result.Accepted)
+                return;
+
             board.Router.Locked = true;
+            tray?.Show(_session.Tray);
             _playback = StartCoroutine(PlayAndUnlock(result));
         }
 
@@ -239,6 +299,7 @@ namespace InkFlow.UI
         {
             yield return board!.PlayEvents(result);
 
+            tray?.Show(_session!.Tray);
             ApplyStats();
             GameEvents.RaiseMovePlayed(result);
 
@@ -254,25 +315,22 @@ namespace InkFlow.UI
             }
         }
 
-        private void OnChainAdvanced(int link)
+        private void OnChainAdvanced(int lines)
         {
-            if (link < 2)
+            if (lines < 2)
                 return;
             if (_combo != null)
                 StopCoroutine(_combo);
-            _combo = StartCoroutine(ComboRoutine(link));
+            if (isActiveAndEnabled)
+                _combo = StartCoroutine(ComboRoutine(lines));
         }
 
-        /// <summary>
-        /// Через 5 секунд без ходу підсвічуємо одну доступну пару. Таймер
-        /// перевіряється в Update, але сама підказка йде подією — і саме тим
-        /// самим RequestHint, що вже реалізований для Puzzle.
-        /// </summary>
+        /// <summary>Через кілька секунд без ходу підсвічуємо одну валідну позицію.</summary>
         private void Update()
         {
             if (_session == null || _session.IsOver || _hintPending || design == null)
                 return;
-            if (board == null || board.Router.Locked)
+            if (board == null || board.Router.Locked || _dragging >= 0)
                 return;
             if (Time.time - _idleSince < design.HintIdleDelay)
                 return;
@@ -283,10 +341,26 @@ namespace InkFlow.UI
 
         public void RequestHint()
         {
-            if (_session == null || _session.IsOver)
+            if (_session == null || _session.IsOver || board == null)
                 return;
-            if (DeadlockDetector.TryFindMove(_session.Grid, out var from, out var to))
-                GameEvents.RaiseHint(from, to);
+            if (!_session.TryFindHint(out var index, out var anchor))
+                return;
+
+            GameEvents.RaiseHint(index, anchor);
+            var piece = _session.TrayPieces[index];
+            board.ShowGhost(piece.Shape!, piece.Pigment, anchor, valid: true);
+            if (_hint != null)
+                StopCoroutine(_hint);
+            if (isActiveAndEnabled)
+                _hint = StartCoroutine(HintRoutine());
+        }
+
+        private IEnumerator HintRoutine()
+        {
+            yield return new WaitForSeconds(design.HintShowDuration);
+            if (_dragging < 0)
+                board?.HideGhost();
+            _hint = null;
         }
 
         // ── Вигляд ──
@@ -308,10 +382,6 @@ namespace InkFlow.UI
                 FontStyles.Bold, design.LetterSpacingWide);
             if (recordLabel != null) recordLabel.text = "РЕКОРД";
 
-            ApplyFont(queueLabel, design.FontSizeStatLabel, design.TextDim,
-                FontStyles.Bold, design.LetterSpacingWide);
-            if (queueLabel != null) queueLabel.text = "НАСТУПНІ КРАПЛІ";
-
             if (scoreCapsule != null) scoreCapsule.color = design.StatCapsuleFill;
             if (scoreCapsuleStroke != null) scoreCapsuleStroke.color = design.StatCapsuleStroke;
             if (scoreCapsuleGlow != null) scoreCapsuleGlow.color = design.ScoreCapsuleGlow;
@@ -319,21 +389,17 @@ namespace InkFlow.UI
             if (recordCapsuleStroke != null) recordCapsuleStroke.color = design.StatCapsuleStroke;
             if (recordCapsuleGlow != null) recordCapsuleGlow.color = design.RecordCapsuleGlow;
 
-            if (tideBadgeStroke != null) tideBadgeStroke.color = design.GlassStroke;
-            if (tideBarTrack != null) tideBarTrack.color = design.TideBarTrack;
-            if (tideBarGradient != null) tideBarGradient.SetGradient(design.AccentTeal, design.AccentLime);
+            if (boardPlate != null) boardPlate.color = design.BoardPlateFill;
+            if (boardPlateStroke != null) boardPlateStroke.color = design.BoardPlateStroke;
 
             if (overflowRing != null) overflowRing.color = Color.clear;
             if (comboPop != null) comboPop.gameObject.SetActive(false);
 
+            tray?.Apply();
             ApplyStats();
         }
 
-        /// <summary>
-        /// Єдина точка, де рахунок і рекорд потрапляють на екран. Саме тому
-        /// перевірка «рахунок перегнав рекорд» не може розійтись між шляхами:
-        /// і злиття, і вибух приходять сюди одним і тим самим ходом.
-        /// </summary>
+        /// <summary>Єдина точка, де рахунок і рекорд потрапляють на екран.</summary>
         private void ApplyStats()
         {
             if (design == null)
@@ -357,71 +423,7 @@ namespace InkFlow.UI
                 _flash = StartCoroutine(RecordFlashRoutine());
             }
 
-            ApplyQueue();
-            ApplyTide();
             ApplyOverflow();
-        }
-
-        private void ApplyQueue()
-        {
-            var queue = _session?.Queue;
-            for (var i = 0; i < queueDrops.Length; i++)
-            {
-                var view = queueDrops[i];
-                if (view == null)
-                    continue;
-
-                var visible = queue != null && i < queue.Count;
-                if (view.gameObject.activeSelf != visible)
-                    view.gameObject.SetActive(visible);
-                if (!visible)
-                    continue;
-
-                var head = i == 0;
-                var drop = queue!.Peek(i);
-                var size = head ? design.QueueHeadSize : design.QueueTailSize;
-
-                var rect = (RectTransform)view.transform;
-                rect.sizeDelta = new Vector2(size, size);
-                view.ConfigureForBoard(head ? design.FontSizeQueueHead : design.FontSizeQueueTail);
-                view.Show(drop.Color, drop.Density);
-            }
-
-            // Кільце навколо голови — окремий об'єкт, бо DropView про черги не знає.
-            if (queueHeadRing != null)
-                queueHeadRing.color = design.QueueHeadRing;
-        }
-
-        private void ApplyTide()
-        {
-            if (_session == null)
-                return;
-
-            var level = _session.TideLevel;
-            var active = level > 0;
-
-            ApplyFont(tideLabel, design.FontSizeTideBadge, design.TideText, FontStyles.Bold, 0f);
-            if (tideLabel != null) tideLabel.text = $"Приплив ×{level + 1}";
-
-            if (tideBadge != null)
-                tideBadge.SetGradient(
-                    active ? design.TideBadgeActiveFrom : design.TideBadgeIdle,
-                    active ? design.TideBadgeActiveTo : design.TideBadgeIdle);
-
-            if (tideBarFill != null && tideBarFill.parent is RectTransform track)
-                tideBarFill.sizeDelta = new Vector2(
-                    track.rect.width * Mathf.Clamp01(_session.TideFraction),
-                    tideBarFill.sizeDelta.y);
-
-            if (level == _tideShown)
-                return;
-            _tideShown = level;
-
-            if (isActiveAndEnabled)
-            {
-                if (_tideFlash != null) StopCoroutine(_tideFlash);
-                _tideFlash = StartCoroutine(TideFlashRoutine());
-            }
         }
 
         private void ApplyOverflow()
@@ -429,8 +431,7 @@ namespace InkFlow.UI
             if (_session == null || overflowRing == null)
                 return;
 
-            var free = _session.Grid.CountFree();
-            var warn = !_session.IsOver && free <= design.OverflowWarnFrom;
+            var warn = !_session.IsOver && _session.HaloWarning;
             if (warn == _overflow)
                 return;
             _overflow = warn;
@@ -456,8 +457,6 @@ namespace InkFlow.UI
             var duration = design.RecordFlashDuration;
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
-                // Через CanvasRenderer: Image.color щокадру просив би перебудову
-                // великої капсули.
                 var k = Mathf.Sin(Mathf.Clamp01(t / duration) * Mathf.PI);
                 if (recordCapsuleGlow != null)
                     recordCapsuleGlow.canvasRenderer.SetAlpha(Mathf.Lerp(1f, 3.5f, k));
@@ -471,29 +470,12 @@ namespace InkFlow.UI
             _flash = null;
         }
 
-        private IEnumerator TideFlashRoutine()
-        {
-            var duration = design.TideFlashDuration;
-            for (var t = 0f; t < duration; t += Time.deltaTime)
-            {
-                var k = Mathf.Sin(Mathf.Clamp01(t / duration) * Mathf.PI);
-                if (tideBadge != null)
-                    tideBadge.transform.localScale = Vector3.one * Mathf.Lerp(1f, 1.12f, k);
-                yield return null;
-            }
-
-            if (tideBadge != null) tideBadge.transform.localScale = Vector3.one;
-            _tideFlash = null;
-        }
-
-        private IEnumerator ComboRoutine(int link)
+        private IEnumerator ComboRoutine(int lines)
         {
             if (comboPop == null)
                 yield break;
 
-            comboPop.text = $"×{link}";
-            ApplyFont(comboPop, design.FontSizeComboPop, design.TextPrimary, FontStyles.Bold, 0f);
-            comboPop.gameObject.SetActive(true);
+            PrepareComboPop(lines);
 
             var rect = (RectTransform)comboPop.transform;
             var origin = rect.localPosition;
@@ -502,7 +484,6 @@ namespace InkFlow.UI
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
                 var k = Mathf.Clamp01(t / duration);
-                // Пружний вихід і плавне згасання вгору.
                 var scale = k < 0.3f
                     ? Mathf.Lerp(0.4f, 1.15f, k / 0.3f)
                     : Mathf.Lerp(1.15f, 1f, (k - 0.3f) / 0.7f);
@@ -517,6 +498,13 @@ namespace InkFlow.UI
             comboPop.canvasRenderer.SetAlpha(1f);
             comboPop.gameObject.SetActive(false);
             _combo = null;
+        }
+
+        private void PrepareComboPop(int lines)
+        {
+            comboPop.text = $"×{lines}";
+            ApplyFont(comboPop, design.FontSizeComboPop, design.TextPrimary, FontStyles.Bold, 0f);
+            comboPop.gameObject.SetActive(true);
         }
 
         private IEnumerator OverflowPulseRoutine()
@@ -570,7 +558,7 @@ namespace InkFlow.UI
 
             ApplyFont(overBestLabel, design.FontSizeOverBest, design.TextMuted, FontStyles.Bold, 0f);
             if (overBestLabel != null)
-                overBestLabel.text = $"Рекорд · {Format(_record.Shown)}";
+                overBestLabel.text = $"Рекорд · {Format(_record.Shown)} · ланцюг ×{_session.BestChain}";
 
             if (overAgainFill != null)
                 overAgainFill.SetGradient(design.AccentTeal, design.AccentBlue);
@@ -582,14 +570,12 @@ namespace InkFlow.UI
 
             if (_record.Commit() && isActiveAndEnabled)
                 _confetti = StartCoroutine(ConfettiRoutine());
-
         }
 
         /// <summary>
-        /// Нарахування. Рахує <see cref="RewardCalculator"/> — той самий, що й для
-        /// рівнів; екран лише показує число. Якщо економіку не підв'язали
-        /// (екран відкрили окремою сценою), нагороди просто немає — вигадувати
-        /// власну він не має права.
+        /// Нарахування. Рахує <see cref="RewardCalculator"/> — екран лише показує число.
+        /// Якщо економіку не підв'язали (екран відкрили окремою сценою), нагороди
+        /// просто немає — вигадувати власну він не має права.
         /// </summary>
         private long Award(int score, bool newRecord)
         {
@@ -603,16 +589,13 @@ namespace InkFlow.UI
             if (newRecord)
                 _progress.EndlessRecord = score;
 
-            // Дві причини нарахування записуємо окремо: інакше в аналітиці
-            // не відрізнити «побив свій рекорд» від «перетнув віху».
             if (forRecord > 0)
                 _wallet.Add(forRecord, RewardSource.EndlessRecord);
             if (forMilestones > 0)
                 _wallet.Add(forMilestones, RewardSource.EndlessMilestone);
 
             // Рекорд і нафта мусять пережити закриття гри одразу, а не чекати
-            // згортання застосунку: партія в Нескінченному може бути останньою
-            // за сесію.
+            // згортання застосунку: партія може бути останньою за сесію.
             State?.Persist();
 
             return forRecord + forMilestones;
@@ -635,11 +618,7 @@ namespace InkFlow.UI
             if (rewardNumber != null) rewardNumber.text = $"+{Format(reward)}";
         }
 
-        /// <summary>
-        /// Роздає конфеті кольори й стартові точки. Окремим методом, а не на
-        /// початку корутини: колір графіки не можна чіпати всередині тіла, що
-        /// повертає IEnumerator, — це те, що ловить check-ui-animation.
-        /// </summary>
+        /// <summary>Роздає конфеті кольори й стартові точки — до старту корутини.</summary>
         private void PrepareConfetti(Vector3[] starts, float[] drift, float height)
         {
             var spread = design.PaintConfettiSpread;
@@ -648,7 +627,7 @@ namespace InkFlow.UI
                 if (confetti[i] == null)
                     continue;
                 confetti[i].gameObject.SetActive(true);
-                confetti[i].color = design.Ink(ConfettiHue(i));
+                confetti[i].color = design.PigmentColor(Pigments.FromIndex(i % Pigments.Count));
                 starts[i] = new Vector3(
                     Random.Range(-spread, spread),
                     height * 0.5f + Random.Range(0f, spread),
@@ -678,10 +657,7 @@ namespace InkFlow.UI
                     if (confetti[i] == null)
                         continue;
                     var rect = (RectTransform)confetti[i].transform;
-                    rect.localPosition = starts[i] + new Vector3(
-                        drift[i] * k,
-                        -height * 1.2f * k * k,
-                        0f);
+                    rect.localPosition = starts[i] + new Vector3(drift[i] * k, -height * 1.2f * k * k, 0f);
                     rect.localRotation = Quaternion.Euler(0f, 0f, k * 220f * (i % 2 == 0 ? 1f : -1f));
                     confetti[i].canvasRenderer.SetAlpha(k < 0.7f ? 1f : 1f - (k - 0.7f) / 0.3f);
                 }
@@ -697,12 +673,6 @@ namespace InkFlow.UI
             _confetti = null;
         }
 
-        /// <summary>
-        /// Конфеті беруть кольори чорнила по колу — окремої палітри не заводимо.
-        /// Відлік із одиниці: нуль в InkColor — це None, тобто прозора крапля.
-        /// </summary>
-        private static InkColor ConfettiHue(int index) => (InkColor)(1 + index % 5);
-
         private void HideOver()
         {
             if (overCard != null && overCard.gameObject.activeSelf)
@@ -716,7 +686,7 @@ namespace InkFlow.UI
 
         /// <summary>Тисячі відділяємо вузьким пробілом, як у макеті: «8 420».</summary>
         private static string Format(long value) => value.ToString("N0")
-            .Replace(",", " ").Replace(" ", " ");
+            .Replace(",", " ").Replace(" ", " ");
 
         private static void Toggle(Component? target, bool on)
         {

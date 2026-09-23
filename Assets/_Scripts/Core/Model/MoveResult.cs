@@ -3,61 +3,101 @@ using System.Collections.Generic;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Повний опис того, що сталося за хід, у вигляді впорядкованої стрічки подій (§4).
+    /// Повний опис ходу у вигляді впорядкованої стрічки подій.
     ///
-    /// Це найважливіше архітектурне рішення проєкту: Core не анімує — він повертає події,
-    /// а BoardView програє їх із таймінгами. Завдяки цьому логіка тестується без жодного
-    /// кадру рендеру, анімації можна прискорити чи вимкнути, не чіпаючи правила, а симулятор
-    /// Фази 4 ганяє мільйони ходів за секунди.
+    /// Головне архітектурне рішення проєкту, яке нове ядро зберігає без змін: Core не
+    /// анімує — він повертає події, а в'ю програє їх із таймінгами. Завдяки цьому правила
+    /// тестуються без жодного кадру рендеру, анімації прискорюються, не чіпаючи логіку,
+    /// а бот ганяє тисячі партій за секунди.
     ///
-    /// ВАЖЛИВО: екземпляр переиспользується сесією між ходами (нуль алокацій, §12).
-    /// Хто хоче зберегти події довше ніж до наступного ходу — копіює їх собі.
+    /// Екземпляр ПЕРЕВИКОРИСТОВУЄТЬСЯ сесією між ходами (нуль алокацій): хто хоче
+    /// зберегти події довше — копіює їх собі.
     /// </summary>
     public sealed class MoveResult
     {
         private readonly List<GameEvent> _events = new List<GameEvent>(64);
+        private readonly List<GridPos> _cells = new List<GridPos>(256);
 
-        /// <summary>false — хід відхилено (різні кольори, перешкода): ходи НЕ витрачаються (§5.1).</summary>
+        /// <summary>false — розміщення відхилено: стан НЕ змінився, фігура лишилась у лотку.</summary>
         public bool Accepted { get; private set; }
 
         public IReadOnlyList<GameEvent> Events => _events;
 
-        /// <summary>Скільки вибухів сталося за цей хід — від цього залежать комбо-множник і feel.</summary>
-        public int ChainDepth { get; private set; }
+        /// <summary>Скільки ліній зірвано за цей хід — від цього залежить ланцюг і feel.</summary>
+        public int LinesCleared { get; private set; }
+
+        /// <summary>Скільки з них були чистими. Прямий вимір головної ідеї гри.</summary>
+        public int PureLinesCleared { get; private set; }
+
+        /// <summary>Скільки одиниць фарби видали лінії цього ходу (вже з ланцюгом).</summary>
+        public int PaintYielded { get; private set; }
 
         public int ScoreGained { get; private set; }
 
-        /// <summary>Ланцюг обірвано запобіжником — стан поля валідний, але не «доведений до кінця».</summary>
-        public bool ChainWasTruncated { get; private set; }
+        /// <summary>Клітинка зрізу події — списки клітинок лежать спільним буфером.</summary>
+        public GridPos Cell(in GameEvent e, int index) => _cells[e.CellStart + index];
 
         internal void Reset()
         {
             _events.Clear();
+            _cells.Clear();
             Accepted = false;
-            ChainDepth = 0;
+            LinesCleared = 0;
+            PureLinesCleared = 0;
+            PaintYielded = 0;
             ScoreGained = 0;
-            ChainWasTruncated = false;
         }
 
         internal void MarkAccepted() => Accepted = true;
 
-        internal void Add(in GameEvent gameEvent)
+        /// <summary>Кладе клітинки в спільний буфер і повертає початок зрізу.</summary>
+        internal int PushCells(IReadOnlyList<GridPos> cells)
         {
-            _events.Add(gameEvent);
-            switch (gameEvent.Type)
-            {
-                case GameEventType.Burst:
-                    ChainDepth++;
-                    break;
-                case GameEventType.ChainTruncated:
-                    ChainWasTruncated = true;
-                    break;
-            }
+            var start = _cells.Count;
+            for (var i = 0; i < cells.Count; i++)
+                _cells.Add(cells[i]);
+            return start;
         }
 
-        internal void AddScore(int points) => ScoreGained += points;
+        internal void AddPiecePlaced(int trayIndex, int cellStart, int cellCount, Pigment pigment) =>
+            _events.Add(new GameEvent(GameEventType.PiecePlaced, LineKind.Row, pigment,
+                0, trayIndex, 0f, false, cellStart, cellCount));
 
-        /// <summary>Знімок подій — для тестів, реплеїв і логів (алокує, у грі не використовується).</summary>
+        internal void AddLineCleared(LineKind kind, int index, int cellStart, int cellCount,
+            Pigment dominant, bool isPure, int amount)
+        {
+            _events.Add(new GameEvent(GameEventType.LineCleared, kind, dominant,
+                amount, index, 0f, isPure, cellStart, cellCount));
+            LinesCleared++;
+            if (isPure)
+                PureLinesCleared++;
+            PaintYielded += amount;
+        }
+
+        internal void AddCombo(int lineCount, float multiplier) =>
+            _events.Add(new GameEvent(GameEventType.ComboApplied, LineKind.Row, Pigment.None,
+                0, lineCount, multiplier, false, 0, 0));
+
+        internal void AddScore(int gained, int total)
+        {
+            ScoreGained += gained;
+            _events.Add(new GameEvent(GameEventType.ScoreGained, LineKind.Row, Pigment.None,
+                gained, total, 0f, false, 0, 0));
+        }
+
+        internal void AddTrayRefilled(int round) =>
+            _events.Add(new GameEvent(GameEventType.TrayRefilled, LineKind.Row, Pigment.None,
+                round, 0, 0f, false, 0, 0));
+
+        internal void AddTrayRescued() =>
+            _events.Add(new GameEvent(GameEventType.TrayRescued, LineKind.Row, Pigment.None,
+                0, 0, 0f, false, 0, 0));
+
+        internal void AddGameLost(int placementCount, int score) =>
+            _events.Add(new GameEvent(GameEventType.GameLost, LineKind.Row, Pigment.None,
+                score, placementCount, 0f, false, 0, 0));
+
+        /// <summary>Знімок подій — для тестів і логів (алокує, у грі не використовується).</summary>
         public GameEvent[] SnapshotEvents() => _events.ToArray();
 
         public int CountEvents(GameEventType type)
@@ -68,5 +108,7 @@ namespace InkFlow.Core
                     count++;
             return count;
         }
+
+        public bool Has(GameEventType type) => CountEvents(type) > 0;
     }
 }

@@ -4,25 +4,26 @@ namespace InkFlow.Core
 {
     /// <summary>
     /// Єдина точка, через яку наміри гравця доходять до сесії.
-    /// Під час програвання подій інпут заблокований (§8) — інакше гравець устигав би
-    /// зробити хід поверх незавершеного ланцюга і в'ю розійшлося б із моделлю.
     ///
-    /// Живе в Core, а не в Gameplay, бо ігрове поле тепер UGUI-екран: обидві в'юхи —
-    /// і світова, і екранна — мусять шукати хід через ту саму точку.
+    /// Під час програвання подій інпут заблокований — інакше гравець устигав би
+    /// поставити другу фігуру поверх незавершеного зриву, і в'ю розійшлося б із моделлю.
+    ///
+    /// Живе в Core, а не в UI, бо блокування — правило, а не оформлення: без нього
+    /// стрічка подій перестає бути стрічкою.
     /// </summary>
     public sealed class InputRouter
     {
         /// <summary>true — жести ігноруються (йде анімація ходу).</summary>
         public bool Locked { get; set; }
 
-        /// <summary>Гравець просить хід. Валідність вирішує Core.</summary>
-        public event Action<GridPos, GridPos>? MoveRequested;
+        /// <summary>Гравець відпустив фігуру над полем. Валідність вирішує Core.</summary>
+        public event Action<int, GridPos>? PlaceRequested;
 
-        public void RequestMove(GridPos from, GridPos to)
+        public void RequestPlace(int trayIndex, GridPos anchor)
         {
             if (Locked)
                 return;
-            MoveRequested?.Invoke(from, to);
+            PlaceRequested?.Invoke(trayIndex, anchor);
         }
     }
 }

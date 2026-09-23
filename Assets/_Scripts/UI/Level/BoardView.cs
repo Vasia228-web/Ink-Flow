@@ -2,83 +2,61 @@ using System.Collections;
 using System.Collections.Generic;
 using InkFlow.Core;
 using InkFlow.Style;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Ігрове поле: єдиний, хто перетворює стрічку подій Core у видовище.
+    /// Ігрове поле 8×8: єдиний, хто перетворює стрічку подій Core у видовище.
     ///
-    /// Модель на момент виклику вже у ФІНАЛЬНОМУ стані — дошка лише відтворює
-    /// шлях до нього подія за подією, а наприкінці робить синхронізуючий Repaint.
+    /// Модель на момент виклику вже у ФІНАЛЬНОМУ стані — дошка лише відтворює шлях
+    /// до нього подія за подією, а наприкінці робить синхронізуючий Repaint.
     /// Розійтись із моделлю вона тому не може навіть теоретично.
     ///
-    /// Сітка в моделі строго квадратна. Косметичний зсув (<see cref="BoardJitter"/>)
-    /// рахується один раз на клітинку й лише зміщує краплю всередині її ж клітинки:
-    /// сусідство, свайпи й хрест вибуху про нього не знають.
+    /// Сітка фіксована, тож пулу немає: 64 блоки й 64 привиди лежать у сцені завжди,
+    /// порожня клітинка — вимкнений блок. Під час партії нічого не інстанціюється.
+    /// Привид фігури й підсвітка ліній перефарбовуються лише коли клітинка під пальцем
+    /// змінилась — не щокадру.
     /// </summary>
-    public sealed class BoardView : MonoBehaviour,
-        IPointerDownHandler, IPointerUpHandler
+    public sealed class BoardView : MonoBehaviour
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private DropPool pool;
         [SerializeField] private RectTransform canvasRect;
+        [SerializeField] private BlockView[] blocks = System.Array.Empty<BlockView>();
+        [SerializeField] private UnityEngine.UI.Image[] ghosts = System.Array.Empty<UnityEngine.UI.Image>();
+        [SerializeField] private TMP_Text[] floats = System.Array.Empty<TMP_Text>();
         [SerializeField] private BoardFeedback? feedback;
-        private readonly Dictionary<GridPos, DropView> _drops = new Dictionary<GridPos, DropView>(64);
-        private readonly List<GridPos> _stale = new List<GridPos>(64);
-        private readonly List<Falling> _falling = new List<Falling>(64);
 
-        /// <summary>Крапля в польоті: цільова точка й номер хвилі (стовпця).</summary>
-        private readonly struct Falling
-        {
-            public Falling(RectTransform rect, Vector3 from, int wave)
-            {
-                Rect = rect;
-                From = from;
-                Wave = wave;
-            }
-
-            public RectTransform Rect { get; }
-            public Vector3 From { get; }
-            public int Wave { get; }
-        }
-
-        private GameSession? _session;
+        private readonly List<Line> _previewLines = new List<Line>(16);
+        private RunSession? _session;
         private BoardGeometry _geometry;
-        private int _seed;
         private float _scale = 1f;
-
-        private readonly SwipeGesture _gesture = new SwipeGesture();
+        private long _ghostKey = long.MinValue;
+        private int _nextFloat;
         private Coroutine? _shake;
-        private Vector2 _pressLocal;
-        private GridPos _pressCell;
-        private bool _pressInside;
 
-        /// <summary>Гравець просить хід. Валідність вирішує Core.</summary>
+        /// <summary>Гравець відпустив фігуру над полем. Валідність вирішує Core.</summary>
         public InputRouter Router { get; } = new InputRouter();
 
-        /// <summary>
-        /// Ланка ланцюга щойно програлась; аргумент — її номер від одиниці.
-        /// Дошка не малює множник сама: він спливає по центру ЕКРАНА, а не поля.
-        /// </summary>
+        /// <summary>Ланцюг щойно програвся; аргумент — кількість ліній. Множник спливає по центру ЕКРАНА.</summary>
         public System.Action<int>? ChainAdvanced;
 
-        public GridModel? Grid => _session?.Grid;
+        public RunSession? Session => _session;
 
-        public void Bind(GameSession session, int seed)
+        public void Bind(RunSession session)
         {
             _session = session;
-            _seed = seed;
-            _geometry = BoardGeometry.For(session.Grid.Width, session.Grid.Height);
-            _gesture.Clear();
+            _geometry = BoardGeometry.For(session.Board.Width, session.Board.Height);
+            HideGhost();
             Repaint();
         }
 
         /// <summary>
-        /// Одиниць канваса на px макета. Рахується з фактичної ширини полотна,
-        /// а не з константи: поле — квадрат, вписаний у ширину екрана, і на
-        /// вузькому пристрої воно стискається разом із нею.
+        /// Одиниць канваса на px макета. Рахується з фактичної ширини полотна:
+        /// поле — квадрат, вписаний у ширину екрана, і на вузькому пристрої воно
+        /// стискається разом із нею.
         /// </summary>
         private float Scale
         {
@@ -93,36 +71,39 @@ namespace InkFlow.UI
             }
         }
 
-        /// <summary>Позиція центру клітинки в координатах полотна.</summary>
+        private int IndexOf(GridPos p) => p.Y * _geometry.Width + p.X;
+
+        /// <summary>Позиція центру клітинки в координатах полотна (півот — лівий верхній кут).</summary>
         public Vector2 CellToLocal(GridPos pos)
         {
             var scale = Scale;
-            var jx = BoardJitter.OffsetX(_seed, pos.X, pos.Y) * _geometry.Step;
-            var jy = BoardJitter.OffsetY(_seed, pos.X, pos.Y) * _geometry.Step;
-
-            // Полотно має півот у лівому верхньому куті, тому Y від'ємний униз.
-            return new Vector2(
-                (_geometry.CenterX(pos.X) + jx) * scale,
-                -(_geometry.CenterY(pos.Y) - jy) * scale);
+            return new Vector2(_geometry.CenterX(pos.X) * scale, -_geometry.CenterY(pos.Y) * scale);
         }
 
         /// <summary>
-        /// Точка полотна → клітинка. Зворотне перетворення НЕ враховує джиттер:
-        /// клітинка лишається строгим квадратом, інакше зона влучання рухалась би
-        /// разом із косметикою і свайп біля межі спрацьовував би не туди.
+        /// Екранна точка → клітинка. Точка поза полотном (з запасом у клітинку)
+        /// дає false: привид тоді ховається, а не липне до краю.
         /// </summary>
-        public bool LocalToCell(Vector2 local, out GridPos pos)
+        public bool TryCellAt(PointerEventData eventData, out int column, out int row)
         {
+            column = 0;
+            row = 0;
+            if (canvasRect == null || _session == null)
+                return false;
+
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect, eventData.position, eventData.pressEventCamera, out var local);
+
             var scale = Scale;
-            var x = local.x / scale - _geometry.InsetX;
-            var y = -local.y / scale - _geometry.InsetY;
+            var x = local.x / scale;
+            var y = -local.y / scale;
+            var margin = _geometry.Step;
+            if (x < -margin || x > BoardGeometry.Canvas + margin || y < -margin || y > BoardGeometry.Canvas + margin)
+                return false;
 
-            var column = Mathf.FloorToInt(x / _geometry.Step);
-            var rowFromTop = Mathf.FloorToInt(y / _geometry.Step);
-            var row = _geometry.Height - 1 - rowFromTop;
-
-            pos = new GridPos(column, row);
-            return _session != null && _session.Grid.Contains(pos);
+            column = _geometry.ColumnAt(x);
+            row = _geometry.RowAt(y);
+            return true;
         }
 
         // ── Малювання ──
@@ -130,375 +111,265 @@ namespace InkFlow.UI
         /// <summary>Повна синхронізація дошки зі станом моделі.</summary>
         public void Repaint()
         {
-            if (_session == null || pool == null)
+            if (_session == null || design == null)
                 return;
 
-            var grid = _session.Grid;
+            var board = _session.Board;
+            for (var y = 0; y < board.Height; y++)
+                for (var x = 0; x < board.Width; x++)
+                {
+                    var i = y * board.Width + x;
+                    if (i >= blocks.Length || blocks[i] == null)
+                        continue;
+                    var pigment = board[x, y];
+                    if (pigment == Pigment.None)
+                        blocks[i].Hide();
+                    else
+                        blocks[i].Show(design.PigmentColor(pigment));
+                }
+        }
 
-            _stale.Clear();
-            foreach (var pair in _drops)
-                if (!grid.Contains(pair.Key) || grid[pair.Key].IsEmpty)
-                    _stale.Add(pair.Key);
+        /// <summary>
+        /// Привид фігури під пальцем і підсвітка ліній, які зірвуться. Перефарбовує
+        /// клітинки лише коли якір або форма змінились — під час перетягування це
+        /// раз на клітинку, а не раз на кадр.
+        /// </summary>
+        public void ShowGhost(PieceShape shape, Pigment pigment, GridPos anchor, bool valid)
+        {
+            if (_session == null || design == null)
+                return;
 
-            foreach (var pos in _stale)
-                Release(pos);
+            var key = ((long)shape.GetHashCode() << 32) ^ (anchor.X << 16) ^ (anchor.Y << 4) ^ (valid ? 1 : 0)
+                      ^ ((long)pigment << 40);
+            if (key == _ghostKey)
+                return;
+            _ghostKey = key;
 
-            foreach (var pos in grid.AllPositions())
+            ClearGhostColors();
+
+            var board = _session.Board;
+            var tint = design.PigmentColor(pigment);
+
+            if (valid)
             {
-                var cell = grid[pos];
-                if (!cell.IsEmpty)
-                    Show(pos, cell);
+                PlacementRules.PreviewLines(board, shape, anchor, pigment, _previewLines);
+                for (var i = 0; i < _previewLines.Count; i++)
+                {
+                    var line = _previewLines[i];
+                    var length = LineResolver.LengthOf(board, line.Kind);
+                    var pure = IsPurePreview(board, line, shape, anchor, pigment);
+                    var alpha = pure ? design.LinePreviewPureAlpha : design.LinePreviewMixedAlpha;
+                    for (var c = 0; c < length; c++)
+                        SetGhost(IndexOf(LineResolver.CellAt(line, c)), DesignSystem.WithAlpha(tint, alpha));
+                }
+            }
+
+            var ghostColor = valid
+                ? DesignSystem.WithAlpha(tint, design.GhostValidAlpha)
+                : DesignSystem.WithAlpha(design.GhostInvalidTint, design.GhostInvalidAlpha);
+
+            for (var i = 0; i < shape.Cells.Length; i++)
+            {
+                var p = new GridPos(anchor.X + shape.Cells[i].X, anchor.Y + shape.Cells[i].Y);
+                if (board.Contains(p))
+                    SetGhost(IndexOf(p), ghostColor);
             }
         }
 
-        private DropView? Show(GridPos pos, in Cell cell)
+        public void HideGhost()
         {
-            if (!_drops.TryGetValue(pos, out var view))
-            {
-                view = pool.Get();
-                if (view == null)
-                    return null;
-                // Розмір числа залежить від сітки, тож налаштовуємо при кожній видачі
-                // з пулу, а не один раз у префабі.
-                view.ConfigureForBoard(_geometry.Font * Scale);
-
-                // Якір — ЛІВИЙ ВЕРХНІЙ кут полотна, бо саме звідти BoardGeometry
-                // рахує центри клітинок. У префабі DropView якір центральний
-                // (він розрахований на інтерфейс), і без цього рядка все поле
-                // з'їжджало б на пів полотна вправо-вниз.
-                var fresh = (RectTransform)view.transform;
-                fresh.anchorMin = fresh.anchorMax = new Vector2(0f, 1f);
-                fresh.pivot = new Vector2(0.5f, 0.5f);
-
-                _drops[pos] = view;
-            }
-
-            var rect = (RectTransform)view.transform;
-            var size = _geometry.Blob * Scale;
-            rect.sizeDelta = new Vector2(size, size);
-            rect.anchoredPosition = CellToLocal(pos);
-
-            view.Show(cell.Color, cell.Density);
-            view.SetNearMiss(MergeRules.IsNearMiss(cell.Density, design.NearMissFraction, _session!.Balance));
-            return view;
+            if (_ghostKey == long.MinValue)
+                return;
+            _ghostKey = long.MinValue;
+            ClearGhostColors();
         }
 
-        private void Release(GridPos pos)
+        private void ClearGhostColors()
         {
-            if (!_drops.TryGetValue(pos, out var view))
-                return;
-            pool.Release(view);
-            _drops.Remove(pos);
+            for (var i = 0; i < ghosts.Length; i++)
+                if (ghosts[i] != null)
+                    ghosts[i].color = Color.clear;
+        }
+
+        private void SetGhost(int index, Color color)
+        {
+            if (index >= 0 && index < ghosts.Length && ghosts[index] != null)
+                ghosts[index].color = color;
+        }
+
+        /// <summary>Чи буде лінія чистою, якщо покласти сюди фігуру цього пігменту.</summary>
+        private static bool IsPurePreview(Board board, Line line, PieceShape shape, GridPos anchor, Pigment pigment)
+        {
+            var length = LineResolver.LengthOf(board, line.Kind);
+            for (var c = 0; c < length; c++)
+            {
+                var cell = LineResolver.CellAt(line, c);
+                var current = board[cell];
+                if (current == Pigment.None)
+                {
+                    // Порожня клітинка лінії — це клітинка фігури (інакше лінія не була б повною).
+                    if (pigment == Pigment.None)
+                        return false;
+                    continue;
+                }
+
+                if (current != pigment)
+                    return false;
+            }
+
+            return true;
         }
 
         // ── Програвання ходу ──
 
         /// <summary>
         /// Програє стрічку подій із таймінгами. Швидкість — з дизайн-системи,
-        /// тож нульова тривалість дає миттєвий режим (рестарт &lt; 300 мс).
+        /// тож нульові тривалості дають миттєвий режим (рестарт &lt; 300 мс).
         /// </summary>
         public IEnumerator PlayEvents(MoveResult result)
         {
-            if (!result.Accepted)
+            HideGhost();
+            if (!result.Accepted || _session == null)
             {
-                yield return PlayReject(result);
                 Repaint();
                 yield break;
             }
 
+            var lineIndex = 0;
             for (var i = 0; i < result.Events.Count; i++)
             {
                 var e = result.Events[i];
-
-                // Долив іде пачкою: краплі падають по стовпцях, а не по одній
-                // на кадр. Збираємо весь хвіст Refill і програємо разом.
-                if (e.Type == GameEventType.Refill)
-                {
-                    var last = i;
-                    while (last + 1 < result.Events.Count &&
-                           result.Events[last + 1].Type == GameEventType.Refill)
-                        last++;
-
-                    yield return PlayRefill(result, i, last);
-                    i = last;
-                    continue;
-                }
-
                 switch (e.Type)
                 {
-                    case GameEventType.Merge:
-                        yield return PlayMerge(e);
+                    case GameEventType.PiecePlaced:
+                        ShowPlaced(result, e);
                         break;
 
-                    case GameEventType.Burst:
-                        yield return PlayBurst(e);
+                    case GameEventType.LineCleared:
+                        yield return PlayLineCleared(result, e, lineIndex);
+                        lineIndex++;
                         break;
 
-                    case GameEventType.Paint:
-                    case GameEventType.Repaint:
-                        PlayAppear(e);
-                        break;
-
-                    case GameEventType.Grow:
-                    case GameEventType.Blur:
-                        ShowAt(e.Position);
-                        break;
-
-                    case GameEventType.Thaw:
-                    case GameEventType.BlotCleared:
-                        ShowAt(e.Position);
+                    case GameEventType.ComboApplied:
+                        PlayCombo(e.Extra);
                         break;
                 }
             }
+
+            if (lineIndex > 0 && design != null && design.LineClearDuration > 0f)
+                yield return new WaitForSeconds(design.LineClearDuration);
 
             Repaint(); // фінальна синхронізація: дошка не має права розійтися з моделлю
         }
 
-        private IEnumerator PlayMerge(GameEvent e)
+        private void ShowPlaced(MoveResult result, in GameEvent e)
         {
-            // Крапля-джерело фізично ЇДЕ до цілі, а не зникає: без цього гравець
-            // не бачить, що саме злилось, коли ходів багато й вони швидкі.
-            feedback?.PlayMerge();
-
-            if (_drops.TryGetValue(e.Source, out var moving))
+            if (design == null)
+                return;
+            var color = design.PigmentColor(e.Pigment);
+            for (var c = 0; c < e.CellCount; c++)
             {
-                moving.SetNearMiss(false);
-                var rect = (RectTransform)moving.transform;
-
-                // Твін іде в localPosition — anchoredPosition щокадру слав би
-                // OnRectTransformDimensionsChange і бруднив графіку. Ці простори
-                // зсунуті одне відносно одного на сталу величину, тому рухаємось
-                // по ДЕЛЬТІ між клітинками: вона однакова в обох.
-                var from = rect.localPosition;
-                var shift = (Vector3)(CellToLocal(e.Position) - CellToLocal(e.Source));
-
-                var duration = design.BoardMergeDuration;
-                for (var t = 0f; t < duration; t += Time.deltaTime)
-                {
-                    var k = design.CurveLand.Evaluate(Mathf.Clamp01(t / duration));
-                    rect.localPosition = from + shift * k;
-                    yield return null;
-                }
-
-                Release(e.Source);
+                var i = IndexOf(result.Cell(e, c));
+                if (i < 0 || i >= blocks.Length || blocks[i] == null)
+                    continue;
+                blocks[i].Show(color);
+                blocks[i].PlayLand();
             }
 
-            var view = Show(e.Position, new Cell(e.Color, e.Value));
-            view?.PlayLand();
+            feedback?.PlayPlace();
         }
 
-        private IEnumerator PlayReject(MoveResult result)
+        private IEnumerator PlayLineCleared(MoveResult result, GameEvent e, int lineIndex)
         {
-            // Відхилений свайп: коротке відскакування в бік цілі й назад.
-            // Хід не витрачається — анімація має це підтверджувати, а не імітувати дію.
-            if (result.Events.Count == 0)
+            if (design == null)
                 yield break;
 
-            var e = result.Events[0];
-            if (!_drops.TryGetValue(e.Source, out var view))
+            feedback?.PlayLineClear(lineIndex, e.IsPure);
+
+            for (var c = 0; c < e.CellCount; c++)
+            {
+                var i = IndexOf(result.Cell(e, c));
+                if (i >= 0 && i < blocks.Length && blocks[i] != null && blocks[i].IsVisible)
+                    StartCoroutine(blocks[i].ClearRoutine(design.LineClearDuration));
+            }
+
+            var middle = result.Cell(e, e.CellCount / 2);
+            PrepareFloat(e.Value, e.IsPure, e.Pigment, middle);
+            StartCoroutine(FloatRoutine(floats[_nextFloat]));
+            _nextFloat = (_nextFloat + 1) % Mathf.Max(1, floats.Length);
+
+            if (design.LineClearStagger > 0f)
+                yield return new WaitForSeconds(design.LineClearStagger);
+        }
+
+        private void PlayCombo(int lines)
+        {
+            feedback?.PlayCombo(lines);
+            ChainAdvanced?.Invoke(lines);
+            if (design != null && lines >= design.BoardShakeFromLines)
+                Shake(lines - design.BoardShakeFromLines + 1);
+        }
+
+        /// <summary>
+        /// Число «+фарба» над лінією. Текст і колір ставляться ТУТ, до старту корутини:
+        /// усередині IEnumerator графіку чіпати не можна.
+        /// </summary>
+        private void PrepareFloat(int amount, bool pure, Pigment pigment, GridPos at)
+        {
+            if (floats.Length == 0 || design == null)
+                return;
+            var label = floats[_nextFloat];
+            if (label == null)
+                return;
+
+            label.text = $"+{amount}";
+            label.fontSize = pure ? design.FontSizeLineFloatPure : design.FontSizeLineFloatMixed;
+            label.color = pure ? design.TextPrimary : DesignSystem.WithAlpha(design.PigmentColor(pigment), 0.85f);
+            if (design.Font != null)
+                label.font = design.Font;
+
+            var rect = (RectTransform)label.transform;
+            rect.anchoredPosition = CellToLocal(at);
+            label.gameObject.SetActive(true);
+        }
+
+        private IEnumerator FloatRoutine(TMP_Text label)
+        {
+            if (label == null || design == null)
                 yield break;
 
-            var rect = (RectTransform)view.transform;
+            var rect = (RectTransform)label.transform;
             var origin = rect.localPosition;
-            var peak = origin + (Vector3)(CellToLocal(e.Position) - CellToLocal(e.Source))
-                * design.BoardRejectFraction;
+            var duration = design.LineFloatDuration;
+            var rise = design.LineFloatRise;
 
-            var duration = design.BoardRejectDuration;
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
-                var k = Mathf.Sin(Mathf.Clamp01(t / duration) * Mathf.PI);
-                rect.localPosition = Vector3.LerpUnclamped(origin, peak, k);
+                var k = Mathf.Clamp01(t / duration);
+                rect.localPosition = origin + new Vector3(0f, rise * k, 0f);
+                label.canvasRenderer.SetAlpha(k < 0.6f ? 1f : 1f - (k - 0.6f) / 0.4f);
                 yield return null;
             }
 
             rect.localPosition = origin;
+            label.canvasRenderer.SetAlpha(1f);
+            label.gameObject.SetActive(false);
         }
 
-        private IEnumerator PlayBurst(GameEvent e)
+        /// <summary>Тряска поля на важкому ланцюгу. Полотно, не окремі блоки.</summary>
+        private void Shake(int strength)
         {
-            // Кожна наступна ланка звучить вище — саме це робить ланцюг подією,
-            // а не просто зникненням крапель.
-            feedback?.PlayBurst(e.ChainIndex);
-
-            if (_drops.TryGetValue(e.Position, out var view))
-            {
-                // Анімацію веде сама крапля: її LateUpdate щокадру пише localScale,
-                // тож зовнішній твін масштабу вона просто затирала б.
-                yield return view.BurstRoutine(design.BoardBurstDuration);
-                Release(e.Position);
-            }
-
-            Shake(e.ChainIndex + 1);
-            ChainAdvanced?.Invoke(e.ChainIndex + 1);
-
-            if (design.BoardInterBurstDelay > 0f)
-                yield return new WaitForSeconds(design.BoardInterBurstDelay);
-        }
-
-        /// <summary>
-        /// Долив: краплі падають зверху. Стовпці стартують із затримкою один
-        /// за одним, тож видно, звідки сиплеться, а не «все з'явилось разом».
-        /// </summary>
-        private IEnumerator PlayRefill(MoveResult result, int first, int last)
-        {
-            var duration = design.RefillFallDuration;
-            var fall = design.RefillFallDistance * Scale;
-
-            // Чистимо на вході, а не лише на виході: рестарт може обірвати
-            // корутину посеред польоту, і хвіст лишився б у списку.
-            _falling.Clear();
-
-            var column = int.MinValue;
-            var wave = -1;
-
-            for (var i = first; i <= last; i++)
-            {
-                var e = result.Events[i];
-                var view = ShowAt(e.Position);
-                if (view == null)
-                    continue;
-
-                if (e.Position.X != column)
-                {
-                    column = e.Position.X;
-                    wave++;
-                }
-
-                var rect = (RectTransform)view.transform;
-                // Стартова точка — над полем; сам твін нижче рухає localPosition,
-                // тому й тут пишемо в нього, а не в anchoredPosition.
-                rect.localPosition += new Vector3(0f, fall, 0f);
-                _falling.Add(new Falling(rect, rect.localPosition, wave));
-            }
-
-            if (_falling.Count == 0)
-                yield break;
-
-            if (duration <= 0f)
-            {
-                foreach (var item in _falling)
-                    item.Rect.localPosition = item.From - new Vector3(0f, fall, 0f);
-                _falling.Clear();
-                yield break;
-            }
-
-            var stagger = design.RefillColumnDelay;
-            var total = duration + stagger * (wave + 1);
-
-            for (var t = 0f; t < total; t += Time.deltaTime)
-            {
-                foreach (var item in _falling)
-                {
-                    var local = (t - stagger * item.Wave) / duration;
-                    if (local < 0f)
-                        continue;
-                    var k = design.CurveLand.Evaluate(Mathf.Clamp01(local));
-                    item.Rect.localPosition = item.From - new Vector3(0f, fall * k, 0f);
-                }
-                yield return null;
-            }
-
-            foreach (var entry in _falling)
-                entry.Rect.localPosition = entry.From - new Vector3(0f, fall, 0f);
-            _falling.Clear();
-        }
-
-        private void PlayAppear(GameEvent e)
-        {
-            var view = ShowAt(e.Position);
-            view?.PlayLand();
-        }
-
-        private DropView? ShowAt(GridPos pos)
-        {
-            if (_session == null || !_session.Grid.Contains(pos))
-                return null;
-
-            var cell = _session.Grid[pos];
-            if (cell.IsEmpty)
-            {
-                Release(pos);
-                return null;
-            }
-
-            return Show(pos, cell);
-        }
-
-        // ── Жести ──
-
-        public void OnPointerDown(PointerEventData eventData)
-        {
-            if (Router.Locked || _session == null || _session.IsOver)
-                return;
-
-            _pressLocal = ToLocal(eventData);
-            _pressInside = LocalToCell(_pressLocal, out _pressCell) && !_session.Grid[_pressCell].IsEmpty;
-        }
-
-        public void OnPointerUp(PointerEventData eventData)
-        {
-            if (Router.Locked || _session == null || _session.IsOver)
-                return;
-
-            var releaseLocal = ToLocal(eventData);
-            var delta = releaseLocal - _pressLocal;
-            var insideRelease = LocalToCell(releaseLocal, out var releaseCell);
-            var occupied = insideRelease && !_session.Grid[releaseCell].IsEmpty;
-
-            var result = _gesture.Release(
-                _pressCell, _pressInside,
-                releaseCell, insideRelease, occupied,
-                // Y на екрані росте вниз, у моделі — вгору. Перевертаємо ТУТ,
-                // щоб правило жесту в Core працювало в координатах моделі.
-                delta.x, -delta.y,
-                _geometry.Step * Scale);
-
-            _pressInside = false;
-            ApplyGesture(result);
-        }
-
-        private void ApplyGesture(GestureResult result)
-        {
-            switch (result.Outcome)
-            {
-                case GestureOutcome.Move:
-                    Highlight(result.From, false);
-                    Router.RequestMove(result.From, result.To);
-                    break;
-
-                case GestureOutcome.Selected:
-                    Highlight(result.From, true);
-                    break;
-
-                case GestureOutcome.Cleared:
-                    Highlight(result.From, false);
-                    break;
-            }
-        }
-
-        /// <summary>Знімає вибір — наприклад, коли партія закінчилась або йде рестарт.</summary>
-        public void ClearSelection() => ApplyGesture(_gesture.Clear());
-
-        private void Highlight(GridPos pos, bool on)
-        {
-            if (_drops.TryGetValue(pos, out var view))
-                view.SetSelected(on);
-        }
-
-        /// <summary>Тряска поля з важкої ланки ланцюга. Полотно, не окремі краплі.</summary>
-        private void Shake(int link)
-        {
-            if (canvasRect == null || link < design.BoardShakeFromLink)
+            if (canvasRect == null || design == null || !isActiveAndEnabled)
                 return;
             if (_shake != null)
                 StopCoroutine(_shake);
-            _shake = StartCoroutine(ShakeRoutine(link - design.BoardShakeFromLink + 1));
+            _shake = StartCoroutine(ShakeRoutine(strength));
         }
 
         private IEnumerator ShakeRoutine(int strength)
         {
             var origin = canvasRect!.localPosition;
-            var amplitude = design.BoardShakeAmplitude * Mathf.Min(strength, 4);
+            var amplitude = design.BoardShakeAmplitude * Mathf.Min(strength, 3);
             var duration = design.BoardShakeDuration;
 
             for (var t = 0f; t < duration; t += Time.deltaTime)
@@ -513,12 +384,17 @@ namespace InkFlow.UI
             _shake = null;
         }
 
-        private Vector2 ToLocal(PointerEventData eventData)
+        /// <summary>Скасовує все, що ще грається — рестарт або вихід з екрана.</summary>
+        public void StopAll()
         {
-            var rect = canvasRect != null ? canvasRect : (RectTransform)transform;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rect, eventData.position, eventData.pressEventCamera, out var local);
-            return local;
+            StopAllCoroutines();
+            _shake = null;
+            if (canvasRect != null)
+                canvasRect.localPosition = Vector3.zero;
+            foreach (var label in floats)
+                if (label != null && label.gameObject.activeSelf)
+                    label.gameObject.SetActive(false);
+            HideGhost();
         }
     }
 }

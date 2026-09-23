@@ -2,39 +2,39 @@ using System;
 
 namespace InkFlow.Core
 {
-    /// <summary>Команди, які UI шле в геймплей. UI не викликає Gameplay напряму (§2 правило 2).</summary>
+    /// <summary>Команди, які UI шле в геймплей. UI не викликає правила напряму.</summary>
     public interface IGameCommands
     {
-        /// <summary>Миттєвий рестарт рівня (< 300 мс, без завантаження сцени).</summary>
+        /// <summary>Миттєвий рестарт (&lt; 300 мс, без завантаження сцени).</summary>
         void Restart();
 
-        /// <summary>Підказка від застою: підсвітити одну доступну пару.</summary>
+        /// <summary>Підказка від застою: підсвітити одну валідну позицію.</summary>
         void RequestHint();
     }
 
     /// <summary>
-    /// Місток між шарами: Gameplay публікує стани, UI підписується (§2 правило 2).
-    /// Свідома заміна DI-контейнера — один екран геймплею не вартий контейнера (§1).
-    /// GameBootstrap викликає Clear() при вивантаженні сцени.
+    /// Місток між шарами: сесія публікує стани, UI підписується. Свідома заміна
+    /// DI-контейнера — один екран партії не вартий контейнера.
+    /// Композиційний корінь викликає Clear() при вивантаженні сцени.
     /// </summary>
     public static class GameEvents
     {
         /// <summary>Нова партія готова.</summary>
-        public static event Action<GameSession>? SessionStarted;
+        public static event Action<RunSession>? SessionStarted;
 
-        /// <summary>Хід застосовано і програно (після анімацій).</summary>
+        /// <summary>Хід застосовано і програно в'ю (після анімацій).</summary>
         public static event Action<MoveResult>? MovePlayed;
 
-        /// <summary>Партія завершилась: Won / Lost / Deadlock.</summary>
+        /// <summary>Партія завершилась.</summary>
         public static event Action<GameState>? SessionEnded;
 
-        /// <summary>Підказка: підсвітити пару.</summary>
-        public static event Action<GridPos, GridPos>? HintShown;
+        /// <summary>Підказка: поставити фігуру trayIndex у цю позицію.</summary>
+        public static event Action<int, GridPos>? HintShown;
 
-        public static GameSession? CurrentSession { get; private set; }
+        public static RunSession? CurrentSession { get; private set; }
         public static IGameCommands? Commands { get; set; }
 
-        public static void RaiseSessionStarted(GameSession session)
+        public static void RaiseSessionStarted(RunSession session)
         {
             CurrentSession = session;
             SessionStarted?.Invoke(session);
@@ -44,7 +44,7 @@ namespace InkFlow.Core
 
         public static void RaiseSessionEnded(GameState state) => SessionEnded?.Invoke(state);
 
-        public static void RaiseHint(GridPos from, GridPos to) => HintShown?.Invoke(from, to);
+        public static void RaiseHint(int trayIndex, GridPos anchor) => HintShown?.Invoke(trayIndex, anchor);
 
         public static void Clear()
         {

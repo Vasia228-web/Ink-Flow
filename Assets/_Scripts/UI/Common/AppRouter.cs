@@ -24,7 +24,7 @@ namespace InkFlow.UI
         [Header("Екрани")]
         [SerializeField] private HubScreen hub;
         [SerializeField] private LevelMapScreen levelMap;
-        [SerializeField] private LevelScreen level;
+        [SerializeField] private ComingSoonScreen comingSoon;
         [SerializeField] private EndlessScreen endless;
         [SerializeField] private GalaxyScreen galaxy;
         [SerializeField] private PaintScreen paint;
@@ -62,7 +62,6 @@ namespace InkFlow.UI
             rankings?.BindState(state);
             profile?.BindState(state);
             endless?.BindState(state);
-            level?.BindState(state);
         }
 
         private void Awake() => WireGraph();
@@ -101,7 +100,7 @@ namespace InkFlow.UI
 
         private ScreenBase?[] AllScreens() => new ScreenBase?[]
         {
-            hub, levelMap, level, endless, galaxy, paint, shop, rankings, profile
+            hub, levelMap, comingSoon, endless, galaxy, paint, shop, rankings, profile
         };
 
         private void WireGraph()
@@ -109,7 +108,10 @@ namespace InkFlow.UI
             // ── Хаб ──
             if (hub != null)
             {
-                hub.LevelsRequested += () => Push(levelMap);
+                // Картка «Рівні» лишається, але веде на заглушку «Скоро» (документ §10):
+                // карта рівнів у сцені є, та вхід у неї вимкнено, поки режим не
+                // переписано на новому ядрі.
+                hub.LevelsRequested += () => Push(comingSoon);
                 hub.EndlessRequested += () => Push(endless, new EndlessArgs(_balance));
                 hub.TabRequested += OnHubTab;
                 // Блок профілю в шапці веде ТОЧНО тим самим маршрутом, що й
@@ -118,28 +120,16 @@ namespace InkFlow.UI
                 hub.ProfileRequested += () => OnHubTab("profile");
             }
 
-            // ── Карта рівнів ──
+            // ── Карта рівнів (осиротіла, вхід вимкнено) ──
             if (levelMap != null)
             {
                 levelMap.BackRequested += Pop;
-                levelMap.PlayRequested += id => Push(level, new LevelArgs(id, null, _balance));
+                levelMap.PlayRequested += id =>
+                    Debug.Log($"[InkFlow] Рівень {id}: режим «Рівні» ще не реалізовано на новому ядрі.");
             }
 
-            // ── Партія ──
-            if (level != null)
-            {
-                level.BackRequested += Pop;
-                // Результат рівня йде у збереження, а не просто в анімацію зірок:
-                // без цього пройдений рівень забувався б при виході з гри.
-                // Підсумок партії — одним викликом у стан: зірки, нафта й запис
-                // у файл разом. Розкидані по екранах, вони рано чи пізно
-                // розійшлися б.
-                level.LevelCleared += (id, stars) =>
-                    _state?.CompleteLevel(id, stars, isBoss: false, System.DateTime.UtcNow);
-                // Заміна, не пуш: після десяти рівнів поспіль «‹» вело б через усі десять.
-                level.NextLevelRequested += id =>
-                    navigation?.Replace(level, new LevelArgs(id, null, _balance));
-            }
+            if (comingSoon != null)
+                comingSoon.BackRequested += Pop;
 
             if (endless != null)
                 endless.BackRequested += Pop;

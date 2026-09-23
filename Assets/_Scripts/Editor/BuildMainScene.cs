@@ -42,7 +42,7 @@ namespace InkFlow.Editor
         /// <summary>Імена префабів у порядку, в якому вони лягають у сцену.</summary>
         private static readonly string[] ScreenNames =
         {
-            "HubScreen", "LevelMapScreen", "LevelScreen", "EndlessScreen",
+            "HubScreen", "LevelMapScreen", "ComingSoonScreen", "EndlessScreen",
             "GalaxyScreen", "PaintScreen", "ShopScreen", "RankingsScreen", "ProfileScreen"
         };
 
@@ -146,7 +146,7 @@ namespace InkFlow.Editor
                 ("navigation", navigation),
                 ("hub", screens["HubScreen"]),
                 ("levelMap", screens["LevelMapScreen"]),
-                ("level", screens["LevelScreen"]),
+                ("comingSoon", screens["ComingSoonScreen"]),
                 ("endless", screens["EndlessScreen"]),
                 ("galaxy", screens["GalaxyScreen"]),
                 ("paint", screens["PaintScreen"]),
@@ -157,14 +157,15 @@ namespace InkFlow.Editor
 
             var bootstrapGo = new GameObject("GameBootstrap");
             var bootstrap = bootstrapGo.AddComponent<GameBootstrap>();
-            var catalog = bootstrapGo.AddComponent<LevelCatalog>();
+            // Гаптика поля підставляється сюди: композиційний корінь — єдиний, хто
+            // знає реалізацію Platform, а звук/гаптика поля живуть у префабі екрана.
+            var feedback = screens["EndlessScreen"].GetComponentInChildren<BoardFeedback>(true);
             Wire(bootstrap,
                 ("balanceConfig", balance!),
                 ("economyConfig", economy!),
-                ("levelCatalog", catalog),
                 ("router", router),
-                ("levelScreen", screens["LevelScreen"]),
-                ("endlessScreen", screens["EndlessScreen"]));
+                ("endlessScreen", screens["EndlessScreen"]),
+                ("boardFeedback", feedback));
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // Дев-панель живе поруч із бутстрапом і в релізний білд не потрапляє:

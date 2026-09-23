@@ -388,9 +388,11 @@ namespace InkFlow.Editor
                 "GlassPanel · темне скло, фон просвічує", design, design.FontSizeCaption, font);
             Place(glassCaption, new Vector2(0f, 590f), new Vector2(900f, 40f));
 
-            // Сітка 6×6: доказ, що гало сусідніх крапель не зливаються.
+            // Сітка 6×6 крапель інтерфейсу: доказ, що гало сусідів не зливаються.
+            // Крок — розмір краплі з гало плюс видимий проміжок; ігрове поле тепер
+            // будується з блоків (BuildEndlessScreen), а не з крапель.
             const float dropSize = 105f;
-            var pitch = design.CellPitchFor(dropSize);
+            var pitch = dropSize * design.DropGlowScale + 24f;
             var palette = InkColors.All;
             for (var y = 0; y < 6; y++)
             {
@@ -404,8 +406,6 @@ namespace InkFlow.Editor
 
                     var view = instance.GetComponent<DropView>();
                     view.Show(palette[(x + y * 2) % palette.Length], 1 + (x + y) % 9);
-                    // Кутова крапля пульсує — видно, що навіть на піку гало лишається в клітинці.
-                    view.SetNearMiss(x == 5 && y == 5);
                     view.Apply();
                 }
             }
@@ -428,7 +428,7 @@ namespace InkFlow.Editor
             }
 
             var hint = AddLabel(safeGo, "Hint",
-                $"Сітка 6×6 · крок {pitch:0} = крапля {dropSize:0} × {design.DropNearMissGlowScale:0.00} + проміжок {design.DropMinGap:0}",
+                $"Сітка 6×6 · крок {pitch:0} = крапля {dropSize:0} × гало {design.DropGlowScale:0.00} + проміжок 24",
                 design, design.FontSizeCaption, font);
             Place(hint, new Vector2(0f, -890f), new Vector2(1000f, 60f));
 

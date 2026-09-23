@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 15;
+        public const int CurrentTokenVersion = 16;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -60,6 +60,27 @@ namespace InkFlow.Style
             // з рожевих акцентів макета (#FF77B6); підтвердити з дизайном перед
             // рівнями, де colorsCount = 6.
             new InkSwatch { color = InkColor.Rose, hex = Hex("#FF77B6") }
+        };
+
+        // ───────────────────────── Фарба гри ─────────────────────────
+
+        [Serializable]
+        public struct PigmentSwatch
+        {
+            public Pigment pigment;
+            public Color hex;
+        }
+
+        [Header("Фарба (пігменти ядра: справжні синій, червоний, жовтий)")]
+        [Tooltip("Колір фігур на полі й баків. Це НЕ палітра інтерфейсу (InkColor): гравець " +
+                 "ставить синю фігуру — синя фарба ллється в синій бак. Синій піднято по " +
+                 "яскравості, щоб читався на темному фоні, але лишився синім.")]
+        [SerializeField]
+        private PigmentSwatch[] pigmentPalette =
+        {
+            new PigmentSwatch { pigment = Pigment.Blue, hex = Hex("#3E8BFF") },
+            new PigmentSwatch { pigment = Pigment.Red, hex = Hex("#FF4A4A") },
+            new PigmentSwatch { pigment = Pigment.Yellow, hex = Hex("#FFD23F") }
         };
 
         [Header("Космічний фон (radial 130%×90% з точки 50% / -12%)")]
@@ -165,12 +186,6 @@ namespace InkFlow.Style
                  "Спрайт спільний із карткою і тепер рант, тож площа світіння менша.")]
         [SerializeField, Range(0f, 0.6f)] private float glowButtonAlpha = 0.34f;
 
-        [Tooltip("Спокійний стан near-miss: drop-shadow 0 0 3px.")]
-        [SerializeField] private float glowNearMissMin = 8f;
-
-        [Tooltip("Пік near-miss: drop-shadow 0 0 14px.")]
-        [SerializeField] private float glowNearMissMax = 39f;
-
         [Tooltip("Гало навколо великої панелі: 0 0 40px rgba(157,77,255,.18).")]
         [SerializeField] private float glowPanelRadius = 111f;
 
@@ -198,13 +213,6 @@ namespace InkFlow.Style
                  "на сітці 6×6 завелике гало зливає сусідні краплі в одну пляму.")]
         [SerializeField, Range(1f, 1.6f)] private float dropGlowScale = 1.16f;
 
-        [Tooltip("Пік гало при near-miss. Верхня межа теж обмежена проміжком між клітинками.")]
-        [SerializeField, Range(1f, 1.8f)] private float dropNearMissGlowScale = 1.3f;
-
-        [Tooltip("Мінімальний проміжок між краплями в reference-одиницях: гало сусідів " +
-                 "не мають торкатись. Клітинка = розмір краплі × NearMissGlowScale + цей проміжок.")]
-        [SerializeField, Min(0f)] private float dropMinGap = 18f;
-
         // ───────────────────────── Рух ─────────────────────────
 
         [Header("Рух: тривалості, сек")]
@@ -219,15 +227,6 @@ namespace InkFlow.Style
 
         [Tooltip("Приземлення краплі (squash & stretch): .47 s.")]
         [SerializeField] private float motionLandDuration = 0.47f;
-
-        [Tooltip("Відхилений свайп: .32 s, ±5 px і ±3°.")]
-        [SerializeField] private float motionRejectDuration = 0.32f;
-
-        [Tooltip("Поява краплі згори: .55 s.")]
-        [SerializeField] private float motionDropInDuration = 0.55f;
-
-        [Tooltip("Пульс near-miss: 1.15 s ease-in-out, нескінченно.")]
-        [SerializeField] private float motionNearMissDuration = 1.15f;
 
         [Tooltip("Натискання кнопки: .28 s back-out.")]
         [SerializeField] private float motionPressDuration = 0.28f;
@@ -460,8 +459,6 @@ namespace InkFlow.Style
 
         public float GlowButtonRadius => glowButtonRadius;
         public float GlowButtonAlpha => glowButtonAlpha;
-        public float GlowNearMissMin => glowNearMissMin;
-        public float GlowNearMissMax => glowNearMissMax;
         public float GlowPanelRadius => glowPanelRadius;
         public float GlowPanelAlpha => glowPanelAlpha;
 
@@ -471,8 +468,6 @@ namespace InkFlow.Style
         public float DropGlossAlpha => dropGlossAlpha;
         public float DropShadowAlpha => dropShadowAlpha;
         public float DropGlowScale => dropGlowScale;
-        public float DropNearMissGlowScale => dropNearMissGlowScale;
-        public float DropMinGap => dropMinGap;
 
         public float ButtonTintStrength => buttonTintStrength;
         public float ButtonStrokeAlpha => buttonStrokeAlpha;
@@ -580,65 +575,63 @@ namespace InkFlow.Style
 
         public float StarTwinkleFraction => starTwinkleFraction;
 
-        [Header("Ігрове поле")]
-        [Tooltip("Частка порогу, з якої крапля вважається «ось-ось лопне». " +
-                 "Предикат рахує Core — тут лише число.")]
-        [SerializeField, Range(0.5f, 0.99f)] private float nearMissFraction = 0.8f;
+        [Header("Ігрове поле (блоки, лоток, привид)")]
+        [Tooltip("Фігура лягає на поле: пружний поп-ін блоків.")]
+        [SerializeField, Min(0f)] private float boardPlaceDuration = 0.2f;
 
-        [Tooltip("Вибрана тап-тапом крапля трохи більша.")]
-        [SerializeField, Range(1f, 1.4f)] private float dropSelectedScale = 1.12f;
+        [Tooltip("Зрив лінії: блоки стискаються в нуль.")]
+        [SerializeField, Min(0f)] private float lineClearDuration = 0.3f;
 
-        [Tooltip("Крапля їде до сусіда при злитті.")]
-        [SerializeField, Min(0f)] private float boardMergeDuration = 0.22f;
+        [Tooltip("Пауза між лініями одного ходу — саме вона робить ланцюг читабельним.")]
+        [SerializeField, Min(0f)] private float lineClearStagger = 0.07f;
 
-        [Tooltip("Відхилений свайп: відскок і назад. Хід не витрачається.")]
-        [SerializeField, Min(0f)] private float boardRejectDuration = 0.32f;
-        [SerializeField, Range(0f, 0.6f)] private float boardRejectFraction = 0.28f;
-
-        [Tooltip("Вибух однієї краплі.")]
-        [SerializeField, Min(0f)] private float boardBurstDuration = 0.24f;
-
-        [Tooltip("Пауза між ланками ланцюга — саме вона робить ланцюг читабельним.")]
-        [SerializeField, Min(0f)] private float boardInterBurstDelay = 0.06f;
-
-        [Tooltip("Тряска поля на важкому вибуху.")]
+        [Tooltip("Тряска поля на ланцюгу.")]
         [SerializeField, Min(0f)] private float boardShakeDuration = 0.43f;
         [SerializeField] private float boardShakeAmplitude = 14f;
 
-        [Tooltip("З якої ланки ланцюга трясти поле.")]
-        [SerializeField, Min(1)] private int boardShakeFromLink = 3;
+        [Tooltip("З якої кількості ліній за хід трясти поле.")]
+        [SerializeField, Min(2)] private int boardShakeFromLines = 3;
+
+        [Tooltip("Привид фігури під пальцем: прозорість, коли фігура влазить і коли ні.")]
+        [SerializeField, Range(0f, 1f)] private float ghostValidAlpha = 0.55f;
+        [SerializeField, Range(0f, 1f)] private float ghostInvalidAlpha = 0.18f;
+        [SerializeField] private Color ghostInvalidTint = Hex("#FF5A78");
+
+        [Tooltip("Підсвітка ліній, які зірвуться, якщо відпустити фігуру тут: чиста яскравіша.")]
+        [SerializeField, Range(0f, 1f)] private float linePreviewPureAlpha = 0.34f;
+        [SerializeField, Range(0f, 1f)] private float linePreviewMixedAlpha = 0.12f;
+
+        [Tooltip("Блок поля: глянець зверху, радіус — частка сторони блока.")]
+        [SerializeField, Range(0f, 1f)] private float blockGlossAlpha = 0.45f;
+        [SerializeField, Range(0f, 0.5f)] private float blockRadiusFraction = 0.32f;
+
+        [Tooltip("Полотно поля: заливка й обведення під сіткою.")]
+        [SerializeField] private Color boardPlateFill = new Color(1f, 1f, 1f, 0.04f);
+        [SerializeField] private Color boardPlateStroke = new Color(1f, 1f, 1f, 0.1f);
+
+        [Tooltip("Лоток: комірка з фігурою / порожня; прозорість комірки, поки фігуру тягнуть.")]
+        [SerializeField] private Color traySlotFill = new Color(1f, 1f, 1f, 0.05f);
+        [SerializeField] private Color traySlotStroke = new Color(1f, 1f, 1f, 0.09f);
+        [SerializeField] private Color traySlotEmptyFill = new Color(1f, 1f, 1f, 0.02f);
+        [SerializeField, Range(0f, 1f)] private float trayDraggingAlpha = 0.3f;
+
+        [Tooltip("Число «+фарба» над зірваною лінією: 25 px макета для чистої, 16 — для мішаної.")]
+        [SerializeField] private float fontSizeLineFloatPure = 69f;
+        [SerializeField] private float fontSizeLineFloatMixed = 44f;
+        [SerializeField, Min(0.1f)] private float lineFloatDuration = 1.5f;
+        [SerializeField] private float lineFloatRise = 80f;
 
         [Header("HUD партії")]
         [SerializeField] private float fontSizeStatLabel = 27f;
-        [SerializeField] private float fontSizeMovesNumber = 73f;
-        [SerializeField] private float fontSizeGoal = 40f;
         [SerializeField] private float fontSizeGameTitle = 32f;
 
         [Tooltip("Капсули статистики: заливка й обведення.")]
         [SerializeField] private Color statCapsuleFill = new Color(1f, 1f, 1f, 0.06f);
         [SerializeField] private Color statCapsuleStroke = new Color(1f, 1f, 1f, 0.11f);
 
-        [Tooltip("Ходів лишилось стільки або менше — капсула попереджає.")]
-        [SerializeField, Min(1)] private int movesWarnFrom = 3;
-
-        [SerializeField] private Color movesWarnText = Hex("#FF8095");
-        [SerializeField] private Color movesWarnStroke = new Color(1f, 0.47f, 0.57f, 0.7f);
-        [SerializeField] private Color movesCalmGlow = new Color(0f, 0.851f, 0.753f, 0.15f);
-        [SerializeField] private Color movesWarnGlow = new Color(1f, 0.275f, 0.392f, 0.35f);
-
-        [Tooltip("Період пульсу капсули ходів у попереджувальному стані.")]
-        [SerializeField, Min(0.1f)] private float movesWarnPulseDuration = 1.5f;
-
         [Header("Нескінченний")]
         [Tooltip("Числа рахунку й рекорду: 27 px макета.")]
         [SerializeField] private float fontSizeScoreNumber = 75f;
-
-        [Tooltip("Черга: голова більша за хвіст — 17 проти 13.")]
-        [SerializeField] private float fontSizeQueueHead = 47f;
-        [SerializeField] private float fontSizeQueueTail = 36f;
-        [SerializeField] private float queueHeadSize = 116f;
-        [SerializeField] private float queueTailSize = 89f;
-        [SerializeField] private Color queueHeadRing = new Color(1f, 1f, 1f, 0.28f);
 
         [Tooltip("Капсули світяться різним: рахунок — бірюзою, рекорд — золотом.")]
         [SerializeField] private Color scoreCapsuleGlow = new Color(0f, 0.851f, 0.753f, 0.18f);
@@ -647,26 +640,18 @@ namespace InkFlow.Style
         [Tooltip("Спалах у момент, коли рахунок перегнав рекорд — не після смерті.")]
         [SerializeField, Min(0.1f)] private float recordFlashDuration = 0.9f;
 
-        [SerializeField] private float fontSizeTideBadge = 35f;
-        [SerializeField] private Color tideText = Hex("#8FF0E4");
-        [SerializeField] private Color tideBadgeIdle = new Color(1f, 1f, 1f, 0.05f);
-        [SerializeField] private Color tideBadgeActiveFrom = new Color(0f, 0.851f, 0.753f, 0.24f);
-        [SerializeField] private Color tideBadgeActiveTo = new Color(0.231f, 0.482f, 1f, 0.22f);
-        [SerializeField] private Color tideBarTrack = new Color(1f, 1f, 1f, 0.14f);
-        [SerializeField, Min(0.1f)] private float tideFlashDuration = 1f;
-
         [Tooltip("Множник ланцюга спливає по центру екрана: 60 px макета.")]
         [SerializeField] private float fontSizeComboPop = 166f;
         [SerializeField, Min(0.1f)] private float comboPopDuration = 1.1f;
         [SerializeField] private float comboPopRise = 120f;
 
-        [Tooltip("Скільки порожніх клітинок лишилось, щоб попередити про переповнення.")]
-        [SerializeField, Min(1)] private int overflowWarnFrom = 3;
+        [Tooltip("Попередження про переповнення поля (поріг — у BalanceConfig.haloWarningFreeCells).")]
         [SerializeField] private Color overflowWarn = new Color(1f, 0.235f, 0.353f, 0.5f);
         [SerializeField, Min(0.2f)] private float overflowPulseDuration = 2.1f;
 
-        [Tooltip("Скільки секунд без ходу — і підказка сама підсвітить пару.")]
+        [Tooltip("Скільки секунд без ходу — і підказка сама покаже, куди влазить фігура; і скільки її видно.")]
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
+        [SerializeField, Min(0.2f)] private float hintShowDuration = 1.6f;
 
         [Header("Кінець партії (Нескінченний)")]
         [SerializeField] private float fontSizeOverScore = 155f;
@@ -688,11 +673,6 @@ namespace InkFlow.Style
 
         [Tooltip("Скільки летить конфеті за новий рекорд.")]
         [SerializeField, Min(0.2f)] private float confettiFallDuration = 2.2f;
-
-        [Tooltip("Долив: краплі падають зверху по стовпцях.")]
-        [SerializeField, Min(0f)] private float refillFallDuration = 0.16f;
-        [SerializeField, Min(0f)] private float refillColumnDelay = 0.03f;
-        [SerializeField] private float refillFallDistance = 220f;
 
         [Header("Карта рівнів")]
         [Tooltip("Номер на вузлі: 19 px макета, на поточному — 24.")]
@@ -903,51 +883,53 @@ namespace InkFlow.Style
         [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
         [SerializeField] private PaintInfo[] paints = DefaultPaints();
 
-        public float NearMissFraction => nearMissFraction;
-        public float DropSelectedScale => dropSelectedScale;
-        public float BoardMergeDuration => boardMergeDuration;
-        public float BoardRejectDuration => boardRejectDuration;
-        public float BoardRejectFraction => boardRejectFraction;
-        public float BoardBurstDuration => boardBurstDuration;
-        public float BoardInterBurstDelay => boardInterBurstDelay;
+        public float BoardPlaceDuration => boardPlaceDuration;
+        public float LineClearDuration => lineClearDuration;
+        public float LineClearStagger => lineClearStagger;
         public float BoardShakeDuration => boardShakeDuration;
         public float BoardShakeAmplitude => boardShakeAmplitude;
-        public int BoardShakeFromLink => boardShakeFromLink;
+        public int BoardShakeFromLines => boardShakeFromLines;
+        public float GhostValidAlpha => ghostValidAlpha;
+        public float GhostInvalidAlpha => ghostInvalidAlpha;
+        public Color GhostInvalidTint => ghostInvalidTint;
+        public float LinePreviewPureAlpha => linePreviewPureAlpha;
+        public float LinePreviewMixedAlpha => linePreviewMixedAlpha;
+        public float BlockGlossAlpha => blockGlossAlpha;
+        public float BlockRadiusFraction => blockRadiusFraction;
+        public Color BoardPlateFill => boardPlateFill;
+        public Color BoardPlateStroke => boardPlateStroke;
+        public Color TraySlotFill => traySlotFill;
+        public Color TraySlotStroke => traySlotStroke;
+        public Color TraySlotEmptyFill => traySlotEmptyFill;
+        public float TrayDraggingAlpha => trayDraggingAlpha;
+        public float FontSizeLineFloatPure => fontSizeLineFloatPure;
+        public float FontSizeLineFloatMixed => fontSizeLineFloatMixed;
+        public float LineFloatDuration => lineFloatDuration;
+        public float LineFloatRise => lineFloatRise;
         public float FontSizeStatLabel => fontSizeStatLabel;
-        public float FontSizeMovesNumber => fontSizeMovesNumber;
-        public float FontSizeGoal => fontSizeGoal;
         public float FontSizeGameTitle => fontSizeGameTitle;
         public Color StatCapsuleFill => statCapsuleFill;
         public Color StatCapsuleStroke => statCapsuleStroke;
-        public int MovesWarnFrom => movesWarnFrom;
-        public Color MovesWarnText => movesWarnText;
-        public Color MovesWarnStroke => movesWarnStroke;
-        public Color MovesCalmGlow => movesCalmGlow;
-        public Color MovesWarnGlow => movesWarnGlow;
-        public float MovesWarnPulseDuration => movesWarnPulseDuration;
         public float FontSizeScoreNumber => fontSizeScoreNumber;
-        public float FontSizeQueueHead => fontSizeQueueHead;
-        public float FontSizeQueueTail => fontSizeQueueTail;
-        public float QueueHeadSize => queueHeadSize;
-        public float QueueTailSize => queueTailSize;
-        public Color QueueHeadRing => queueHeadRing;
         public Color ScoreCapsuleGlow => scoreCapsuleGlow;
         public Color RecordCapsuleGlow => recordCapsuleGlow;
         public float RecordFlashDuration => recordFlashDuration;
-        public float FontSizeTideBadge => fontSizeTideBadge;
-        public Color TideText => tideText;
-        public Color TideBadgeIdle => tideBadgeIdle;
-        public Color TideBadgeActiveFrom => tideBadgeActiveFrom;
-        public Color TideBadgeActiveTo => tideBadgeActiveTo;
-        public Color TideBarTrack => tideBarTrack;
-        public float TideFlashDuration => tideFlashDuration;
         public float FontSizeComboPop => fontSizeComboPop;
         public float ComboPopDuration => comboPopDuration;
         public float ComboPopRise => comboPopRise;
-        public int OverflowWarnFrom => overflowWarnFrom;
         public Color OverflowWarn => overflowWarn;
         public float OverflowPulseDuration => overflowPulseDuration;
         public float HintIdleDelay => hintIdleDelay;
+        public float HintShowDuration => hintShowDuration;
+
+        /// <summary>Колір пігменту ядра. Fallback — білий, щоб помилка була видима.</summary>
+        public Color PigmentColor(Pigment pigment)
+        {
+            for (var i = 0; i < pigmentPalette.Length; i++)
+                if (pigmentPalette[i].pigment == pigment)
+                    return pigmentPalette[i].hex;
+            return Color.white;
+        }
         public float FontSizeOverScore => fontSizeOverScore;
         public float FontSizeOverLabel => fontSizeOverLabel;
         public float FontSizeRecordChip => fontSizeRecordChip;
@@ -963,9 +945,6 @@ namespace InkFlow.Style
         public Color RecordChipText => recordChipText;
         public float RewardCountDuration => rewardCountDuration;
         public float ConfettiFallDuration => confettiFallDuration;
-        public float RefillFallDuration => refillFallDuration;
-        public float RefillColumnDelay => refillColumnDelay;
-        public float RefillFallDistance => refillFallDistance;
         public float FontSizeLevelNode => fontSizeLevelNode;
         public float FontSizeLevelNodeCurrent => fontSizeLevelNodeCurrent;
         public Color BossNodeFrom => bossNodeFrom;
@@ -1163,19 +1142,10 @@ namespace InkFlow.Style
         /// <summary>Колір рядка статистики картки — освітлений акцент (#FF2D8A → #FF9ECB).</summary>
         public Color StatText(Color accent) => Lighten(accent, statTextLighten);
 
-        /// <summary>
-        /// Крок сітки для краплі заданого розміру: гало сусідів не перетинаються
-        /// навіть на піку near-miss. Саме це число має використовувати розкладка поля.
-        /// </summary>
-        public float CellPitchFor(float dropSize) => dropSize * dropNearMissGlowScale + dropMinGap;
-
         public float MotionWobbleDuration => motionWobbleDuration;
         public float MotionWobbleScale => motionWobbleScale;
         public float MotionWobbleTilt => motionWobbleTilt;
         public float MotionLandDuration => motionLandDuration;
-        public float MotionRejectDuration => motionRejectDuration;
-        public float MotionDropInDuration => motionDropInDuration;
-        public float MotionNearMissDuration => motionNearMissDuration;
         public float MotionPressDuration => motionPressDuration;
         public float MotionScreenFadeDuration => motionScreenFadeDuration;
 

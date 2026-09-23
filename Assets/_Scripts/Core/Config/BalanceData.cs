@@ -3,101 +3,231 @@ using System;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// POCO-дзеркало BalanceConfig.asset (§7). ЖОДНЕ балансне число не живе в коді —
-    /// зміна балансу має бути зміною .asset, а не перекомпіляцією, інакше симулятори
-    /// Фази 4 неможливі.
-    /// Значення за замовчуванням = базовий баланс майстер-доку.
+    /// POCO-дзеркало BalanceConfig.asset. ЖОДНЕ балансне число не живе в коді —
+    /// зміна балансу має бути зміною .asset, а не перекомпіляцією, інакше прогонник
+    /// (Tools/InkFlow.Sim) неможливий, а без прогонника баланс — вгадування.
+    ///
+    /// Значення за замовчуванням — стартові гіпотези: документ §12 там, де він дає
+    /// число, і мертвий код прототипу v3 там, де документ мовчить (прийнято автором
+    /// 2026-09-23). Вони існують, щоб було з чого починати прогони, а не щоб їх захищати.
     /// </summary>
     public sealed class BalanceData
     {
-        /// <summary>Густота, з якої крапля лопається. Базово 10.</summary>
-        public int BurstThreshold { get; }
-
-        /// <summary>Дільник сили фарбування: сила ÷ 10 (§5.3). «Кожна десятка = +1».</summary>
-        public int PaintPowerDivisor { get; }
-
-        /// <summary>Дільник бризок: 1 бризка за кожні повні 15 сили (§5.3).</summary>
-        public int SplashDivisor { get; }
-
-        /// <summary>Запобіжник від нескінченного ланцюга (§5.5). Базово 64.</summary>
-        public int MaxChainBursts { get; }
-
-        /// <summary>Кожні стільки вибухів приплив піднімає мінімальну густоту на 1 (§5.9).</summary>
-        public int TideStep { get; }
-
-        /// <summary>Сила вибуху, з якої фарбуються 2 сегменти боса (§5.6).</summary>
-        public int BossTwoSegmentForce { get; }
-
-        /// <summary>Сила вибуху, з якої фарбуються 3 сегменти боса — це стеля (§5.6).</summary>
-        public int BossThreeSegmentForce { get; }
-
-        /// <summary>Бос діє кожен N-й ПРИЙНЯТИЙ хід (§5.6).</summary>
-        public int BossActsEveryMoves { get; }
-
-        /// <summary>Частка ліміту ходів, що має лишитись для 2★ (базово 0.2).</summary>
-        public float TwoStarMovesLeftFraction { get; }
-
-        /// <summary>Частка ліміту ходів, що має лишитись для 3★ (базово 0.4).</summary>
-        public float ThreeStarMovesLeftFraction { get; }
-
-        /// <summary>Скільки разів Endless пробує дозаправку, поки не з'явиться хід (§5.8).</summary>
-        public int MaxRefillAttempts { get; }
-
-        /// <summary>Очки за одиницю густоти при злитті.</summary>
-        public int ScorePerMergedDensity { get; }
-
-        /// <summary>Очки за одиницю сили вибуху.</summary>
-        public int ScorePerBurstForce { get; }
-
         public BalanceData(
-            int burstThreshold = 10,
-            int paintPowerDivisor = 10,
-            int splashDivisor = 15,
-            int maxChainBursts = 64,
-            int tideStep = 10,
-            int bossTwoSegmentForce = 20,
-            int bossThreeSegmentForce = 35,
-            int bossActsEveryMoves = 3,
-            float twoStarMovesLeftFraction = 0.2f,
-            float threeStarMovesLeftFraction = 0.4f,
-            int maxRefillAttempts = 32,
-            int scorePerMergedDensity = 1,
-            int scorePerBurstForce = 2)
+            int gridWidth = 8,
+            int gridHeight = 8,
+            int traySize = 3,
+            int minPieceSize = 2,
+            int maxPieceSize = 5,
+            int[]? tierRounds = null,
+            float bigPieceBaseWeight = 0.7f,
+            float bigPieceWeightPerTier = 1.1f,
+            float midPieceWeight = 1.8f,
+            float smallPieceBaseWeight = 1.5f,
+            float smallPieceWeightDropPerTier = 0.4f,
+            float smallPieceMinWeight = 0.3f,
+            int fiveCellFromTier = 1,
+            float bagBias = 0.5f,
+            float bagFitOffset = 1f,
+            float[]? colorStreakByTier = null,
+            float colorScarcityWeight = 0.7f,
+            int maxTrayAttempts = 60,
+            int trayShrinkAfterAttempts = 40,
+            int trayRescueAttempts = 20,
+            int mixedDivisor = 2,
+            int pureLineBonus = 3,
+            float[]? comboMultipliers = null,
+            int scorePerPlacedCell = 10,
+            int scorePerLine = 100,
+            int pureLineScoreBonus = 2,
+            int haloWarningFreeCells = 20,
+            int hintIdleSeconds = 5)
         {
-            // Поріг < 2 зробив би ланцюг самопідтримним незалежно від PaintPower.
-            if (burstThreshold < 2)
-                throw new ArgumentOutOfRangeException(nameof(burstThreshold), "burstThreshold має бути >= 2.");
-            if (paintPowerDivisor < 1)
-                throw new ArgumentOutOfRangeException(nameof(paintPowerDivisor));
-            if (splashDivisor < 1)
-                throw new ArgumentOutOfRangeException(nameof(splashDivisor));
-            if (maxChainBursts < 1)
-                throw new ArgumentOutOfRangeException(nameof(maxChainBursts));
-            if (tideStep < 1)
-                throw new ArgumentOutOfRangeException(nameof(tideStep));
-            if (bossActsEveryMoves < 1)
-                throw new ArgumentOutOfRangeException(nameof(bossActsEveryMoves));
-            if (maxRefillAttempts < 1)
-                throw new ArgumentOutOfRangeException(nameof(maxRefillAttempts));
+            if (gridWidth < 2 || gridHeight < 2)
+                throw new ArgumentOutOfRangeException(nameof(gridWidth), "Поле мінімум 2×2.");
+            if (traySize < 1)
+                throw new ArgumentOutOfRangeException(nameof(traySize));
+            if (minPieceSize < 1 || maxPieceSize < minPieceSize)
+                throw new ArgumentOutOfRangeException(nameof(minPieceSize));
+            if (mixedDivisor < 1)
+                throw new ArgumentOutOfRangeException(nameof(mixedDivisor));
+            if (pureLineBonus < 1)
+                throw new ArgumentOutOfRangeException(nameof(pureLineBonus));
+            if (maxTrayAttempts < 1 || trayRescueAttempts < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxTrayAttempts));
 
-            BurstThreshold = burstThreshold;
-            PaintPowerDivisor = paintPowerDivisor;
-            SplashDivisor = splashDivisor;
-            MaxChainBursts = maxChainBursts;
-            TideStep = tideStep;
-            BossTwoSegmentForce = bossTwoSegmentForce;
-            BossThreeSegmentForce = bossThreeSegmentForce;
-            BossActsEveryMoves = bossActsEveryMoves;
-            TwoStarMovesLeftFraction = twoStarMovesLeftFraction;
-            ThreeStarMovesLeftFraction = threeStarMovesLeftFraction;
-            MaxRefillAttempts = maxRefillAttempts;
-            ScorePerMergedDensity = scorePerMergedDensity;
-            ScorePerBurstForce = scorePerBurstForce;
+            GridWidth = gridWidth;
+            GridHeight = gridHeight;
+            TraySize = traySize;
+            MinPieceSize = minPieceSize;
+            MaxPieceSize = maxPieceSize;
+            TierRounds = tierRounds is null || tierRounds.Length == 0 ? new[] { 10, 20, 30 } : tierRounds;
+            BigPieceBaseWeight = bigPieceBaseWeight;
+            BigPieceWeightPerTier = bigPieceWeightPerTier;
+            MidPieceWeight = midPieceWeight;
+            SmallPieceBaseWeight = smallPieceBaseWeight;
+            SmallPieceWeightDropPerTier = smallPieceWeightDropPerTier;
+            SmallPieceMinWeight = smallPieceMinWeight;
+            FiveCellFromTier = fiveCellFromTier;
+            BagBias = bagBias;
+            BagFitOffset = bagFitOffset;
+            ColorStreakByTier = colorStreakByTier is null || colorStreakByTier.Length == 0
+                ? new[] { 0.5f, 0.35f, 0.2f, 0.1f }
+                : colorStreakByTier;
+            ColorScarcityWeight = colorScarcityWeight;
+            MaxTrayAttempts = maxTrayAttempts;
+            TrayShrinkAfterAttempts = trayShrinkAfterAttempts;
+            TrayRescueAttempts = trayRescueAttempts;
+            MixedDivisor = mixedDivisor;
+            PureLineBonus = pureLineBonus;
+            ComboMultipliers = comboMultipliers is null || comboMultipliers.Length == 0
+                ? new[] { 1f, 1.5f, 2f }
+                : comboMultipliers;
+            ScorePerPlacedCell = scorePerPlacedCell;
+            ScorePerLine = scorePerLine;
+            PureLineScoreBonus = pureLineScoreBonus;
+            HaloWarningFreeCells = haloWarningFreeCells;
+            HintIdleSeconds = hintIdleSeconds;
         }
 
-        /// <summary>Стеля сили фарбування — інваріант §18.3: вибух не може створити краплю, що лопне сама.</summary>
-        public int MaxPaintPower => BurstThreshold - 1;
+        // ── Поле й лоток (§2) ──
 
-        public static BalanceData Default { get; } = new BalanceData();
+        public int GridWidth { get; }
+        public int GridHeight { get; }
+
+        /// <summary>Скільки фігур у руці. Лоток поповнюється, лише коли ПОРОЖНІЙ (§2).</summary>
+        public int TraySize { get; }
+
+        public int MinPieceSize { get; }
+        public int MaxPieceSize { get; }
+
+        // ── Прогресія (§8): раунд = виданий лоток ──
+
+        /// <summary>Раунди, з яких починається кожен наступний рівень складності.</summary>
+        public int[] TierRounds { get; }
+
+        /// <summary>Вага фігур 4+ клітинок: база плюс приріст на рівень складності.</summary>
+        public float BigPieceBaseWeight { get; }
+        public float BigPieceWeightPerTier { get; }
+
+        /// <summary>Вага триклітинкових — стала.</summary>
+        public float MidPieceWeight { get; }
+
+        /// <summary>Вага двоклітинкових спадає з рівнем складності до мінімуму.</summary>
+        public float SmallPieceBaseWeight { get; }
+        public float SmallPieceWeightDropPerTier { get; }
+        public float SmallPieceMinWeight { get; }
+
+        /// <summary>З якого рівня складності в мішку з'являються п'ятиклітинкові.</summary>
+        public int FiveCellFromTier { get; }
+
+        // ── Мішок (§8: «дивиться на форму вільного місця») ──
+
+        /// <summary>
+        /// Показник ступеня, з яким кількість позицій фігури входить у її вагу:
+        /// вага = вага_розміру × (BagFitOffset + позицій)^BagBias. Нуль — мішок не дивиться
+        /// на поле; одиниця — вага прямо пропорційна кількості місць.
+        /// </summary>
+        public float BagBias { get; }
+
+        /// <summary>Зсув, що лишає шанс і фігурі, яка зараз не влазить нікуди.</summary>
+        public float BagFitOffset { get; }
+
+        /// <summary>
+        /// Ймовірність, що фігура повторить пігмент попередньої, за рівнем складності.
+        /// Спадає: на початку довгі серії одного кольору трапляються часто, далі — рідше (§8).
+        /// </summary>
+        public float[] ColorStreakByTier { get; }
+
+        /// <summary>Наскільки мішок віддає перевагу пігменту, якого на полі менше.</summary>
+        public float ColorScarcityWeight { get; }
+
+        /// <summary>Скільки разів мішок пробує чесний набір, перш ніж зменшувати фігури.</summary>
+        public int MaxTrayAttempts { get; }
+
+        /// <summary>З цієї спроби стеля розміру падає до трьох клітинок.</summary>
+        public int TrayShrinkAfterAttempts { get; }
+
+        /// <summary>Скільки спроб із двоклітинковими, перш ніж визнати, що місця немає.</summary>
+        public int TrayRescueAttempts { get; }
+
+        // ── Фарба (§3, §12) ──
+
+        /// <summary>Мішана лінія дає ⌊домінантних ÷ це число⌋ (прототип v3).</summary>
+        public int MixedDivisor { get; }
+
+        /// <summary>«Бонус за чистий рядок ×3 до фарби» (§12).</summary>
+        public int PureLineBonus { get; }
+
+        /// <summary>Множник ланцюга за кількістю ліній за хід: [0] — одна лінія, [1] — дві, далі — стеля.</summary>
+        public float[] ComboMultipliers { get; }
+
+        // ── Очки (§8: рекорд очок і найдовший ланцюг) ──
+
+        public int ScorePerPlacedCell { get; }
+        public int ScorePerLine { get; }
+        public int PureLineScoreBonus { get; }
+
+        // ── Відчуття ──
+
+        /// <summary>
+        /// Менше цієї кількості вільних клітинок — поле світиться попереджувальним гало
+        /// (друга умова гало — фігура з руки, що нікуди не влазить, — не число, а факт).
+        /// 20, а не 12: у прогонах партія гине з ~25 вільними, поле «діряве», а не повне.
+        /// </summary>
+        public int HaloWarningFreeCells { get; }
+
+        /// <summary>Стільки секунд без ходу — і гра підсвічує одну валідну позицію.</summary>
+        public int HintIdleSeconds { get; }
+
+        /// <summary>Рівень складності за номером раунду (лотка): скільки порогів пройдено.</summary>
+        public int TierFor(int round)
+        {
+            var tier = 0;
+            for (var i = 0; i < TierRounds.Length; i++)
+                if (round >= TierRounds[i])
+                    tier++;
+            return tier;
+        }
+
+        /// <summary>Вага розміру фігури на цьому рівні складності (формула прототипу v3).</summary>
+        public float SizeWeight(int size, int tier)
+        {
+            if (size < MinPieceSize || size > MaxPieceSize)
+                return 0f;
+            if (size >= 5 && tier < FiveCellFromTier)
+                return 0f;
+            if (size >= 4)
+                return BigPieceBaseWeight + tier * BigPieceWeightPerTier;
+            if (size == 3)
+                return MidPieceWeight;
+            var small = SmallPieceBaseWeight - tier * SmallPieceWeightDropPerTier;
+            return small < SmallPieceMinWeight ? SmallPieceMinWeight : small;
+        }
+
+        /// <summary>Стеля розміру фігури на рівні складності.</summary>
+        public int SizeCapFor(int tier) => tier >= FiveCellFromTier ? MaxPieceSize : Math.Min(4, MaxPieceSize);
+
+        /// <summary>Ймовірність серії одного кольору на рівні складності. Понад таблицю — останнє значення.</summary>
+        public float StreakChance(int tier)
+        {
+            if (tier < 0) tier = 0;
+            return tier < ColorStreakByTier.Length
+                ? ColorStreakByTier[tier]
+                : ColorStreakByTier[ColorStreakByTier.Length - 1];
+        }
+
+        /// <summary>Множник ланцюга для заданої кількості ліній за хід. Понад таблицю — стеля.</summary>
+        public float ComboFor(int lineCount)
+        {
+            if (lineCount <= 0)
+                return 0f;
+            var index = lineCount - 1;
+            return index < ComboMultipliers.Length
+                ? ComboMultipliers[index]
+                : ComboMultipliers[ComboMultipliers.Length - 1];
+        }
+
+        public static readonly BalanceData Default = new BalanceData();
     }
 }

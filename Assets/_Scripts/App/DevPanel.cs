@@ -177,11 +177,9 @@ namespace InkFlow.App
                             $"множник ×{state.DailyLimit.RewardMultiplier:0.##}, " +
                             $"доба {state.DailyLimit.CurrentDayUtc:yyyy-MM-dd}");
 
-            // Рівнів у StarterLevels лише три, а карта на 24 вузли — номер вузла
-            // й реально завантажена розкладка НЕ збігаються. Поки це так, воно
-            // мусить бути видно.
-            GUILayout.Label($"⚠ Розкладок рівнів у StarterLevels: {StarterLevels.All().Length} " +
-                            "— карта повторює їх по колу");
+            // Режим «Рівні» вимкнено: картка в хабі веде на заглушку, а карта й
+            // прогрес лишаються у файлі (документ §10).
+            GUILayout.Label("⚠ Режим «Рівні» — заглушка «Скоро»; прогрес рівнів лише зберігається");
         }
 
         private void DrawEconomyActions(PlayerState state)
