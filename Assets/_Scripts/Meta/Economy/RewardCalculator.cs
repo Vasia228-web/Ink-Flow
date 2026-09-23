@@ -30,12 +30,17 @@ namespace InkFlow.Meta
         private readonly long _baseLevelReward;
         private readonly int _bossMultiplier;
         private readonly long[] _endlessMilestones;
+        private readonly long _scorePerOil;
+        private readonly long[] _pictureRewards;
 
-        public RewardCalculator(long baseLevelReward = 20, int bossMultiplier = 3, long[]? endlessMilestones = null)
+        public RewardCalculator(long baseLevelReward = 20, int bossMultiplier = 3, long[]? endlessMilestones = null,
+            long scorePerOil = 100, long[]? pictureRewards = null)
         {
             _baseLevelReward = baseLevelReward;
             _bossMultiplier = bossMultiplier;
             _endlessMilestones = endlessMilestones ?? new long[] { 5000, 10000, 25000, 50000 };
+            _scorePerOil = scorePerOil < 1 ? 1 : scorePerOil;
+            _pictureRewards = pictureRewards ?? new long[] { 10, 30, 100 };
         }
 
         /// <summary>
@@ -43,8 +48,24 @@ namespace InkFlow.Meta
         /// Конструктор із числами лишається для тестів.
         /// </summary>
         public RewardCalculator(EconomyData economy)
-            : this(economy.BaseLevelReward, economy.BossMultiplier, economy.EndlessMilestones)
+            : this(economy.BaseLevelReward, economy.BossMultiplier, economy.EndlessMilestones,
+                economy.ScorePerOil, economy.PictureRewards)
         {
+        }
+
+        /// <summary>Майстер-док §10: нафта за забіг = очки ÷ ScorePerOil × денний множник.</summary>
+        public long ForRun(int score, float dailyMultiplier)
+        {
+            if (score <= 0)
+                return 0;
+            return (long)Math.Floor(score / (double)_scorePerOil * dailyMultiplier);
+        }
+
+        /// <summary>Нафта за домальовану картинку — за рідкістю, без денного множника: картинка — подія, не фарм.</summary>
+        public long ForPicture(Core.Rarity rarity)
+        {
+            var index = (int)rarity;
+            return index >= 0 && index < _pictureRewards.Length ? _pictureRewards[index] : 0;
         }
 
         /// <summary>Нафта за рівень = база × зірки (× 3 на босі) × денний множник.</summary>

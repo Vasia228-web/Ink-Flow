@@ -215,12 +215,14 @@ namespace InkFlow.Tests.Meta
         {
             var state = Fresh();
             state.Progress.EndlessRecord = 3400;
+            state.CollectPicture("whale", System.DateTime.UtcNow);
+            state.CollectPicture("comet", System.DateTime.UtcNow);
             CompletePlanet(state, 0);
 
             var board = Leaderboard.WithRealPlayer(state, GalaxyProgress.FromSave(state.Galaxy));
 
             Assert.AreEqual(state.Nick, board.You.Nick);
-            Assert.AreEqual(3400, board.You.RecordAll);
+            Assert.AreEqual(2, board.You.RecordAll, "§10: рекорд колекції, а не очок");
             Assert.AreEqual(1, board.You.PlanetsAll);
             Assert.IsTrue(board.You.IsYou);
         }

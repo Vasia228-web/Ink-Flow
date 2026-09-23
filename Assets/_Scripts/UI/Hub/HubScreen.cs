@@ -113,6 +113,10 @@ namespace InkFlow.UI
         private long RecordLine() =>
             State != null ? State.Progress.EndlessRecord : mockRecord;
 
+        /// <summary>§8: головний рекорд — скільки різних картинок у колекції.</summary>
+        private int PicturesLine() =>
+            State != null ? State.Collection.Distinct : 0;
+
 
         /// <summary>Перечитати стан без повторного входу на екран.</summary>
         public void Refresh()
@@ -159,7 +163,8 @@ namespace InkFlow.UI
             // і замінює їх на порожній квадрат.
             levelsCard?.SetText("Рівні", "Розчисти сітку",
                 $"Рівень {LevelLine()} · <sprite name=\"star\"> {StarsLine()}");
-            endlessCard?.SetText("Нескінченний", "Набирай рекорд", $"Рекорд · {RecordLine():N0}");
+            endlessCard?.SetText("Нескінченний", "Малюй картинки",
+                $"Картинок · {PicturesLine()} · рекорд {RecordLine():N0}");
             levelsCard?.Apply();
             endlessCard?.Apply();
 

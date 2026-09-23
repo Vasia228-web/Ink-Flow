@@ -93,9 +93,12 @@ namespace InkFlow.App
             _storage = new JsonSaveStorage();
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
 
+            // Колода й баланс — щоб незавершена картинка читалась назвою, а спроби — з конфіга.
+            var pictures = PictureCatalogData.Default;
+            var balance = balanceConfig.ToBalanceData();
             _state = _storage.Exists
-                ? new PlayerState(_storage.Load(), economy, _storage)
-                : PlayerState.NewPlayer(economy, _storage);
+                ? new PlayerState(_storage.Load(), economy, _storage, pictures, balance)
+                : PlayerState.NewPlayer(economy, _storage, pictures, balance);
 
             // Новому гравцю файл треба створити одразу: інакше перший же збій
             // до кінця першої партії виглядав би як «гра не запам'ятала нічого».
@@ -147,7 +150,8 @@ namespace InkFlow.App
             _storage?.Delete();
 
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
-            _state = PlayerState.NewPlayer(economy, _storage);
+            var balance = balanceConfig.ToBalanceData();
+            _state = PlayerState.NewPlayer(economy, _storage, PictureCatalogData.Default, balance);
             _state.Persist();
 
             ServiceLocator.Register(_state);
@@ -157,7 +161,7 @@ namespace InkFlow.App
 
             if (router != null)
             {
-                router.Configure(balanceConfig.ToBalanceData(), _state);
+                router.Configure(balance, _state);
                 router.RestartFromHub();
             }
         }

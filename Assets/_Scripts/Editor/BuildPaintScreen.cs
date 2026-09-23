@@ -29,6 +29,11 @@ namespace InkFlow.Editor
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
         private const string PlanetShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
         private const string ZoneShaderPath = "Assets/_Shaders/InkFlowZone.shader";
+        private const string PictureZoneShaderPath = "Assets/_Shaders/InkFlowPictureZone.shader";
+
+        /// <summary>Накладок картинок на планеті (§10) і мініатюр у шухляді.</summary>
+        private const int PlacementSlots = 8;
+        private const int DrawerSlots = 12;
 
         private const float K = 1080f / 390f;
 
@@ -71,6 +76,9 @@ namespace InkFlow.Editor
             var quad = LoadSprite("white-quad");
             var planetShader = AssetDatabase.LoadAssetAtPath<Shader>(PlanetShaderPath);
             var zoneShader = AssetDatabase.LoadAssetAtPath<Shader>(ZoneShaderPath);
+            var nebula = LoadSprite("nebula");
+            var pictureShader = AssetDatabase.LoadAssetAtPath<Shader>(PictureZoneShaderPath);
+            var pictureArt = AssetDatabase.LoadAssetAtPath<PictureArtCatalog>(GeneratePictureArt.CatalogPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var currencyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CurrencyWidget.prefab");
 
@@ -84,6 +92,9 @@ namespace InkFlow.Editor
             if (quad == null) missing.Add($"{SpriteFolder}/white-quad.png");
             if (planetShader == null) missing.Add(PlanetShaderPath);
             if (zoneShader == null) missing.Add(ZoneShaderPath);
+            if (nebula == null) missing.Add($"{SpriteFolder}/nebula.png");
+            if (pictureShader == null) missing.Add(PictureZoneShaderPath);
+            if (pictureArt == null) missing.Add($"{GeneratePictureArt.CatalogPath} (Ink Flow → Setup → Generate Picture Art)");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (currencyPrefab == null) missing.Add($"{PrefabFolder}/CurrencyWidget.prefab");
             if (missing.Count > 0)
@@ -121,14 +132,22 @@ namespace InkFlow.Editor
                 out var chip, out var zoneLabel);
 
             var palette = BuildPalette(screenGo, design!, font, rounded!, circle!, gloss!, outline!,
-                out var swatches, out var shopButton);
+                out var swatches, out var shopButton, out var collectionButton);
+            var drawer = BuildCollectionDrawer(screenGo, design!, font, rounded!, outline!, nebula!,
+                pictureShader!, pictureArt!, palette.rect.height,
+                out var collectionBack, out var collectionBackLabel, out var collectionEmpty,
+                out var collectionThumbs, out var collectionThumbButtons,
+                out var removeLastButton, out var removeLastLabel);
             var actionBlock = BuildFillButton(screenGo, design!, font, rounded!, outline!, palette,
                 out var fillButton, out var fillFill, out var fillStroke, out var fillLabel);
             var hint = BuildHint(screenGo, design!, font, actionBlock);
+            var placeHint = BuildPlaceHint(screenGo, design!, font, actionBlock);
 
             var stageRoot = BuildStage(screenGo, design!, quad!, circle!, zoneShader!,
                 out var stage, out var disc, out var atmosphere,
                 out var flash, out var moon, out var confetti, out var markers);
+            var placements = BuildPlacements(stage.gameObject, design!, font, rounded!, outline!, nebula!,
+                pictureShader!, pictureArt!);
 
             BuildCompletionCard(screenGo, design!, font, rounded!,
                 out var card, out var kicker, out var completionTitle,
@@ -144,11 +163,19 @@ namespace InkFlow.Editor
                 ("fillButton", fillButton), ("fillButtonFill", fillFill),
                 ("fillButtonStroke", fillStroke), ("fillButtonLabel", fillLabel),
                 ("shopButton", shopButton),
+                ("collectionButton", collectionButton), ("paletteRoot", palette),
+                ("collectionDrawer", drawer), ("collectionBack", collectionBack),
+                ("collectionBackLabel", collectionBackLabel), ("collectionEmpty", collectionEmpty),
+                ("placeHint", placeHint), ("removeLastButton", removeLastButton),
+                ("removeLastLabel", removeLastLabel),
                 ("completionCard", card), ("completionKicker", kicker),
                 ("completionTitle", completionTitle), ("nextPlanetButton", nextButton),
                 ("nextPlanetLabel", nextLabel));
             WireArray(screen, "swatches", swatches);
+            WireArray(screen, "collectionThumbs", collectionThumbs);
+            WireArray(screen, "collectionThumbButtons", collectionThumbButtons);
             WireArray(stage, "markers", markers);
+            WireArray(stage, "placements", placements);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -381,7 +408,7 @@ namespace InkFlow.Editor
         // ── Палітра: скрол, gap 10, padding 10/18/18; зразок 58×104; магазин 64×96 ──
         private static RectTransform BuildPalette(GameObject parent, DesignSystem design,
             TMP_FontAsset? font, Sprite rounded, Sprite circle, Sprite gloss, Sprite outline,
-            out PaintSwatch[] swatches, out Button shopButton)
+            out PaintSwatch[] swatches, out Button shopButton, out Button collectionButton)
         {
             var rowHeight = M(132f);
             var swatchW = M(58f);
@@ -469,9 +496,179 @@ namespace InkFlow.Editor
 
             shopButton = shopGo.AddComponent<Button>();
             shopButton.targetGraphic = shopFill;
+            x += shopW + gap;
+
+            // «Колекція» (§10) — той самий чип, що й магазин: шухляда з картинками замість палітри.
+            collectionButton = Chip(contentGo, "CollectionButton", design, font, rounded, outline,
+                "Колекція", new Vector2(x + shopW * 0.5f, 0f), new Vector2(shopW, shopH), out _);
 
             content.sizeDelta = new Vector2(x + shopW + M(18f), 0f);
             return rect;
+        }
+
+        /// <summary>Скляний чип-кнопка з підписом — для «Колекція», «‹ Фарби», «Зняти останню».</summary>
+        private static Button Chip(GameObject parent, string name, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, string caption, Vector2 position, Vector2 size, out TMP_Text label)
+        {
+            var go = Child(parent, name);
+            var fill = go.AddComponent<Image>();
+            fill.sprite = rounded;
+            fill.type = Image.Type.Sliced;
+            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(16f));
+            fill.color = new Color(1f, 1f, 1f, 0.05f);
+            Place(fill, position, size, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var strokeGo = Child(go, "Stroke");
+            Stretch(strokeGo);
+            var stroke = strokeGo.AddComponent<Image>();
+            stroke.sprite = outline;
+            stroke.type = Image.Type.Sliced;
+            stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(16f));
+            stroke.color = new Color(1f, 1f, 1f, 0.12f);
+            stroke.raycastTarget = false;
+
+            label = Label(go, "Label", caption, design, font,
+                design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);
+            Stretch(label.gameObject);
+
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = fill;
+            return button;
+        }
+
+        // ── Шухляда «Колекція» (§10): місце палітри, мініатюри зібраних картинок ──
+        private static RectTransform BuildCollectionDrawer(GameObject parent, DesignSystem design,
+            TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite nebula, Shader pictureShader,
+            PictureArtCatalog art, float rowHeight,
+            out Button back, out TMP_Text backLabel, out TMP_Text empty,
+            out PictureView[] thumbs, out Button[] thumbButtons,
+            out Button removeLast, out TMP_Text removeLastLabel)
+        {
+            var go = Child(parent, "CollectionDrawer");
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = new Vector2(0f, rowHeight);
+
+            var scroll = go.AddComponent<ScrollRect>();
+            scroll.horizontal = true;
+            scroll.vertical = false;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.scrollSensitivity = 0f;
+
+            var viewportGo = Child(go, "Viewport");
+            Stretch(viewportGo);
+            var viewport = viewportGo.GetComponent<RectTransform>();
+            var viewportImage = viewportGo.AddComponent<Image>();
+            viewportImage.color = new Color(0f, 0f, 0f, 0f);
+            viewportGo.AddComponent<RectMask2D>();
+
+            var contentGo = Child(viewportGo, "Content");
+            var content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 0f);
+            content.anchorMax = new Vector2(0f, 1f);
+            content.pivot = new Vector2(0f, 0.5f);
+            content.anchoredPosition = Vector2.zero;
+            scroll.viewport = viewport;
+            scroll.content = content;
+
+            var chipW = M(64f);
+            var chipH = M(96f);
+            var gap = M(10f);
+            var x = M(18f);
+
+            back = Chip(contentGo, "Back", design, font, rounded, outline, "‹ Фарби",
+                new Vector2(x + chipW * 0.5f, 0f), new Vector2(chipW, chipH), out backLabel);
+            x += chipW + gap;
+
+            var thumbW = M(84f);
+            var thumbH = M(104f);
+            thumbs = new PictureView[DrawerSlots];
+            thumbButtons = new Button[DrawerSlots];
+            for (var i = 0; i < DrawerSlots; i++)
+            {
+                var thumbGo = Child(contentGo, $"Thumb{i}");
+                // Невидима площина під тап: мініатюра — і картинка, і кнопка.
+                var hit = thumbGo.AddComponent<Image>();
+                hit.color = new Color(0f, 0f, 0f, 0f);
+                Place(hit, new Vector2(x + thumbW * 0.5f, 0f), new Vector2(thumbW, thumbH),
+                    new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+                thumbs[i] = PictureViewBuilder.MakePictureView(thumbGo, design, font, rounded, outline, nebula,
+                    pictureShader, art, thumbW, M(84f), M(66f), withTitle: false, captionHeight: M(16f));
+                var button = thumbGo.AddComponent<Button>();
+                button.targetGraphic = hit;
+                button.transition = Selectable.Transition.None;
+                thumbButtons[i] = button;
+                thumbGo.SetActive(false);
+                x += thumbW + gap;
+            }
+
+            removeLast = Chip(contentGo, "RemoveLast", design, font, rounded, outline, "Зняти останню",
+                new Vector2(x + chipW * 0.5f, 0f), new Vector2(chipW, chipH), out removeLastLabel);
+            removeLast.gameObject.SetActive(false);
+            x += chipW;
+
+            content.sizeDelta = new Vector2(x + M(18f), 0f);
+
+            empty = Label(go, "Empty", "Домалюй картинку в Нескінченному — і вона з'явиться тут", design, font,
+                design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);
+            Place(empty, new Vector2(M(40f), 0f), new Vector2(M(240f), M(40f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            empty.textWrappingMode = TextWrappingModes.Normal;
+
+            go.SetActive(false);
+            return rect;
+        }
+
+        /// <summary>Підказка розміщення — над кнопкою дії, лише поки обрано картинку.</summary>
+        private static TMP_Text BuildPlaceHint(GameObject parent, DesignSystem design,
+            TMP_FontAsset? font, RectTransform actionBlock)
+        {
+            var label = Label(parent, "PlaceHint", "Тапни на планету, куди поставити «КИТ»", design, font,
+                design.FontSizeCaption, design.TextPrimary, TextAlignmentOptions.Center);
+            var rect = label.rectTransform;
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.offsetMin = new Vector2(M(18f), actionBlock.offsetMax.y + M(28f));
+            rect.offsetMax = new Vector2(-M(18f), actionBlock.offsetMax.y + M(28f) + M(20f));
+            label.gameObject.SetActive(false);
+            return label;
+        }
+
+        // ── Накладки картинок на планеті (§10): проєктуються стадією, як зони ──
+        private static PlacementMarker[] BuildPlacements(GameObject disc, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, Sprite nebula, Shader pictureShader, PictureArtCatalog art)
+        {
+            var rootGo = Child(disc, "Placements");
+            var root = rootGo.GetComponent<RectTransform>();
+            root.anchorMin = root.anchorMax = new Vector2(0.5f, 0.5f);
+            root.pivot = new Vector2(0.5f, 0.5f);
+            root.sizeDelta = Vector2.zero;
+
+            var side = M(64f);
+            var markers = new PlacementMarker[PlacementSlots];
+            for (var i = 0; i < PlacementSlots; i++)
+            {
+                var go = Child(rootGo, $"Placement{i}");
+                var rect = go.GetComponent<RectTransform>();
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(side, side);
+                var group = go.AddComponent<CanvasGroup>();
+                group.blocksRaycasts = false;
+                group.interactable = false;
+                var picture = PictureViewBuilder.MakePictureView(go, design, font, rounded, outline, nebula,
+                    pictureShader, art, side, side, M(56f), withTitle: false, captionHeight: 0f, bare: true);
+                var marker = go.AddComponent<PlacementMarker>();
+                Wire(marker, ("group", group), ("picture", picture));
+                go.SetActive(false);
+                markers[i] = marker;
+            }
+
+            return markers;
         }
 
         private static PaintSwatch BuildSwatch(GameObject parent, DesignSystem design,

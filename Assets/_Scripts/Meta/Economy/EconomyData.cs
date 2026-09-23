@@ -1,3 +1,4 @@
+using System;
 namespace InkFlow.Meta
 {
     /// <summary>
@@ -17,8 +18,16 @@ namespace InkFlow.Meta
             int bossMultiplier = 3,
             int fullRewardPlays = 10,
             float reducedRewardRate = 0.25f,
-            long[]? endlessMilestones = null)
+            long[]? endlessMilestones = null,
+            long scorePerOil = 100,
+            long[]? pictureRewards = null)
         {
+            if (scorePerOil < 1)
+                throw new ArgumentOutOfRangeException(nameof(scorePerOil));
+            ScorePerOil = scorePerOil;
+            PictureRewards = pictureRewards ?? new long[] { 10, 30, 100 };
+            if (PictureRewards.Length != 3)
+                throw new ArgumentOutOfRangeException(nameof(pictureRewards), "Три виплати: звичайна, рідкісна, легендарна.");
             StarterOil = starterOil;
             StarterPaintLiters = starterPaintLiters;
             BaseLevelReward = baseLevelReward;
@@ -51,8 +60,18 @@ namespace InkFlow.Meta
         /// <summary>Частка нагороди після вичерпання денного ліміту.</summary>
         public float ReducedRewardRate { get; }
 
-        /// <summary>Одноразові віхи рахунку в Нескінченному.</summary>
+        /// <summary>Одноразові віхи рахунку в Нескінченному (старий режим; лишається для «Рівнів»).</summary>
         public long[] EndlessMilestones { get; }
+
+        /// <summary>
+        /// Майстер-док §10: «очки за забіг → краплі нафти». Скільки очок коштує одна
+        /// крапля. При 100 середня партія бота (~4 400 очок) дає ~44 — два-три літри
+        /// найдешевшої фарби, тобто одну-дві зони планети.
+        /// </summary>
+        public long ScorePerOil { get; }
+
+        /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 10 / 30 / 100.</summary>
+        public long[] PictureRewards { get; }
 
         public static EconomyData Default { get; } = new EconomyData();
     }

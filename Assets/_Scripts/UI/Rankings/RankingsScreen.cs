@@ -249,7 +249,7 @@ namespace InkFlow.UI
 
         private void ApplyMetricSegments()
         {
-            var names = new[] { "Планети", "Галактики", "Рекорд" };
+            var names = new[] { "Планети", "Галактики", "Колекція" };
             for (var i = 0; i < metricLabels.Length && i < names.Length; i++)
             {
                 var active = (int)_metric == i;

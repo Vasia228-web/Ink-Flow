@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using InkFlow.Meta;
 using InkFlow.Style;
 using UnityEngine;
@@ -25,6 +26,7 @@ namespace InkFlow.UI
         [SerializeField] private Image disc;
         [SerializeField] private RectTransform zoneRoot;
         [SerializeField] private ZoneMarker[] markers = Array.Empty<ZoneMarker>();
+        [SerializeField] private PlacementMarker[] placements = Array.Empty<PlacementMarker>();
 
         private static readonly int RotationId = Shader.PropertyToID("_Rotation");
 
@@ -46,6 +48,12 @@ namespace InkFlow.UI
         /// <summary>Гравець тапнув по зоні. Другий аргумент — точка дотику в частках
         /// прямокутника зони: з неї починається розтікання фарби.</summary>
         public event Action<PlanetZone, Vector2>? ZoneTapped;
+
+        /// <summary>Тап по кулі — довгота й широта точки (§10: сюди стає картинка). Іде ПЕРЕД зоною.</summary>
+        public event Action<float, float>? SurfaceTapped;
+
+        /// <summary>Накладки картинок (§10) — стільки, скільки слотів; решта не показується.</summary>
+        public IReadOnlyList<PlacementMarker> Placements => placements;
 
         /// <summary>Гравець уперше крутнув планету — підказку можна прибрати.</summary>
         public event Action? RotatedByPlayer;
@@ -148,10 +156,40 @@ namespace InkFlow.UI
                     Rect, eventData.position, eventData.pressEventCamera, out var local))
                 return;
 
+            if (TryPickSurface(local, out var longitude, out var latitude))
+                SurfaceTapped?.Invoke(longitude, latitude);
+
             var hit = Pick(local, out var originUv);
             if (hit != null)
                 ZoneTapped?.Invoke(hit, originUv);
         }
+
+        /// <summary>
+        /// Обернена проєкція: точка на диску → довгота й широта на кулі з урахуванням
+        /// поточного обертання. Поза кулею — false.
+        /// </summary>
+        public bool TryPickSurface(Vector2 local, out float longitude, out float latitude)
+        {
+            longitude = 0f;
+            latitude = 0f;
+            if (design == null)
+                return false;
+            var radius = Rect.rect.width * 0.5f * design.PaintZoneInset;
+            if (radius <= 0f)
+                return false;
+            var nx = local.x / radius;
+            var ny = local.y / radius;
+            var sq = nx * nx + ny * ny;
+            if (sq > 1f)
+                return false;
+            var depth = Mathf.Sqrt(1f - sq);
+            latitude = Mathf.Asin(Mathf.Clamp(ny, -1f, 1f)) * Mathf.Rad2Deg;
+            longitude = Mathf.Atan2(nx, depth) * Mathf.Rad2Deg + _rotation;
+            return true;
+        }
+
+        /// <summary>Перепроєктувати накладки після зміни їхнього набору.</summary>
+        public void RefreshPlacements() => Project();
 
         /// <summary>
         /// Шукає зону під точкою. З кількох накладених бере найближчу до глядача:
@@ -218,10 +256,14 @@ namespace InkFlow.UI
 
         /// <summary>Рахує ракурс однієї зони: положення, стиснення й видимість.</summary>
         private void Projection(PlanetZone zone, float radius,
+            out Vector2 position, out float scale, out float depth, out bool visible) =>
+            Projection(zone.Longitude, zone.Latitude, radius, out position, out scale, out depth, out visible);
+
+        private void Projection(float longitude, float latitude, float radius,
             out Vector2 position, out float scale, out float depth, out bool visible)
         {
-            var lat = zone.Latitude * Mathf.Deg2Rad;
-            var lon = (zone.Longitude - _rotation) * Mathf.Deg2Rad;
+            var lat = latitude * Mathf.Deg2Rad;
+            var lon = (longitude - _rotation) * Mathf.Deg2Rad;
 
             var cosLat = Mathf.Cos(lat);
             var x = cosLat * Mathf.Sin(lon);
@@ -260,6 +302,20 @@ namespace InkFlow.UI
                     : Mathf.Max(0f, (depth + 0.18f) / 0.22f);
 
                 marker.Project(position, scale, alpha);
+            }
+
+            for (var i = 0; i < placements.Length; i++)
+            {
+                var placement = placements[i];
+                if (placement == null || !placement.IsBound)
+                    continue;
+
+                Projection(placement.Longitude, placement.Latitude, radius,
+                    out var position, out var scale, out var depth, out var visible);
+                var alpha = !visible ? 0f
+                    : depth > 0.04f ? 1f
+                    : Mathf.Max(0f, (depth + 0.18f) / 0.22f);
+                placement.Project(position, scale, alpha);
             }
         }
     }

@@ -266,7 +266,7 @@ namespace InkFlow.Editor
             out Button[] buttons, out Image[] fills, out Image[] strokes, out TMP_Text[] labels)
         {
             var go = Track(parent, "MetricSegments", rounded, top, height, M(15f), 0.04f, 0.08f);
-            var names = new[] { "Планети", "Галактики", "Рекорд" };
+            var names = new[] { "Планети", "Галактики", "Колекція" };
 
             buttons = new Button[names.Length];
             fills = new Image[names.Length];

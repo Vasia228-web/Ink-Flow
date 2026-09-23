@@ -10,7 +10,13 @@ namespace InkFlow.Meta
         EndlessRecord,
         EndlessMilestone,
         Purchase,
-        Debug
+        Debug,
+
+        /// <summary>Майстер-док §10: очки забігу → нафта.</summary>
+        RunScore,
+
+        /// <summary>Домальована картинка (§5).</summary>
+        PictureCompleted
     }
 
     /// <summary>

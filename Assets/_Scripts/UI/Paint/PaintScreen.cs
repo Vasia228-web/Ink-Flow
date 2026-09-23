@@ -58,6 +58,19 @@ namespace InkFlow.UI
         [SerializeField] private PaintSwatch[] swatches = System.Array.Empty<PaintSwatch>();
         [SerializeField] private Button shopButton;
 
+        [Header("Колекція (майстер-док §10: шухляда й розміщення на планеті)")]
+        [SerializeField] private Button collectionButton;
+        [SerializeField] private RectTransform paletteRoot;
+        [SerializeField] private RectTransform collectionDrawer;
+        [SerializeField] private Button collectionBack;
+        [SerializeField] private TMP_Text collectionBackLabel;
+        [SerializeField] private TMP_Text collectionEmpty;
+        [SerializeField] private PictureView[] collectionThumbs = System.Array.Empty<PictureView>();
+        [SerializeField] private Button[] collectionThumbButtons = System.Array.Empty<Button>();
+        [SerializeField] private TMP_Text placeHint;
+        [SerializeField] private Button removeLastButton;
+        [SerializeField] private TMP_Text removeLastLabel;
+
         [Header("Завершення")]
         [SerializeField] private RectTransform completionCard;
         [SerializeField] private TMP_Text completionKicker;
@@ -100,6 +113,140 @@ namespace InkFlow.UI
                 nextPlanetButton.onClick.AddListener(() => NextPlanetRequested?.Invoke());
             if (fillButton != null)
                 fillButton.onClick.AddListener(OnFillClicked);
+            if (collectionButton != null)
+                collectionButton.onClick.AddListener(() => ShowDrawer(true));
+            if (collectionBack != null)
+                collectionBack.onClick.AddListener(() => ShowDrawer(false));
+            if (removeLastButton != null)
+                removeLastButton.onClick.AddListener(OnRemoveLast);
+            for (var i = 0; i < collectionThumbButtons.Length; i++)
+            {
+                var index = i;
+                collectionThumbButtons[i]?.onClick.AddListener(() => OnThumbTapped(index));
+            }
+        }
+
+        // ── Колекція й розміщення (§10) ──
+
+        private readonly System.Collections.Generic.List<string> _drawerIds = new System.Collections.Generic.List<string>(16);
+        private readonly System.Collections.Generic.List<PicturePlacement> _placements = new System.Collections.Generic.List<PicturePlacement>(8);
+        private string? _placingId;
+
+        private string PlanetId => _surface != null ? GalaxyState.PlanetId(_surface.Type) : string.Empty;
+
+        /// <summary>Шухляда «Колекція» замість палітри: ті самі місце й розмір, інший вміст.</summary>
+        private void ShowDrawer(bool open)
+        {
+            Toggle(paletteRoot, !open);
+            Toggle(collectionDrawer, open);
+            if (!open)
+                StopPlacing();
+            if (open)
+                RefreshDrawer();
+        }
+
+        private void RefreshDrawer()
+        {
+            _drawerIds.Clear();
+            var catalog = State?.Pictures ?? PictureCatalogData.Default;
+            if (State != null)
+                for (var i = 0; i < State.Collection.Ids.Count; i++)
+                    if (catalog.IndexOf(State.Collection.Ids[i]) >= 0)
+                        _drawerIds.Add(State.Collection.Ids[i]);
+
+            Toggle(collectionEmpty, _drawerIds.Count == 0);
+            if (collectionEmpty != null)
+                collectionEmpty.text = "Домалюй картинку в Нескінченному — і вона з'явиться тут";
+
+            for (var i = 0; i < collectionThumbs.Length; i++)
+            {
+                var thumb = collectionThumbs[i];
+                if (thumb == null)
+                    continue;
+                var show = i < _drawerIds.Count;
+                Toggle(thumb, show);
+                if (show)
+                {
+                    var def = catalog[catalog.IndexOf(_drawerIds[i])];
+                    thumb.ShowCompleted(def, $"×{State!.Collection.CountOf(def.Id)}");
+                }
+            }
+
+            RefreshRemoveButton();
+        }
+
+        private void OnThumbTapped(int index)
+        {
+            if (index < 0 || index >= _drawerIds.Count)
+                return;
+            _placingId = _drawerIds[index];
+            var catalog = State?.Pictures ?? PictureCatalogData.Default;
+            var def = catalog[catalog.IndexOf(_placingId)];
+            Toggle(placeHint, true);
+            if (placeHint != null)
+                placeHint.text = $"Тапни на планету, куди поставити «{def.Name}»";
+        }
+
+        private void StopPlacing()
+        {
+            _placingId = null;
+            Toggle(placeHint, false);
+        }
+
+        private void OnSurfaceTapped(float longitude, float latitude)
+        {
+            if (_placingId == null || State == null || _surface == null)
+                return;
+            if (State.PlacePicture(PlanetId, _placingId, longitude, latitude))
+            {
+                RefreshPlacements();
+                StopPlacing();
+            }
+        }
+
+        private void OnRemoveLast()
+        {
+            if (State == null || !State.RemoveLastPlacement(PlanetId))
+                return;
+            RefreshPlacements();
+            RefreshRemoveButton();
+        }
+
+        private void RefreshRemoveButton()
+        {
+            var any = State != null && GalaxyState.PlacementCount(State.Galaxy, PlanetId) > 0;
+            Toggle(removeLastButton, any);
+            if (removeLastLabel != null)
+                removeLastLabel.text = "Зняти останню";
+        }
+
+        /// <summary>Накладки з файлу: «планета + картинка + позиція», скільки влізе в слоти.</summary>
+        private void RefreshPlacements()
+        {
+            if (stage == null)
+                return;
+            GalaxyState.PlacementsOf(State?.Galaxy, PlanetId, _placements);
+            var catalog = State?.Pictures ?? PictureCatalogData.Default;
+            var slots = stage.Placements;
+            for (var i = 0; i < slots.Count; i++)
+            {
+                var slot = slots[i];
+                if (slot == null)
+                    continue;
+                if (i >= _placements.Count)
+                {
+                    slot.Release();
+                    continue;
+                }
+                var index = catalog.IndexOf(_placements[i].PictureId);
+                if (index < 0)
+                {
+                    slot.Release();
+                    continue;
+                }
+                slot.Bind(catalog[index], _placements[i].Longitude, _placements[i].Latitude);
+            }
+            stage.RefreshPlacements();
         }
 
         public override void OnEnter(ScreenArgs args)
@@ -119,6 +266,9 @@ namespace InkFlow.UI
             _celebrated = false;
 
             Apply();
+            ShowDrawer(false);
+            RefreshPlacements();
+            RefreshRemoveButton();
             StartCoroutine(ApproachRoutine());
         }
 
@@ -204,10 +354,26 @@ namespace InkFlow.UI
 
             stage.ZoneTapped -= OnZoneTapped;
             stage.ZoneTapped += OnZoneTapped;
+            stage.SurfaceTapped -= OnSurfaceTapped;
+            stage.SurfaceTapped += OnSurfaceTapped;
             stage.RotatedByPlayer -= OnRotatedByPlayer;
             stage.RotatedByPlayer += OnRotatedByPlayer;
             stage.AutoSpin = false;
             stage.Bind(_surface, _discMaterial);
+            foreach (var slot in stage.Placements)
+                slot?.Apply();
+            foreach (var thumb in collectionThumbs)
+                thumb?.Apply();
+            ApplyFont(collectionBackLabel, design.FontSizeCaption, design.TextMuted, FontStyles.Bold, 0f);
+            if (collectionBackLabel != null) collectionBackLabel.text = "‹ Фарби";
+            ApplyFont(collectionEmpty, design.FontSizeCaption, design.TextMuted, FontStyles.Bold, 0f);
+            ApplyFont(placeHint, design.FontSizeCaption, design.TextPrimary, FontStyles.Bold, 0f);
+            ApplyFont(removeLastLabel, design.FontSizeCaption, design.TextMuted, FontStyles.Bold, 0f);
+            if (!Application.isPlaying)
+            {
+                Toggle(collectionDrawer, false);
+                Toggle(placeHint, false);
+            }
         }
 
         private void SetupPalette()
@@ -221,6 +387,7 @@ namespace InkFlow.UI
             if (stage == null)
                 return;
             stage.ZoneTapped -= OnZoneTapped;
+            stage.SurfaceTapped -= OnSurfaceTapped;
             stage.RotatedByPlayer -= OnRotatedByPlayer;
         }
 
@@ -236,6 +403,9 @@ namespace InkFlow.UI
 
         private void OnZoneTapped(PlanetZone zone, Vector2 originUv)
         {
+            // Поки ставимо картинку, тап по кулі — це місце для неї, а не вибір зони.
+            if (_placingId != null)
+                return;
             _selectedZone = zone;
             _lastTouchUv = originUv;
             stage?.SetSelected(zone);

@@ -180,8 +180,10 @@ namespace InkFlow.Meta
                     "Галактик завершено", Hex("#9D4DFF")),
                 new ProfileStat(state.Progress.EndlessRecord.ToString("N0"),
                     "Рекорд · Нескінченний", Hex("#FFB300")),
-                new ProfileStat(LevelProgress.TotalStars(state.Progress).ToString(),
-                    "Зірок у рівнях", Hex("#9BE636"), star: true)
+                // §8: головний рекорд нового ядра — картинки в колекції. Зірки рівнів
+                // підуть сюди назад разом із режимом «Рівні».
+                new ProfileStat(state.Collection.Distinct.ToString(),
+                    "Картинок у колекції", Hex("#9BE636"), star: true)
             };
 
             // Вітрина — завершені планети. Порожня, поки жодної не закінчено:
@@ -218,7 +220,6 @@ namespace InkFlow.Meta
 
         private static List<Achievement> BuildAchievements(PlayerState state, int planetsDone)
         {
-            var stars = LevelProgress.TotalStars(state.Progress);
             var distinct = PaintInventory.DistinctPaints(state.Paints);
 
             return new List<Achievement>
@@ -230,8 +231,8 @@ namespace InkFlow.Meta
                     "Май десять літрів фарби одночасно"),
                 new Achievement("a_col", "Колекціонер", Hex("#9D4DFF"), distinct >= 6,
                     "Збери шість різних фарб"),
-                new Achievement("a_str", "Тридцять зірок", Hex("#9BE636"), stars >= 30,
-                    "Набери тридцять зірок у рівнях")
+                new Achievement("a_pic", "Перша картинка", Hex("#9BE636"), state.Collection.Distinct >= 1,
+                    "Домалюй першу картинку в забігу")
             };
         }
 

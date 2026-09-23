@@ -36,9 +36,16 @@ namespace InkFlow.Gameplay
         [Tooltip("Частка нагороди після вичерпання ліміту.")]
         [SerializeField, Range(0f, 1f)] private float reducedRewardRate = 0.25f;
 
-        [Header("Нескінченний")]
+        [Header("Нескінченний (старий режим — лишається для «Рівнів»)")]
         [Tooltip("Одноразові віхи рахунку. Виплата = віха ÷ 100.")]
         [SerializeField] private long[] endlessMilestones = { 5000, 10000, 25000, 50000 };
+
+        [Header("Забіг (майстер-док §10)")]
+        [Tooltip("Скільки очок коштує одна крапля нафти. Нафта за забіг = очки ÷ це × денний множник.")]
+        [SerializeField, Min(1)] private long scorePerOil = 100;
+
+        [Tooltip("Нафта за домальовану картинку: звичайна, рідкісна, легендарна.")]
+        [SerializeField] private long[] pictureRewards = { 10, 30, 100 };
 
         public EconomyData ToEconomyData() => new EconomyData(
             starterOil,
@@ -47,6 +54,8 @@ namespace InkFlow.Gameplay
             bossMultiplier,
             fullRewardPlays,
             reducedRewardRate,
-            endlessMilestones);
+            endlessMilestones,
+            scorePerOil,
+            pictureRewards);
     }
 }

@@ -33,13 +33,16 @@ namespace InkFlow.Meta
                     return save;
                 },
 
-                // v3 → v4: колекція картинок нового ядра. Старим файлам — порожня:
+                // v3 → v4: колекція картинок нового ядра, незавершена, розміщення на планетах,
+                // найдовший ланцюг і лічильник забігів. Старим файлам — порожня колекція:
                 // картинок у них ще не було, а null у JsonUtility читався б порожнім списком лише випадково.
                 [3] = save =>
                 {
                     save.Collection ??= new CollectionData();
                     save.Collection.Pictures ??= new List<CollectedPicture>();
                     save.Collection.Unfinished ??= new UnfinishedData();
+                    save.Galaxy ??= new GalaxyData();
+                    save.Galaxy.Placements ??= new List<PicturePlacement>();
                     save.Version = 4;
                     return save;
                 }

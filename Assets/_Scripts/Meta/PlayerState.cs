@@ -37,6 +37,7 @@ namespace InkFlow.Meta
             File.Settings ??= new SettingsData();
             File.Collection ??= new CollectionData();
             File.Collection.Unfinished ??= new UnfinishedData();
+            File.Galaxy.Placements ??= new System.Collections.Generic.List<PicturePlacement>();
 
             Wallet = new Wallet(File.Wallet.OilDrops);
             Paints = PaintInventory.Load(File.Paints);
@@ -83,9 +84,10 @@ namespace InkFlow.Meta
         }
 
         /// <summary>Стан щойно створеного гравця: усе по нулях, крім явно виданого стартового.</summary>
-        public static PlayerState NewPlayer(EconomyData economy, ISaveStorage? storage = null)
+        public static PlayerState NewPlayer(EconomyData economy, ISaveStorage? storage = null,
+            Core.PictureCatalogData? pictures = null, Core.BalanceData? balance = null)
         {
-            var state = new PlayerState(new SaveFile(), economy, storage);
+            var state = new PlayerState(new SaveFile(), economy, storage, pictures, balance);
 
             if (economy.StarterOil > 0)
                 state.Wallet.Add(economy.StarterOil, RewardSource.Debug);
@@ -170,6 +172,61 @@ namespace InkFlow.Meta
         }
 
         /// <summary>
+        /// Підсумок забігу «Нескінченного» (майстер-док §10): очки → нафта з денним
+        /// множником, картинки → нафта за рідкістю, рекорди — у прогрес, забіг
+        /// рахується як партія дня (інакше нафта стала б нескінченною). Одна точка
+        /// входу, як і <see cref="CompleteLevel"/>.
+        /// </summary>
+        public RunReward CompleteRun(in RunSummary run, DateTime utcNow)
+        {
+            DailyLimit.RollOverIfNeeded(utcNow);
+
+            var forScore = Rewards.ForRun(run.Score, DailyLimit.RewardMultiplier);
+            long forPictures = 0;
+            forPictures += run.CommonDone * Rewards.ForPicture(Core.Rarity.Common);
+            forPictures += run.RareDone * Rewards.ForPicture(Core.Rarity.Rare);
+            forPictures += run.LegendaryDone * Rewards.ForPicture(Core.Rarity.Legendary);
+
+            if (forScore > 0)
+                Wallet.Add(forScore, RewardSource.RunScore);
+            if (forPictures > 0)
+                Wallet.Add(forPictures, RewardSource.PictureCompleted);
+
+            var newRecord = run.Score > Progress.EndlessRecord;
+            if (newRecord)
+                Progress.EndlessRecord = run.Score;
+            if (run.BestChain > Progress.BestChain)
+                Progress.BestChain = run.BestChain;
+            Progress.RunsPlayed++;
+
+            // Партію рахуємо ПІСЛЯ нарахування: інакше перша ж гра дня платила б
+            // за зменшеним множником.
+            DailyLimit.RegisterPlay(utcNow);
+
+            Persist();
+            return new RunReward(forScore, forPictures, newRecord);
+        }
+
+        /// <summary>Ставить картинку з колекції на планету (§10) і зберігає. Лише зібрані.</summary>
+        public bool PlacePicture(string planetId, string pictureId, float longitude, float latitude)
+        {
+            if (!Collection.Has(pictureId))
+                return false;
+            GalaxyState.Place(Galaxy, planetId, pictureId, longitude, latitude);
+            Persist();
+            return true;
+        }
+
+        /// <summary>Знімає останню поставлену на планету картинку.</summary>
+        public bool RemoveLastPlacement(string planetId)
+        {
+            if (!GalaxyState.RemoveLastPlacement(Galaxy, planetId))
+                return false;
+            Persist();
+            return true;
+        }
+
+        /// <summary>
         /// Фарбування зони: списує літри, записує факт у галактику, зберігає.
         /// Повертає false і НЕ змінює нічого, якщо фарби не вистачає.
         /// </summary>
@@ -185,5 +242,41 @@ namespace InkFlow.Meta
             Persist();
             return true;
         }
+    }
+
+    /// <summary>Підсумок забігу, який екран віддає в Meta. Кольорів і фігур тут немає.</summary>
+    public readonly struct RunSummary
+    {
+        public RunSummary(int score, int bestChain, int commonDone, int rareDone, int legendaryDone)
+        {
+            Score = score;
+            BestChain = bestChain;
+            CommonDone = commonDone;
+            RareDone = rareDone;
+            LegendaryDone = legendaryDone;
+        }
+
+        public int Score { get; }
+        public int BestChain { get; }
+        public int CommonDone { get; }
+        public int RareDone { get; }
+        public int LegendaryDone { get; }
+        public int PicturesDone => CommonDone + RareDone + LegendaryDone;
+    }
+
+    /// <summary>Що нарахували за забіг — окремо за очки й за картинки, щоб екран показав обидва.</summary>
+    public readonly struct RunReward
+    {
+        public RunReward(long forScore, long forPictures, bool newRecord)
+        {
+            ForScore = forScore;
+            ForPictures = forPictures;
+            NewRecord = newRecord;
+        }
+
+        public long ForScore { get; }
+        public long ForPictures { get; }
+        public long Total => ForScore + ForPictures;
+        public bool NewRecord { get; }
     }
 }

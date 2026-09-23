@@ -4,7 +4,7 @@ using InkFlow.Core;
 
 namespace InkFlow.Meta
 {
-    /// <summary>За чим міряємось.</summary>
+    /// <summary>За чим міряємось. Record — рекорд колекції: скільки різних картинок зібрано (майстер-док §8, §10).</summary>
     public enum RankMetric
     {
         Planets = 0,
@@ -101,7 +101,7 @@ namespace InkFlow.Meta
         {
             RankMetric.Planets => "планет",
             RankMetric.Galaxies => "галактик",
-            _ => "очок"
+            _ => "картинок"
         };
 
         /// <summary>
@@ -195,8 +195,9 @@ namespace InkFlow.Meta
                     PlanetsAll = 72 + week * 6,
                     GalaxiesWeek = 7 - i / 3,
                     GalaxiesAll = 34 - i,
-                    RecordWeek = 16300 - i * 820,
-                    RecordAll = 98000 - i * 4600
+                    // Рекорд — картинки в колекції (§8): за тиждень одиниці-десятки, за весь час — десятки.
+                    RecordWeek = 19 - i,
+                    RecordAll = 64 - i * 3
                 };
 
                 if (player.GalaxiesWeek < 0)
@@ -213,8 +214,8 @@ namespace InkFlow.Meta
                 PlanetsAll = 41,
                 GalaxiesWeek = 1,
                 GalaxiesAll = 3,
-                RecordWeek = 2100,
-                RecordAll = 8420
+                RecordWeek = 3,
+                RecordAll = 11
             };
 
             return new Leaderboard(players, you);
@@ -232,7 +233,8 @@ namespace InkFlow.Meta
         {
             var source = CreateMock();
             var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, galaxy);
-            var record = state.Progress.EndlessRecord;
+            // §10: «рекорд колекції → рейтинги». Тижневого зрізу без бекенду немає — той самий лік.
+            var record = state.Collection.Distinct;
 
             var you = new RankPlayer("you", state.Nick, PlanetType.Earth, Hex("#FF2D8A"))
             {

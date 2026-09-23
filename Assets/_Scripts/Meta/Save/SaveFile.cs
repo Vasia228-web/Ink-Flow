@@ -87,6 +87,18 @@ namespace InkFlow.Meta
     public sealed class GalaxyData
     {
         public List<PaintedZone> PaintedZones = new List<PaintedZone>();
+
+        /// <summary>Картинки, поставлені на планети (§10): «планета + картинка + позиція», скільки завгодно на планету.</summary>
+        public List<PicturePlacement> Placements = new List<PicturePlacement>();
+    }
+
+    [Serializable]
+    public struct PicturePlacement
+    {
+        public string PlanetId;
+        public string PictureId;
+        public float Longitude;
+        public float Latitude;
     }
 
     [Serializable]
@@ -101,7 +113,15 @@ namespace InkFlow.Meta
     public sealed class ProgressData
     {
         public List<LevelRecord> Levels = new List<LevelRecord>();
+
+        /// <summary>Рекорд очок за забіг (§8).</summary>
         public int EndlessRecord;
+
+        /// <summary>Найдовший ланцюг за всі забіги (§8).</summary>
+        public int BestChain;
+
+        /// <summary>Скільки забігів зіграно.</summary>
+        public int RunsPlayed;
     }
 
     [Serializable]

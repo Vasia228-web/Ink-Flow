@@ -249,6 +249,35 @@ namespace InkFlow.App
             }
             GUILayout.EndHorizontal();
 
+            GUILayout.Space(6f);
+            GUILayout.Label("── Картинки ──");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Зібрати випадкову картинку"))
+            {
+                var catalog = state.Pictures;
+                var pick = catalog[UnityEngine.Random.Range(0, catalog.Count)];
+                var isNew = state.CollectPicture(pick.Id, System.DateTime.UtcNow);
+                Report($"«{pick.Name}» у колекції{(isNew ? " (нова)" : "")}: різних {state.Collection.Distinct}");
+            }
+            if (GUILayout.Button("Скинути незавершену"))
+            {
+                state.Unfinished.Clear();
+                state.Persist();
+                Report("незавершеної немає");
+            }
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Очистити колекцію й розміщення"))
+            {
+                state.File.Collection.Pictures.Clear();
+                state.Galaxy.Placements.Clear();
+                var fresh = new PlayerState(state.File, state.Economy, null, state.Pictures, state.Balance);
+                _ = fresh;
+                state.Persist();
+                Report("колекцію очищено у файлі — перезапусти застосунок, щоб перечитати");
+            }
+            GUILayout.EndHorizontal();
+
             GUILayout.BeginHorizontal();
             _nickInput = GUILayout.TextField(_nickInput.Length > 0 ? _nickInput : state.Nick,
                 GUILayout.Width(140f));

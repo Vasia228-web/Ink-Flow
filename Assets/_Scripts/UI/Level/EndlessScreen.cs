@@ -838,7 +838,7 @@ namespace InkFlow.UI
                 if (recordChipLabel != null) recordChipLabel.text = "НОВИЙ РЕКОРД";
             }
 
-            var reward = Award(score, newRecord);
+            var reward = Award(score);
             Toggle(rewardRow, reward > 0);
             if (reward > 0 && isActiveAndEnabled)
                 StartCoroutine(CountRewardRoutine(reward));
@@ -890,32 +890,32 @@ namespace InkFlow.UI
         }
 
         /// <summary>
-        /// Нарахування. Рахує <see cref="RewardCalculator"/> — екран лише показує число.
-        /// Якщо економіку не підв'язали (екран відкрили окремою сценою), нагороди
-        /// просто немає — вигадувати власну він не має права.
+        /// Підсумок забігу — у стан гравця (§10): очки → нафта з денним множником,
+        /// картинки → нафта за рідкістю, рекорди, партія дня. Екран лише показує число.
+        /// Якщо стан не підв'язали (екран відкрито окремою сценою), нагороди просто немає.
         /// </summary>
-        private long Award(int score, bool newRecord)
+        private long Award(int score)
         {
-            if (_wallet == null || _rewards == null || _progress == null)
+            if (_state == null || _session == null)
                 return 0;
 
-            var previous = _progress.EndlessRecord;
-            var forRecord = _rewards.ForEndlessRecord(score, previous);
-            var forMilestones = _rewards.ForMilestones(score, previous);
+            var common = 0;
+            var rare = 0;
+            var legendary = 0;
+            var collected = _session.PicturesCollected;
+            for (var i = 0; i < collected.Count; i++)
+            {
+                switch (_session.Pictures[collected[i]].Rarity)
+                {
+                    case Rarity.Rare: rare++; break;
+                    case Rarity.Legendary: legendary++; break;
+                    default: common++; break;
+                }
+            }
 
-            if (newRecord)
-                _progress.EndlessRecord = score;
-
-            if (forRecord > 0)
-                _wallet.Add(forRecord, RewardSource.EndlessRecord);
-            if (forMilestones > 0)
-                _wallet.Add(forMilestones, RewardSource.EndlessMilestone);
-
-            // Рекорд і нафта мусять пережити закриття гри одразу, а не чекати
-            // згортання застосунку: партія може бути останньою за сесію.
-            State?.Persist();
-
-            return forRecord + forMilestones;
+            var reward = _state.CompleteRun(
+                new RunSummary(score, _session.BestChain, common, rare, legendary), System.DateTime.UtcNow);
+            return reward.Total;
         }
 
         private IEnumerator CountRewardRoutine(long reward)

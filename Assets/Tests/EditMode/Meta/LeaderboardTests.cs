@@ -87,8 +87,9 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(41, you.Value(RankMetric.Planets, RankPeriod.AllTime));
             Assert.AreEqual(1, you.Value(RankMetric.Galaxies, RankPeriod.Week));
             Assert.AreEqual(3, you.Value(RankMetric.Galaxies, RankPeriod.AllTime));
-            Assert.AreEqual(2100, you.Value(RankMetric.Record, RankPeriod.Week));
-            Assert.AreEqual(8420, you.Value(RankMetric.Record, RankPeriod.AllTime));
+            // Рекорд — картинки в колекції (майстер-док §8, §10), не очки.
+            Assert.AreEqual(3, you.Value(RankMetric.Record, RankPeriod.Week));
+            Assert.AreEqual(11, you.Value(RankMetric.Record, RankPeriod.AllTime));
         }
 
         [Test]
@@ -106,7 +107,7 @@ namespace InkFlow.Tests.Meta
         {
             Assert.AreEqual("планет", Leaderboard.Unit(RankMetric.Planets));
             Assert.AreEqual("галактик", Leaderboard.Unit(RankMetric.Galaxies));
-            Assert.AreEqual("очок", Leaderboard.Unit(RankMetric.Record));
+            Assert.AreEqual("картинок", Leaderboard.Unit(RankMetric.Record));
         }
 
         [Test]
