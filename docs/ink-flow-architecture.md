@@ -1,8 +1,10 @@
 # Ink Flow — Технічна архітектура (Unity, Android + iOS)
 
-> **Для Claude Code.** Це технічна правда проєкту. Ігрова правда — в `ink-flow-master-doc.md`; якщо цей файл суперечить йому в питаннях геймдизайну, правий майстер-док. Якщо майстер-док суперечить цьому файлу в питаннях коду — правий цей.
+> **Для Claude Code.** Це технічна правда проєкту. Ігрова правда — в `docs/ink-flow-core-final.md`; якщо цей файл суперечить йому в питаннях геймдизайну, правий майстер-док. Якщо майстер-док суперечить цьому файлу в питаннях коду — правий цей.
 >
 > **Головний принцип архітектури:** ігрова логіка не знає, що існує Unity. Усе, що можна протестувати без редактора, тестується без редактора.
+>
+> Переписано 2026-09-24 після переробки ядра (Сесія 2). Старе ядро — краплі, густота, вибухи, бос — скасоване повністю; що від нього лишилось і чому, записано в `docs/implementation-notes.md` (Orphans).
 
 ---
 
@@ -15,14 +17,14 @@
 5. Правила механіки → код (точні формули)
 6. Детермінізм і RNG
 7. Дані та конфіги (data-driven)
-8. Шар Gameplay — міст між Core і Unity
+8. Шар Gameplay і Style — обгортки конфігів і дизайн-токени
 9. Шар UI і навігація
-10. Шар Meta — економіка, галактика, збереження
+10. Шар Meta — економіка, галактика, колекція, збереження
 11. Шар Platform — абстракція над iOS/Android
 12. Мобільна специфіка: продуктивність і сумісність
 13. Налаштування білдів (Android / iOS)
 14. Тестування
-15. Симулятори (Фаза 4)
+15. Симулятори
 16. Git-workflow і `CLAUDE.md`
 17. Відповідність фазам розробки
 18. Інваріанти, які не можна порушувати
@@ -33,47 +35,44 @@
 
 | Пункт | Рішення |
 |---|---|
-| Движок | Unity 6 LTS (6000.x), 2D URP |
-| Мова | C# 9+, nullable enabled в Core |
+| Движок | Unity 6 (6000.5.4f1), 2D URP |
+| Мова | C# 9, nullable enabled (через `csc.rsp` у кожній збірці) |
 | Цільові платформи | Android (Google Play), iOS (App Store) — **один код, нуль `#if` у геймплеї** |
-| Скриптинг | IL2CPP, .NET Standard 2.1 |
-| Інпут | Unity Input System (новий), один `.inputactions` на всі платформи |
-| Асети | Addressables (рівні, планети, палітри) |
-| Пули | `UnityEngine.Pool.ObjectPool<T>` |
-| DI-фреймворк | **немає** (свідомо) — композиційний корінь вручну, див. §8 |
-| DOTS/ECS | **немає** (свідомо) — сітка максимум 7×7, це десятки об'єктів |
+| Скриптинг | IL2CPP, .NET Standard 2.1 (без `init`, без `record`) |
+| Інпут | Unity Input System; перетягування фігур — `IPointerDownHandler`/`IDragHandler` на комірках лотка |
+| Асети | Addressables лишились у проєкті, але новий контент (картинки) — звичайні асети, згенеровані редактором |
+| Пули | префаб тримає фіксовану кількість об'єктів (64 блоки поля, 20 зон картинки); `Instantiate` під час партії — нуль |
+| DI-фреймворк | **немає** (свідомо) — композиційний корінь вручну, `GameBootstrap` |
+| DOTS/ECS | **немає** (свідомо) — поле 8×8, це десятки об'єктів |
 | Бекенд | немає до Фази 6; далі Unity Gaming Services |
-
-**Чому без DI і DOTS.** Проєкт має один екран геймплею й ≤49 клітинок. DI-контейнер додав би час старту й магію в стектрейсах, ECS — складність без виграшу. Ручна композиція в одному місці (`GameBootstrap`) читається краще й дебажиться швидше. До цього питання повертаємось на Фазі 3, якщо метагра розростеться.
 
 ---
 
 ## 2. Карта збірок (asmdef) і правила залежностей
 
 ```
-InkFlow.Core          ← ЖОДНИХ посилань. Не знає про UnityEngine.
+InkFlow.Core          ← ЖОДНИХ посилань, noEngineReferences: true
    ↑
-InkFlow.Gameplay      ← Core + UnityEngine
-   ↑
-InkFlow.UI            ← Core + UnityEngine (НЕ бачить Gameplay напряму)
-InkFlow.Meta          ← Core + UnityEngine
-InkFlow.Platform      ← UnityEngine (інтерфейси + нативні реалізації)
-InkFlow.App           ← усе вище (композиційний корінь, сцени, навігація)
+InkFlow.Style         ← Core        (дизайн-токени; лист, який бачить лише UI)
+InkFlow.Meta          ← Core        (економіка, галактика, колекція, збереження)
+InkFlow.Gameplay      ← Core        (ScriptableObject-обгортки конфігів)
+InkFlow.Platform      ← UnityEngine (інтерфейси сервісів + Null/Fake-реалізації)
+InkFlow.UI            ← Core + Style + Meta + Platform   (НЕ бачить Gameplay і App)
+InkFlow.App           ← усе вище    (композиційний корінь, ServiceLocator, DevPanel)
+InkFlow.Editor        ← усе         (збирачі екранів, генератори спрайтів, EconomySimulator)
 
-InkFlow.Core.Tests        ← Core (EditMode, без Unity API)
-InkFlow.Gameplay.Tests    ← Core + Gameplay (PlayMode)
-InkFlow.Meta.Tests        ← Core + Meta (EditMode)
-InkFlow.Editor           ← усе (тільки редактор: бутстрап, інструменти, симулятори)
+InkFlow.Core.Tests / InkFlow.Meta.Tests  ← EditMode; ті самі файли ганяє headless-раннер
+Tools/InkFlow.Sim                        ← Core як джерела; бот-прогонник (dotnet)
 ```
 
 **Жорсткі правила:**
 
-1. **`InkFlow.Core` не посилається ні на що**, включно з `UnityEngine`. Заборонені `Vector2`, `Color`, `Random`, `Debug.Log`, корутини, `MonoBehaviour`. Замість них — власні `GridPos`, `InkColor` (enum), `IRandomSource`, `ILogSink`.
-   *Перевірка:* якщо в Core з'явився `using UnityEngine` — це помилка збірки, а не питання смаку.
-2. **UI не викликає Gameplay напряму.** Обмін — через події (`GameEvents`) і команди (`IGameCommands`). UI шле наміри, отримує стани.
-3. **Meta не знає про Gameplay.** Режим завершився → віддав `GameResult` у Meta. Meta не має уявлення, що таке крапля.
-4. **Platform — тільки інтерфейси назовні.** Ніхто, крім `InkFlow.App`, не знає, яка там реалізація.
-5. Залежності односторонні. Циклів немає. Якщо хочеться цикл — потрібна подія.
+1. **`InkFlow.Core` не посилається ні на що**, включно з `UnityEngine`. Замість `Vector2`/`Color`/`Random` — `GridPos`, `Pigment`/`Hue`/`Rgb`, `IRandomSource`. Перевірка — збірка, не смак.
+2. **UI не бачить Gameplay.** Баланс і стан гравця приходять від композиційного кореня (`EndlessArgs.Balance`, `AppRouter.Configure/BindServices`). Екран не має права на `BalanceData.Default` у грі.
+3. **Meta не знає про поле.** Забіг завершився → віддав `RunSummary` (очки, ланцюг, картинки за рідкістю). Meta не має уявлення, що таке фігура.
+4. **Platform — тільки інтерфейси назовні.** Реалізацію знає лише `InkFlow.App`; UI отримує сервіси через `BindServices`, а не через локатор.
+5. **Посилання asmdef — лише прямі, не транзитивні.** `Tools/asmdef-refs.py` дзеркалить це.
+6. Залежності односторонні. Циклів немає. Якщо хочеться цикл — потрібна подія.
 
 ---
 
@@ -83,397 +82,317 @@ InkFlow.Editor           ← усе (тільки редактор: бутстр
 Assets/
   _Scripts/
     Core/            (asmdef InkFlow.Core)
-      Model/         GridModel, Cell, InkColor, GridPos
-      Rules/         MergeRules, BurstResolver, MoveValidator, DeadlockDetector
-      Session/       GameSession, PuzzleSession, EndlessSession, BossSession
-      Boss/          BossModel, BossAction, BossTelegraph
-      Scoring/       ScoreCalculator, StarCalculator
+      Model/         Board, Pigment, Hue, GridPos, PieceShape (+PieceDef), Rarity,
+                     GameEvent (+GameEventType), MoveResult, InkColor, Rgb
+      Rules/         PlacementRules, LineResolver, TrayGenerator, TankSet, Mixer, BoardGeometry
+      Session/       RunSession, PictureProgress, PictureDeck, UnfinishedPicture (+PictureStart),
+                     RunReplay, GameState, GameEvents, InputRouter
+      Config/        BalanceData, PieceCatalogData, PictureDef (+ZoneDef), ThemeDef, PictureCatalogData
+      Sim/           RunBot (+BotWeights)
       Random/        IRandomSource, XorShiftRandom
-      Config/        (POCO-дзеркала конфігів: BalanceData, LevelData)
-    Gameplay/        (asmdef InkFlow.Gameplay)
-      Views/         GridView, CellView, BossView, SplashView
-      Pools/         CellPool, ParticlePool
-      Input/         SwipeInput, InputRouter
-      Feel/          MergeAnimator, BurstAnimator, ShakeController, HapticTrigger
-      GameEvents.cs
-    UI/              (asmdef InkFlow.UI)
-      Hub/ Levels/ Endless/ Shop/ Galaxy/ Ranks/ Profile/
-      Common/        ScreenBase, NavigationStack, SafeAreaBinder, CurrencyWidget
-    Meta/            (asmdef InkFlow.Meta)
-      Economy/       Wallet, RewardCalculator, DailyLimitTracker
-      Paints/        PaintInventory, PaintCatalog, PaintTier
-      Galaxy/        GalaxyModel, PlanetModel, ZoneModel, PaintService
-      Progress/      LevelProgress, StarLedger, Achievements
-      Save/          SaveFile, SaveMigrations, ISaveStorage, JsonSaveStorage
-    Platform/        (asmdef InkFlow.Platform)
-      IHapticService, IAnalyticsService, IAdsService, IIapService,
-      IReviewService, INotificationService
-      Android/ iOS/ Editor/   (реалізації + Null-заглушки)
-    App/             (asmdef InkFlow.App)
-      GameBootstrap.cs, ServiceLocator.cs, SceneRouter.cs, FeatureFlags.cs
-  _ScriptableObjects/
-    Balance/  Paints/  Levels/  Planets/
-  _Prefabs/     Cell, Boss, Splash, UI-екрани
-  _Sprites/ _Audio/ _Materials/
-  Scenes/       Boot.unity, Meta.unity, Game.unity
-  Tests/        EditMode/  PlayMode/
-  Plugins/      Android/  iOS/
+      Galaxy/        PaintKind, PlanetType (дані метагри, що потрібні Core-тестам)
+    Style/           DesignSystem (усі кольори, радіуси, тривалості), StyleRefresh
+    Gameplay/        Config/BalanceConfig, Config/EconomyConfig — обгортки для інспектора
+    Meta/            Economy/ Galaxy/ Progress/ Collection/ Profile/ Rankings/ Shop/ Save/ PlayerState
+    Platform/        PlatformServices (інтерфейси), Null/ (Null*, Fake*, LogAnalytics)
+    UI/
+      Level/         EndlessScreen, BoardView, BlockView, TrayView, PieceView, BoardFeedback,
+                     TankView, MixerView, PictureView, PictureZoneView, PictureArtCatalog,
+                     HueNames, RarityNames
+      Paint/         PaintScreen, PlanetStage, ZoneMarker, PlacementMarker, PaintSwatch
+      Hub/ Galaxy/ Shop/ Rankings/ Profile/ LevelMap/ Common/ Atoms/
+    App/             GameBootstrap, ServiceLocator, DevPanel
+    Editor/          Build*Screen, BuildMainScene, BuildUIKit, GenerateUISprites,
+                     GeneratePictureArt, PictureViewBuilder, UiBuilder, InkFlowBootstrap, EconomySimulator
+  _ScriptableObjects/ Balance/ (BalanceConfig, EconomyConfig)  Style/ (DesignSystem)  Pictures/ (PictureArt)
+  _Sprites/          UI/ (згенеровані спрайти)  Pictures/ (маски зон, згенеровані з креслень)
+  _Shaders/          InkFlowPlanet, InkFlowZone, InkFlowPictureZone
+  _Prefabs/          UI/ (атоми)  Screens/ (корені екранів — з них складається Main.unity)
+  Scenes/            Main.unity (єдина в Build Settings) + сцени-майстерні кожного екрана
+  Tests/EditMode/    Core-тести в корені, Meta/ окремо
+Tools/               run-core-tests.sh, check-compile.sh, check-*.py, CoreTestRunner/, InkFlow.Sim/, salvage/
+docs/                ink-flow-core-final.md (ігрова правда), цей файл, implementation-notes.md, design/
 ```
 
 ---
 
 ## 4. Шар Core — чиста логіка
 
-Ключові типи (сигнатури орієнтовні, іменування — обов'язкове):
+Ключові типи (іменування — обов'язкове):
 
 ```csharp
-public readonly struct GridPos { public readonly int X, Y; }
+public enum Pigment : byte { None, Blue, Red, Yellow }          // фарба фігур і баків
+public enum Hue : byte { None, Blue, Red, Yellow, Green, Orange, Purple, Brown }   // що виходить зі змішувача
+public readonly struct GridPos { int X, Y; }                    // X — стовпець, Y — рядок; поле знизу вгору,
+                                                                // креслення картинки — згори вниз
+public sealed class Board        { Pigment this[GridPos]; IsRowFull/IsColumnFull; CountEmpty; Clone; StateHash }
+public sealed class PieceShape   { GridPos[] Cells (нормалізовані до початку); Width; Height; Weight }
+public readonly struct PieceDef  { PieceShape Shape; Pigment Pigment; IsEmpty }
+```
 
-public enum InkColor : byte { None = 0, Magenta, Cyan, Amber, Lime, Violet, Rose }
+**`RunSession`** — забіг «Нескінченного»:
 
-public struct Cell {
-    public InkColor Color;
-    public int Density;
-    public CellFlags Flags;   // Empty | Ice | Wall | Blot | Heavy
-    public bool IsEmpty => Color == InkColor.None;
-}
-
-public sealed class GridModel {
-    public int Width { get; }
-    public int Height { get; }
-    public Cell this[GridPos p] { get; set; }
-    public IEnumerable<GridPos> Neighbors(GridPos p);   // 4-directional, порядок фіксований
+```csharp
+public sealed class RunSession {
+    RunSession(BalanceData, PieceCatalogData, IRandomSource, PictureCatalogData? = null, PictureStart? = null);
+    Board Board; PieceDef[] TrayPieces; TankSet Tanks; Mixer Mixer; PictureProgress Picture;
+    int Score, BestChain, PlacementCount, Round, LinesCleared, PureLinesCleared, PaintYielded, PaintMissed;
+    int Splashes; IReadOnlyList<int> SplashesByHue; int PicturesCompleted; IReadOnlyList<int> PicturesCollected;
+    bool StartedWithCarried; int CarriedIndex; int AttemptsLeft; int ContinuesUsed; bool CanContinue;
+    Pigment WantedPigment;                       // з активної зони картинки — для першої фігури лотка
+    MoveResult TryPlace(int trayIndex, GridPos anchor);
+    MoveResult ContinueAfterLoss();              // §9: раз за забіг
+    MoveResult CompletePictureNow();             // §9: донат
+    void Restart(); bool TryFindHint(out int, out GridPos); bool NoPieceFits(); bool AnyPieceStuck();
+    GameState State; bool IsOver; bool HaloWarning;
 }
 ```
 
-**Порядок сусідів завжди один і той самий: Up, Right, Down, Left.** Від цього залежить детермінізм ланцюгів — ніколи не міняти.
+`MoveResult` — **повний опис того, що сталося**, як упорядкований список подій зі спільним буфером клітинок:
 
-```csharp
-public sealed class GameSession {          // базовий стан партії
-    public GridModel Grid { get; }
-    public int MovesLeft { get; }
-    public MoveResult ApplyMove(GridPos from, GridPos to);
-    public GameState State { get; }        // Playing | Won | Lost | Deadlock
-}
+```
+PiecePlaced → LineCleared (по одній, з вибіркою клітинок, пігментом, чистотою, фарбою) → ComboApplied
+→ ScoreGained → PaintPoured (по одній на лінію) → [TankDrained ×≤3 → MixerFired → ZoneFilled… |
+SplashMissed → PictureCompleted → PictureStarted] (повторюється на кожен виплеск)
+→ TrayRefilled | TrayRescued → GameLost
 ```
 
-`MoveResult` — **повний опис того, що сталося**, у вигляді впорядкованого списку подій:
+**Це найважливіше архітектурне рішення проєкту.** Core не анімує — повертає стрічку; `BoardView.PlayEvents` програє поле, `EndlessScreen.PlayPaint` — баки, змішувач і картинку (виплеск летить у зону і мазок грає, коли долетів). Логіка тестується без кадру рендеру, а прогонник ганяє тисячу партій за секунду.
 
-```csharp
-public sealed class MoveResult {
-    public bool Accepted;                  // false = різні кольори, хід не витрачено
-    public IReadOnlyList<GameEvent> Events; // Merge, Burst, Splash, Blur, Repaint,
-                                            // BossHit, BossAction, Refill, Chain
-    public int ChainDepth;
-    public int ScoreGained;
-}
-```
-
-**Це найважливіше архітектурне рішення всього проєкту.** Core не анімує — він повертає стрічку подій. `GridView` програє її послідовно з таймінгами. Завдяки цьому:
-- логіка тестується без єдиного кадру рендеру;
-- анімації можна прискорити/вимкнути, не чіпаючи правила;
-- симулятор Фази 4 ганяє мільйони ходів за секунди.
+Решта Core:
+- `TankSet` — три баки без стелі; `Mixer` — четвертий, спрацьовує при `Total ≥ MixerSplashSize`.
+- `PictureProgress` — рівні зон поточної картинки; `PictureDeck` — витяг за рідкістю; `UnfinishedPicture` — правило §7.
+- `TrayGenerator` — мішок; `PlacementRules` — влазить/лінії; `LineResolver` — вихід фарби; `BoardGeometry` — розмітка поля для в'ю в px макета.
+- `RunBot` — жадібний бот на реальних правилах, лише для прогонів.
 
 ---
 
 ## 5. Правила механіки → код (точні формули)
 
-Це переклад майстер-доку в код. Кожен рядок = окремий юніт-тест.
+Переклад майстер-доку в код. Кожен пункт — юніт-тест у `InkFlow.Core.Tests`. Усі числа — з `BalanceData` (дефолти в дужках).
 
 ### 5.1 Хід
 
 ```
-IsValidMove(from, to):
-    to є 4-сусідом from
-    обидві не порожні, без Wall/Blot/Ice-блокування
-    Grid[from].Color == Grid[to].Color
-→ інакше Accepted = false, MovesLeft НЕ зменшується
+TryPlace(i, anchor):
+    фігура i не порожня; усі клітинки shape + anchor у межах поля й порожні
+→ інакше Accepted = false, нічого не витрачено
+клітинки фігури := її пігмент; комірка лотка порожніє; +ScorePerPlacedCell (10) за клітинку
 ```
 
-### 5.2 Злиття
+Обертання фігур немає. Лоток — 3 фігури, поповнюється лише коли всі три поставлено.
+
+### 5.2 Лінії й фарба
 
 ```
-Grid[to].Density += Grid[from].Density
-Grid[from] = empty
-if Grid[to].Density >= threshold → Burst(to, force: Grid[to].Density)
+після розміщення: усі повні рядки (знизу вгору) і стовпці (зліва направо) — за станом ПІСЛЯ розміщення
+вихід кожної лінії — за станом ДО очищення (клітинка на перетині рахується в обидві):
+    чиста (один пігмент):  ⌊довжина ÷ MixedDivisor(2)⌋ × PureLineBonus(3) = 12 за вісімку → у свій бак
+    мішана:                ⌊домінантних ÷ MixedDivisor⌋ → у бак домінантного;
+                           нічия → бак, де фарби менше; далі — порядок Blue, Red, Yellow
+очищення всіх ліній одночасно (перетин — один раз)
 ```
 
-### 5.3 Вибух — універсальна зона
-
-```csharp
-const int CROSS = 4;                              // зона завжди 4 клітинки
-int PaintPower(int force)  => Clamp(force / 10, 1, threshold - 1);   // стеля 9
-int SplashCount(int force) => force / 15;                            // 1 за кожні повні 15
-```
-
-Зона — **завжди** хрест (Up, Right, Down, Left). Форма **не залежить** від сили. Ніколи.
-
-Гало для бризок — кільце Мангеттенської відстані рівно 2 від центру:
-
-```csharp
-IEnumerable<GridPos> Halo(GridPos c) => усі p, де |p.X-c.X| + |p.Y-c.Y| == 2;
-```
-
-### 5.4 Ефект на клітинку
+### 5.3 Ланцюг і очки
 
 ```
-власна клітинка → empty
-для кожної клітинки хреста:
-    empty        → Color = burstColor, Density = PaintPower
-    той же колір → Density += PaintPower           → може дати ланцюговий Burst
-    інший колір  → Density -= PaintPower           // РОЗМИВАННЯ
-                   if Density <= 0 → Color = burstColor, Density = 1
-для кожної бризки (SplashCount разів, ціль з Halo):
-    той самий алгоритм, але PaintPower = 1
-за межами сітки → подія OutOfBounds (на бос-рівні верхній край → BossHit)
+count = кількість ліній за хід; multiplier = ComboMultipliers[min(count, 3) − 1] = 1 / 1.5 / 2
+фарба лінії  := ⌊вихід × multiplier⌋
+очки за лінію := ⌊ScorePerLine(100) × (чиста ? PureLineScoreBonus(2) : 1) × multiplier⌋
+BestChain = max(count)
 ```
 
-### 5.5 Ланцюги
-
-Обробка через **чергу FIFO**, не рекурсію. Порядок: клітинки хреста в порядку Up→Right→Down→Left, потім бризки в порядку генерації.
-
-```csharp
-const int MaxChainBursts = 64;   // запобіжник від нескінченного ланцюга
-```
-
-Ліміт існує тому, що щільне монохромне поле теоретично може зациклитись. При досягненні — ланцюг зупиняється, пишеться подія `ChainTruncated`. Тест на це обов'язковий.
-
-### 5.6 Бос
-
-```csharp
-int SegmentsPainted(int force) => force >= 35 ? 3 : force >= 20 ? 2 : 1;   // стеля 3
-```
-
-- Влучання лише через `OutOfBounds` за **верхній** край. Жодних окремих правил стрільби.
-- Вибух іншого кольору по пофарбованому сегменту → `Repaint` (сегмент стає новим кольором, лічильник `PlayerRepaints++` — від нього залежить третя зірка).
-- Бос діє на кожному 3-му **прийнятому** ході (`Accepted == true`).
-- **Телеграф:** намір обирається на ході N−1 і зберігається в `BossModel.PendingAction`. UI показує іконку. На ході N дія виконується — вона вже визначена, тож жодного «рандому в обличчя».
-- `Sponge` не може обрати той самий сегмент двічі поспіль (`LastSpongeSegment`).
-
-### 5.7 Перемога / поразка / тупик
-
-```csharp
-bool HasAnyMove()  => існує пара 4-сусідів однакового кольору;   // ЄДИНА перевірка живості
-bool IsPuzzleWon() => distinctColors <= 1 || dropCount <= 1;
-```
-
-- Перемога перевіряється **після повного завершення ланцюга**, не в середині.
-- Puzzle: `MovesLeft == 0 && !Won` → Lost. `!HasAnyMove()` → Deadlock (теж програш, окрема подія для чесного повідомлення).
-- **Вибух не обов'язковий для перемоги.** Жодної перевірки «чи був burst».
-
-### 5.8 Endless
+### 5.4 Мішок фігур
 
 ```
-після ходу: Refill() — нові краплі падають зверху в порожні клітинки
-кінець партії: !HasAnyMove() && немає порожніх клітинок
-захист: if (!HasAnyMove() && є порожні) → Refill()
-        if (після Refill !HasAnyMove()) → перегенерувати кольори долитих крапель
-        цикл до MaxRefillAttempts (напр. 32), потім — детермінований fallback:
-        примусово поставити пару однакових сусідів
+tier = скільки порогів TierRounds(10/20/30) досяг номер лотка
+вага форми = SizeWeight(size, tier) × (BagFitOffset(1) + скільки позицій на полі)^BagBias(0.5)
+    SizeWeight: 2 клітинки 1.5 − 0.4·tier (≥0.3); 3 — 1.8; 4 — 0.7 + 1.1·tier; 5 — те саме, лише з tier ≥ 1
+набір перегенеровується, доки хоч одна фігура не влазить: до 60 спроб, після 40 — стеля 3 клітинки,
+далі 20 «рятувальних» двоклітинковими; наостанок — детермінований запобіжник (перша найменша, що влазить)
+колір: серія одного пігменту з шансом ColorStreakByTier (0.5/0.35/0.2/0.1), інакше — зважено на
+користь пігменту, якого на полі менше (ColorScarcityWeight 0.7); перша фігура — WantedPigment картинки
 ```
 
-Fallback має існувати завжди: **система не має права вбити гравця сама** (інваріант §18).
+### 5.5 Змішувач
 
-### 5.9 Приплив (Endless)
+```
+CanFire = Tanks.Total ≥ MixerSplashSize(8); спрацьовує, доки CanFire
+забирає рівно виплеск, пропорційно до рівнів (метод найбільших остач: сума точна, бак не в мінус)
+відтінок — з пропорції В БАКАХ до зливу (те, що показувало прев'ю):
+    частка одного ≥ MixDominantShare(0.6)         → чистий цей
+    інакше помітних (частка ≥ MixMinorShare 0.25): 3 → Brown; 2 → Secondary(a,b); 1 → чистий
+Secondary: Blue+Yellow=Green, Red+Yellow=Orange, Blue+Red=Purple
+```
 
-```csharp
-int TideLevel   => burstsTotal / 10;                       // +1 кожні 10 вибухів
-int MinDensity  => Clamp(1 + TideLevel, 1, threshold - 1); // мінімальна густота нових крапель
+### 5.6 Картинка
+
+```
+стеля зони = MixerSplashSize × clamp(round(клітинок ÷ CellsPerSplash(12)), 1, MaxSplashesPerZone(3))
+виплеск відтінку H → перша незалита зона з відтінком H; залишок → наступна зона з H; далі — пропав (SplashMissed)
+усі зони повні → PictureCompleted, PicturesCollected += індекс, PictureStarted(наступна)
+наступна: кидок рідкості за RarityWeights (70/25/5), рівноймовірно серед цієї рідкості, крім щойно
+закінченої; немає такої рідкості → звичайніша, потім рідкісніша
+WantedPigment: чистий відтінок — його пігмент; вторинний — той із двох, якого в баках менше; Brown — найменший
+```
+
+### 5.7 Незавершена картинка (§7)
+
+```
+Track(index, filled)  — на кожне спрацювання змішувача: реєструє першу картинку з краплею фарби; чужу не бере
+Complete(index)       — закриває
+Settle(index, filled, wasCarried) — кінець забігу:
+    немає незавершеної й є фарба → зареєструвати, AttemptsUsed = 0
+    та сама й wasCarried → AttemptsUsed++; ≥ UnfinishedAttempts(3) → анулювати (true)
+наступний забіг починається з неї: RunSession(…, PictureStart(index, filled, AttemptsLeft))
+```
+
+### 5.8 Програш і продовження
+
+```
+NoPieceFits() — ЄДИНА перевірка живості, після кожного ходу; State = Lost
+HaloWarning = CountEmpty < HaloWarningFreeCells(20) || хоч одна фігура з руки нікуди не влазить
+ContinueAfterLoss(): дозволено, поки ContinuesUsed < ContinuesPerRun(1); поле чисте, лоток новий,
+                     рахунок/баки/картинка лишаються
+Restart(): усе з нуля, нова картинка з колоди (незавершена — лише при новому старті екрана)
 ```
 
 ---
 
 ## 6. Детермінізм і RNG
 
-**`UnityEngine.Random` заборонений у Core і Gameplay-логіці.** Тільки для чисто косметичних частинок.
+**`UnityEngine.Random` заборонений у Core.** Тільки `IRandomSource` (`XorShiftRandom`).
 
-```csharp
-public interface IRandomSource { int Next(int maxExclusive); }
-public sealed class XorShiftRandom : IRandomSource   // власна реалізація, стабільна між платформами
-```
-
-| Режим | Джерело сіда |
+| Що | Джерело сіда |
 |---|---|
-| Puzzle | `levelId` + `attemptIndex`? **Ні** — тільки `levelId`. Те саме рішення = той самий результат завжди |
-| Endless | `DateTime.UtcNow.Ticks` при старті партії, зберігається в `RunReplay` |
-| Симулятор | сід передається ззовні |
+| Забіг | `DateTime.UtcNow.Ticks` при старті; `RunReplay` зберігає сід + ходи |
+| Бот-прогони | `seed + i × 2654435761` на партію; шум бота — окремий сід |
+| Тести | фіксований сід у `TestBoard.NewSession(seed)` |
 
-**Чому це критично:** три зірки в Puzzle — обіцянка гравцю, що майстерність вирішує. Якщо бризки випадкові, ідеальне рішення іноді не спрацює — і гравець відчує обман. У Endless рандом навпаки бажаний.
-
-Наслідок: партію можна відтворити, зберігши сід + список ходів (`RunReplay`). Це дає безкоштовний баг-репорт («надішли сід») і майбутню античит-перевірку рекордів.
+Наслідок: партію можна відтворити, зберігши сід і список ходів (`RunReplay`) — баг-репорт «надішли сід» і майбутня античит-перевірка рекордів. Тест: той самий сід + ті самі ходи = байт-в-байт той самий стан (`Board.StateHash`).
 
 ---
 
 ## 7. Дані та конфіги (data-driven)
 
-**Жодного балансного числа в коді.** Усі — у ScriptableObject-конфігах, які мають POCO-дзеркала в Core.
+**Жодного балансного числа в коді.** Усі — у ScriptableObject-конфігах із POCO-дзеркалами в Core/Meta.
 
 ```
-BalanceConfig.asset       threshold, paintPowerDivisor(10), splashDivisor(15),
-                          maxChainBursts, tideStep, bossSegmentThresholds(20/35),
-                          starThresholds(0.2 / 0.4)
-EconomyConfig.asset       базові нагороди, dailyFullRewardPlays(10), reducedRate(0.25),
-                          endlessRewardCurve, milestones[], bossMultiplier(3)
-PaintCatalog.asset        список фарб: id, tier, ціна за літр, тип рендеру
-LevelDefinition.asset     id, width, height, moves, стартова розкладка, goal, isBoss, seed
-PlanetDefinition.asset    id, тип, список зон (id, назва, об'єм у літрах, маска)
+BalanceConfig.asset   → BalanceData:   поле, лоток, мішок (ваги, пороги, спроби), вихід ліній, ланцюг, очки,
+                                        попередження, змішувач (виплеск, домінанта, помітність), картинка
+                                        (клітинок на виплеск, стеля зони), незавершена (спроби), продовження,
+                                        ваги рідкості
+EconomyConfig.asset   → EconomyData:   стартове, нагорода за рівень (старий режим), денний ліміт,
+                                        ScorePerOil, PictureRewards[3], InterstitialEveryRuns, RewardAdMultiplier
+DesignSystem.asset    → DesignSystem:  усі кольори, радіуси, тривалості; CurrentTokenVersion піднімається,
+                                        коли токени змінились, і Build UI Kit перезаписує асет
+PictureCatalogData    → у Core, кодом: теми й креслення картинок (символи = зони). Це дані контенту,
+                        а не баланс; одне джерело для правил, тестів і генератора масок
+PictureArt.asset      → маски зон + центри й радіуси, згенеровані Generate Picture Art із креслень
 ```
 
-**Правило:** зміна балансу = зміна `.asset`, ніколи не перекомпіляція. Це умова того, щоб Фаза 4 взагалі була можлива.
-
-Рівні й планети роздаються через **Addressables** (групи `Levels`, `Planets`, `Paints`) — щоб на Фазі 6 додавати контент без нового білду в сторах.
+**Правило:** зміна балансу = зміна `.asset`. Нова картинка = креслення в `PictureCatalogData` + `Generate Picture Art`.
 
 ---
 
-## 8. Шар Gameplay — міст між Core і Unity
+## 8. Шар Gameplay і Style — обгортки конфігів і дизайн-токени
 
-**`GridView`** — єдиний, хто перетворює `MoveResult.Events` у видовище:
+Від `InkFlow.Gameplay` лишились лише `BalanceConfig` і `EconomyConfig` — обгортки для інспектора, які `ToBalanceData()`/`ToEconomyData()` перетворюють на POCO. Ігрове поле живе в UI: партія — такий самий екран, як магазин чи профіль.
 
-```csharp
-IEnumerator PlayEvents(MoveResult result) {
-    foreach (var e in result.Events) {
-        switch (e) {
-            case MergeEvent m:  yield return _merge.Play(m);   break;
-            case BurstEvent b:  yield return _burst.Play(b);   break;
-            ...
-        }
-    }
-}
-```
+`InkFlow.Style` — `DesignSystem` (усі візуальні числа) і `StyleRefresh` (відкладене застосування з `OnValidate`/`OnEnable`). Палітри: `InkColor` (інтерфейс і фарби планет, не чіпати), `PigmentColor(Pigment)` (фігури й баки), `HueColor(Hue)` (виплески й зони картинок), `RarityColor(Rarity)`.
 
-Під час програвання інпут заблокований (`InputRouter.Locked`). Швидкість — з конфігу, тож `AnimationSpeed = 0` дає миттєвий режим для тестів і для «швидкого рестарту <300 мс».
-
-**Пулінг обов'язковий з першого дня.** Жодного `Instantiate`/`Destroy` під час партії — тільки `CellPool`, `ParticlePool`, `SplashPool`. На мобільних GC-спайк = помітний фриз.
-
-**Композиційний корінь** — `GameBootstrap` у сцені `Boot`: створює сервіси, реєструє їх у простому `ServiceLocator`, і далі всі залежності передаються **конструкторами/ін'єкцією полів у Awake**, а не пошуком через `FindObjectOfType`.
+**Композиційний корінь** — `GameBootstrap` у `Main.unity`: читає збереження (`PlayerState` з колодою картинок і балансом), реєструє сервіси в `ServiceLocator` (у редакторі й dev-збірках — `FakeAds`), віддає роутеру стан і сервіси. Залежності передаються полями через `Wire()` у збирачах, не `FindObjectOfType`.
 
 ---
 
 ## 9. Шар UI і навігація
 
-**Три сцени, не більше:**
+**Одна сцена `Main.unity`**, дев'ять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
 
-| Сцена | Що містить |
-|---|---|
-| `Boot` | ініціалізація сервісів, завантаження збереження, перехід далі. Порожня візуально |
-| `Meta` | хаб, карта рівнів, магазин, галактика, рейтинги, профіль (усі — префаби-екрани) |
-| `Game` | поле, HUD, бос |
+Екран партії (`EndlessScreen`) зверху вниз: шапка 40 → блок 156 (ліворуч картинка 150: плитка з назвою в колір рідкості, квадрат зон, «СПРОБ · N», підпис «ЗОНА · ВІДТІНОК»; праворуч капсули РАХУНОК/РЕКОРД над трьома баками й змішувачем) → поле 358 (64 блоки + 64 привиди) → лоток 86 (три комірки з фігурами) — усе в px макета × K (1080/390).
 
-Екрани всередині `Meta` — **не сцени**, а префаби, якими керує `NavigationStack` (push/pop). Причина: перехід між вкладками має бути миттєвим, а завантаження сцени на слабкому Android — це 200–400 мс і чорний кадр.
+Оверлеї: картка перед забігом («ЦЬОГО ЗАБІГУ · тема», готова картинка, рідкість, тап або 2.6 с), картка фіналу у дві фази (продовжити/завершити → нагороди, галерея зібраного, чипи §9).
 
-```csharp
-public abstract class ScreenBase : MonoBehaviour {
-    public virtual void OnEnter(ScreenArgs args);
-    public virtual void OnExit();
-}
-```
+Правила в'ю (перевіряє `Tools/check-ui-animation.py`): щокадрова анімація — лише `localPosition/localScale/localRotation` і `CanvasRenderer`; заливка баків і зон — `localScale` та властивість матеріалу (`_Fill`), ніколи `sizeDelta` чи `Image.color` у циклі. Черга спрацювань змішувача не блокує поле.
 
-**Перегляд чужої галактики** — той самий `GalaxyScreen` з `GalaxyArgs { bool ReadOnly; PlayerId Owner; }`. Другого екрана не існує. У ReadOnly ховаються панель фарб і кнопки заливки.
-
-**Safe area обов'язково:** `SafeAreaBinder` на кореневому `RectTransform` кожного екрана — інакше на iPhone з Dynamic Island і на Android з жестовою навігацією UI ріжеться. Тестувати на 19.5:9, 20:9 і 4:3 (планшети).
+`GameEvents` і `IGameCommands` живуть у **Core** — саме тому UI бачить стан партії, не посилаючись на Gameplay. `SafeAreaBinder` на корені кожного екрана.
 
 ---
 
-## 10. Шар Meta — економіка, галактика, збереження
+## 10. Шар Meta — економіка, галактика, колекція, збереження
 
 ```csharp
-public sealed class Wallet         { long OilDrops; bool TrySpend(long); void Add(long, RewardSource); }
-public sealed class PaintInventory { float GetLiters(PaintId); bool TryConsume(PaintId, float); }
-public sealed class PaintService   { PaintResult PaintZone(PlanetId, ZoneId, PaintId); }
-public sealed class DailyLimitTracker { int PlaysToday; float RewardMultiplier => PlaysToday < 10 ? 1f : 0.25f; }
+public sealed class PlayerState {                  // рантайм — правда, файл — зліпок
+    Wallet Wallet; PaintStock Paints; RewardCalculator Rewards; DailyLimitTracker DailyLimit;
+    PictureCollection Collection; UnfinishedPicture Unfinished; PictureStart? RunStart;
+    RunReward CompleteRun(in RunSummary, DateTime);  // очки → нафта × денний, картинки → нафта, рекорди, партія дня
+    bool CollectPicture(string id, DateTime);        // одразу у файл; закриває незавершену
+    void TrackUnfinished(int, IReadOnlyList<int>);   // на кожне спрацювання змішувача
+    bool SettleUnfinished(int, IReadOnlyList<int>, bool wasCarried);
+    long DoubleRunReward(long); long RewardPicture(Rarity); void RestoreUnfinishedAttempt(int, IReadOnlyList<int>);
+    bool PlacePicture(planetId, pictureId, lon, lat); bool RemoveLastPlacement(planetId);
+    long CompleteLevel(...); bool PaintZone(...);     // режим «Рівні» й фарбування планет — без змін
+}
 ```
 
-Літри — `float` з округленням до 0.1 при показі; зона коштує 1–3 л (з `PlanetDefinition`).
+- **Колекція** — `id → (скільки разів, коли вперше)`; рекорд колекції = різних (§8) — це і є метрика «Колекція» в Рейтингах.
+- **Розміщення** — список «планета + картинка + довгота/широта», кілька на планету; редактор — «Зняти останню».
+- **Ідентифікатори у файлі — назви, не індекси** (картинки, фарби, планети): колода росте темами.
 
 ### Збереження — з міграціями з першого дня
 
-```csharp
-public sealed class SaveFile {
-    public int Version;              // ЗАВЖДИ перше поле
-    public WalletData Wallet;
-    public PaintsData Paints;
-    public GalaxyData Galaxy;
-    public ProgressData Progress;
-    public SettingsData Settings;
-}
-
-public static class SaveMigrations {
-    // v1 → v2 → v3 ... кожна міграція — окрема функція, покрита тестом
-}
-```
-
-- Шлях: `Application.persistentDataPath` (працює однаково на iOS/Android).
-- **Атомарний запис:** пишемо в `save.tmp` → `File.Replace` на `save.json`. Інакше вбитий застосунок під час запису = втрачений прогрес гравця. На iOS додатково виставити прапорець «не бекапити» для тимчасових файлів.
-- Автозбереження: після кожної партії, покупки, фарбування зони і в `OnApplicationPause(true)` — на мобільних це єдиний надійний момент, `OnApplicationQuit` часто не викликається.
-- Формат JSON (не BinaryFormatter — він заборонений і небезпечний). Легке обфускування — пізніше, разом із хмарним збереженням.
+`SaveFile.Version` — завжди перше поле; поточна **v4** (колекція, незавершена, розміщення, найдовший ланцюг, забіги). Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Точки автозбереження: кінець забігу, кожна домальована картинка, кожне спрацювання змішувача (прогрес незавершеної), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
 
 ---
 
 ## 11. Шар Platform — абстракція над iOS/Android
 
-Уся платформозалежність живе **тільки тут**. Геймплей і UI не містять жодного `#if UNITY_IOS`.
+Уся платформозалежність — тільки тут. Геймплей і UI не містять `#if UNITY_IOS`.
 
 ```csharp
-public interface IHapticService     { void Light(); void Medium(); void Heavy(); void Chain(int depth); }
-public interface IAnalyticsService  { void Track(string evt, IDictionary<string,object> props = null); }
-public interface IAdsService        { bool IsRewardedReady { get; } void ShowRewarded(Action<bool> done); }
-public interface IIapService        { Task<PurchaseResult> Buy(string productId); }
-public interface IReviewService     { void RequestReview(); }
-public interface INotificationService{ void Schedule(...); }
+public interface IHapticService      { void Light(); void Medium(); void Heavy(); void Chain(int depth); }
+public interface IAnalyticsService   { void Track(string evt, IDictionary<string,object>? props = null); }
+public interface IAdsService         { bool IsRewardedReady; void ShowRewarded(Action<bool> done);
+                                       bool IsInterstitialReady; void ShowInterstitial(Action done); }
+public interface IIapService         { void Buy(string productId, Action<PurchaseResult> done); }
+public interface IReviewService      { void RequestReview(); }
+public interface INotificationService{ void Schedule(...); void CancelAll(); }
 ```
 
 | Інтерфейс | Android | iOS | До релізу |
 |---|---|---|---|
-| Haptics | `Vibrator` + `VibrationEffect` (API 26+), амплітуда | `UIImpactFeedbackGenerator` / Core Haptics | `NullHaptics` |
-| Analytics | UGS Analytics / Firebase | те саме | `LogAnalytics` (у консоль) |
-| Ads | Unity Ads | Unity Ads + **ATT-запит** перед ініціалізацією | `NullAds` |
-| IAP | Unity IAP (Google Play Billing) | Unity IAP (StoreKit) | `FakeIap` |
-| Review | Google Play In-App Review | `SKStoreReviewController` | `NullReview` |
+| Haptics | `Vibrator` + `VibrationEffect` | Core Haptics | `NullHaptics` |
+| Analytics | UGS / Firebase | те саме | `LogAnalytics` |
+| Ads | Unity Ads | Unity Ads + **ATT-запит** | `NullAds` (реліз) / `FakeAds` (редактор, dev) |
+| IAP | Unity IAP | Unity IAP | `FakeIap` (відмовляє) |
+| Review | In-App Review | `SKStoreReviewController` | `NullReview` |
 
-**Правило:** кожен інтерфейс має `Null*`-реалізацію. Гра повністю грабельна без жодного SDK — це і швидкість ітерацій, і страховка, якщо якийсь SDK ламає білд.
-
-`Handheld.Vibrate()` **не використовувати**: на iOS це грубий «дзиж» замість тактильного відгуку, який нам потрібен для merge/burst.
+Точки §9 у грі: продовжити після програшу (раз за забіг), подвоїти нафту, повернути анульовану рідкісну/легендарну, інтерстиціал раз на `InterstitialEveryRuns` забігів при виході з картки фіналу, донат `finish_picture`. Без реальних сервісів кнопки просто не з'являються — гра повністю грабельна без SDK.
 
 ---
 
 ## 12. Мобільна специфіка: продуктивність і сумісність
 
-**Бюджет:** 60 fps на пристрої рівня iPhone SE 2 / Snapdragon 6-серії; ≤35 draw calls на екран; ≤150 МБ RAM; холодний старт до інтерактиву ≤3 с; **нуль GC-алокацій під час ходу**.
+**Бюджет:** 60 fps на iPhone SE 2 / Snapdragon 6-серії; ≤35 draw calls на екран; ≤150 МБ RAM; холодний старт ≤3 с; **нуль GC-алокацій під час ходу**.
 
-Як це тримати:
-- Core працює зі `struct`-ами і масивами, без LINQ у гарячих шляхах і без `foreach` по `Dictionary` в апдейті.
-- Події `MoveResult` — переиспользуемий буфер, не новий список щоходу.
-- Спрайти крапель — один атлас, один матеріал; числа густоти — TextMeshPro з одним шрифтовим атласом (важливо: **кирилиця має бути в атласі**, інакше ловимо той самий warning про відсутній гліф).
-- Частинки — пул, `maxParticles` обмежений, без Collision-модуля.
-- `Application.targetFrameRate = 60`; на дуже слабких пристроях — `QualityLevel = Low` (менше частинок, вимкнений bloom).
-- URP: вимкнути HDR і MSAA, якщо не потрібні; Bloom — тільки на середньому+ рівні якості.
-- Стиснення текстур: **ASTC** для обох платформ.
-- Роздільність: `Screen.SetResolution` з обмеженням по висоті для дуже щільних екранів (економія GPU без видимої втрати).
-
-**Життєвий цикл застосунку** (частий баг на мобільних): `OnApplicationPause(true)` → пауза таймерів, збереження, стоп аудіо. `OnApplicationFocus` на Android спрацьовує інакше, ніж на iOS, — покладатись тільки на `Pause`.
+- Core працює з масивами й структурами; `MoveResult` — переиспользуемий буфер зі спільним списком клітинок, не новий список щоходу; бот і сесія не алокують у циклі ходу.
+- Поле — 64 блоки й 64 привиди в префабі, порожня клітинка — вимкнений блок; зони картинки — до 20 `Image` з матеріалом `InkFlow/PictureZone` (маска зони — альфа спрайта, фронт заливки — `_Fill`/`_Origin`/`_Extent`).
+- Планети — шейдер `InkFlow/Planet` (дві октави шуму, обертання через `_Time`), зони планети — `InkFlow/Zone`; накладки картинок проєктуються стадією, як зони.
+- Один атлас UI-спрайтів, один шрифт (Nunito з кирилицею; піктограми — спрайти, не гліфи).
+- **Ніякого post-process Bloom.** ASTC для обох платформ. `targetFrameRate = 60`.
+- `OnApplicationPause(true)` — єдиний надійний момент зберегтися.
 
 ---
 
 ## 13. Налаштування білдів
 
-**Спільне:** IL2CPP, .NET Standard 2.1, Managed Stripping `Medium` (з `link.xml` для типів, які серіалізуються), portrait-only, Splash вимкнений (Unity Personal — залишити).
+**Спільне:** IL2CPP, .NET Standard 2.1, Managed Stripping `Medium` (з `link.xml`), portrait-only, `Main.unity` — єдина сцена в Build Settings.
 
-**Android**
-- Формат: **AAB** для Play, APK для тестів на пристрої.
-- Архітектури: **ARM64 only** (ARMv7 більше не потрібен і подвоює розмір).
-- Min API: 24+ (перевірити актуальні вимоги Play на момент релізу).
-- Target API: **той, якого вимагає Google Play на дату релізу** — вимога змінюється щороку, звірити перед білдом.
-- Keystore — поза репозиторієм, шлях через змінні середовища.
-- Data Safety form у Play Console.
+**Android:** AAB для Play, APK для тестів; ARM64 only; Min API 24+; Target API — вимога Play на дату релізу; keystore поза репозиторієм; Data Safety form.
 
-**iOS**
-- Min iOS: 13+ (звірити з вимогами App Store на дату релізу).
-- **`PrivacyInfo.xcprivacy`** обов'язковий — оголосити використання `persistentDataPath`/UserDefaults та SDK-трекери.
-- **ATT-запит** — тільки якщо реклама використовує IDFA; текст пояснення обов'язковий.
-- Bitcode вимкнений (Apple його більше не вимагає), `Push Notifications` capability — лише коли реально додамо сповіщення.
-- Експорт Xcode-проєкту скриптом (`PostProcessBuild`), щоб ручних кроків не було.
+**iOS:** Min iOS 13+; `PrivacyInfo.xcprivacy` обов'язковий; ATT-запит — лише якщо реклама використовує IDFA; експорт Xcode-проєкту скриптом.
 
-**Версіонування з першого тестового білду:** `versionName` (SemVer) + монотонний `versionCode`/`buildNumber`, який ніколи не зменшується. Автоінкремент у білд-скрипті.
+**Версіонування з першого тестового білду:** SemVer + монотонний `versionCode`/`buildNumber`.
 
 ---
 
@@ -481,59 +400,54 @@ public interface INotificationService{ void Schedule(...); }
 
 | Рівень | Де | Що покриває |
 |---|---|---|
-| EditMode, без Unity API | `InkFlow.Core.Tests` | усі формули §5, ланцюги, тупики, бос, RNG-детермінізм |
-| EditMode | `InkFlow.Meta.Tests` | економіка, ліміти, міграції збережень |
-| PlayMode | `InkFlow.Gameplay.Tests` | програвання подій, пули (нуль `Instantiate` під час партії), інпут |
-| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий |
+| EditMode, без Unity API | `InkFlow.Core.Tests` | усі формули §5, мішок, змішувач, картинки, колода, незавершені, бот, геометрія, відсутність старого ядра |
+| EditMode | `InkFlow.Meta.Tests` | економіка забігу, колекція, розміщення, ліміти, міграції, профіль, рейтинги |
+| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **260 тестів** |
+| Бот-прогони | `Tools/InkFlow.Sim` | 1000 партій за секунду; цифри в `docs/implementation-notes.md` |
 
-**Обов'язкові тести-запобіжники** (кожен ловив реальний баг у цьому жанрі):
-1. `PaintPower` ніколи не ≥ threshold (інакше самопідтримний ланцюг).
-2. Щільне монохромне поле не дає нескінченний ланцюг (`MaxChainBursts`).
-3. Той самий сід + та сама послідовність ходів = байт-в-байт той самий результат.
-4. Endless ніколи не повертає стан «є порожні клітинки, але ходів немає».
-5. Кожен `LevelDefinition` розв'язний (див. §15) — тест над усією Addressables-групою.
-6. Міграція збереження з кожної попередньої версії відкриває файл без втрат.
-7. Вибух у кутку не кидає виняток (вихід за межі сітки).
+**Обов'язкові тести-запобіжники:**
+1. Мішок ніколи не видає набір, у якому нічого не влазить, поки влазить двоклітинкова (тест + метрика «несправедливих смертей» у прогонах = 0).
+2. Той самий сід + ті самі ходи = байт-в-байт той самий стан.
+3. У Core немає жодного типу й події старого ядра (`OldCoreAbsenceTests`, рефлексією).
+4. Колода тримає таблицю §6: звичайна 4–6 зон і один вторинний відтінок, рідкісна 8–12, легендарна 15+, одна легендарна на тему, квадратні креслення, кожна зона має клітинки.
+5. Витяг за рідкістю тримає 70/25/5 на 20 000 витягів і не повторює щойно закінчену.
+6. Незавершена: перший провал не витрачає спроби, три перенесені забіги анулюють, чужа картинка не реєструється, поки є ця.
+7. Міграція збереження з кожної попередньої версії відкриває файл без втрат.
+8. Продовження після програшу — рівно раз за забіг; донат «домалювати» не чіпає поле й рахунок.
+
+Перед комітом: `bash Tools/check-compile.sh` (компілює response-файлами Unity), `python3 Tools/check-ui-animation.py`, `check-glyphs.py`, `check-navigation.py`.
 
 ---
 
-## 15. Симулятори (Фаза 4)
+## 15. Симулятори
 
-Два CLI/редакторні інструменти, які працюють **на реальному коді Core**, не на копії правил:
+**`Tools/InkFlow.Sim`** — CLI на реальному Core (компілює `Assets/_Scripts/Core/**/*.cs` як звичайний .NET-проєкт). Жадібний бот на один хід із шумом; три пресети (`--bot sloppy|default|careful`), довільні ваги (`--weights`), перенесення незавершених між послідовними забігами (типово ввімкнено, `--no-carry`). Виводить розміщення, лінії, частку чистих, виплески й їхні відтінки, картинки, зони, фарбу мимо, рідкість, врятовано/анульовано, «тиск», несправедливі смерті (код повернення 1, якщо є). Це нижня межа гравця: бот не планує колір через кілька лотків, і саме тому міри «мимо» в нього ~45–60 %.
 
-**`LevelSolver`** — пошук у ширину/A* по стану сітки:
-- доводить, що рівень розв'язний у межах ходів;
-- знаходить мінімальну кількість ходів → з неї виводяться пороги 2★/3★;
-- будує звіт «складність» (розгалуженість дерева рішень).
-*Нерозв'язний рівень не має права потрапити в збірку — це перевіряється в тесті, а не очима.*
+**`EconomySimulator`** (редактор) — 30 днів життя гравця через `CompleteLevel`; на новий забіг (`CompleteRun`) ще не переведений.
 
-**`EconomySimulator`** — 30 днів життя «середнього» гравця:
-- скільки нафти зароблено/витрачено, коли відкривається кожен тір фарб;
-- чи не впирається гравець у стіну, чи не тоне в надлишку;
-- вихід — CSV + графік, ціни в `EconomyConfig` підбираються за ним, а не на око.
+`LevelSolver` старого ядра видалено разом із рівнями; режим «Рівні» — «Скоро».
 
 ---
 
 ## 16. Git-workflow і `CLAUDE.md`
 
-- Гілка на фазу: `phase-1-core`, `phase-2-feel`, ...; окремий коміт на кожен пункт фази, повідомлення — імперативом українською або англійською, послідовно.
-- **Git LFS** для `.png`, `.wav`, `.psd`, `.fbx` — `.gitattributes` налаштувати до першого арту, інакше репозиторій розпухне назавжди.
-- `.gitignore` — стандартний Unity + `/Builds`, `/Logs`, keystore, `*.xcodeproj` артефакти.
-- **Force Text** серіалізація + Visible Meta Files — інакше мерджити сцени неможливо.
-- `CLAUDE.md` у корені — джерело правди про **стан** проєкту: що зроблено, що наступне, відомі особливості середовища. Оновлювати в кінці кожної фази, не лишати знімком першого дня.
+- Гілка на фазу (зараз `core-v2`); окремий коміт на кожен крок §11 майстер-доку; імперативні повідомлення українською.
+- **Git LFS** для `.png`, `.wav`, `.psd`, `.fbx`; Force Text + Visible Meta Files.
+- `Assets/_Prefabs/Screens/GalaxyScreen.prefab` — автор править сам; у коміти сесії не входив.
+- `CLAUDE.md` у корені — стан проєкту; `docs/implementation-notes.md` — журнал рішень, відступів, сиріт і цифр прогонів.
 
 ---
 
 ## 17. Відповідність фазам розробки
 
-| Фаза | Що з цієї архітектури будується |
+| Фаза | Стан |
 |---|---|
-| **1. Ядро** | asmdef-структура, Core повністю (§4–6), `MoveResult`-події, пули, базовий `GridView`, свайп-інпут, 3 рівні, HUD, Core.Tests |
-| **2. Feel** | `Feel/`-аніматори, частинки через пул, звук, `IHapticService` з реальними реалізаціями, прев'ю зони, near-miss, комбо, тряска |
-| **3. Метагра** | `InkFlow.Meta` цілком, збереження з міграціями, `NavigationStack` і всі екрани, Addressables-групи, `FeatureFlags.SocialEnabled = false` |
-| **4. Баланс** | `LevelSolver`, `EconomySimulator`, локальний лог подій економіки, підбір конфігів |
-| **5. Реліз** | §13 цілком, `Null*`→реальні Platform-сервіси, приватність, аналітика, crash reporting, тести на реальних low-end пристроях |
-| **6. Соціалка** | UGS (Auth, Cloud Save, Leaderboards, Friends), `ReadOnly`-галактика по мережі, процедурні галактики від сіда, лайв-опс |
+| **1. Ядро** | ✅ переписано (Сесія 2, кроки 1–4): поле, мішок, лінії, баки, змішувач, картинки; стрічка подій; 8×8 |
+| **2. Feel** | ✅ для нового ядра: привид, зрив ліній, «+фарба», струмені й виплеск змішувача, мазок і спалах картинки; звук/гаптика — через `BoardFeedback` |
+| **3. Метагра** | ✅ прив'язано (крок 7): очки → нафта, колекція, розміщення, рекорд колекції в рейтингах; «Рівні» — «Скоро» |
+| **4. Баланс** | ⚠️ цифри є (прогони кроків 1–6), але руками не грано; важелі записано в нотатках |
+| **5. Реліз** | ⛔ Platform-реалізації, приватність, білди |
+| **6. Соціалка** | ⛔ UGS, тижневі зрізи рейтингів |
 
 ---
 
@@ -542,24 +456,24 @@ public interface INotificationService{ void Schedule(...); }
 Якщо якась зміна ламає щось із цього — змінюється рішення, а не інваріант.
 
 1. **Core не знає про Unity.** Ніколи.
-2. **Зона вибуху — завжди хрест із 4 клітинок**, незалежно від сили.
-3. **`PaintPower ≤ threshold − 1`.** Вибух не може створити краплю, яка лопне без рішення гравця.
-4. **Чужий колір розмивається, а не конвертується миттєво.**
-5. **Єдина перевірка живості поля — `HasAnyMove()`.** Вибух не є умовою перемоги.
-6. **Система не вбиває гравця сама:** у Endless завжди є fallback, у Puzzle кожен рівень доведено розв'язним. Помиляється гравець — не гра.
-7. **У Puzzle рандом детермінований від сіда рівня.**
-8. **Бос телеграфує дію за хід наперед**, завжди.
+2. **Фігури не обертаються, лоток — три, поповнення — лише коли всі три поставлено.**
+3. **Чиста лінія дає в рази більше фарби, ніж мішана** (`PureLineBonus` ≥ 2), і фарба йде лише в бак свого кольору.
+4. **Змішувач спрацьовує сам** при накопиченні на виплеск; відтінок — лише з пропорції в баках (§4). Гравець нічого не тапає.
+5. **Виплеск лягає лише в зону свого відтінку**; непотрібний відтінок нічого не малює.
+6. **Система не вбиває гравця сама:** мішок ніколи не видає неможливий набір, поки влазить двоклітинкова; єдина перевірка живості — `NoPieceFits()`.
+7. **Незавершена — одна одночасно, три перенесені забіги, гарантовано перша наступного забігу.**
+8. **Гра показує картинку до першого ходу.**
 9. **Нуль `Instantiate`/`Destroy` під час партії.**
-10. **Баланс живе в конфігах**, не в коді.
-11. **Донат не впливає на проходження режимів** — жодного API, що дає перевагу за гроші.
-12. **Збереження версіоноване й пишеться атомарно.**
+10. **Баланс живе в конфігах**, контент — у кресленнях Core.
+11. **Донат не впливає на проходження забігу** — «домалювати» не чіпає поле, рахунок і лоток.
+12. **Збереження версіоноване й пишеться атомарно; ідентифікатори у файлі — назви.**
 
 ---
 
 ## Швидкий старт для нової сесії Claude Code
 
-1. Прочитай `ink-flow-master-doc.md` (ігрова правда) і цей файл (технічна правда).
-2. Прочитай `CLAUDE.md` — там стан проєкту на зараз.
+1. Прочитай `docs/ink-flow-core-final.md` (ігрова правда) і цей файл (технічна правда).
+2. Прочитай `CLAUDE.md` — там стан проєкту й особливості середовища; `docs/implementation-notes.md` — чому саме так.
 3. Звір інваріанти §18 перед будь-якою зміною в Core.
-4. Нова механіка = спершу тест у `InkFlow.Core.Tests`, потім реалізація, потім вигляд.
+4. Нова механіка = спершу тест у `InkFlow.Core.Tests`, потім реалізація, потім вигляд; після — прогін бота.
 5. Будь-яке нове число → в конфіг, не в код.
