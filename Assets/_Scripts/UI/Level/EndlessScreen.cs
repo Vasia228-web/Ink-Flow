@@ -1,6 +1,7 @@
 using System.Collections;
 using InkFlow.Core;
 using InkFlow.Meta;
+using InkFlow.Platform;
 using InkFlow.Style;
 using TMPro;
 using UnityEngine;
@@ -89,6 +90,16 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text overCollectedLabel;
         [SerializeField] private PictureView[] overThumbs = System.Array.Empty<PictureView>();
 
+        [Header("Реклама й донат (§9)")]
+        [SerializeField] private Button overContinue;
+        [SerializeField] private TMP_Text overContinueLabel;
+        [SerializeField] private Button overDouble;
+        [SerializeField] private TMP_Text overDoubleLabel;
+        [SerializeField] private Button overRescue;
+        [SerializeField] private TMP_Text overRescueLabel;
+        [SerializeField] private Button overFinishPicture;
+        [SerializeField] private TMP_Text overFinishPictureLabel;
+
         [Header("Картка перед забігом (§6: гра показує картинку заздалегідь)")]
         [SerializeField] private RectTransform introCard;
         [SerializeField] private CanvasGroup introGroup;
@@ -111,6 +122,23 @@ namespace InkFlow.UI
         private PlayerState? _state;
         private Coroutine? _intro;
         private bool _annulled;
+        private IAdsService? _ads;
+        private IIapService? _iap;
+        private bool _finalised;
+        private long _rewardForScore;
+        private bool _doubled;
+        private int _annulledIndex = -1;
+        private readonly System.Collections.Generic.List<int> _annulledFilled = new System.Collections.Generic.List<int>(20);
+
+        /// <summary>Ідентифікатор товару «домалювати картинку одразу» (§9). Ціну показує стор.</summary>
+        public const string FinishPictureProductId = "finish_picture";
+
+        /// <summary>Платформні сервіси підставляє композиційний корінь: без них кнопок §9 просто немає.</summary>
+        public void BindServices(IAdsService? ads, IIapService? iap)
+        {
+            _ads = ads;
+            _iap = iap;
+        }
 
         private LiveRecord _record;
         private bool _overflow;
@@ -143,11 +171,19 @@ namespace InkFlow.UI
             if (restartButton != null)
                 restartButton.onClick.AddListener(Restart);
             if (overAgain != null)
-                overAgain.onClick.AddListener(Restart);
+                overAgain.onClick.AddListener(OnAgainClicked);
             if (overMenu != null)
-                overMenu.onClick.AddListener(() => BackRequested?.Invoke());
+                overMenu.onClick.AddListener(() => LeaveRun(() => BackRequested?.Invoke()));
             if (introButton != null)
                 introButton.onClick.AddListener(OnIntroTapped);
+            if (overContinue != null)
+                overContinue.onClick.AddListener(OnContinueClicked);
+            if (overDouble != null)
+                overDouble.onClick.AddListener(OnDoubleClicked);
+            if (overRescue != null)
+                overRescue.onClick.AddListener(OnRescueClicked);
+            if (overFinishPicture != null)
+                overFinishPicture.onClick.AddListener(OnFinishPictureClicked);
             if (board != null)
             {
                 board.Router.PlaceRequested += OnPlaceRequested;
@@ -217,6 +253,9 @@ namespace InkFlow.UI
             GameEvents.RaiseSessionStarted(_session);
 
             _record = new LiveRecord(_progress?.EndlessRecord ?? _record.Stored);
+            _finalised = false;
+            _annulled = false;
+            _rewardForScore = 0;
             _overflow = false;
             _hintPending = false;
             _dragging = -1;
@@ -586,10 +625,7 @@ namespace InkFlow.UI
             if (_session != null && _session.IsOver)
             {
                 GameEvents.RaiseSessionEnded(_session.State);
-                // §7: незавершена реєструється або витрачає спробу; на третій — анулюється.
-                _annulled = _state?.SettleUnfinished(_session.Picture.CatalogIndex, _session.Picture.Filled,
-                    _session.StartedWithCarried) ?? false;
-                ShowOver();
+                OnLost();
             }
         }
 
@@ -807,7 +843,147 @@ namespace InkFlow.UI
 
         // ── Фінал ──
 
-        private void ShowOver()
+        // ── Кінець партії: дві фази (§9) ──
+
+        /// <summary>
+        /// Програш. Якщо продовжити ще можна і ролик готовий — картка з «Продовжити за ролик»
+        /// і «Завершити», без нагород: рахувати їх зараз означало б платити двічі. Інакше —
+        /// одразу фінал.
+        /// </summary>
+        private void OnLost()
+        {
+            if (_session == null)
+                return;
+            var canContinue = _session.CanContinue && _ads != null && _ads.IsRewardedReady;
+            if (canContinue)
+                ShowOver(final: false);
+            else
+                FinishRun();
+        }
+
+        /// <summary>Фінал: §7 (незавершена), §10 (нафта, рекорди, партія дня), картка з нагородами.</summary>
+        private void FinishRun()
+        {
+            if (_session == null || _finalised)
+                return;
+            _finalised = true;
+            _doubled = false;
+            _annulledIndex = -1;
+            _annulledFilled.Clear();
+
+            var index = _session.Picture.CatalogIndex;
+            var filled = _session.Picture.Filled;
+            // §7: незавершена реєструється або витрачає спробу; на третій — анулюється.
+            _annulled = _state?.SettleUnfinished(index, filled, _session.StartedWithCarried) ?? false;
+            if (_annulled)
+            {
+                _annulledIndex = index;
+                for (var i = 0; i < filled.Count; i++)
+                    _annulledFilled.Add(filled[i]);
+            }
+
+            ShowOver(final: true);
+        }
+
+        private void OnContinueClicked()
+        {
+            if (_session == null || _ads == null || !_session.CanContinue)
+                return;
+            _ads.ShowRewarded(watched =>
+            {
+                if (!watched || _session == null || !_session.CanContinue)
+                    return;
+                var result = _session.ContinueAfterLoss();
+                if (!result.Accepted)
+                    return;
+                HideOver();
+                board?.Bind(_session);
+                tray?.Show(_session.Tray);
+                if (board != null)
+                    board.Router.Locked = false;
+                _idleSince = Time.time;
+                GameEvents.RaiseSessionStarted(_session);
+            });
+        }
+
+        private void OnDoubleClicked()
+        {
+            if (_state == null || _ads == null || _doubled || _rewardForScore <= 0)
+                return;
+            _ads.ShowRewarded(watched =>
+            {
+                if (!watched || _state == null || _doubled)
+                    return;
+                var bonus = _state.DoubleRunReward(_rewardForScore);
+                _doubled = true;
+                Toggle(overDouble, false);
+                if (bonus > 0 && rewardNumber != null)
+                    rewardNumber.text = $"+{Format(_rewardForScore * 2 + (_lastReward - _rewardForScore))}";
+            });
+        }
+
+        private void OnRescueClicked()
+        {
+            if (_state == null || _ads == null || _annulledIndex < 0)
+                return;
+            _ads.ShowRewarded(watched =>
+            {
+                if (!watched || _state == null || _annulledIndex < 0)
+                    return;
+                _state.RestoreUnfinishedAttempt(_annulledIndex, _annulledFilled);
+                _annulledIndex = -1;
+                Toggle(overRescue, false);
+                if (overBestLabel != null && _session != null)
+                    overBestLabel.text = $"«{_session.Pictures[_state.Unfinished.PictureIndex].Name}» повернуто — одна спроба";
+            });
+        }
+
+        private void OnFinishPictureClicked()
+        {
+            if (_state == null || _iap == null || _session == null || _session.Picture.IsComplete)
+                return;
+            _iap.Buy(FinishPictureProductId, purchase =>
+            {
+                if (!purchase.Success || _session == null || _state == null)
+                    return;
+                var def = _session.Picture.Def;
+                var result = _session.CompletePictureNow();
+                if (!result.Accepted)
+                    return;
+                _state.CollectPicture(def.Id, System.DateTime.UtcNow);
+                _state.RewardPicture(def.Rarity);
+                picture?.Show(_session.Picture);
+                Toggle(overFinishPicture, false);
+                ShowCollected();
+                if (overBestLabel != null)
+                    overBestLabel.text = $"«{def.Name}» домальовано — у колекції";
+            });
+        }
+
+        private void OnAgainClicked()
+        {
+            if (!_finalised)
+            {
+                FinishRun();
+                return;
+            }
+            LeaveRun(Restart);
+        }
+
+        /// <summary>§9: інтерстиціал між забігами — раз на кілька, і лише коли партія вже завершена.</summary>
+        private void LeaveRun(System.Action then)
+        {
+            if (!_finalised)
+                FinishRun();
+            if (_state != null && _ads != null && _state.ShouldShowInterstitial && _ads.IsInterstitialReady)
+                _ads.ShowInterstitial(then);
+            else
+                then();
+        }
+
+        private long _lastReward;
+
+        private void ShowOver(bool final)
         {
             if (overCard == null || design == null || _session == null)
                 return;
@@ -816,7 +992,7 @@ namespace InkFlow.UI
             overCard.gameObject.SetActive(true);
 
             var score = _session.Score;
-            var newRecord = _record.Beaten;
+            var newRecord = final && _record.Beaten;
 
             if (overScrim != null) overScrim.color = design.OverScrim;
             if (overPanel != null) overPanel.SetGradient(design.OverCardFrom, design.OverCardTo);
@@ -838,12 +1014,14 @@ namespace InkFlow.UI
                 if (recordChipLabel != null) recordChipLabel.text = "НОВИЙ РЕКОРД";
             }
 
-            var reward = Award(score);
+            var reward = final ? Award(score) : 0;
+            _lastReward = reward;
             Toggle(rewardRow, reward > 0);
             if (reward > 0 && isActiveAndEnabled)
                 StartCoroutine(CountRewardRoutine(reward));
 
             ApplyFont(overBestLabel, design.FontSizeOverBest, design.TextMuted, FontStyles.Bold, 0f);
+            Toggle(overBestLabel, final);
             if (overBestLabel != null)
                 overBestLabel.text = _annulled
                     ? $"Картинку «{_session.Picture.Def.Name}» анульовано — спроби вичерпано"
@@ -852,15 +1030,56 @@ namespace InkFlow.UI
             if (overAgainFill != null)
                 overAgainFill.SetGradient(design.AccentTeal, design.AccentBlue);
             ApplyFont(overAgainLabel, design.FontSizeOverPrimary, design.TextPrimary, FontStyles.Bold, 0f);
-            if (overAgainLabel != null) overAgainLabel.text = "Ще раз";
+            if (overAgainLabel != null) overAgainLabel.text = final ? "Ще раз" : "Завершити";
 
             ApplyFont(overMenuLabel, design.FontSizeOverSecondary, design.TextMuted, FontStyles.Bold, 0f);
             if (overMenuLabel != null) overMenuLabel.text = "В меню";
+            Toggle(overMenu, final);
 
-            ShowCollected();
+            if (final)
+                ShowCollected();
+            else
+            {
+                Toggle(overCollectedLabel, false);
+                foreach (var thumb in overThumbs)
+                    Toggle(thumb, false);
+            }
 
-            if (_record.Commit() && isActiveAndEnabled)
+            ShowAdChips(final);
+
+            if (final && _record.Commit() && isActiveAndEnabled)
                 _confetti = StartCoroutine(ConfettiRoutine());
+        }
+
+        /// <summary>Чипи §9: продовжити (до фіналу), подвоїти, повернути картинку, домалювати за донат.</summary>
+        private void ShowAdChips(bool final)
+        {
+            if (_session == null || design == null)
+                return;
+            var adsReady = _ads != null && _ads.IsRewardedReady;
+
+            var showContinue = !final && adsReady && _session.CanContinue;
+            Toggle(overContinue, showContinue);
+            ApplyFont(overContinueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
+            if (overContinueLabel != null) overContinueLabel.text = "Продовжити за ролик";
+
+            var showDouble = final && adsReady && !_doubled && _rewardForScore > 0;
+            Toggle(overDouble, showDouble);
+            ApplyFont(overDoubleLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
+            if (overDoubleLabel != null) overDoubleLabel.text = "Подвоїти нафту · ролик";
+
+            var showRescue = final && adsReady && _annulledIndex >= 0 &&
+                             _session.Pictures[_annulledIndex].Rarity != Rarity.Common;
+            Toggle(overRescue, showRescue);
+            ApplyFont(overRescueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
+            if (overRescueLabel != null) overRescueLabel.text = "Повернути картинку · ролик";
+
+            var showFinish = final && _iap != null && _state != null && !_session.Picture.IsComplete &&
+                             _session.Picture.TotalFilled > 0;
+            Toggle(overFinishPicture, showFinish);
+            ApplyFont(overFinishPictureLabel, design.FontSizeOverSecondary, design.AccentGold, FontStyles.Bold, 0f);
+            if (overFinishPictureLabel != null)
+                overFinishPictureLabel.text = $"Домалювати «{_session.Picture.Def.Name}» одразу";
         }
 
         /// <summary>Галерея партії (§11 крок 5): що домальовано цього забігу.</summary>
@@ -915,6 +1134,7 @@ namespace InkFlow.UI
 
             var reward = _state.CompleteRun(
                 new RunSummary(score, _session.BestChain, common, rare, legendary), System.DateTime.UtcNow);
+            _rewardForScore = reward.ForScore;
             return reward.Total;
         }
 

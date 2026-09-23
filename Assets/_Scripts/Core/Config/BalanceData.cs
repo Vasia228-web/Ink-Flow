@@ -49,8 +49,12 @@ namespace InkFlow.Core
             int cellsPerSplash = 12,
             int maxSplashesPerZone = 3,
             int[]? rarityWeights = null,
-            int unfinishedAttempts = 3)
+            int unfinishedAttempts = 3,
+            int continuesPerRun = 1)
         {
+            if (continuesPerRun < 0)
+                throw new ArgumentOutOfRangeException(nameof(continuesPerRun));
+            ContinuesPerRun = continuesPerRun;
             if (unfinishedAttempts < 1)
                 throw new ArgumentOutOfRangeException(nameof(unfinishedAttempts));
             UnfinishedAttempts = unfinishedAttempts;
@@ -127,6 +131,11 @@ namespace InkFlow.Core
             CellsPerSplash = cellsPerSplash;
             MaxSplashesPerZone = maxSplashesPerZone;
         }
+
+        // ── Продовження після програшу (§9) ──
+
+        /// <summary>Скільки разів за забіг можна продовжити після програшу (за ролик). §9: «раз за забіг».</summary>
+        public int ContinuesPerRun { get; }
 
         // ── Незавершена картинка (§7, §12) ──
 

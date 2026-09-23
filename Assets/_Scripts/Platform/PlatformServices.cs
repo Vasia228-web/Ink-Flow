@@ -25,7 +25,14 @@ namespace InkFlow.Platform
     public interface IAdsService
     {
         bool IsRewardedReady { get; }
+
+        /// <summary>Ролик за нагороду (майстер-док §9): done(true) — додивився, можна платити.</summary>
         void ShowRewarded(Action<bool> done);
+
+        bool IsInterstitialReady { get; }
+
+        /// <summary>Інтерстиціал між забігами (§9: раз на три-чотири). done — коли закрито.</summary>
+        void ShowInterstitial(Action done);
     }
 
     public readonly struct PurchaseResult

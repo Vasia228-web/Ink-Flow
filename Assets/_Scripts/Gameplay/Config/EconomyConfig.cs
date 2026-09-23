@@ -47,6 +47,13 @@ namespace InkFlow.Gameplay
         [Tooltip("Нафта за домальовану картинку: звичайна, рідкісна, легендарна.")]
         [SerializeField] private long[] pictureRewards = { 10, 30, 100 };
 
+        [Header("Реклама (§9)")]
+        [Tooltip("Інтерстиціал раз на стільки забігів. 0 — ніколи.")]
+        [SerializeField, Min(0)] private int interstitialEveryRuns = 4;
+
+        [Tooltip("Множник нафти за очки після ролика «подвоїти».")]
+        [SerializeField, Min(1)] private int rewardAdMultiplier = 2;
+
         public EconomyData ToEconomyData() => new EconomyData(
             starterOil,
             starterPaintLiters,
@@ -56,6 +63,8 @@ namespace InkFlow.Gameplay
             reducedRewardRate,
             endlessMilestones,
             scorePerOil,
-            pictureRewards);
+            pictureRewards,
+            interstitialEveryRuns,
+            rewardAdMultiplier);
     }
 }

@@ -39,8 +39,32 @@ namespace InkFlow.Platform
     public sealed class NullAds : IAdsService
     {
         public bool IsRewardedReady => false;
+        public bool IsInterstitialReady => false;
 
         public void ShowRewarded(Action<bool> done) => done?.Invoke(false);
+        public void ShowInterstitial(Action done) => done?.Invoke();
+    }
+
+    /// <summary>
+    /// Реклама «навмання» для редактора й dev-збірок: завжди готова, «додивляється» миттєво.
+    /// Так кнопки §9 можна пройти руками до підключення SDK. У релізі — NullAds або справжня.
+    /// </summary>
+    public sealed class FakeAds : IAdsService
+    {
+        public bool IsRewardedReady => true;
+        public bool IsInterstitialReady => true;
+
+        public void ShowRewarded(Action<bool> done)
+        {
+            Debug.Log("[ads] fake rewarded — зараховано без ролика");
+            done?.Invoke(true);
+        }
+
+        public void ShowInterstitial(Action done)
+        {
+            Debug.Log("[ads] fake interstitial — пропущено");
+            done?.Invoke();
+        }
     }
 
     public sealed class FakeIap : IIapService

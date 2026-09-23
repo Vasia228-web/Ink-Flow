@@ -43,7 +43,10 @@ namespace InkFlow.Core
         SplashMissed = 12,
 
         /// <summary>Прийшла наступна картинка: Value = індекс картинки в колоді.</summary>
-        PictureStarted = 13
+        PictureStarted = 13,
+
+        /// <summary>Забіг продовжено після програшу (§9, раз за забіг): поле очищено, Value = скільки разів продовжували.</summary>
+        RunContinued = 14
     }
 
     /// <summary>

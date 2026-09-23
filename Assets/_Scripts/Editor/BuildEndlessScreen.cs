@@ -175,7 +175,11 @@ namespace InkFlow.Editor
                 out var overBestLabel, out var overAgain, out var overAgainFill,
                 out var overAgainLabel, out var overMenu, out var overMenuLabel,
                 out var confettiRoot, out var confetti,
-                out var overCollectedLabel, out var overThumbs);
+                out var overCollectedLabel, out var overThumbs,
+                out var overContinue, out var overContinueLabel,
+                out var overDouble, out var overDoubleLabel,
+                out var overRescue, out var overRescueLabel,
+                out var overFinishPicture, out var overFinishPictureLabel);
 
             Wire(screen,
                 ("design", design!),
@@ -199,6 +203,10 @@ namespace InkFlow.Editor
                 ("overAgainLabel", overAgainLabel),
                 ("overMenu", overMenu), ("overMenuLabel", overMenuLabel),
                 ("confettiRoot", confettiRoot), ("overCollectedLabel", overCollectedLabel),
+                ("overContinue", overContinue), ("overContinueLabel", overContinueLabel),
+                ("overDouble", overDouble), ("overDoubleLabel", overDoubleLabel),
+                ("overRescue", overRescue), ("overRescueLabel", overRescueLabel),
+                ("overFinishPicture", overFinishPicture), ("overFinishPictureLabel", overFinishPictureLabel),
                 ("introCard", introCard), ("introGroup", introGroup), ("introScrim", introScrim),
                 ("introPanel", introPanel), ("introPanelStroke", introPanelStroke),
                 ("introPicture", introPicture), ("introKicker", introKicker), ("introName", introName),
@@ -857,7 +865,11 @@ namespace InkFlow.Editor
             out TMP_Text bestLabel, out Button again, out GradientImage againFill,
             out TMP_Text againLabel, out Button menu, out TMP_Text menuLabel,
             out RectTransform confettiRoot, out Image[] confetti,
-            out TMP_Text collectedLabel, out PictureView[] thumbs)
+            out TMP_Text collectedLabel, out PictureView[] thumbs,
+            out Button continueButton, out TMP_Text continueLabel,
+            out Button doubleButton, out TMP_Text doubleLabel,
+            out Button rescueButton, out TMP_Text rescueLabel,
+            out Button finishButton, out TMP_Text finishLabel)
         {
             var go = Child(parent, "GameOver");
             Stretch(go);
@@ -889,8 +901,8 @@ namespace InkFlow.Editor
             panel.sprite = rounded;
             panel.type = Image.Type.Sliced;
             panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
-            // 330 у макеті + ряд галереї зібраного (§11 крок 5): підпис 16 і мініатюри 60.
-            Place(panel, Vector2.zero, new Vector2(M(296f), M(420f)),
+            // 330 у макеті + ряд галереї зібраного (§11 крок 5) + два ряди чипів §9.
+            Place(panel, Vector2.zero, new Vector2(M(296f), M(530f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var strokeGo = Child(panelGo, "Stroke");
@@ -983,6 +995,20 @@ namespace InkFlow.Editor
                 thumbGo.SetActive(false);
             }
 
+            // Чипи §9: ряд 1 — «Подвоїти» | «Повернути картинку» (або «Продовжити» до фіналу),
+            // ряд 2 — «Домалювати одразу» (донат). Скляні, з підписом; ховаються, коли не до чого.
+            var chipH = M(40f);
+            var chipGap = M(8f);
+            var chipW = (M(244f) - chipGap) * 0.5f;
+            continueButton = OverChip(panelGo, "Continue", design, font, rounded, outline, "Продовжити за ролик",
+                new Vector2(0f, M(116f)), new Vector2(M(244f), chipH), out continueLabel);
+            doubleButton = OverChip(panelGo, "Double", design, font, rounded, outline, "Подвоїти нафту · ролик",
+                new Vector2(-(chipW + chipGap) * 0.5f, M(116f)), new Vector2(chipW, chipH), out doubleLabel);
+            rescueButton = OverChip(panelGo, "Rescue", design, font, rounded, outline, "Повернути картинку · ролик",
+                new Vector2((chipW + chipGap) * 0.5f, M(116f)), new Vector2(chipW, chipH), out rescueLabel);
+            finishButton = OverChip(panelGo, "FinishPicture", design, font, rounded, outline, "Домалювати одразу",
+                new Vector2(0f, M(162f)), new Vector2(M(244f), chipH), out finishLabel);
+
             var againGo = Child(panelGo, "Again");
             againFill = againGo.AddComponent<GradientImage>();
             againFill.sprite = rounded;
@@ -1014,6 +1040,37 @@ namespace InkFlow.Editor
             menu.targetGraphic = menuLabel;
 
             go.SetActive(false);
+        }
+
+        /// <summary>Скляний чип-кнопка картки фіналу, якорем знизу панелі.</summary>
+        private static Button OverChip(GameObject parent, string name, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, string caption, Vector2 position, Vector2 size, out TMP_Text label)
+        {
+            var go = Child(parent, name);
+            var fill = go.AddComponent<Image>();
+            fill.sprite = rounded;
+            fill.type = Image.Type.Sliced;
+            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(14f));
+            fill.color = design.GlassFill;
+            Place(fill, position, size, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+
+            var strokeGo = Child(go, "Stroke");
+            Stretch(strokeGo);
+            var stroke = strokeGo.AddComponent<Image>();
+            stroke.sprite = outline;
+            stroke.type = Image.Type.Sliced;
+            stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(14f));
+            stroke.color = design.GlassStroke;
+            stroke.raycastTarget = false;
+
+            label = Label(go, "Label", caption, design, font,
+                design.FontSizeOverSecondary, design.TextPrimary, TextAlignmentOptions.Center);
+            Stretch(label.gameObject);
+
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = fill;
+            go.SetActive(false);
+            return button;
         }
     }
 }

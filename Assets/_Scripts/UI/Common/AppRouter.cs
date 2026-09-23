@@ -64,6 +64,10 @@ namespace InkFlow.UI
             endless?.BindState(state);
         }
 
+        /// <summary>Платформні сервіси для кнопок §9 — лише туди, де вони потрібні.</summary>
+        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap) =>
+            endless?.BindServices(ads, iap);
+
         private void Awake() => WireGraph();
 
         private void Start()

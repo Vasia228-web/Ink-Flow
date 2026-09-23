@@ -371,6 +371,78 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(Pigment.Red, pure.WantedPigment);
         }
 
+        [Test]
+        public void ContinueAfterLoss_WorksExactlyOncePerRun()
+        {
+            var session = LostSession(out var scoreAtLoss);
+            Assert.IsTrue(session.IsOver);
+            Assert.IsTrue(session.CanContinue);
+            var tanksAtLoss = session.Tanks.Total;
+            var pictureAtLoss = session.Picture.TotalFilled;
+
+            var result = session.ContinueAfterLoss();
+
+            Assert.IsTrue(result.Accepted);
+            Assert.IsTrue(result.Has(GameEventType.RunContinued));
+            Assert.IsTrue(result.Has(GameEventType.TrayRefilled), "лоток новий");
+            Assert.IsFalse(session.IsOver);
+            Assert.AreEqual(64, session.Board.CountEmpty(), "поле чисте");
+            Assert.AreEqual(scoreAtLoss, session.Score, "рахунок лишається");
+            Assert.AreEqual(tanksAtLoss, session.Tanks.Total, "баки лишаються");
+            Assert.AreEqual(pictureAtLoss, session.Picture.TotalFilled, "картинка лишається");
+            Assert.AreEqual(1, session.ContinuesUsed);
+            Assert.IsFalse(session.CanContinue, "§9: раз за забіг");
+
+            session.Restart();
+            Assert.AreEqual(0, session.ContinuesUsed);
+        }
+
+        [Test]
+        public void CompletePictureNow_FillsEveryZoneAndMovesOn()
+        {
+            var session = TestBoard.NewSession();
+            var before = session.Picture.CatalogIndex;
+            var zones = session.Picture.ZoneCount;
+
+            var result = session.CompletePictureNow();
+
+            Assert.IsTrue(result.Accepted);
+            Assert.AreEqual(zones, result.CountEvents(GameEventType.ZoneFilled));
+            Assert.AreEqual(zones, result.ZonesCompleted);
+            Assert.AreEqual(1, result.PicturesCompleted);
+            Assert.AreEqual(before, FindEvent(result, GameEventType.PictureCompleted).Value);
+            Assert.AreNotEqual(before, session.Picture.CatalogIndex, "прийшла наступна");
+            Assert.AreEqual(1, session.PicturesCompleted);
+            Assert.AreEqual(before, session.PicturesCollected[0]);
+            Assert.AreEqual(0, session.PlacementCount, "донат не чіпає поле й рахунок");
+            Assert.AreEqual(0, session.Score);
+        }
+
+        /// <summary>Сесія, доведена до програшу одним ходом: поле в шаховому порядку з двома дірками, у руці — те, що влазить лише в одну.</summary>
+        private static RunSession LostSession(out int score)
+        {
+            var session = TestBoard.NewSession();
+            for (var y = 0; y < 7; y++)
+                TestBoard.FillRow(session.Board, y, "brbrbrbr");
+            TestBoard.FillRow(session.Board, 7, "brbrbr..");
+            session.Tanks.Pour(Pigment.Blue, 3);
+            // Перший хід закриває дірки й зриває лінії; далі граємо «куди влазить», доки не
+            // прийде програш — лоток із великих фігур на майже повному полі гарантує його швидко.
+            TestBoard.SetTray(session, TestBoard.Piece("2h", Pigment.Yellow), TestBoard.Piece("5h", Pigment.Red), TestBoard.Piece("plus", Pigment.Blue));
+            var result = session.TryPlace(0, new GridPos(6, 7));
+            Assert.IsTrue(result.Accepted);
+            var guard = 0;
+            while (!session.IsOver && guard++ < 40)
+            {
+                if (!PlacementRules.TryFindHint(session.Board, session.TrayPieces, out var index, out var anchor))
+                    break;
+                session.TryPlace(index, anchor);
+            }
+            Assert.IsTrue(session.IsOver, "сесія мала програти");
+            score = session.Score;
+            return session;
+        }
+
         private static int IndexOf(MoveResult result, GameEventType type)
         {
             for (var i = 0; i < result.Events.Count; i++)

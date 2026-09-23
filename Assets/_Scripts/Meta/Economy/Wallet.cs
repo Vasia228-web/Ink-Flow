@@ -16,7 +16,10 @@ namespace InkFlow.Meta
         RunScore,
 
         /// <summary>Домальована картинка (§5).</summary>
-        PictureCompleted
+        PictureCompleted,
+
+        /// <summary>Ролик за нагороду (§9): подвоєння нафти за забіг.</summary>
+        RewardAd
     }
 
     /// <summary>

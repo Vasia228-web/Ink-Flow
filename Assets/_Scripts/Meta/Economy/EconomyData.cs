@@ -20,8 +20,16 @@ namespace InkFlow.Meta
             float reducedRewardRate = 0.25f,
             long[]? endlessMilestones = null,
             long scorePerOil = 100,
-            long[]? pictureRewards = null)
+            long[]? pictureRewards = null,
+            int interstitialEveryRuns = 4,
+            int rewardAdMultiplier = 2)
         {
+            if (interstitialEveryRuns < 0)
+                throw new ArgumentOutOfRangeException(nameof(interstitialEveryRuns));
+            if (rewardAdMultiplier < 1)
+                throw new ArgumentOutOfRangeException(nameof(rewardAdMultiplier));
+            InterstitialEveryRuns = interstitialEveryRuns;
+            RewardAdMultiplier = rewardAdMultiplier;
             if (scorePerOil < 1)
                 throw new ArgumentOutOfRangeException(nameof(scorePerOil));
             ScorePerOil = scorePerOil;
@@ -72,6 +80,12 @@ namespace InkFlow.Meta
 
         /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 10 / 30 / 100.</summary>
         public long[] PictureRewards { get; }
+
+        /// <summary>§9, §12: інтерстиціал раз на стільки забігів; 0 — ніколи. «Частіше — видаляють гру».</summary>
+        public int InterstitialEveryRuns { get; }
+
+        /// <summary>§9: «подвоїти зібране за ролик» — множник до нафти за очки.</summary>
+        public int RewardAdMultiplier { get; }
 
         public static EconomyData Default { get; } = new EconomyData();
     }

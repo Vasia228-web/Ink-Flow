@@ -148,6 +148,10 @@ namespace InkFlow.Core
             _events.Add(new GameEvent(GameEventType.PictureStarted, LineKind.Row, Pigment.None,
                 catalogIndex, 0, 0f, false, 0, 0));
 
+        internal void AddRunContinued(int continues) =>
+            _events.Add(new GameEvent(GameEventType.RunContinued, LineKind.Row, Pigment.None,
+                continues, 0, 0f, false, 0, 0));
+
         internal void AddTrayRefilled(int round) =>
             _events.Add(new GameEvent(GameEventType.TrayRefilled, LineKind.Row, Pigment.None,
                 round, 0, 0f, false, 0, 0));

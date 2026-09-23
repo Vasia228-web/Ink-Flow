@@ -79,6 +79,10 @@ namespace InkFlow.Gameplay
         [Tooltip("Скільки забігів на порятунок незавершеної картинки.")]
         [SerializeField, Min(1)] private int unfinishedAttempts = 3;
 
+        [Header("Продовження після програшу (§9)")]
+        [Tooltip("Скільки разів за забіг можна продовжити після програшу за ролик.")]
+        [SerializeField, Min(0)] private int continuesPerRun = 1;
+
         [Header("Рідкість (§6)")]
         [Tooltip("Ваги: звичайна, рідкісна, легендарна. Документ: 70 / 25 / 5.")]
         [SerializeField] private int[] rarityWeights = { 70, 25, 5 };
@@ -96,7 +100,7 @@ namespace InkFlow.Gameplay
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
             haloWarningFreeCells, hintIdleSeconds,
             mixerSplashSize, mixDominantShare, mixMinorShare,
-            cellsPerSplash, maxSplashesPerZone, rarityWeights, unfinishedAttempts);
+            cellsPerSplash, maxSplashesPerZone, rarityWeights, unfinishedAttempts, continuesPerRun);
 
         private void OnValidate()
         {

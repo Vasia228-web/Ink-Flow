@@ -258,6 +258,7 @@ namespace InkFlow.Core
             StartedWithCarried = false;
             CarriedIndex = -1;
             AttemptsLeft = 0;
+            ContinuesUsed = 0;
             Picture = DrawPicture(exclude: Picture.CatalogIndex);
             Score = 0;
             BestChain = 0;
@@ -270,6 +271,61 @@ namespace InkFlow.Core
                 TrayPieces[i] = PieceDef.None;
             _result.Reset();
             RefillTray(_result, silent: true);
+        }
+
+        /// <summary>Скільки разів продовжували після програшу цього забігу.</summary>
+        public int ContinuesUsed { get; private set; }
+
+        /// <summary>§9: продовжити можна лише після програшу і не більше, ніж дозволяє баланс.</summary>
+        public bool CanContinue => IsOver && ContinuesUsed < Balance.ContinuesPerRun;
+
+        /// <summary>
+        /// Продовження за ролик (§9): поле очищується, рахунок, баки й картинка лишаються,
+        /// лоток — новий. Повертає стрічку з однією подією <see cref="GameEventType.RunContinued"/>
+        /// і поповненням лотка; або порожню, якщо продовжувати не можна.
+        /// </summary>
+        public MoveResult ContinueAfterLoss()
+        {
+            _result.Reset();
+            if (!CanContinue)
+                return _result;
+
+            Board.Clear();
+            ContinuesUsed++;
+            State = GameState.Playing;
+            for (var i = 0; i < TrayPieces.Length; i++)
+                TrayPieces[i] = PieceDef.None;
+            _result.MarkAccepted();
+            _result.AddRunContinued(ContinuesUsed);
+            RefillTray(_result, silent: false);
+            return _result;
+        }
+
+        /// <summary>
+        /// Донат (§9): домалювати поточну картинку одразу. Заливає всі зони, зараховує
+        /// картинку, витягує наступну. На поле, лоток і рахунок не впливає — «донат не
+        /// впливає на проходження». Порожню стрічку — якщо картинка вже закінчена.
+        /// </summary>
+        public MoveResult CompletePictureNow()
+        {
+            _result.Reset();
+            if (Picture.IsComplete)
+                return _result;
+
+            _result.MarkAccepted();
+            for (var zone = 0; zone < Picture.ZoneCount; zone++)
+            {
+                var missing = Picture.Capacity(zone) - Picture.Filled[zone];
+                if (missing > 0)
+                    Picture.Apply(Picture.Def.Zones[zone].Hue, missing, _result);
+            }
+
+            _result.AddPictureCompleted(Picture.CatalogIndex);
+            PicturesCompleted++;
+            _collected.Add(Picture.CatalogIndex);
+            Picture = DrawPicture(exclude: Picture.CatalogIndex);
+            _result.AddPictureStarted(Picture.CatalogIndex);
+            return _result;
         }
 
         /// <summary>Підказка від застою: перша фігура й перше місце, куди вона влазить.</summary>

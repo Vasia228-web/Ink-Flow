@@ -57,6 +57,66 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void RewardAd_DoublesTheScoreRewardOnly()
+        {
+            var storage = new MemoryStorage();
+            var state = PlayerState.NewPlayer(EconomyData.Default, storage);
+            var reward = state.CompleteRun(new RunSummary(3_000, 1, 1, 0, 0), Today);
+            Assert.AreEqual(30, reward.ForScore);
+
+            var bonus = state.DoubleRunReward(reward.ForScore);
+
+            Assert.AreEqual(30, bonus, "×2 − 1 = ще стільки ж");
+            Assert.AreEqual(30 + 10 + 30, state.Wallet.OilDrops);
+            Assert.AreEqual(0, state.DoubleRunReward(0));
+            Assert.AreEqual(2, storage.Writes);
+        }
+
+        [Test]
+        public void Interstitial_EveryFourthRun()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            Assert.IsFalse(state.ShouldShowInterstitial, "до першого забігу — ні");
+            for (var i = 1; i <= 8; i++)
+            {
+                state.CompleteRun(new RunSummary(100, 1, 0, 0, 0), Today.AddMinutes(i));
+                Assert.AreEqual(i % 4 == 0, state.ShouldShowInterstitial, $"забіг {i}");
+            }
+            var never = PlayerState.NewPlayer(new EconomyData(interstitialEveryRuns: 0));
+            never.CompleteRun(new RunSummary(100, 1, 0, 0, 0), Today);
+            Assert.IsFalse(never.ShouldShowInterstitial);
+        }
+
+        [Test]
+        public void RescueAd_RestoresTheAnnulledPictureWithOneAttempt()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            var owl = state.Pictures.IndexOf("owl");
+            var filled = new List<int> { 8, 8, 0, 0, 0, 0, 0, 0, 0, 0 };
+            state.TrackUnfinished(owl, filled);
+            state.SettleUnfinished(owl, filled, wasCarried: false);
+            state.SettleUnfinished(owl, filled, wasCarried: true);
+            state.SettleUnfinished(owl, filled, wasCarried: true);
+            Assert.IsTrue(state.SettleUnfinished(owl, filled, wasCarried: true), "анульовано");
+            Assert.IsFalse(state.Unfinished.HasPicture);
+
+            state.RestoreUnfinishedAttempt(owl, filled);
+
+            Assert.IsTrue(state.Unfinished.HasPicture);
+            Assert.AreEqual(1, state.Unfinished.AttemptsLeft, "одна спроба за ролик");
+            Assert.AreEqual(8, state.Unfinished.Filled[1], "прогрес повернуто");
+            Assert.IsTrue(state.RunStart.HasValue);
+        }
+
+        [Test]
+        public void RewardPicture_PaysByRarity()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            Assert.AreEqual(100, state.RewardPicture(Rarity.Legendary));
+            Assert.AreEqual(100, state.Wallet.OilDrops);
+        }
+
+        [Test]
         public void Rankings_RecordIsTheCollection()
         {
             var state = PlayerState.NewPlayer(EconomyData.Default);

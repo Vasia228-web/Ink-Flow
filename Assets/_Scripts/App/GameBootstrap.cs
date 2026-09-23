@@ -52,7 +52,10 @@ namespace InkFlow.App
             // Роутер живе в UI і про конфіги нічого не знає — стан гравця
             // підставляємо звідси, ще до Start.
             if (router != null)
+            {
                 router.Configure(balanceConfig.ToBalanceData(), _state);
+                router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
+            }
             else
                 Debug.LogError(
                     "[InkFlow] GameBootstrap.router не підв'язаний — стан гравця нікуди не потрапить, " +
@@ -78,7 +81,12 @@ namespace InkFlow.App
         {
             ServiceLocator.Register<IHapticService>(new NullHaptics());
             ServiceLocator.Register<IAnalyticsService>(new LogAnalytics());
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            // У редакторі й dev-збірках реклама «навмання»: кнопки §9 можна пройти руками до SDK.
+            ServiceLocator.Register<IAdsService>(new FakeAds());
+#else
             ServiceLocator.Register<IAdsService>(new NullAds());
+#endif
             ServiceLocator.Register<IIapService>(new FakeIap());
             ServiceLocator.Register<IReviewService>(new NullReview());
             ServiceLocator.Register<INotificationService>(new NullNotifications());
@@ -125,6 +133,7 @@ namespace InkFlow.App
                 return;
             }
 
+            endlessScreen.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
             endlessScreen.OnEnter(new EndlessArgs(balanceConfig.ToBalanceData()));
         }
 
@@ -162,6 +171,7 @@ namespace InkFlow.App
             if (router != null)
             {
                 router.Configure(balance, _state);
+                router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
                 router.RestartFromHub();
             }
         }

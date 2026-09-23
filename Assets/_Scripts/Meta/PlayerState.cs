@@ -207,6 +207,44 @@ namespace InkFlow.Meta
             return new RunReward(forScore, forPictures, newRecord);
         }
 
+        /// <summary>§9: «подвоїти за ролик» — доплата до нафти за очки (×RewardAdMultiplier − 1). Повертає доплату.</summary>
+        public long DoubleRunReward(long forScore)
+        {
+            if (forScore <= 0)
+                return 0;
+            var bonus = forScore * (Economy.RewardAdMultiplier - 1);
+            if (bonus > 0)
+            {
+                Wallet.Add(bonus, RewardSource.RewardAd);
+                Persist();
+            }
+            return bonus;
+        }
+
+        /// <summary>Нафта за картинку, домальовану поза забігом (донат §9): та сама таблиця, що й у CompleteRun.</summary>
+        public long RewardPicture(Core.Rarity rarity)
+        {
+            var reward = Rewards.ForPicture(rarity);
+            if (reward > 0)
+            {
+                Wallet.Add(reward, RewardSource.PictureCompleted);
+                Persist();
+            }
+            return reward;
+        }
+
+        /// <summary>§9: «безкоштовна спроба на рідкісну картинку» — повертає анульовану з однією спробою.</summary>
+        public void RestoreUnfinishedAttempt(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled)
+        {
+            Unfinished.Restore(pictureIndex, filled, Balance.UnfinishedAttempts - 1);
+            Persist();
+        }
+
+        /// <summary>§9: інтерстиціал раз на N забігів — після забігу з номером, кратним N.</summary>
+        public bool ShouldShowInterstitial =>
+            Economy.InterstitialEveryRuns > 0 && Progress.RunsPlayed > 0 &&
+            Progress.RunsPlayed % Economy.InterstitialEveryRuns == 0;
+
         /// <summary>Ставить картинку з колекції на планету (§10) і зберігає. Лише зібрані.</summary>
         public bool PlacePicture(string planetId, string pictureId, float longitude, float latitude)
         {
