@@ -10,8 +10,13 @@ namespace InkFlow.Sim
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
             int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath,
             int splashes = 0, int baseSplashes = 0, int secondarySplashes = 0, int brownSplashes = 0,
-            int pictures = 0, int zones = 0, int paintMissed = 0, float pictureFillAtDeath = 0f)
+            int pictures = 0, int zones = 0, int paintMissed = 0, float pictureFillAtDeath = 0f,
+            int rareSeen = 0, int legendarySeen = 0, int rareDone = 0, int legendaryDone = 0)
         {
+            RareSeen = rareSeen;
+            LegendarySeen = legendarySeen;
+            RareDone = rareDone;
+            LegendaryDone = legendaryDone;
             Pictures = pictures;
             Zones = zones;
             PaintMissed = paintMissed;
@@ -48,6 +53,12 @@ namespace InkFlow.Sim
         public int Zones { get; }
         public int PaintMissed { get; }
         public float PictureFillAtDeath { get; }
+
+        /// <summary>Рідкісних і легендарних картинок побачено за партію та закінчено.</summary>
+        public int RareSeen { get; }
+        public int LegendarySeen { get; }
+        public int RareDone { get; }
+        public int LegendaryDone { get; }
 
         public int Placements { get; }
         public int Rounds { get; }

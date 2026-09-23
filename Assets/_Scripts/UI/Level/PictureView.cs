@@ -52,24 +52,43 @@ namespace InkFlow.UI
         public void Show(PictureProgress progress)
         {
             _progress = progress;
-            _art = art != null ? art.Find(progress.Def.Id) : null;
+            BindZones(progress.Def, i => progress.Fraction(i), progress.ActiveZone);
+            ApplyTexts();
+        }
 
-            var active = progress.ActiveZone;
+        /// <summary>
+        /// Готова картинка — для картки перед забігом («ось що малюватимеш») і галереї
+        /// зібраного: усі зони залиті, назва в колір рідкості, підпис — на розсуд екрана.
+        /// </summary>
+        public void ShowCompleted(PictureDef def, string captionText)
+        {
+            _progress = null;
+            BindZones(def, _ => 1f, -1);
+            if (title != null)
+            {
+                title.text = def.Name;
+                if (design != null)
+                    title.color = design.RarityColor(def.Rarity);
+            }
+            if (caption != null)
+                caption.text = captionText;
+        }
+
+        private void BindZones(PictureDef def, System.Func<int, float> fraction, int active)
+        {
+            _art = art != null ? art.Find(def.Id) : null;
             for (var i = 0; i < zones.Length; i++)
             {
                 var view = zones[i];
                 if (view == null)
                     continue;
-                if (_art == null || i >= progress.ZoneCount || i >= _art.zones.Length || _art.zones[i] == null)
+                if (_art == null || i >= def.ZoneCount || i >= _art.zones.Length || _art.zones[i] == null)
                 {
                     view.Release();
                     continue;
                 }
-                view.Bind(_art.zones[i], Origin(i), Extent(i), progress.Def.Zones[i].Hue,
-                    progress.Fraction(i), i == active);
+                view.Bind(_art.zones[i], Origin(i), Extent(i), def.Zones[i].Hue, fraction(i), i == active);
             }
-
-            ApplyTexts();
         }
 
         /// <summary>Мазок у зону: частка після виплеску, фронт — з точки, куди він упав.</summary>
@@ -168,7 +187,11 @@ namespace InkFlow.UI
                 if (_progress.IsZoneComplete(i))
                     done++;
             if (title != null)
+            {
                 title.text = $"{_progress.Def.Name} · {done}/{_progress.ZoneCount}";
+                if (design != null)
+                    title.color = design.RarityColor(_progress.Def.Rarity);
+            }
 
             if (caption == null)
                 return;

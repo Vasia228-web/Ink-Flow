@@ -34,13 +34,15 @@ namespace InkFlow.Core
     {
         private readonly GridPos[][] _cells;
 
-        public PictureDef(string id, string name, Rarity rarity, string[] rows, ZoneDef[] zones)
+        public PictureDef(string themeId, string id, string name, Rarity rarity, string[] rows, ZoneDef[] zones)
         {
+            if (themeId is null) throw new ArgumentNullException(nameof(themeId));
             if (id is null || id.Length == 0) throw new ArgumentException("Порожній id.", nameof(id));
             if (name is null || name.Length == 0) throw new ArgumentException("Порожня назва.", nameof(name));
             if (rows is null || rows.Length == 0) throw new ArgumentException("Порожнє креслення.", nameof(rows));
             if (zones is null || zones.Length == 0) throw new ArgumentException("Картинка без зон.", nameof(zones));
 
+            ThemeId = themeId;
             Id = id;
             Name = name;
             Rarity = rarity;
@@ -85,6 +87,9 @@ namespace InkFlow.Core
                 TotalCells += _cells[i].Length;
             }
         }
+
+        /// <summary>Тема (§6): контент додається наборами, і картинка знає свій.</summary>
+        public string ThemeId { get; }
 
         public string Id { get; }
         public string Name { get; }

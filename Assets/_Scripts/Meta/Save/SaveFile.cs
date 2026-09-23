@@ -12,7 +12,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
@@ -21,6 +21,22 @@ namespace InkFlow.Meta
         public GalaxyData Galaxy = new GalaxyData();
         public ProgressData Progress = new ProgressData();
         public SettingsData Settings = new SettingsData();
+        public CollectionData Collection = new CollectionData();
+    }
+
+    /// <summary>Зібрані картинки (§5, §10): факти «яку, скільки разів, коли вперше».</summary>
+    [Serializable]
+    public sealed class CollectionData
+    {
+        public List<CollectedPicture> Pictures = new List<CollectedPicture>();
+    }
+
+    [Serializable]
+    public struct CollectedPicture
+    {
+        public string PictureId;
+        public int Count;
+        public string FirstUtc;
     }
 
     [Serializable]

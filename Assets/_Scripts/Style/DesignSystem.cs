@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 18;
+        public const int CurrentTokenVersion = 19;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -709,6 +709,20 @@ namespace InkFlow.Style
         [SerializeField] private float fontSizePictureName = 27f;
         [SerializeField] private float fontSizePictureCaption = 24f;
 
+        [Tooltip("Рідкість (§6): колір назви й чипа — звичайна / рідкісна / легендарна.")]
+        [SerializeField] private Color rarityCommon = new Color(1f, 1f, 1f, 0.62f);
+        [SerializeField] private Color rarityRare = Hex("#00D9C0");
+        [SerializeField] private Color rarityLegendary = Hex("#FFD54A");
+
+        [Tooltip("Картка перед забігом: «цього забігу — така картинка». Скільки висить сама, поки не тапнули.")]
+        [SerializeField, Min(0.5f)] private float runIntroDuration = 2.6f;
+        [SerializeField, Min(0f)] private float runIntroFadeDuration = 0.25f;
+        [SerializeField] private float fontSizeIntroKicker = 27f;
+        [SerializeField] private float fontSizeIntroName = 59f;
+        [SerializeField] private float fontSizeIntroRarity = 30f;
+        [SerializeField] private float fontSizeIntroHint = 30f;
+        [SerializeField] private float fontSizeOverCollected = 27f;
+
         [Header("Кінець партії (Нескінченний)")]
         [SerializeField] private float fontSizeOverScore = 155f;
         [SerializeField] private float fontSizeOverLabel = 30f;
@@ -1006,6 +1020,21 @@ namespace InkFlow.Style
         public float PictureGlowAlpha => pictureGlowAlpha;
         public float FontSizePictureName => fontSizePictureName;
         public float FontSizePictureCaption => fontSizePictureCaption;
+        public float RunIntroDuration => runIntroDuration;
+        public float RunIntroFadeDuration => runIntroFadeDuration;
+        public float FontSizeIntroKicker => fontSizeIntroKicker;
+        public float FontSizeIntroName => fontSizeIntroName;
+        public float FontSizeIntroRarity => fontSizeIntroRarity;
+        public float FontSizeIntroHint => fontSizeIntroHint;
+        public float FontSizeOverCollected => fontSizeOverCollected;
+
+        /// <summary>Колір рідкості (§6): легендарна — золото, як рекорд; рідкісна — бірюза; звичайна — приглушений текст.</summary>
+        public Color RarityColor(Rarity rarity) => rarity switch
+        {
+            Rarity.Rare => rarityRare,
+            Rarity.Legendary => rarityLegendary,
+            _ => rarityCommon
+        };
 
         /// <summary>Колір відтінку зі змішувача. Fallback — білий, щоб помилка була видима.</summary>
         public Color HueColor(Hue hue)

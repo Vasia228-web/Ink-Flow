@@ -25,6 +25,8 @@ namespace InkFlow.Core
         private readonly TrayGenerator _trays;
         private readonly int[] _taken = new int[Pigments.Count];
         private readonly int[] _splashesByHue = new int[Hues.Count + 1];
+        private readonly List<int> _collected = new List<int>(4);
+        private readonly PictureDeck _deck;
 
         public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random,
             PictureCatalogData? pictures = null)
@@ -33,6 +35,7 @@ namespace InkFlow.Core
             Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             Random = random ?? throw new ArgumentNullException(nameof(random));
             Pictures = pictures ?? PictureCatalogData.Default;
+            _deck = new PictureDeck(Pictures, balance);
 
             Board = new Board(balance.GridWidth, balance.GridHeight);
             Tanks = new TankSet();
@@ -72,6 +75,9 @@ namespace InkFlow.Core
 
         /// <summary>Картинок закінчено за партію — головний рекорд документа (§8).</summary>
         public int PicturesCompleted { get; private set; }
+
+        /// <summary>Індекси закінчених картинок у колоді, у порядку завершення — для галереї партії.</summary>
+        public IReadOnlyList<int> PicturesCollected => _collected;
 
         /// <summary>Фарби з виплесків, якій не було куди лягти.</summary>
         public int PaintMissed { get; private set; }
@@ -226,6 +232,7 @@ namespace InkFlow.Core
             LastSplashHue = Hue.None;
             PicturesCompleted = 0;
             PaintMissed = 0;
+            _collected.Clear();
             Picture = DrawPicture(exclude: Picture.CatalogIndex);
             Score = 0;
             BestChain = 0;
@@ -340,6 +347,7 @@ namespace InkFlow.Core
                 {
                     _result.AddPictureCompleted(Picture.CatalogIndex);
                     PicturesCompleted++;
+                    _collected.Add(Picture.CatalogIndex);
                     Picture = DrawPicture(exclude: Picture.CatalogIndex);
                     _result.AddPictureStarted(Picture.CatalogIndex);
                 }
@@ -351,16 +359,10 @@ namespace InkFlow.Core
             return score;
         }
 
-        /// <summary>
-        /// Наступна картинка з колоди: будь-яка, крім щойно закінченої, щоб та сама не
-        /// прийшла двічі поспіль. Рідкість і теми (§6) — крок 5.
-        /// </summary>
+        /// <summary>Наступна картинка з колоди за рідкістю (§6), крім щойно закінченої.</summary>
         private PictureProgress DrawPicture(int exclude)
         {
-            var count = Pictures.Count;
-            var index = Random.Next(count);
-            if (count > 1 && index == exclude)
-                index = (index + 1 + Random.Next(count - 1)) % count;
+            var index = _deck.Draw(Random, exclude);
             return new PictureProgress(Pictures[index], index, Balance);
         }
 

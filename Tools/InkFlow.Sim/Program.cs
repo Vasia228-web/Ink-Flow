@@ -103,6 +103,11 @@ var fillAtDeath = new Distribution(results.Select(r => 100f * r.PictureFillAtDea
 var paintTotal = results.Sum(r => (long)r.PaintYielded);
 var missedShare = paintTotal == 0 ? 0f : 100f * results.Sum(r => (long)r.PaintMissed) / paintTotal;
 var noPicture = results.Count(r => r.Pictures == 0);
+var rareSeen = results.Sum(r => r.RareSeen);
+var legendarySeen = results.Sum(r => r.LegendarySeen);
+var rareDone = results.Sum(r => r.RareDone);
+var legendaryDone = results.Sum(r => r.LegendaryDone);
+var picturesSeen = results.Sum(r => r.Pictures) + games; // кожна партія бачить щонайменше одну
 var paintPerLine = new Distribution(results.Select(r => r.Lines == 0 ? 0f : (float)r.PaintYielded / r.Lines).ToArray());
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
@@ -136,6 +141,10 @@ if (csv)
     Console.WriteLine(fillAtDeath.Csv("picture_fill_at_death", "%"));
     Console.WriteLine($"paint_missed_share,%,{missedShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
     Console.WriteLine($"runs_without_picture,%,{(100f * noPicture / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine($"rare_seen_per_run,шт,{((float)rareSeen / games).ToString("0.###", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine($"legendary_seen_per_run,шт,{((float)legendarySeen / games).ToString("0.###", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine($"rare_done,шт,{rareDone},,,,,");
+    Console.WriteLine($"legendary_done,шт,{legendaryDone},,,,,");
     Console.WriteLine(paintPerLine.Csv("paint_per_line", "од"));
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
@@ -172,6 +181,7 @@ Console.WriteLine($"відтінки виплесків: чисті {baseShare:0
 Console.WriteLine($"партій без жодного виплеску: {noSplash} з {games} ({100f * noSplash / games:0.#} %)");
 Console.WriteLine($"фарби пропало мимо (відтінок нікому не потрібен): {missedShare:0.#} % від усієї");
 Console.WriteLine($"партій без жодної закінченої картинки: {noPicture} з {games} ({100f * noPicture / games:0.#} %)");
+Console.WriteLine($"рідкість побачених картинок: рідкісних {100f * rareSeen / picturesSeen:0.#} % · легендарних {100f * legendarySeen / picturesSeen:0.#} % (§6: 25 / 5); закінчено рідкісних {rareDone}, легендарних {legendaryDone}");
 Console.WriteLine($"смерть одразу після поповнення лотка: {lostAtRefill} з {games} ({100f * lostAtRefill / games:0.#} %)");
 Console.WriteLine($"смертей не з вини гравця (мішок дав неможливий набір, хоч 2-клітинкова влазила): {unfair}");
 return unfair == 0 ? 0 : 1;
@@ -184,6 +194,10 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
     var pressureAt = -1;
     var zonesCompleted = 0;
     var lostAtRefill = false;
+    var rareSeen = session.Picture.Def.Rarity == Rarity.Rare ? 1 : 0;
+    var legendarySeen = session.Picture.Def.Rarity == Rarity.Legendary ? 1 : 0;
+    var rareDone = 0;
+    var legendaryDone = 0;
     var guard = 0;
 
     while (!session.IsOver && guard++ < 10_000)
@@ -198,6 +212,22 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
         // «Тиск» — перше розміщення, після якого хоч одна фігура з руки вже нікуди не
         // влазить: із цього моменту гравець грає не «куди хочу», а «куди можна».
         zonesCompleted += result.ZonesCompleted;
+        for (var e = 0; e < result.Events.Count; e++)
+        {
+            var ev = result.Events[e];
+            if (ev.Type == GameEventType.PictureCompleted)
+            {
+                var rarity = session.Pictures[ev.Value].Rarity;
+                if (rarity == Rarity.Rare) rareDone++;
+                else if (rarity == Rarity.Legendary) legendaryDone++;
+            }
+            else if (ev.Type == GameEventType.PictureStarted)
+            {
+                var rarity = session.Pictures[ev.Value].Rarity;
+                if (rarity == Rarity.Rare) rareSeen++;
+                else if (rarity == Rarity.Legendary) legendarySeen++;
+            }
+        }
         if (pressureAt < 0 && !session.IsOver && session.AnyPieceStuck())
             pressureAt = session.PlacementCount;
 
@@ -216,7 +246,8 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
         session.Splashes, CountHues(session, Hues.IsBase), CountHues(session, Hues.IsSecondary),
         session.SplashesByHue[(int)Hue.Brown],
-        session.PicturesCompleted, zonesCompleted, session.PaintMissed, session.Picture.FilledFraction);
+        session.PicturesCompleted, zonesCompleted, session.PaintMissed, session.Picture.FilledFraction,
+        rareSeen, legendarySeen, rareDone, legendaryDone);
 }
 
 static int CountHues(RunSession session, Func<Hue, bool> filter)

@@ -31,6 +31,16 @@ namespace InkFlow.Meta
                         save.Profile.Nick = ProfileData.DefaultNick;
                     save.Version = 3;
                     return save;
+                },
+
+                // v3 → v4: колекція картинок нового ядра. Старим файлам — порожня:
+                // картинок у них ще не було, а null у JsonUtility читався б порожнім списком лише випадково.
+                [3] = save =>
+                {
+                    save.Collection ??= new CollectionData();
+                    save.Collection.Pictures ??= new List<CollectedPicture>();
+                    save.Version = 4;
+                    return save;
                 }
             };
 

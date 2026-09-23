@@ -165,14 +165,20 @@ namespace InkFlow.Editor
             BuildOverlays(screenGo, design!, font, glow!,
                 out var overflowRing, out var comboPop);
 
-            BuildOver(screenGo, design!, font, rounded!, outline!, circle!,
+            BuildIntro(screenGo, design!, font, rounded!, outline!, nebula!, zoneShader!, pictureArt!,
+                out var introCard, out var introGroup, out var introScrim, out var introPanel,
+                out var introPanelStroke, out var introPicture, out var introKicker, out var introName,
+                out var introRarity, out var introHint, out var introButton);
+
+            BuildOver(screenGo, design!, font, rounded!, outline!, circle!, nebula!, zoneShader!, pictureArt!,
                 out var overCard, out var overScrim, out var overPanel, out var overPanelStroke,
                 out var overScoreLabel, out var overScoreNumber,
                 out var recordChip, out var recordChipLabel,
                 out var rewardRow, out var rewardNumber, out var rewardSuffix,
                 out var overBestLabel, out var overAgain, out var overAgainFill,
                 out var overAgainLabel, out var overMenu, out var overMenuLabel,
-                out var confettiRoot, out var confetti);
+                out var confettiRoot, out var confetti,
+                out var overCollectedLabel, out var overThumbs);
 
             Wire(screen,
                 ("design", design!),
@@ -195,9 +201,14 @@ namespace InkFlow.Editor
                 ("overAgain", overAgain), ("overAgainFill", overAgainFill),
                 ("overAgainLabel", overAgainLabel),
                 ("overMenu", overMenu), ("overMenuLabel", overMenuLabel),
-                ("confettiRoot", confettiRoot));
+                ("confettiRoot", confettiRoot), ("overCollectedLabel", overCollectedLabel),
+                ("introCard", introCard), ("introGroup", introGroup), ("introScrim", introScrim),
+                ("introPanel", introPanel), ("introPanelStroke", introPanelStroke),
+                ("introPicture", introPicture), ("introKicker", introKicker), ("introName", introName),
+                ("introRarity", introRarity), ("introHint", introHint), ("introButton", introButton));
             WireArray(screen, "confetti", confetti);
             WireArray(screen, "tanks", tanks);
+            WireArray(screen, "overThumbs", overThumbs);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -361,14 +372,27 @@ namespace InkFlow.Editor
         {
             var go = Child(parent, "Picture");
             TopLeft(go, 0f, top, width, height);
+            return MakePictureView(go, design, font, rounded, outline, nebula, zoneShader, art,
+                width, M(128f), M(104f), withTitle: true, captionHeight: M(24f));
+        }
 
-            var plateHeight = M(128f);
+        /// <summary>
+        /// Плитка з картинкою: скло, гало завершення, назва згори, квадрат зон знизу і,
+        /// за потреби, підпис під плиткою. Одна збірка на три місця — картинка над полем,
+        /// картка перед забігом, мініатюри галереї, — щоб вони не розійшлися на першій правці.
+        /// </summary>
+        private static PictureView MakePictureView(GameObject go, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, Sprite nebula, Shader zoneShader, PictureArtCatalog art,
+            float width, float plateHeight, float canvasSide, bool withTitle, float captionHeight)
+        {
             var plateGo = Child(go, "Plate");
             var plate = plateGo.GetComponent<RectTransform>();
             plate.anchorMin = plate.anchorMax = new Vector2(0.5f, 1f);
             plate.pivot = new Vector2(0.5f, 0.5f);
             plate.anchoredPosition = new Vector2(0f, -plateHeight * 0.5f);
             plate.sizeDelta = new Vector2(width, plateHeight);
+
+            var radius = Mathf.Min(M(18f), plateHeight * 0.25f);
 
             var glowGo = Child(plateGo, "Glow");
             Stretch(glowGo, -M(18f));
@@ -382,7 +406,7 @@ namespace InkFlow.Editor
             var plateFill = fillGo.AddComponent<Image>();
             plateFill.sprite = rounded;
             plateFill.type = Image.Type.Sliced;
-            plateFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
+            plateFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius);
             plateFill.color = design.PicturePlateFill;
             plateFill.raycastTarget = false;
 
@@ -391,22 +415,34 @@ namespace InkFlow.Editor
             var plateStroke = strokeGo.AddComponent<Image>();
             plateStroke.sprite = outline;
             plateStroke.type = Image.Type.Sliced;
-            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
+            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius);
             plateStroke.color = design.PicturePlateStroke;
             plateStroke.raycastTarget = false;
 
-            // Назва — всередині плитки згори; квадрат зон — під нею.
-            var title = Label(plateGo, "Title", "КИТ · 0/5", design, font,
-                design.FontSizePictureName, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(0f, -M(5f)), new Vector2(width, M(14f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            TMP_Text? title = null;
+            if (withTitle)
+            {
+                title = Label(plateGo, "Title", "КИТ · 0/5", design, font,
+                    design.FontSizePictureName, design.TextPrimary, TextAlignmentOptions.Center);
+                Place(title, new Vector2(0f, -M(5f)), new Vector2(width, M(14f)),
+                    new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            }
 
-            var canvasSide = M(104f);
+            // Квадрат зон — знизу плитки; без назви — по центру.
             var canvasGo = Child(plateGo, "Canvas");
             var canvas = canvasGo.GetComponent<RectTransform>();
-            canvas.anchorMin = canvas.anchorMax = new Vector2(0.5f, 0f);
-            canvas.pivot = new Vector2(0.5f, 0f);
-            canvas.anchoredPosition = new Vector2(0f, M(6f));
+            if (withTitle)
+            {
+                canvas.anchorMin = canvas.anchorMax = new Vector2(0.5f, 0f);
+                canvas.pivot = new Vector2(0.5f, 0f);
+                canvas.anchoredPosition = new Vector2(0f, M(6f));
+            }
+            else
+            {
+                canvas.anchorMin = canvas.anchorMax = new Vector2(0.5f, 0.5f);
+                canvas.pivot = new Vector2(0.5f, 0.5f);
+                canvas.anchoredPosition = Vector2.zero;
+            }
             canvas.sizeDelta = new Vector2(canvasSide, canvasSide);
 
             var zones = new PictureZoneView[ZoneSlots];
@@ -423,18 +459,92 @@ namespace InkFlow.Editor
                 zones[i] = zone;
             }
 
-            var caption = Label(go, "Caption", "ТІЛО · СИНІЙ", design, font,
-                design.FontSizePictureCaption, design.TextMuted, TextAlignmentOptions.Center);
-            Place(caption, new Vector2(0f, 0f), new Vector2(width, M(24f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            TMP_Text? caption = null;
+            if (captionHeight > 0f)
+            {
+                caption = Label(go, "Caption", "ТІЛО · СИНІЙ", design, font,
+                    design.FontSizePictureCaption, design.TextMuted, TextAlignmentOptions.Center);
+                Place(caption, new Vector2(0f, 0f), new Vector2(width, captionHeight),
+                    new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            }
 
             var view = go.AddComponent<PictureView>();
             Wire(view, ("design", design), ("art", art), ("plate", plate), ("plateFill", plateFill),
-                ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas),
-                ("title", title), ("caption", caption));
+                ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas));
+            if (title != null) Wire(view, ("title", title));
+            if (caption != null) Wire(view, ("caption", caption));
             WireArray(view, "zones", zones);
             view.Apply();
             return view;
+        }
+
+        // ── Картка перед забігом: «цього забігу — така картинка» ──
+        private static void BuildIntro(GameObject parent, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, Sprite nebula, Shader zoneShader, PictureArtCatalog art,
+            out RectTransform introCard, out CanvasGroup group, out Image scrim, out GradientImage panel,
+            out Image panelStroke, out PictureView picture, out TMP_Text kicker, out TMP_Text name,
+            out TMP_Text rarity, out TMP_Text hint, out Button button)
+        {
+            var go = Child(parent, "RunIntro");
+            Stretch(go);
+            introCard = go.GetComponent<RectTransform>();
+            group = go.AddComponent<CanvasGroup>();
+
+            scrim = go.AddComponent<Image>();
+            scrim.color = design.OverScrim;
+            // Тап будь-де по картці — почати. Кнопка на самому скримі, без окремої графіки.
+            button = go.AddComponent<Button>();
+            button.targetGraphic = scrim;
+            button.transition = Selectable.Transition.None;
+
+            var panelGo = Child(go, "Panel");
+            panel = panelGo.AddComponent<GradientImage>();
+            panel.sprite = rounded;
+            panel.type = Image.Type.Sliced;
+            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
+            panel.raycastTarget = false;
+            Place(panel, Vector2.zero, new Vector2(M(296f), M(392f)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var strokeGo = Child(panelGo, "Stroke");
+            Stretch(strokeGo);
+            panelStroke = strokeGo.AddComponent<Image>();
+            panelStroke.sprite = outline;
+            panelStroke.type = Image.Type.Sliced;
+            panelStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
+            panelStroke.color = design.GlassStroke;
+            panelStroke.raycastTarget = false;
+
+            kicker = Label(panelGo, "Kicker", "ЦЬОГО ЗАБІГУ", design, font,
+                design.FontSizeIntroKicker, design.TextDim, TextAlignmentOptions.Center);
+            Place(kicker, new Vector2(0f, -M(22f)), new Vector2(M(260f), M(16f)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+            var pictureGo = Child(panelGo, "Picture");
+            var pictureRect = pictureGo.GetComponent<RectTransform>();
+            pictureRect.anchorMin = pictureRect.anchorMax = new Vector2(0.5f, 1f);
+            pictureRect.pivot = new Vector2(0.5f, 1f);
+            pictureRect.anchoredPosition = new Vector2(0f, -M(46f));
+            pictureRect.sizeDelta = new Vector2(M(200f), M(200f));
+            picture = MakePictureView(pictureGo, design, font, rounded, outline, nebula, zoneShader, art,
+                M(200f), M(200f), M(172f), withTitle: false, captionHeight: 0f);
+
+            name = Label(panelGo, "Name", "КИТ", design, font,
+                design.FontSizeIntroName, design.TextPrimary, TextAlignmentOptions.Center);
+            Place(name, new Vector2(0f, -M(256f)), new Vector2(M(270f), M(30f)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+            rarity = Label(panelGo, "Rarity", "ЗВИЧАЙНА · 5 ЗОН", design, font,
+                design.FontSizeIntroRarity, design.TextMuted, TextAlignmentOptions.Center);
+            Place(rarity, new Vector2(0f, -M(290f)), new Vector2(M(270f), M(18f)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+            hint = Label(panelGo, "Hint", "Тапни, щоб грати", design, font,
+                design.FontSizeIntroHint, design.TextMuted, TextAlignmentOptions.Center);
+            Place(hint, new Vector2(0f, M(18f)), new Vector2(M(270f), M(20f)),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+
+            go.SetActive(false);
         }
 
         // ── Баки й змішувач: три капсули 26×80 px макета (прототип v3, beakerVMs) + посудина 44×80 ──
@@ -844,14 +954,15 @@ namespace InkFlow.Editor
 
         // ── Картка кінця партії ──
         private static void BuildOver(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle,
+            Sprite rounded, Sprite outline, Sprite circle, Sprite nebula, Shader zoneShader, PictureArtCatalog art,
             out RectTransform overCard, out Image scrim, out GradientImage panel,
             out Image panelStroke, out TMP_Text scoreLabel, out TMP_Text scoreNumber,
             out GradientImage recordChip, out TMP_Text recordChipLabel,
             out RectTransform rewardRow, out TMP_Text rewardNumber, out TMP_Text rewardSuffix,
             out TMP_Text bestLabel, out Button again, out GradientImage againFill,
             out TMP_Text againLabel, out Button menu, out TMP_Text menuLabel,
-            out RectTransform confettiRoot, out Image[] confetti)
+            out RectTransform confettiRoot, out Image[] confetti,
+            out TMP_Text collectedLabel, out PictureView[] thumbs)
         {
             var go = Child(parent, "GameOver");
             Stretch(go);
@@ -883,7 +994,8 @@ namespace InkFlow.Editor
             panel.sprite = rounded;
             panel.type = Image.Type.Sliced;
             panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
-            Place(panel, Vector2.zero, new Vector2(M(296f), M(330f)),
+            // 330 у макеті + ряд галереї зібраного (§11 крок 5): підпис 16 і мініатюри 60.
+            Place(panel, Vector2.zero, new Vector2(M(296f), M(420f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var strokeGo = Child(panelGo, "Stroke");
@@ -951,6 +1063,30 @@ namespace InkFlow.Editor
                 design.FontSizeOverBest, design.TextMuted, TextAlignmentOptions.Center);
             Place(bestLabel, new Vector2(0f, -M(214f)), new Vector2(M(260f), M(20f)),
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+            // Галерея партії: підпис і до трьох мініатюр зібраних картинок.
+            collectedLabel = Label(panelGo, "Collected", "ЗІБРАНО · 1", design, font,
+                design.FontSizeOverCollected, design.TextDim, TextAlignmentOptions.Center);
+            Place(collectedLabel, new Vector2(0f, -M(242f)), new Vector2(M(260f), M(16f)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+
+            const int thumbCount = 3;
+            var thumbSide = M(60f);
+            var thumbGap = M(12f);
+            var thumbsWidth = thumbCount * thumbSide + (thumbCount - 1) * thumbGap;
+            thumbs = new PictureView[thumbCount];
+            for (var i = 0; i < thumbCount; i++)
+            {
+                var thumbGo = Child(panelGo, $"Thumb{i}");
+                var thumbRect = thumbGo.GetComponent<RectTransform>();
+                thumbRect.anchorMin = thumbRect.anchorMax = new Vector2(0.5f, 1f);
+                thumbRect.pivot = new Vector2(0.5f, 1f);
+                thumbRect.anchoredPosition = new Vector2(-thumbsWidth * 0.5f + thumbSide * 0.5f + i * (thumbSide + thumbGap), -M(262f));
+                thumbRect.sizeDelta = new Vector2(thumbSide, thumbSide);
+                thumbs[i] = MakePictureView(thumbGo, design, font, rounded, outline, nebula, zoneShader, art,
+                    thumbSide, thumbSide, M(48f), withTitle: false, captionHeight: 0f);
+                thumbGo.SetActive(false);
+            }
 
             var againGo = Child(panelGo, "Again");
             againFill = againGo.AddComponent<GradientImage>();

@@ -86,6 +86,21 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text overMenuLabel;
         [SerializeField] private RectTransform confettiRoot;
         [SerializeField] private Image[] confetti = System.Array.Empty<Image>();
+        [SerializeField] private TMP_Text overCollectedLabel;
+        [SerializeField] private PictureView[] overThumbs = System.Array.Empty<PictureView>();
+
+        [Header("Картка перед забігом (§6: гра показує картинку заздалегідь)")]
+        [SerializeField] private RectTransform introCard;
+        [SerializeField] private CanvasGroup introGroup;
+        [SerializeField] private Image introScrim;
+        [SerializeField] private GradientImage introPanel;
+        [SerializeField] private Image introPanelStroke;
+        [SerializeField] private PictureView introPicture;
+        [SerializeField] private TMP_Text introKicker;
+        [SerializeField] private TMP_Text introName;
+        [SerializeField] private TMP_Text introRarity;
+        [SerializeField] private TMP_Text introHint;
+        [SerializeField] private Button introButton;
 
         private RunSession? _session;
         private BalanceData _balance = BalanceData.Default;
@@ -93,6 +108,8 @@ namespace InkFlow.UI
         private Wallet? _wallet;
         private RewardCalculator? _rewards;
         private ProgressData? _progress;
+        private PlayerState? _state;
+        private Coroutine? _intro;
 
         private LiveRecord _record;
         private bool _overflow;
@@ -128,6 +145,8 @@ namespace InkFlow.UI
                 overAgain.onClick.AddListener(Restart);
             if (overMenu != null)
                 overMenu.onClick.AddListener(() => BackRequested?.Invoke());
+            if (introButton != null)
+                introButton.onClick.AddListener(OnIntroTapped);
             if (board != null)
             {
                 board.Router.PlaceRequested += OnPlaceRequested;
@@ -165,6 +184,7 @@ namespace InkFlow.UI
         public override void BindState(PlayerState state)
         {
             base.BindState(state);
+            _state = state;
             _wallet = state.Wallet;
             _rewards = state.Rewards;
             _progress = state.Progress;
@@ -209,6 +229,85 @@ namespace InkFlow.UI
             ApplyTanks(animate: false);
             picture?.Show(_session.Picture);
             HideOver();
+            ShowIntro();
+        }
+
+        // ── Картка перед забігом ──
+
+        /// <summary>
+        /// §6: «гра показує заздалегідь, яка картинка в цьому забігу». Поле замкнене, поки
+        /// картка висить; тап — або кілька секунд — і забіг починається.
+        /// </summary>
+        private void ShowIntro()
+        {
+            if (introCard == null || _session == null || design == null)
+                return;
+
+            var def = _session.Picture.Def;
+            var theme = _session.Pictures.ThemeOf(def);
+            introCard.gameObject.SetActive(true);
+            if (introGroup != null) introGroup.alpha = 1f;
+            if (introScrim != null) introScrim.color = design.OverScrim;
+            if (introPanel != null) introPanel.SetGradient(design.OverCardFrom, design.OverCardTo);
+            if (introPanelStroke != null) introPanelStroke.color = design.RarityColor(def.Rarity);
+
+            ApplyFont(introKicker, design.FontSizeIntroKicker, design.TextDim, FontStyles.Bold, design.LetterSpacingWide);
+            if (introKicker != null) introKicker.text = theme != null ? $"ЦЬОГО ЗАБІГУ · {theme.Name.ToUpperInvariant()}" : "ЦЬОГО ЗАБІГУ";
+            ApplyFont(introName, design.FontSizeIntroName, design.TextPrimary, FontStyles.Bold, 0f);
+            if (introName != null) introName.text = def.Name;
+            ApplyFont(introRarity, design.FontSizeIntroRarity, design.RarityColor(def.Rarity), FontStyles.Bold, design.LetterSpacingWide);
+            if (introRarity != null) introRarity.text = $"{RarityNames.Of(def.Rarity)} · {def.ZoneCount} ЗОН";
+            ApplyFont(introHint, design.FontSizeIntroHint, design.TextMuted, FontStyles.Bold, 0f);
+            if (introHint != null) introHint.text = "Тапни, щоб грати";
+
+            introPicture?.ShowCompleted(def, string.Empty);
+
+            if (board != null)
+                board.Router.Locked = true;
+
+            if (_intro != null)
+                StopCoroutine(_intro);
+            if (isActiveAndEnabled)
+                _intro = StartCoroutine(IntroRoutine());
+        }
+
+        private IEnumerator IntroRoutine()
+        {
+            yield return new WaitForSeconds(design.RunIntroDuration);
+            yield return FadeIntro();
+        }
+
+        private IEnumerator FadeIntro()
+        {
+            var duration = design.RunIntroFadeDuration;
+            for (var t = 0f; t < duration && introGroup != null; t += Time.deltaTime)
+            {
+                introGroup.alpha = 1f - Mathf.Clamp01(t / duration);
+                yield return null;
+            }
+            HideIntro();
+        }
+
+        private void OnIntroTapped()
+        {
+            if (introCard == null || !introCard.gameObject.activeSelf)
+                return;
+            if (_intro != null)
+                StopCoroutine(_intro);
+            _intro = isActiveAndEnabled ? StartCoroutine(FadeIntro()) : null;
+            if (!isActiveAndEnabled)
+                HideIntro();
+        }
+
+        private void HideIntro()
+        {
+            _intro = null;
+            if (introCard != null && introCard.gameObject.activeSelf)
+                introCard.gameObject.SetActive(false);
+            if (introGroup != null) introGroup.alpha = 1f;
+            if (board != null && _session != null && !_session.IsOver)
+                board.Router.Locked = false;
+            _idleSince = Time.time;
         }
 
         /// <summary>Рівні баків і змішувача — із сесії, як є. Для старту партії й миттєвих станів.</summary>
@@ -264,6 +363,10 @@ namespace InkFlow.UI
                         fired = true;
                         e = FireShot(events, e, capacity);
                         break;
+                    case GameEventType.PictureCompleted:
+                        // Модель — правда: у колекцію одразу, не чекаючи анімації.
+                        _state?.CollectPicture(_session.Pictures[ev.Value].Id, System.DateTime.UtcNow);
+                        break;
                 }
             }
 
@@ -292,6 +395,7 @@ namespace InkFlow.UI
 
             var fills = new System.Collections.Generic.List<(int zone, float fraction)>(2);
             var completed = false;
+            var legendary = false;
             var missed = false;
             var last = fired;
             for (var e = fired + 1; e < events.Count; e++)
@@ -310,6 +414,7 @@ namespace InkFlow.UI
                         break;
                     case GameEventType.PictureCompleted:
                         completed = true;
+                        legendary = _session != null && _session.Pictures[next.Value].Rarity == Rarity.Legendary;
                         break;
                 }
             }
@@ -326,11 +431,19 @@ namespace InkFlow.UI
                     for (var i = 0; i < fills.Count; i++)
                         view.PlayFill(fills[i].zone, fills[i].fraction, uv);
                     if (completed)
+                    {
+                        // §6: легендарна — спецефект при завершенні. Той самий дощ, що й на рекорд.
+                        if (legendary && isActiveAndEnabled)
+                        {
+                            if (_confetti != null) StopCoroutine(_confetti);
+                            _confetti = StartCoroutine(ConfettiRoutine());
+                        }
                         view.PlayCompleted(() =>
                         {
                             if (session != null && session == _session)
                                 view.Show(session.Picture);
                         });
+                    }
                 };
             }
 
@@ -363,6 +476,10 @@ namespace InkFlow.UI
             _playback = _flash = _combo = _overflowPulse = _confetti = _hint = null;
             mixer?.StopAll();
             picture?.StopAll();
+            introPicture?.StopAll();
+            if (_intro != null)
+                StopCoroutine(_intro);
+            _intro = null;
         }
 
         // ── Перетягування ──
@@ -545,6 +662,11 @@ namespace InkFlow.UI
                 tank?.Apply();
             mixer?.Apply();
             picture?.Apply();
+            introPicture?.Apply();
+            foreach (var thumb in overThumbs)
+                thumb?.Apply();
+            if (introCard != null && !Application.isPlaying)
+                introCard.gameObject.SetActive(false);
             ApplyStats();
         }
 
@@ -717,8 +839,36 @@ namespace InkFlow.UI
             ApplyFont(overMenuLabel, design.FontSizeOverSecondary, design.TextMuted, FontStyles.Bold, 0f);
             if (overMenuLabel != null) overMenuLabel.text = "В меню";
 
+            ShowCollected();
+
             if (_record.Commit() && isActiveAndEnabled)
                 _confetti = StartCoroutine(ConfettiRoutine());
+        }
+
+        /// <summary>Галерея партії (§11 крок 5): що домальовано цього забігу.</summary>
+        private void ShowCollected()
+        {
+            if (_session == null || design == null)
+                return;
+            var collected = _session.PicturesCollected;
+            var any = collected.Count > 0;
+            Toggle(overCollectedLabel, any);
+            ApplyFont(overCollectedLabel, design.FontSizeOverCollected, design.TextDim, FontStyles.Bold, design.LetterSpacingWide);
+            if (overCollectedLabel != null)
+                overCollectedLabel.text = collected.Count == 1 ? "ЗІБРАНО КАРТИНКУ" : $"ЗІБРАНО · {collected.Count}";
+
+            for (var i = 0; i < overThumbs.Length; i++)
+            {
+                var thumb = overThumbs[i];
+                if (thumb == null)
+                    continue;
+                // Останні зібрані — найцікавіші: показуємо хвіст списку.
+                var index = collected.Count - overThumbs.Length + i;
+                var show = index >= 0 && index < collected.Count;
+                Toggle(thumb, show);
+                if (show)
+                    thumb.ShowCompleted(_session.Pictures[collected[index]], string.Empty);
+            }
         }
 
         /// <summary>

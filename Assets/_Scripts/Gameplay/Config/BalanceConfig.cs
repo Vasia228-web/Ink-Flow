@@ -75,6 +75,10 @@ namespace InkFlow.Gameplay
         [Tooltip("Найбільша зона просить не більше стількох виплесків.")]
         [SerializeField, Min(1)] private int maxSplashesPerZone = 3;
 
+        [Header("Рідкість (§6)")]
+        [Tooltip("Ваги: звичайна, рідкісна, легендарна. Документ: 70 / 25 / 5.")]
+        [SerializeField] private int[] rarityWeights = { 70, 25, 5 };
+
         private BalanceData? _cached;
 
         /// <summary>POCO-дзеркало для Core. Кешується: конфіг не змінюється під час партії.</summary>
@@ -88,7 +92,7 @@ namespace InkFlow.Gameplay
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
             haloWarningFreeCells, hintIdleSeconds,
             mixerSplashSize, mixDominantShare, mixMinorShare,
-            cellsPerSplash, maxSplashesPerZone);
+            cellsPerSplash, maxSplashesPerZone, rarityWeights);
 
         private void OnValidate()
         {

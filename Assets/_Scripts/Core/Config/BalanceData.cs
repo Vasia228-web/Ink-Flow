@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace InkFlow.Core
 {
@@ -46,8 +47,21 @@ namespace InkFlow.Core
             float mixDominantShare = 0.6f,
             float mixMinorShare = 0.25f,
             int cellsPerSplash = 12,
-            int maxSplashesPerZone = 3)
+            int maxSplashesPerZone = 3,
+            int[]? rarityWeights = null)
         {
+            _rarityWeights = rarityWeights ?? new[] { 70, 25, 5 };
+            if (_rarityWeights.Length != 3)
+                throw new ArgumentOutOfRangeException(nameof(rarityWeights), "Три ваги: звичайна, рідкісна, легендарна.");
+            RarityWeightTotal = 0;
+            for (var i = 0; i < _rarityWeights.Length; i++)
+            {
+                if (_rarityWeights[i] < 0)
+                    throw new ArgumentOutOfRangeException(nameof(rarityWeights));
+                RarityWeightTotal += _rarityWeights[i];
+            }
+            if (RarityWeightTotal <= 0)
+                throw new ArgumentOutOfRangeException(nameof(rarityWeights), "Хоч одна вага має бути додатною.");
             if (cellsPerSplash < 1)
                 throw new ArgumentOutOfRangeException(nameof(cellsPerSplash));
             if (maxSplashesPerZone < 1)
@@ -108,6 +122,30 @@ namespace InkFlow.Core
             MixMinorShare = mixMinorShare;
             CellsPerSplash = cellsPerSplash;
             MaxSplashesPerZone = maxSplashesPerZone;
+        }
+
+        // ── Рідкість (§6, §12) ──
+
+        private readonly int[] _rarityWeights;
+
+        /// <summary>Шанси рідкості у ваговій формі (§6: 70 / 25 / 5). Індекс — (int)<see cref="Rarity"/>.</summary>
+        public IReadOnlyList<int> RarityWeights => _rarityWeights;
+
+        public int RarityWeightTotal { get; }
+
+        /// <summary>Рідкість за кидком у [0, RarityWeightTotal).</summary>
+        public Rarity RarityFor(int roll)
+        {
+            if (roll < 0 || roll >= RarityWeightTotal)
+                throw new ArgumentOutOfRangeException(nameof(roll));
+            var acc = 0;
+            for (var i = 0; i < _rarityWeights.Length; i++)
+            {
+                acc += _rarityWeights[i];
+                if (roll < acc)
+                    return (Rarity)i;
+            }
+            return Rarity.Common;
         }
 
         // ── Картинка (§5, §12) ──

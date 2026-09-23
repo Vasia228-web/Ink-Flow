@@ -43,17 +43,57 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
-        public void DefaultCatalog_IsValidAndUsesSecondaryHues()
+        public void DefaultCatalog_FollowsTheRarityTable()
         {
             var catalog = PictureCatalogData.Default;
-            Assert.GreaterOrEqual(catalog.Count, 3);
+            Assert.GreaterOrEqual(catalog.Themes.Count, 2);
+            foreach (var theme in catalog.Themes)
+            {
+                Assert.AreEqual(1, theme.CountOf(Rarity.Legendary), $"§6: у темі «{theme.Id}» одна легендарна");
+                Assert.GreaterOrEqual(theme.CountOf(Rarity.Common), 3, theme.Id);
+                Assert.GreaterOrEqual(theme.CountOf(Rarity.Rare), 1, theme.Id);
+            }
+
             foreach (var picture in catalog.Pictures)
             {
-                Assert.AreEqual(10, picture.Width, picture.Id);
-                Assert.GreaterOrEqual(picture.ZoneCount, 4, "§6: звичайна — 4–6 зон");
-                Assert.LessOrEqual(picture.ZoneCount, 6);
+                Assert.AreEqual(picture.Width, picture.Height, $"«{picture.Id}» — квадрат, бо квадрат зон на екрані");
+                switch (picture.Rarity)
+                {
+                    case Rarity.Common:
+                        Assert.GreaterOrEqual(picture.ZoneCount, 4, $"{picture.Id}: §6 звичайна — 4–6 зон");
+                        Assert.LessOrEqual(picture.ZoneCount, 6, picture.Id);
+                        Assert.IsFalse(picture.Needs(Hue.Brown), $"{picture.Id}: коричневий — лише рідкісним");
+                        Assert.LessOrEqual(SecondaryHues(picture), 1, $"{picture.Id}: один вторинний відтінок на звичайну");
+                        break;
+                    case Rarity.Rare:
+                        Assert.GreaterOrEqual(picture.ZoneCount, 8, $"{picture.Id}: §6 рідкісна — 8–12 зон");
+                        Assert.LessOrEqual(picture.ZoneCount, 12, picture.Id);
+                        break;
+                    case Rarity.Legendary:
+                        Assert.GreaterOrEqual(picture.ZoneCount, 15, $"{picture.Id}: §6 легендарна — 15+ зон");
+                        break;
+                }
             }
             Assert.IsTrue(catalog[catalog.IndexOf("whale")].Needs(Hue.Green), "кит має фонтан — синій + жовтий");
+            Assert.AreEqual("nature", catalog[catalog.IndexOf("whale")].ThemeId);
+            Assert.AreEqual("Космос", catalog.ThemeOf(catalog[catalog.IndexOf("galaxy")])!.Name);
+        }
+
+        private static int SecondaryHues(PictureDef picture)
+        {
+            var n = 0;
+            foreach (var hue in Hues.All)
+                if (Hues.IsSecondary(hue) && picture.Needs(hue))
+                    n++;
+            return n;
+        }
+
+        [Test]
+        public void Theme_RejectsForeignPictures()
+        {
+            var foreign = PictureCatalogData.Picture("other", "x", "X", Rarity.Common,
+                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Blue, "a"));
+            Assert.Throws<System.ArgumentException>(() => new ThemeDef("mine", "Моя", new[] { foreign }));
         }
 
         [Test]

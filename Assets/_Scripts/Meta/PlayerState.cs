@@ -32,9 +32,11 @@ namespace InkFlow.Meta
             File.Galaxy ??= new GalaxyData();
             File.Progress ??= new ProgressData();
             File.Settings ??= new SettingsData();
+            File.Collection ??= new CollectionData();
 
             Wallet = new Wallet(File.Wallet.OilDrops);
             Paints = PaintInventory.Load(File.Paints);
+            Collection = PictureCollection.Load(File.Collection);
             Rewards = new RewardCalculator(Economy);
             DailyLimit = new DailyLimitTracker(Economy);
             DailyLimit.Restore(File.Wallet.PlaysToday, File.Wallet.DayUtc);
@@ -46,6 +48,9 @@ namespace InkFlow.Meta
         public PaintStock Paints { get; }
         public RewardCalculator Rewards { get; }
         public DailyLimitTracker DailyLimit { get; }
+
+        /// <summary>Зібрані картинки (§5, §10). Рекорд колекції = <see cref="PictureCollection.Distinct"/>.</summary>
+        public PictureCollection Collection { get; }
 
         public ProgressData Progress => File.Progress;
         public GalaxyData Galaxy => File.Galaxy;
@@ -86,8 +91,20 @@ namespace InkFlow.Meta
             File.Wallet.PlaysToday = DailyLimit.PlaysToday;
             File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");
             PaintInventory.Save(Paints, File.Paints);
+            PictureCollection.Save(Collection, File.Collection);
 
             _storage?.Save(File);
+        }
+
+        /// <summary>
+        /// Картинку домальовано в забігу (§5): у колекцію і одразу у файл — програш
+        /// через хвилину не має відібрати те, що вже зібрано. Повертає true, якщо нова.
+        /// </summary>
+        public bool CollectPicture(string pictureId, DateTime utcNow)
+        {
+            var isNew = Collection.Add(pictureId, utcNow);
+            Persist();
+            return isNew;
         }
 
         /// <summary>
