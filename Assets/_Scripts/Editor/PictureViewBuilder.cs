@@ -23,7 +23,8 @@ namespace InkFlow.Editor
         /// </summary>
         internal static PictureView MakePictureView(GameObject go, DesignSystem design, TMP_FontAsset? font,
             Sprite rounded, Sprite outline, Sprite nebula,
-            float width, float plateHeight, float canvasSide, bool withTitle, float captionHeight, bool bare = false)
+            float width, float plateHeight, float canvasSide, bool withTitle, float captionHeight, bool bare = false,
+            Sprite? particle = null)
         {
             var plateGo = Child(go, "Plate");
             var plate = plateGo.GetComponent<RectTransform>();
@@ -58,6 +59,27 @@ namespace InkFlow.Editor
             plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius);
             plateStroke.color = bare ? Color.clear : design.PicturePlateStroke;
             plateStroke.raycastTarget = false;
+
+            // Рамка рідкості (§6): колір обведення й світіння, для космічної — частинки по орбіті.
+            var particlesGo = Child(plateGo, "Particles");
+            Stretch(particlesGo);
+            var particleRoot = particlesGo.GetComponent<RectTransform>();
+            const int particleCount = 6;
+            var particles = new Image[particleCount];
+            for (var i = 0; i < particleCount; i++)
+            {
+                var dotGo = Child(particlesGo, $"Particle{i}");
+                var dot = dotGo.AddComponent<Image>();
+                dot.sprite = particle != null ? particle : nebula;
+                dot.raycastTarget = false;
+                dot.color = Color.white;
+                Place(dot, Vector2.zero, new Vector2(M(7f), M(7f)), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                dotGo.SetActive(false);
+                particles[i] = dot;
+            }
+            var frame = plateGo.AddComponent<RarityFrame>();
+            Wire(frame, ("design", design), ("stroke", plateStroke), ("glow", glow), ("particleRoot", particleRoot));
+            WireArray(frame, "particles", particles);
 
             TMP_Text? title = null;
             TMP_Text? attempts = null;
@@ -111,7 +133,7 @@ namespace InkFlow.Editor
 
             var view = go.AddComponent<PictureView>();
             Wire(view, ("design", design), ("plate", plate), ("plateFill", plateFill),
-                ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas), ("pixels", pixels));
+                ("plateStroke", plateStroke), ("glow", glow), ("frame", frame), ("canvas", canvas), ("pixels", pixels));
             if (title != null) Wire(view, ("title", title));
             if (attempts != null) Wire(view, ("attempts", attempts));
             if (caption != null) Wire(view, ("caption", caption));

@@ -24,6 +24,7 @@ namespace InkFlow.UI
         [SerializeField] private Image plateFill;
         [SerializeField] private Image plateStroke;
         [SerializeField] private Image glow;
+        [SerializeField] private RarityFrame frame;
         [SerializeField] private RectTransform canvas;
         [SerializeField] private RawImage pixels;
         [SerializeField] private TMP_Text title;
@@ -43,8 +44,8 @@ namespace InkFlow.UI
             if (design == null)
                 return;
             if (plateFill != null) plateFill.color = design.PicturePlateFill;
-            if (plateStroke != null) plateStroke.color = _picture != null ? design.RarityColor(_picture.Rarity) : design.PicturePlateStroke;
-            if (glow != null)
+            if (plateStroke != null && frame == null) plateStroke.color = _picture != null ? design.RarityColor(_picture.Rarity) : design.PicturePlateStroke;
+            if (glow != null && frame == null)
             {
                 glow.color = design.AccentGold;
                 glow.canvasRenderer.SetAlpha(0f);
@@ -166,7 +167,7 @@ namespace InkFlow.UI
                 StopCoroutine(_flash);
             _flash = null;
             if (plate != null) plate.localScale = Vector3.one;
-            if (glow != null) glow.canvasRenderer.SetAlpha(0f);
+            if (glow != null) glow.canvasRenderer.SetAlpha(frame != null ? glow.color.a : 0f);
         }
 
         private IEnumerator CompletedRoutine(System.Action? then)
@@ -180,12 +181,12 @@ namespace InkFlow.UI
                 if (plate != null)
                     plate.localScale = Vector3.one * (1f + pop * design.CurveBackOut.Evaluate(Mathf.Min(1f, k * 2f)) * (1f - Mathf.Max(0f, k - 0.5f) * 2f));
                 if (glow != null)
-                    glow.canvasRenderer.SetAlpha(design.PictureGlowAlpha * wave);
+                    glow.canvasRenderer.SetAlpha(Mathf.Max(glow.color.a, design.PictureGlowAlpha * wave));
                 yield return null;
             }
 
             if (plate != null) plate.localScale = Vector3.one;
-            if (glow != null) glow.canvasRenderer.SetAlpha(0f);
+            if (glow != null) glow.canvasRenderer.SetAlpha(frame != null ? glow.color.a : 0f);
             _flash = null;
             then?.Invoke();
         }
@@ -212,7 +213,9 @@ namespace InkFlow.UI
             }
             if (changed)
                 FitAspect();
-            if (plateStroke != null && design != null)
+            if (frame != null)
+                frame.Bind(picture.Rarity);
+            else if (plateStroke != null && design != null)
                 plateStroke.color = design.RarityColor(picture.Rarity);
         }
 

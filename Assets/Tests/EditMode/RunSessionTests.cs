@@ -522,6 +522,40 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
+        public void Events_PixelsFollowTheirLineImmediatelyAndNoneComeAfterCompletion()
+        {
+            // В'ю спирається на ці два порядки: краплі лінії запускаються на її LineCleared,
+            // а після PictureCompleted пікселів у стрічці вже немає (вони — старої картинки).
+            var library = TestBoard.Library(
+                TestBoard.Picture("blue", Rarity.Common, "kbbbbk", "kbbbbk"),
+                TestBoard.Picture("red", Rarity.Common, "krrrrk", "krrrrk"));
+            var session = TestBoard.NewSession(9u, null, library);
+            var wanted = session.Picture.LibraryIndex == 0 ? TestBoard.Blue : TestBoard.Red;
+            TestBoard.FillRow(session.Board, 0, wanted == TestBoard.Blue ? "bbb.bbbb" : "rrr.rrrr");
+            for (var y = 2; y < 8; y++)
+                session.Board[3, y] = wanted;
+            TestBoard.SetTray(session, TestBoard.Piece("2v", wanted));
+
+            var result = session.TryPlace(0, new GridPos(3, 0));
+            Assert.AreEqual(1, result.PicturesCompleted);
+
+            var completedAt = TestBoard.IndexOf(result, GameEventType.PictureCompleted);
+            for (var i = 0; i < result.Events.Count; i++)
+            {
+                var e = result.Events[i];
+                if (e.Type == GameEventType.PixelFilled)
+                {
+                    Assert.Less(i, completedAt, "піксель після завершення — це піксель нової картинки, якого бути не може");
+                    var previous = result.Events[i - 1].Type;
+                    Assert.IsTrue(previous == GameEventType.LineCleared || previous == GameEventType.PixelFilled,
+                        $"піксель на позиції {i} відірвано від своєї лінії ({previous})");
+                    Assert.AreEqual(1, e.CellCount, "клітинка-джерело — рівно одна");
+                }
+            }
+            Assert.Greater(TestBoard.IndexOf(result, GameEventType.BoardRecolored), completedAt, "перефарбування — після завершення");
+        }
+
+        [Test]
         public void IsCollected_SteersTheDeckTowardUnseenPictures()
         {
             var library = TestBoard.Library(

@@ -2,26 +2,51 @@ using InkFlow.Core;
 using InkFlow.Style;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Фігура в лотку: до п'яти блоків, викладених за формою в масштабі лотка
-    /// (<see cref="BoardGeometry.TrayBox"/>), і жест перетягування.
+    /// Фігура в лотку — одна злита крапля (docs/design/V2InkBlob.html): один квад із
+    /// шейдером <c>InkFlow/InkBlob</c>, якому передаються центри клітинок; кола, містки,
+    /// градієнт, світіння й відблиски рахує він. Жодних плиток-підкладок: фігури висять
+    /// у повітрі (§11).
     ///
-    /// Сама фігура за пальцем не їде — на полі з'являється привид (як у прототипі v3):
-    /// так фігуру видно з-під пальця, а комірка лотка лише тьмяніє, поки її тягнуть.
+    /// Сама фігура за пальцем не їде — на полі з'являється привид, а комірка лише тьмяніє.
     /// Куди ставити, вирішує дошка; комірка знає лише свій індекс.
     /// </summary>
     public sealed class PieceView : MonoBehaviour,
         IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private BlockView[] blocks = System.Array.Empty<BlockView>();
+        [SerializeField] private Image blob;
+        [SerializeField] private Shader blobShader;
         [SerializeField] private CanvasGroup group;
+
+        [Tooltip("Крок клітинок фігури в одиницях канваса — той самий, що й у BoardGeometry.TrayStep × коефіцієнт макета.")]
+        [SerializeField] private float cellStep = 69f;
+
+        private static readonly int[] CellIds =
+        {
+            Shader.PropertyToID("_Cell0"), Shader.PropertyToID("_Cell1"), Shader.PropertyToID("_Cell2"),
+            Shader.PropertyToID("_Cell3"), Shader.PropertyToID("_Cell4")
+        };
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int LightId = Shader.PropertyToID("_Light");
+        private static readonly int DarkId = Shader.PropertyToID("_Dark");
+        private static readonly int SizeId = Shader.PropertyToID("_Size");
+        private static readonly int StepId = Shader.PropertyToID("_Step");
+        private static readonly int RadiusId = Shader.PropertyToID("_Radius");
+        private static readonly int BridgeId = Shader.PropertyToID("_Bridge");
+        private static readonly int SmoothId = Shader.PropertyToID("_Smooth");
+        private static readonly int GlowAlphaId = Shader.PropertyToID("_GlowAlpha");
+        private static readonly int GlowWidthId = Shader.PropertyToID("_GlowWidth");
+        private static readonly int HighlightId = Shader.PropertyToID("_HighlightAlpha");
+        private static readonly int DotId = Shader.PropertyToID("_DotAlpha");
 
         private int _index;
         private PieceDef _piece;
+        private Material? _material;
 
         public int Index => _index;
         public PieceDef Piece => _piece;
@@ -34,52 +59,71 @@ namespace InkFlow.UI
 
         public void Bind(int index) => _index = index;
 
-        /// <summary>Розкладає блоки за формою. Центр фігури — центр комірки.</summary>
+        /// <summary>Показує фігуру: центри клітинок — у шейдер, колір — у три відтінки.</summary>
         public void Show(PieceDef piece)
         {
             _piece = piece;
-            if (design == null)
+            if (design == null || blob == null)
                 return;
 
             if (piece.IsEmpty)
             {
-                for (var i = 0; i < blocks.Length; i++)
-                    blocks[i]?.Hide();
+                if (blob.gameObject.activeSelf)
+                    blob.gameObject.SetActive(false);
+                SetDragging(false);
                 return;
             }
 
+            var material = Material;
+            if (material == null)
+                return;
+
             var shape = piece.Shape!;
-            // Крок — від фактичного розміру блока, який виставив збирач, а не від
-            // константи: масштаб макета в збирача й у стилі різний (390 проти 402 px),
-            // і другого джерела правди тут бути не може.
-            var box = blocks.Length > 0 && blocks[0] != null
-                ? ((RectTransform)blocks[0].transform).sizeDelta.x
-                : BoardGeometry.TrayBox * DesignSystem.MockupToReference;
-            var step = box * (BoardGeometry.TrayStep / BoardGeometry.TrayBox);
-            var color = DesignSystem.PaletteColor(piece.Color);
+            var rect = ((RectTransform)blob.transform).rect;
+            var size = new Vector2(Mathf.Max(rect.width, 1f), Mathf.Max(rect.height, 1f));
             var offsetX = (shape.Width - 1) * 0.5f;
             var offsetY = (shape.Height - 1) * 0.5f;
 
-            for (var i = 0; i < blocks.Length; i++)
+            for (var i = 0; i < CellIds.Length; i++)
             {
-                var block = blocks[i];
-                if (block == null)
-                    continue;
-
                 if (i >= shape.Cells.Length)
                 {
-                    block.Hide();
+                    material.SetVector(CellIds[i], Vector4.zero);
                     continue;
                 }
-
                 var cell = shape.Cells[i];
-                var rect = (RectTransform)block.transform;
-                // Позиція — на подію показу, не щокадру: anchoredPosition тут дозволена.
-                rect.anchoredPosition = new Vector2((cell.X - offsetX) * step, (cell.Y - offsetY) * step);
-                block.Show(color);
+                material.SetVector(CellIds[i], new Vector4(
+                    size.x * 0.5f + (cell.X - offsetX) * cellStep,
+                    size.y * 0.5f + (cell.Y - offsetY) * cellStep,
+                    1f, 0f));
             }
 
+            Recolor(piece.Color);
+            material.SetVector(SizeId, new Vector4(size.x, size.y, 0f, 0f));
+            material.SetFloat(StepId, cellStep);
+            material.SetFloat(RadiusId, cellStep * design.PieceRadiusFraction);
+            material.SetFloat(BridgeId, cellStep * design.PieceBridgeFraction);
+            material.SetFloat(SmoothId, cellStep * design.PieceRadiusFraction * design.PieceSmoothFraction);
+            material.SetFloat(GlowAlphaId, design.PieceGlowAlpha);
+            material.SetFloat(GlowWidthId, cellStep * design.PieceRadiusFraction * design.PieceGlowFraction);
+            material.SetFloat(HighlightId, design.PieceHighlightAlpha);
+            material.SetFloat(DotId, design.PieceDotAlpha);
+
+            if (!blob.gameObject.activeSelf)
+                blob.gameObject.SetActive(true);
             SetDragging(false);
+        }
+
+        /// <summary>Перефарбування (§5): три відтінки з базового за правилом дизайн-системи.</summary>
+        public void Recolor(byte color)
+        {
+            var material = Material;
+            if (material == null || design == null)
+                return;
+            var baseColor = DesignSystem.PaletteColor(color);
+            material.SetColor(ColorId, baseColor);
+            material.SetColor(LightId, design.PieceLight(baseColor));
+            material.SetColor(DarkId, design.PieceDark(baseColor));
         }
 
         /// <summary>Поки фігуру тягнуть, комірка тьмяніє — фігура «пішла» на поле.</summary>
@@ -87,6 +131,26 @@ namespace InkFlow.UI
         {
             if (group != null && design != null)
                 group.alpha = dragging ? design.TrayDraggingAlpha : 1f;
+        }
+
+        private Material? Material
+        {
+            get
+            {
+                if (_material != null)
+                    return _material;
+                if (blob == null || blobShader == null)
+                    return null;
+                _material = new Material(blobShader) { name = "InkBlob (instance)" };
+                blob.material = _material;
+                return _material;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_material != null)
+                Destroy(_material);
         }
 
         public void OnPointerDown(PointerEventData eventData)

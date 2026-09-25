@@ -592,11 +592,62 @@ namespace InkFlow.Style
         [SerializeField] private Color boardPlateFill = new Color(1f, 1f, 1f, 0.04f);
         [SerializeField] private Color boardPlateStroke = new Color(1f, 1f, 1f, 0.1f);
 
-        [Tooltip("Лоток: комірка з фігурою / порожня; прозорість комірки, поки фігуру тягнуть.")]
-        [SerializeField] private Color traySlotFill = new Color(1f, 1f, 1f, 0.05f);
-        [SerializeField] private Color traySlotStroke = new Color(1f, 1f, 1f, 0.09f);
-        [SerializeField] private Color traySlotEmptyFill = new Color(1f, 1f, 1f, 0.02f);
+        [Tooltip("Лоток: прозорість фігури, поки її тягнуть (плиток під фігурами немає — §11).")]
         [SerializeField, Range(0f, 1f)] private float trayDraggingAlpha = 0.3f;
+
+        [Header("Фігура-крапля (docs/design/V2InkBlob.html)")]
+        [Tooltip("Світлий і темний відтінки виводяться з базового кольору: до білого / до чорного на цю частку.")]
+        [SerializeField, Range(0f, 1f)] private float pieceLightMix = 0.5f;
+        [SerializeField, Range(0f, 1f)] private float pieceDarkMix = 0.5f;
+        [Tooltip("Еталон: клітинка — коло радіусом 0.425 кроку, місток 0.45 кроку, згладжування — частка радіуса.")]
+        [SerializeField, Range(0.2f, 0.6f)] private float pieceRadiusFraction = 0.425f;
+        [SerializeField, Range(0.1f, 0.9f)] private float pieceBridgeFraction = 0.45f;
+        [SerializeField, Range(0f, 1f)] private float pieceSmoothFraction = 0.35f;
+        [Tooltip("Світіння в колір фігури: прозорість і ширина (частка радіуса).")]
+        [SerializeField, Range(0f, 1f)] private float pieceGlowAlpha = 0.5f;
+        [SerializeField, Range(0f, 2f)] private float pieceGlowFraction = 0.7f;
+        [Tooltip("Відблиски: еліпса вгорі-ліворуч і цятка внизу-праворуч.")]
+        [SerializeField, Range(0f, 1f)] private float pieceHighlightAlpha = 0.75f;
+        [SerializeField, Range(0f, 1f)] private float pieceDotAlpha = 0.45f;
+
+        [Header("Краплі в картинку (§5)")]
+        [Tooltip("Політ краплі з клітинки в піксель: тривалість, пауза між краплями, висота дуги, розмір.")]
+        [SerializeField, Min(0.05f)] private float dropFlightDuration = 0.38f;
+        [SerializeField, Min(0f)] private float dropStagger = 0.028f;
+        [SerializeField] private float dropArc = 70f;
+        [SerializeField, Min(4f)] private float dropSize = 28f;
+        [Tooltip("«Пуф» на пікселі: до якого масштабу розпливається й за скільки гасне.")]
+        [SerializeField, Min(1f)] private float dropPuffScale = 2.1f;
+        [SerializeField, Min(0.02f)] private float dropPuffDuration = 0.16f;
+
+        [Header("Перефарбування хвилею (§5)")]
+        [Tooltip("Пауза між клітинками хвилі і стеля тривалості всієї хвилі.")]
+        [SerializeField, Min(0f)] private float recolorWaveStagger = 0.02f;
+        [SerializeField, Min(0.05f)] private float recolorWaveMaxDuration = 0.7f;
+
+        [Header("Завершення картинки (§8)")]
+        [Tooltip("Затемнення поверх розмитого знімка і тон самого знімка.")]
+        [SerializeField] private Color completionScrim = new Color(0.03f, 0.02f, 0.08f, 0.5f);
+        [SerializeField] private Color completionBackdropTint = new Color(0.62f, 0.6f, 0.7f, 1f);
+        [Tooltip("Знімок зменшується в стільки разів і розмивається стількома проходами — один раз.")]
+        [SerializeField, Range(2, 16)] private int completionBlurDownscale = 8;
+        [SerializeField, Range(0, 4)] private int completionBlurPasses = 2;
+        [Tooltip("Свайп: скільки одиниць канваса — рішення; нахил картки на одиницю зсуву; тривалості.")]
+        [SerializeField, Min(20f)] private float completionSwipeThreshold = 220f;
+        [SerializeField, Range(0f, 0.2f)] private float completionTilt = 0.03f;
+        [SerializeField, Min(0.05f)] private float completionFlyDuration = 0.42f;
+        [SerializeField, Min(0.05f)] private float completionEnterDuration = 0.35f;
+        [SerializeField] private float fontSizeCompletionTitle = 59f;
+        [SerializeField] private float fontSizeCompletionRarity = 30f;
+        [SerializeField] private float fontSizeCompletionHint = 30f;
+
+        [Header("Рамки рідкості (§6)")]
+        [Tooltip("Епічна — м'яке світіння; легендарна — відблиск раз на період; космічна — переливи й частинки.")]
+        [SerializeField, Range(0f, 1f)] private float epicGlowAlpha = 0.3f;
+        [SerializeField, Min(0.2f)] private float legendarySweepPeriod = 2.4f;
+        [SerializeField, Min(0f)] private float cosmicHueSpeed = 0.12f;
+        [SerializeField, Range(0f, 1f)] private float cosmicParticleAlpha = 0.85f;
+        [SerializeField, Min(0f)] private float cosmicParticleSpeed = 0.3f;
 
         [Tooltip("Число «+фарба» над зірваною лінією: 25 px макета для чистої, 16 — для мішаної.")]
         [SerializeField] private float fontSizeLineFloatPure = 69f;
@@ -627,10 +678,6 @@ namespace InkFlow.Style
         [SerializeField] private float fontSizeComboPop = 166f;
         [SerializeField, Min(0.1f)] private float comboPopDuration = 1.1f;
         [SerializeField] private float comboPopRise = 120f;
-
-        [Tooltip("Попередження про переповнення поля (поріг — у BalanceConfig.haloWarningFreeCells).")]
-        [SerializeField] private Color overflowWarn = new Color(1f, 0.235f, 0.353f, 0.5f);
-        [SerializeField, Min(0.2f)] private float overflowPulseDuration = 2.1f;
 
         [Tooltip("Скільки секунд без ходу — і підказка сама покаже, куди влазить фігура; і скільки її видно.")]
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
@@ -910,10 +957,47 @@ namespace InkFlow.Style
         public float BlockRadiusFraction => blockRadiusFraction;
         public Color BoardPlateFill => boardPlateFill;
         public Color BoardPlateStroke => boardPlateStroke;
-        public Color TraySlotFill => traySlotFill;
-        public Color TraySlotStroke => traySlotStroke;
-        public Color TraySlotEmptyFill => traySlotEmptyFill;
         public float TrayDraggingAlpha => trayDraggingAlpha;
+
+        public float PieceRadiusFraction => pieceRadiusFraction;
+        public float PieceBridgeFraction => pieceBridgeFraction;
+        public float PieceSmoothFraction => pieceSmoothFraction;
+        public float PieceGlowAlpha => pieceGlowAlpha;
+        public float PieceGlowFraction => pieceGlowFraction;
+        public float PieceHighlightAlpha => pieceHighlightAlpha;
+        public float PieceDotAlpha => pieceDotAlpha;
+
+        /// <summary>Світлий відтінок фігури — з базового за одним правилом на всю гру.</summary>
+        public Color PieceLight(Color baseColor) => new Color(
+            Mathf.Lerp(baseColor.r, 1f, pieceLightMix), Mathf.Lerp(baseColor.g, 1f, pieceLightMix), Mathf.Lerp(baseColor.b, 1f, pieceLightMix), 1f);
+
+        public Color PieceDark(Color baseColor) => new Color(
+            baseColor.r * (1f - pieceDarkMix), baseColor.g * (1f - pieceDarkMix), baseColor.b * (1f - pieceDarkMix), 1f);
+
+        public float DropFlightDuration => dropFlightDuration;
+        public float DropStagger => dropStagger;
+        public float DropArc => dropArc;
+        public float DropSize => dropSize;
+        public float DropPuffScale => dropPuffScale;
+        public float DropPuffDuration => dropPuffDuration;
+        public float RecolorWaveStagger => recolorWaveStagger;
+        public float RecolorWaveMaxDuration => recolorWaveMaxDuration;
+        public Color CompletionScrim => completionScrim;
+        public Color CompletionBackdropTint => completionBackdropTint;
+        public int CompletionBlurDownscale => completionBlurDownscale;
+        public int CompletionBlurPasses => completionBlurPasses;
+        public float CompletionSwipeThreshold => completionSwipeThreshold;
+        public float CompletionTilt => completionTilt;
+        public float CompletionFlyDuration => completionFlyDuration;
+        public float CompletionEnterDuration => completionEnterDuration;
+        public float FontSizeCompletionTitle => fontSizeCompletionTitle;
+        public float FontSizeCompletionRarity => fontSizeCompletionRarity;
+        public float FontSizeCompletionHint => fontSizeCompletionHint;
+        public float EpicGlowAlpha => epicGlowAlpha;
+        public float LegendarySweepPeriod => legendarySweepPeriod;
+        public float CosmicHueSpeed => cosmicHueSpeed;
+        public float CosmicParticleAlpha => cosmicParticleAlpha;
+        public float CosmicParticleSpeed => cosmicParticleSpeed;
         public float FontSizeLineFloatPure => fontSizeLineFloatPure;
         public float FontSizeLineFloatMixed => fontSizeLineFloatMixed;
         public float LineFloatDuration => lineFloatDuration;
@@ -929,8 +1013,6 @@ namespace InkFlow.Style
         public float FontSizeComboPop => fontSizeComboPop;
         public float ComboPopDuration => comboPopDuration;
         public float ComboPopRise => comboPopRise;
-        public Color OverflowWarn => overflowWarn;
-        public float OverflowPulseDuration => overflowPulseDuration;
         public float HintIdleDelay => hintIdleDelay;
         public float HintShowDuration => hintShowDuration;
         public Color PicturePlateFill => picturePlateFill;

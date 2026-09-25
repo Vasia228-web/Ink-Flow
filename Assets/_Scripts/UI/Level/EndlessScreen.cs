@@ -54,15 +54,16 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text recordLabel;
         [SerializeField] private TMP_Text recordNumber;
 
-        [Header("Картинка (§11: головний фокус)")]
+        [Header("Картинка (§11: головний фокус) і краплі (§5)")]
         [SerializeField] private PictureView picture;
+        [SerializeField] private DropFlock drops;
+        [SerializeField] private CompletionCard completion;
 
         [Header("Поле і лоток")]
         [SerializeField] private BoardView board;
         [SerializeField] private TrayView tray;
         [SerializeField] private Image boardPlate;
         [SerializeField] private Image boardPlateStroke;
-        [SerializeField] private Image overflowRing;
         [SerializeField] private TMP_Text comboPop;
 
         [Header("Кінець партії")]
@@ -140,17 +141,19 @@ namespace InkFlow.UI
         }
 
         private LiveRecord _record;
-        private bool _overflow;
         private int _dragging = -1;
+        private int _pendingCompletion = -1;
+        private bool _pendingCollected;
+        private MoveResult? _pendingResult;
         private bool _ghostValid;
         private GridPos _ghostAnchor;
 
         private Coroutine? _playback;
         private Coroutine? _flash;
         private Coroutine? _combo;
-        private Coroutine? _overflowPulse;
         private Coroutine? _confetti;
         private Coroutine? _hint;
+        private Coroutine? _completionFlow;
         private float _idleSince;
         private bool _hintPending;
 
@@ -187,6 +190,7 @@ namespace InkFlow.UI
             {
                 board.Router.PlaceRequested += OnPlaceRequested;
                 board.ChainAdvanced += OnChainAdvanced;
+                board.LineClearing += OnLineClearing;
             }
 
             if (tray != null)
@@ -195,6 +199,11 @@ namespace InkFlow.UI
                 tray.Dragged += OnDragged;
                 tray.DragEnded += OnDragEnded;
             }
+
+            if (drops != null)
+                drops.Arrived += OnDropArrived;
+            if (completion != null)
+                completion.Decided += OnCompletionDecided;
         }
 
         private void OnDestroy()
@@ -203,6 +212,7 @@ namespace InkFlow.UI
             {
                 board.Router.PlaceRequested -= OnPlaceRequested;
                 board.ChainAdvanced -= OnChainAdvanced;
+                board.LineClearing -= OnLineClearing;
             }
 
             if (tray != null)
@@ -238,6 +248,7 @@ namespace InkFlow.UI
 
         public override void OnExit()
         {
+            CollectPendingIfAny();
             StopAllRoutines();
             base.OnExit();
         }
@@ -257,7 +268,9 @@ namespace InkFlow.UI
             _finalised = false;
             _annulled = false;
             _rewardForScore = 0;
-            _overflow = false;
+            _pendingCompletion = -1;
+            _pendingCollected = false;
+            _pendingResult = null;
             _hintPending = false;
             _dragging = -1;
             _idleSince = Time.time;
@@ -271,6 +284,8 @@ namespace InkFlow.UI
             tray?.Show(_session.Tray);
             picture?.Show(_session.Picture);
             picture?.ShowAttempts(_session.StartedWithCarried ? _session.AttemptsLeft : 0);
+            drops?.Clear();
+            completion?.Hide();
             HideOver();
             ShowIntro();
         }
@@ -362,57 +377,124 @@ namespace InkFlow.UI
         }
 
         /// <summary>
-        /// Програє картинку ходу: кожен PixelFilled кладе піксель (Фаза 2 — крапля з клітинки
-        /// летить у піксель), завершення — спалах і наступна картинка, поповнення лотка —
-        /// збереження незавершеної (§9: раз на лоток).
+        /// Лінія зривається — її краплі вилітають (§5): PixelFilled ідуть у стрічці одразу за
+        /// своєю LineCleared, кожна летить із клітинки-джерела у свій піксель, одна за одною.
+        /// Піксель кладеться, коли крапля долетіла (<see cref="OnDropArrived"/>). Без пулу
+        /// в сцені (стара збірка) пікселі кладуться одразу.
         /// </summary>
-        private void PlayPixels(MoveResult result)
+        private void OnLineClearing(MoveResult result, int lineEventIndex)
+        {
+            if (_session == null || picture == null)
+                return;
+            var events = result.Events;
+            var k = 0;
+            for (var e = lineEventIndex + 1; e < events.Count; e++)
+            {
+                var ev = events[e];
+                if (ev.Type != GameEventType.PixelFilled)
+                    break;
+                if (drops == null || board == null || ev.CellCount == 0)
+                {
+                    picture.PlayPixel(ev.Value);
+                    continue;
+                }
+                drops.Launch(board.CellWorldPosition(result.Cell(ev, 0)), picture.PixelWorldPosition(ev.Value),
+                    DesignSystem.PaletteColor(ev.Color), ev.Value, k * design.DropStagger);
+                k++;
+            }
+        }
+
+        private void OnDropArrived(int pixelIndex) => picture?.PlayPixel(pixelIndex);
+
+        private static int CompletedIndex(MoveResult result)
+        {
+            for (var e = 0; e < result.Events.Count; e++)
+                if (result.Events[e].Type == GameEventType.PictureCompleted)
+                    return result.Events[e].Value;
+            return -1;
+        }
+
+        // ── Завершення картинки (§8): пауза, знімок, картка, свайп ──
+
+        private IEnumerator CompletionFlow(int completedIndex)
+        {
+            if (_session == null)
+                yield break;
+            _pendingCompletion = completedIndex;
+            _pendingCollected = false;
+
+            // Спалах на плитці — і лише тоді знімок: у фоні картки картинка вже сяє.
+            picture?.PlayCompleted(null);
+            yield return new WaitForSeconds(design != null ? design.PictureCompleteDuration * 0.5f : 0.3f);
+            yield return new WaitForEndOfFrame();
+
+            Texture2D? snapshot = null;
+            if (design != null && completion != null)
+                snapshot = SnapshotBlur.Capture(design.CompletionBlurDownscale, design.CompletionBlurPasses);
+
+            if (completion != null)
+                completion.Show(_session.Library[completedIndex], snapshot);
+            else
+                OnCompletionDecided(true);
+            _completionFlow = null;
+        }
+
+        /// <summary>Свайп зроблено: у колекцію або ні — і забіг триває: хвиля перефарбування, наступна картинка.</summary>
+        private void OnCompletionDecided(bool keep)
+        {
+            if (_session == null || _pendingCompletion < 0)
+                return;
+            var index = _pendingCompletion;
+            _pendingCompletion = -1;
+            if (keep && !_pendingCollected)
+                _state?.CollectPicture(_session.Library[index].Id, System.DateTime.UtcNow);
+            _pendingCollected = false;
+
+            if (isActiveAndEnabled)
+                StartCoroutine(ResumeAfterCompletion());
+            else
+                ResumeInstantly();
+        }
+
+        private IEnumerator ResumeAfterCompletion()
+        {
+            if (_session == null)
+                yield break;
+            picture?.Show(_session.Picture);
+            picture?.ShowAttempts(0);
+            if (board != null && _pendingResult != null)
+                yield return board.PlayRecolor(_pendingResult);
+            _pendingResult = null;
+            tray?.Show(_session.Tray);
+            FinishMove();
+        }
+
+        private void ResumeInstantly()
         {
             if (_session == null)
                 return;
+            picture?.Show(_session.Picture);
+            picture?.ShowAttempts(0);
+            board?.Repaint();
+            _pendingResult = null;
+            tray?.Show(_session.Tray);
+            FinishMove();
+        }
 
-            var events = result.Events;
-            var completedIndex = -1;
-            for (var e = 0; e < events.Count; e++)
+        /// <summary>Спільний хвіст ходу: розблокувати поле або зафіксувати програш.</summary>
+        private void FinishMove()
+        {
+            if (board != null)
+                board.Router.Locked = false;
+            _playback = null;
+            _idleSince = Time.time;
+            _hintPending = false;
+
+            if (_session != null && _session.IsOver)
             {
-                var ev = events[e];
-                switch (ev.Type)
-                {
-                    case GameEventType.PixelFilled:
-                        // Пікселі належать картинці, що була ДО завершення; після нього їх у стрічці немає.
-                        if (completedIndex < 0)
-                            picture?.PlayPixel(ev.Value);
-                        break;
-                    case GameEventType.PictureCompleted:
-                        completedIndex = ev.Value;
-                        // Модель — правда: у колекцію одразу, не чекаючи анімації.
-                        _state?.CollectPicture(_session.Library[ev.Value].Id, System.DateTime.UtcNow);
-                        break;
-                }
+                GameEvents.RaiseSessionEnded(_session.State);
+                OnLost();
             }
-
-            if (completedIndex >= 0)
-            {
-                // §6: легендарна й вище — спецефект при завершенні. Той самий дощ, що й на рекорд.
-                if (_session.Library[completedIndex].Rarity >= Rarity.Legendary && isActiveAndEnabled)
-                {
-                    if (_confetti != null) StopCoroutine(_confetti);
-                    _confetti = StartCoroutine(ConfettiRoutine());
-                }
-                var session = _session;
-                picture?.PlayCompleted(() =>
-                {
-                    if (session == _session && picture != null)
-                    {
-                        picture.Show(session.Picture);
-                        picture.ShowAttempts(0);
-                    }
-                });
-            }
-
-            // §9: прогрес незавершеної — у файл раз на лоток (і на паузу, див. OnApplicationPause).
-            if (result.Has(GameEventType.TrayRefilled))
-                TrackUnfinished();
         }
 
         /// <summary>Поточна картинка з її пікселями — у стан гравця. Порожня не реєструється.</summary>
@@ -424,16 +506,32 @@ namespace InkFlow.UI
             _state.TrackUnfinished(_session.Picture.LibraryIndex, _filledBuffer);
         }
 
-        /// <summary>§9: на згортання застосунку прогрес картинки пишеться одразу.</summary>
+        /// <summary>
+        /// §9: на згортання застосунку прогрес картинки пишеться одразу. Якщо висить картка
+        /// завершення — картинка йде в колекцію зараз: убитий застосунок не має її відібрати.
+        /// </summary>
         private void OnApplicationPause(bool paused)
         {
-            if (paused && _session != null && !_session.IsOver && !_finalised)
+            if (!paused || _session == null)
+                return;
+            CollectPendingIfAny();
+            if (!_session.IsOver && !_finalised)
                 TrackUnfinished();
+        }
+
+        /// <summary>Картка завершення висить, а гравець іде геть: картинка — в колекцію, не в нікуди.</summary>
+        private void CollectPendingIfAny()
+        {
+            if (_session == null || _pendingCompletion < 0 || _pendingCollected)
+                return;
+            _state?.CollectPicture(_session.Library[_pendingCompletion].Id, System.DateTime.UtcNow);
+            _pendingCollected = true;
         }
 
         /// <summary>Миттєвий рестарт: нова сесія на місці, без перезавантаження сцени.</summary>
         public void Restart()
         {
+            CollectPendingIfAny();
             StopAllRoutines();
             board?.StopAll();
             StartSession();
@@ -442,10 +540,14 @@ namespace InkFlow.UI
 
         private void StopAllRoutines()
         {
-            foreach (var routine in new[] { _playback, _flash, _combo, _overflowPulse, _confetti, _hint })
+            foreach (var routine in new[] { _playback, _flash, _combo, _confetti, _hint, _completionFlow })
                 if (routine != null)
                     StopCoroutine(routine);
-            _playback = _flash = _combo = _overflowPulse = _confetti = _hint = null;
+            _playback = _flash = _combo = _confetti = _hint = _completionFlow = null;
+            _pendingCompletion = -1;
+            _pendingResult = null;
+            drops?.Clear();
+            completion?.Hide();
             picture?.StopAll();
             introPicture?.StopAll();
             if (_intro != null)
@@ -523,29 +625,39 @@ namespace InkFlow.UI
                 return;
 
             board.Router.Locked = true;
-            tray?.Show(_session.Tray);
+            // Лише поставлена комірка спорожніє: решта лотка може вже бути перефарбована
+            // під нову картинку, а це показується після картки завершення (§8).
+            tray?.Slot(trayIndex)?.Show(PieceDef.None);
             _playback = StartCoroutine(PlayAndUnlock(result));
         }
 
         private IEnumerator PlayAndUnlock(MoveResult result)
         {
-            yield return board!.PlayEvents(result);
+            var completed = CompletedIndex(result);
+            yield return board!.PlayEvents(result, deferRecolor: completed >= 0);
 
-            tray?.Show(_session!.Tray);
-            PlayPixels(result);
+            // Картинку закінчено: лоток і поле лишаються в старих кольорах до свайпу (§8).
+            if (completed < 0)
+                tray?.Show(_session!.Tray);
             ApplyStats();
             GameEvents.RaiseMovePlayed(result);
 
-            board.Router.Locked = false;
-            _playback = null;
-            _idleSince = Time.time;
-            _hintPending = false;
+            // §9: прогрес незавершеної — у файл раз на лоток (і на паузу, див. OnApplicationPause).
+            if (result.Has(GameEventType.TrayRefilled))
+                TrackUnfinished();
 
-            if (_session != null && _session.IsOver)
+            if (completed >= 0)
             {
-                GameEvents.RaiseSessionEnded(_session.State);
-                OnLost();
+                _pendingResult = result;
+                var index = completed;
+                if (drops != null)
+                    drops.WhenAllLanded(() => _completionFlow = StartCoroutine(CompletionFlow(index)));
+                else
+                    _completionFlow = StartCoroutine(CompletionFlow(index));
+                yield break;
             }
+
+            FinishMove();
         }
 
         private void OnChainAdvanced(int lines)
@@ -625,11 +737,11 @@ namespace InkFlow.UI
             if (boardPlate != null) boardPlate.color = design.BoardPlateFill;
             if (boardPlateStroke != null) boardPlateStroke.color = design.BoardPlateStroke;
 
-            if (overflowRing != null) overflowRing.color = Color.clear;
             if (comboPop != null) comboPop.gameObject.SetActive(false);
 
             tray?.Apply();
             picture?.Apply();
+            completion?.Apply();
             introPicture?.Apply();
             foreach (var thumb in overThumbs)
                 thumb?.Apply();
@@ -660,32 +772,6 @@ namespace InkFlow.UI
             {
                 if (_flash != null) StopCoroutine(_flash);
                 _flash = StartCoroutine(RecordFlashRoutine());
-            }
-
-            ApplyOverflow();
-        }
-
-        private void ApplyOverflow()
-        {
-            if (_session == null || overflowRing == null)
-                return;
-
-            var warn = !_session.IsOver && _session.AnyPieceStuck();
-            if (warn == _overflow)
-                return;
-            _overflow = warn;
-
-            if (_overflowPulse != null)
-            {
-                StopCoroutine(_overflowPulse);
-                _overflowPulse = null;
-            }
-
-            overflowRing.gameObject.SetActive(warn);
-            if (warn && isActiveAndEnabled)
-            {
-                overflowRing.color = design.OverflowWarn;
-                _overflowPulse = StartCoroutine(OverflowPulseRoutine());
             }
         }
 
@@ -746,17 +832,6 @@ namespace InkFlow.UI
             comboPop.gameObject.SetActive(true);
         }
 
-        private IEnumerator OverflowPulseRoutine()
-        {
-            var period = design.OverflowPulseDuration;
-            while (true)
-            {
-                var k = 0.5f + 0.5f * Mathf.Sin(Time.time / period * Mathf.PI * 2f);
-                overflowRing!.canvasRenderer.SetAlpha(Mathf.Lerp(0.35f, 1f, k));
-                yield return null;
-            }
-        }
-
         // ── Фінал ──
 
         // ── Кінець партії: дві фази (§9) ──
@@ -782,6 +857,7 @@ namespace InkFlow.UI
         {
             if (_session == null || _finalised)
                 return;
+            CollectPendingIfAny();
             _finalised = true;
             _doubled = false;
             _annulledIndex = -1;

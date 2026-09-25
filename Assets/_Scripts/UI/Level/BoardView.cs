@@ -43,6 +43,9 @@ namespace InkFlow.UI
         /// <summary>Ланцюг щойно програвся; аргумент — кількість ліній. Множник спливає по центру ЕКРАНА.</summary>
         public System.Action<int>? ChainAdvanced;
 
+        /// <summary>Лінія починає зриватись: стрічка й індекс події LineCleared — саме тепер краплі вилітають із клітинок (§5).</summary>
+        public System.Action<MoveResult, int>? LineClearing;
+
         public RunSession? Session => _session;
 
         public void Bind(RunSession session)
@@ -78,6 +81,15 @@ namespace InkFlow.UI
         {
             var scale = Scale;
             return new Vector2(_geometry.CenterX(pos.X) * scale, -_geometry.CenterY(pos.Y) * scale);
+        }
+
+        /// <summary>Світова точка центру клітинки — старт краплі, що летить у картинку (§5).</summary>
+        public Vector3 CellWorldPosition(GridPos pos)
+        {
+            if (canvasRect == null)
+                return transform.position;
+            var local = CellToLocal(pos);
+            return canvasRect.TransformPoint(new Vector3(local.x, local.y, 0f));
         }
 
         /// <summary>
@@ -225,8 +237,10 @@ namespace InkFlow.UI
         /// <summary>
         /// Програє стрічку подій із таймінгами. Швидкість — з дизайн-системи,
         /// тож нульові тривалості дають миттєвий режим (рестарт &lt; 300 мс).
+        /// <paramref name="deferRecolor"/> — перефарбування під нову картинку не грати зараз:
+        /// воно піде після картки завершення (§8), і до того поле лишається в старих кольорах.
         /// </summary>
-        public IEnumerator PlayEvents(MoveResult result)
+        public IEnumerator PlayEvents(MoveResult result, bool deferRecolor = false)
         {
             HideGhost();
             if (!result.Accepted || _session == null)
@@ -246,12 +260,23 @@ namespace InkFlow.UI
                         break;
 
                     case GameEventType.LineCleared:
+                        LineClearing?.Invoke(result, i);
                         yield return PlayLineCleared(result, e, lineIndex);
                         lineIndex++;
                         break;
 
                     case GameEventType.ComboApplied:
-                        PlayCombo(e.Extra);
+                        PlayCombo(e.Value);
+                        break;
+
+                    case GameEventType.BoardRecolored:
+                        if (lineIndex > 0 && design != null && design.LineClearDuration > 0f)
+                        {
+                            yield return new WaitForSeconds(design.LineClearDuration);
+                            lineIndex = 0;
+                        }
+                        if (!deferRecolor)
+                            yield return PlayRecolorWave(result, e);
                         break;
                 }
             }
@@ -259,7 +284,73 @@ namespace InkFlow.UI
             if (lineIndex > 0 && design != null && design.LineClearDuration > 0f)
                 yield return new WaitForSeconds(design.LineClearDuration);
 
-            Repaint(); // фінальна синхронізація: дошка не має права розійтися з моделлю
+            if (deferRecolor && result.Has(GameEventType.BoardRecolored))
+                RepaintBeforeRecolor(result);
+            else
+                Repaint(); // фінальна синхронізація: дошка не має права розійтися з моделлю
+        }
+
+        /// <summary>Відкладене перефарбування (§8): хвиля по всіх перефарбованих клітинках, потім синхронізація.</summary>
+        public IEnumerator PlayRecolor(MoveResult result)
+        {
+            for (var i = 0; i < result.Events.Count; i++)
+            {
+                var e = result.Events[i];
+                if (e.Type == GameEventType.BoardRecolored)
+                    yield return PlayRecolorWave(result, e);
+            }
+            Repaint();
+        }
+
+        /// <summary>Модель уже в нових кольорах; показуємо старі там, де перефарбування ще не зіграло.</summary>
+        private void RepaintBeforeRecolor(MoveResult result)
+        {
+            Repaint();
+            for (var i = 0; i < result.Events.Count; i++)
+            {
+                var e = result.Events[i];
+                if (e.Type != GameEventType.BoardRecolored)
+                    continue;
+                var old = DesignSystem.PaletteColor((byte)e.Value);
+                for (var c = 0; c < e.CellCount; c++)
+                {
+                    var index = IndexOf(result.Cell(e, c));
+                    if (index >= 0 && index < blocks.Length && blocks[index] != null)
+                        blocks[index].Show(old);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Хвиля (§5): клітинки міняють колір по черзі знизу вгору, кожна з пружним попом.
+        /// Клітинки події вже йдуть у порядку сканування поля — сортувати нічого.
+        /// </summary>
+        private IEnumerator PlayRecolorWave(MoveResult result, GameEvent e)
+        {
+            if (design == null || e.CellCount == 0)
+                yield break;
+            var color = DesignSystem.PaletteColor((byte)e.Extra);
+            var stagger = Mathf.Min(design.RecolorWaveStagger, design.RecolorWaveMaxDuration / e.CellCount);
+            var elapsed = 0f;
+            for (var c = 0; c < e.CellCount; c++)
+            {
+                var index = IndexOf(result.Cell(e, c));
+                if (index >= 0 && index < blocks.Length && blocks[index] != null)
+                {
+                    blocks[index].Show(color);
+                    blocks[index].PlayLand();
+                }
+                if (stagger <= 0f)
+                    continue;
+                elapsed += stagger;
+                if (elapsed >= Time.deltaTime)
+                {
+                    yield return new WaitForSeconds(elapsed);
+                    elapsed = 0f;
+                }
+            }
+            if (design.BoardPlaceDuration > 0f)
+                yield return new WaitForSeconds(design.BoardPlaceDuration);
         }
 
         private void ShowPlaced(MoveResult result, in GameEvent e)
