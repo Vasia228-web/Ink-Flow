@@ -1,0 +1,15 @@
+id: sushi
+name: СУШІ
+theme: food
+rarity: uncommon
+colors: K=1 W=4 R=8 O=9
+outline: K
+grid:
+..KKKKKKKKK...
+.KKRROORRRKK..
+KKRRRRRRRRRKKK
+KRRRRRRRRRRRRK
+KWWWWWWWWWWWWK
+KWWWWWWWWWWWWK
+KKWWWWWWWWWWKK
+.KKKKKKKKKKKK.

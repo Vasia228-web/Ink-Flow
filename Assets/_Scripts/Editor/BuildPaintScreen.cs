@@ -29,7 +29,6 @@ namespace InkFlow.Editor
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
         private const string PlanetShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
         private const string ZoneShaderPath = "Assets/_Shaders/InkFlowZone.shader";
-        private const string PictureZoneShaderPath = "Assets/_Shaders/InkFlowPictureZone.shader";
 
         /// <summary>Накладок картинок на планеті (§10) і мініатюр у шухляді.</summary>
         private const int PlacementSlots = 8;
@@ -77,8 +76,6 @@ namespace InkFlow.Editor
             var planetShader = AssetDatabase.LoadAssetAtPath<Shader>(PlanetShaderPath);
             var zoneShader = AssetDatabase.LoadAssetAtPath<Shader>(ZoneShaderPath);
             var nebula = LoadSprite("nebula");
-            var pictureShader = AssetDatabase.LoadAssetAtPath<Shader>(PictureZoneShaderPath);
-            var pictureArt = AssetDatabase.LoadAssetAtPath<PictureArtCatalog>(GeneratePictureArt.CatalogPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var currencyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CurrencyWidget.prefab");
 
@@ -93,8 +90,6 @@ namespace InkFlow.Editor
             if (planetShader == null) missing.Add(PlanetShaderPath);
             if (zoneShader == null) missing.Add(ZoneShaderPath);
             if (nebula == null) missing.Add($"{SpriteFolder}/nebula.png");
-            if (pictureShader == null) missing.Add(PictureZoneShaderPath);
-            if (pictureArt == null) missing.Add($"{GeneratePictureArt.CatalogPath} (Ink Flow → Setup → Generate Picture Art)");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (currencyPrefab == null) missing.Add($"{PrefabFolder}/CurrencyWidget.prefab");
             if (missing.Count > 0)
@@ -134,7 +129,7 @@ namespace InkFlow.Editor
             var palette = BuildPalette(screenGo, design!, font, rounded!, circle!, gloss!, outline!,
                 out var swatches, out var shopButton, out var collectionButton);
             var drawer = BuildCollectionDrawer(screenGo, design!, font, rounded!, outline!, nebula!,
-                pictureShader!, pictureArt!, palette.rect.height,
+                palette.rect.height,
                 out var collectionBack, out var collectionBackLabel, out var collectionEmpty,
                 out var collectionThumbs, out var collectionThumbButtons,
                 out var removeLastButton, out var removeLastLabel);
@@ -146,8 +141,7 @@ namespace InkFlow.Editor
             var stageRoot = BuildStage(screenGo, design!, quad!, circle!, zoneShader!,
                 out var stage, out var disc, out var atmosphere,
                 out var flash, out var moon, out var confetti, out var markers);
-            var placements = BuildPlacements(stage.gameObject, design!, font, rounded!, outline!, nebula!,
-                pictureShader!, pictureArt!);
+            var placements = BuildPlacements(stage.gameObject, design!, font, rounded!, outline!, nebula!);
 
             BuildCompletionCard(screenGo, design!, font, rounded!,
                 out var card, out var kicker, out var completionTitle,
@@ -538,8 +532,7 @@ namespace InkFlow.Editor
 
         // ── Шухляда «Колекція» (§10): місце палітри, мініатюри зібраних картинок ──
         private static RectTransform BuildCollectionDrawer(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite nebula, Shader pictureShader,
-            PictureArtCatalog art, float rowHeight,
+            TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite nebula, float rowHeight,
             out Button back, out TMP_Text backLabel, out TMP_Text empty,
             out PictureView[] thumbs, out Button[] thumbButtons,
             out Button removeLast, out TMP_Text removeLastLabel)
@@ -595,8 +588,7 @@ namespace InkFlow.Editor
                 hit.color = new Color(0f, 0f, 0f, 0f);
                 Place(hit, new Vector2(x + thumbW * 0.5f, 0f), new Vector2(thumbW, thumbH),
                     new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
-                thumbs[i] = PictureViewBuilder.MakePictureView(thumbGo, design, font, rounded, outline, nebula,
-                    pictureShader, art, thumbW, M(84f), M(66f), withTitle: false, captionHeight: M(16f));
+                thumbs[i] = PictureViewBuilder.MakePictureView(thumbGo, design, font, rounded, outline, nebula, thumbW, M(84f), M(66f), withTitle: false, captionHeight: M(16f));
                 var button = thumbGo.AddComponent<Button>();
                 button.targetGraphic = hit;
                 button.transition = Selectable.Transition.None;
@@ -640,7 +632,7 @@ namespace InkFlow.Editor
 
         // ── Накладки картинок на планеті (§10): проєктуються стадією, як зони ──
         private static PlacementMarker[] BuildPlacements(GameObject disc, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite nebula, Shader pictureShader, PictureArtCatalog art)
+            Sprite rounded, Sprite outline, Sprite nebula)
         {
             var rootGo = Child(disc, "Placements");
             var root = rootGo.GetComponent<RectTransform>();
@@ -661,7 +653,7 @@ namespace InkFlow.Editor
                 group.blocksRaycasts = false;
                 group.interactable = false;
                 var picture = PictureViewBuilder.MakePictureView(go, design, font, rounded, outline, nebula,
-                    pictureShader, art, side, side, M(56f), withTitle: false, captionHeight: 0f, bare: true);
+                    side, side, M(56f), withTitle: false, captionHeight: 0f, bare: true);
                 var marker = go.AddComponent<PlacementMarker>();
                 Wire(marker, ("group", group), ("picture", picture));
                 go.SetActive(false);

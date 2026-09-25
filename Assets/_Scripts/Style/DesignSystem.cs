@@ -62,47 +62,9 @@ namespace InkFlow.Style
             new InkSwatch { color = InkColor.Rose, hex = Hex("#FF77B6") }
         };
 
-        // ───────────────────────── Фарба гри ─────────────────────────
-
-        [Serializable]
-        public struct PigmentSwatch
-        {
-            public Pigment pigment;
-            public Color hex;
-        }
-
-        [Header("Фарба (пігменти ядра: справжні синій, червоний, жовтий)")]
-        [Tooltip("Колір фігур на полі й баків. Це НЕ палітра інтерфейсу (InkColor): гравець " +
-                 "ставить синю фігуру — синя фарба ллється в синій бак. Синій піднято по " +
-                 "яскравості, щоб читався на темному фоні, але лишився синім.")]
-        [SerializeField]
-        private PigmentSwatch[] pigmentPalette =
-        {
-            new PigmentSwatch { pigment = Pigment.Blue, hex = Hex("#3E8BFF") },
-            new PigmentSwatch { pigment = Pigment.Red, hex = Hex("#FF4A4A") },
-            new PigmentSwatch { pigment = Pigment.Yellow, hex = Hex("#FFD23F") }
-        };
-
-        [Serializable]
-        public struct HueSwatch
-        {
-            public Hue hue;
-            public Color hex;
-        }
-
-        [Header("Відтінки змішувача (§4: синій + жовтий = зелений, червоний + жовтий = помаранчевий, синій + червоний = фіолетовий, усі три = коричневий)")]
-        [Tooltip("Базові три збігаються з пігментами. Вторинні — фізично правильна суміш, підсвічена під темний фон.")]
-        [SerializeField]
-        private HueSwatch[] huePalette =
-        {
-            new HueSwatch { hue = Hue.Blue, hex = Hex("#3E8BFF") },
-            new HueSwatch { hue = Hue.Red, hex = Hex("#FF4A4A") },
-            new HueSwatch { hue = Hue.Yellow, hex = Hex("#FFD23F") },
-            new HueSwatch { hue = Hue.Green, hex = Hex("#3FCF6B") },
-            new HueSwatch { hue = Hue.Orange, hex = Hex("#FF8A3D") },
-            new HueSwatch { hue = Hue.Purple, hex = Hex("#9B5DFF") },
-            new HueSwatch { hue = Hue.Brown, hex = Hex("#A6714A") }
-        };
+        // ───────────────────────── Кольори картинок ─────────────────────────
+        // Кольори фігур, поля й пікселів — це майстер-палітра Core (§3), а не токени
+        // дизайн-системи: одна таблиця на гру, картинки й інтерфейс не можуть розійтись.
 
         [Header("Космічний фон (radial 130%×90% з точки 50% / -12%)")]
         [SerializeField] private Color backgroundInner = Hex("#2A1E56");
@@ -674,45 +636,25 @@ namespace InkFlow.Style
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
         [SerializeField, Min(0.2f)] private float hintShowDuration = 1.6f;
 
-        [Tooltip("Баки фарби: доріжка, обведення, число рівня, наливання. Повний бак = один виплеск.")]
-        [SerializeField] private Color tankTrackFill = new Color(1f, 1f, 1f, 0.05f);
-        [SerializeField] private Color tankTrackStroke = new Color(1f, 1f, 1f, 0.13f);
-        [SerializeField] private float fontSizeTankNumber = 29f;
-        [SerializeField, Min(0f)] private float tankFillDuration = 0.5f;
-        [SerializeField, Range(0f, 0.3f)] private float tankPourPulse = 0.08f;
-
-        [Tooltip("Змішувач: посудина, орбіта крапель, струмені, спалах і виплеск. Тривалості — в секундах, відстані — у reference-одиницях.")]
-        [SerializeField] private Color mixerTrackFill = new Color(1f, 1f, 1f, 0.07f);
-        [SerializeField] private Color mixerTrackStroke = new Color(1f, 1f, 1f, 0.2f);
-        [SerializeField, Min(0f)] private float mixerOrbitRadius = 22f;
-        [SerializeField, Range(0.1f, 1f)] private float mixerDropMinScale = 0.45f;
-        [SerializeField, Min(0f)] private float mixerIdleSpin = 40f;
-        [SerializeField, Min(0f)] private float mixerFireTurns = 1.5f;
-        [SerializeField, Min(0f)] private float mixerStreamDuration = 0.35f;
-        [SerializeField, Min(0f)] private float mixerStreamArc = 48f;
-        [SerializeField, Min(0f)] private float mixerSwirlDuration = 0.45f;
-        [SerializeField, Range(0f, 0.4f)] private float mixerSqueeze = 0.12f;
-        [SerializeField, Min(0f)] private float mixerSplashDuration = 0.7f;
-        [SerializeField, Min(0f)] private float mixerSplashRise = 150f;
-        [SerializeField, Min(0f)] private float mixerNameOffset = 118f;
-        [SerializeField] private float fontSizeHueName = 30f;
-
-        [Tooltip("Картинка над полем: плитка, зони (тьмяна / активна), мазок, спалах завершення.")]
+        [Tooltip("Картинка над полем: плитка, рамка рідкості, спалах завершення.")]
         [SerializeField] private Color picturePlateFill = new Color(1f, 0.99f, 0.96f, 0.08f);
         [SerializeField] private Color picturePlateStroke = new Color(1f, 1f, 1f, 0.14f);
-        [SerializeField, Range(0f, 1f)] private float zoneIdleAlpha = 0.07f;
-        [SerializeField, Range(0f, 1f)] private float zoneActiveAlpha = 0.14f;
-        [SerializeField, Min(0f)] private float zoneFillDuration = 0.45f;
         [SerializeField, Min(0f)] private float pictureCompleteDuration = 1.1f;
         [SerializeField, Range(0f, 0.3f)] private float pictureCompletePop = 0.06f;
         [SerializeField, Range(0f, 1f)] private float pictureGlowAlpha = 0.55f;
         [SerializeField] private float fontSizePictureName = 27f;
         [SerializeField] private float fontSizePictureCaption = 24f;
 
-        [Tooltip("Рідкість (§6): колір назви й чипа — звичайна / рідкісна / легендарна.")]
-        [SerializeField] private Color rarityCommon = new Color(1f, 1f, 1f, 0.62f);
-        [SerializeField] private Color rarityRare = Hex("#00D9C0");
-        [SerializeField] private Color rarityLegendary = Hex("#FFD54A");
+        [Tooltip("Незаповнений піксель заливки: ледь помітний силует, щоб форму було видно до першої краплі.")]
+        [SerializeField] private Color pictureUnfilledTint = new Color(1f, 1f, 1f, 0.07f);
+
+        [Tooltip("Рідкість (§6): колір рамки, назви й чипа — звичайна / незвичайна / рідкісна / епічна / легендарна / космічна.")]
+        [SerializeField] private Color rarityCommon = Hex("#B8BCC8");
+        [SerializeField] private Color rarityUncommon = Hex("#4ED37A");
+        [SerializeField] private Color rarityRare = Hex("#5AA7FF");
+        [SerializeField] private Color rarityEpic = Hex("#AE7BFF");
+        [SerializeField] private Color rarityLegendary = Hex("#FFC145");
+        [SerializeField] private Color rarityCosmic = Hex("#F075E6");
 
         [Tooltip("Картка перед забігом: «цього забігу — така картинка». Скільки висить сама, поки не тапнули.")]
         [SerializeField, Min(0.5f)] private float runIntroDuration = 2.6f;
@@ -991,30 +933,9 @@ namespace InkFlow.Style
         public float OverflowPulseDuration => overflowPulseDuration;
         public float HintIdleDelay => hintIdleDelay;
         public float HintShowDuration => hintShowDuration;
-        public Color TankTrackFill => tankTrackFill;
-        public Color TankTrackStroke => tankTrackStroke;
-        public float FontSizeTankNumber => fontSizeTankNumber;
-        public float TankFillDuration => tankFillDuration;
-        public float TankPourPulse => tankPourPulse;
-        public Color MixerTrackFill => mixerTrackFill;
-        public Color MixerTrackStroke => mixerTrackStroke;
-        public float MixerOrbitRadius => mixerOrbitRadius;
-        public float MixerDropMinScale => mixerDropMinScale;
-        public float MixerIdleSpin => mixerIdleSpin;
-        public float MixerFireTurns => mixerFireTurns;
-        public float MixerStreamDuration => mixerStreamDuration;
-        public float MixerStreamArc => mixerStreamArc;
-        public float MixerSwirlDuration => mixerSwirlDuration;
-        public float MixerSqueeze => mixerSqueeze;
-        public float MixerSplashDuration => mixerSplashDuration;
-        public float MixerSplashRise => mixerSplashRise;
-        public float MixerNameOffset => mixerNameOffset;
-        public float FontSizeHueName => fontSizeHueName;
         public Color PicturePlateFill => picturePlateFill;
         public Color PicturePlateStroke => picturePlateStroke;
-        public float ZoneIdleAlpha => zoneIdleAlpha;
-        public float ZoneActiveAlpha => zoneActiveAlpha;
-        public float ZoneFillDuration => zoneFillDuration;
+        public Color PictureUnfilledTint => pictureUnfilledTint;
         public float PictureCompleteDuration => pictureCompleteDuration;
         public float PictureCompletePop => pictureCompletePop;
         public float PictureGlowAlpha => pictureGlowAlpha;
@@ -1028,31 +949,19 @@ namespace InkFlow.Style
         public float FontSizeIntroHint => fontSizeIntroHint;
         public float FontSizeOverCollected => fontSizeOverCollected;
 
-        /// <summary>Колір рідкості (§6): легендарна — золото, як рекорд; рідкісна — бірюза; звичайна — приглушений текст.</summary>
+        /// <summary>Колір рідкості (§6): рамка картинки, назва, чип на картці.</summary>
         public Color RarityColor(Rarity rarity) => rarity switch
         {
+            Rarity.Uncommon => rarityUncommon,
             Rarity.Rare => rarityRare,
+            Rarity.Epic => rarityEpic,
             Rarity.Legendary => rarityLegendary,
+            Rarity.Cosmic => rarityCosmic,
             _ => rarityCommon
         };
 
-        /// <summary>Колір відтінку зі змішувача. Fallback — білий, щоб помилка була видима.</summary>
-        public Color HueColor(Hue hue)
-        {
-            for (var i = 0; i < huePalette.Length; i++)
-                if (huePalette[i].hue == hue)
-                    return huePalette[i].hex;
-            return Color.white;
-        }
-
-        /// <summary>Колір пігменту ядра. Fallback — білий, щоб помилка була видима.</summary>
-        public Color PigmentColor(Pigment pigment)
-        {
-            for (var i = 0; i < pigmentPalette.Length; i++)
-                if (pigmentPalette[i].pigment == pigment)
-                    return pigmentPalette[i].hex;
-            return Color.white;
-        }
+        /// <summary>Колір індексу майстер-палітри (§3) — фігури, клітинки поля, пікселі, краплі.</summary>
+        public static Color PaletteColor(byte index) => MasterPalette.ColorOf(index).ToColor();
         public float FontSizeOverScore => fontSizeOverScore;
         public float FontSizeOverLabel => fontSizeOverLabel;
         public float FontSizeRecordChip => fontSizeRecordChip;

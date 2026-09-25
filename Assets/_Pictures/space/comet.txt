@@ -1,0 +1,15 @@
+id: comet
+name: КОМЕТА
+theme: space
+rarity: uncommon
+colors: K=1 O=9 A=10 L=11
+outline: K
+grid:
+........KKKK..
+......KKKAAKKK
+....KKKALLLAAK
+..KKKOOALLLAAK
+KKKOOOOAAAAAAK
+KOOOOKKAAAAKKK
+KOOKKKKKKKKK..
+KKKK..........

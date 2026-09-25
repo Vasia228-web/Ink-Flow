@@ -1,0 +1,18 @@
+id: star
+name: ЗІРОЧКА
+theme: space
+rarity: common
+colors: K=1 A=10 L=11
+outline: K
+grid:
+....KKKK....
+....KLAK....
+...KKAAKK...
+KKKKAAAAKKKK
+KAAAAAAAAAAK
+KKAAAAAAAAKK
+.KKAAAAAAKK.
+.KKAAAAAAKK.
+KKAAAKKAAAKK
+KAAKKKKKKAAK
+KKKK....KKKK

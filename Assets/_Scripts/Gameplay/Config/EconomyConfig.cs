@@ -45,7 +45,7 @@ namespace InkFlow.Gameplay
         [SerializeField, Min(1)] private long scorePerOil = 100;
 
         [Tooltip("Нафта за домальовану картинку: звичайна, рідкісна, легендарна.")]
-        [SerializeField] private long[] pictureRewards = { 10, 30, 100 };
+        [SerializeField] private long[] pictureRewards = { 10, 20, 40, 80, 160, 400 };
 
         [Header("Реклама (§9)")]
         [Tooltip("Інтерстиціал раз на стільки забігів. 0 — ніколи.")]

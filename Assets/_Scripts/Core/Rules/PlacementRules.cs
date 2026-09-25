@@ -21,7 +21,7 @@ namespace InkFlow.Core
             for (var i = 0; i < cells.Length; i++)
             {
                 var p = new GridPos(anchor.X + cells[i].X, anchor.Y + cells[i].Y);
-                if (!board.Contains(p) || board[p] != Pigment.None)
+                if (!board.Contains(p) || board[p] != Board.Empty)
                     return false;
             }
 
@@ -107,7 +107,7 @@ namespace InkFlow.Core
         /// фігуру сюди. Буфер дає викликач — це рахує в'ю на кожну зміну клітинки під пальцем.
         /// Поле повертається в початковий стан.
         /// </summary>
-        public static void PreviewLines(Board board, PieceShape shape, GridPos anchor, Pigment pigment,
+        public static void PreviewLines(Board board, PieceShape shape, GridPos anchor, byte color,
             List<Line> into)
         {
             if (into is null) throw new ArgumentNullException(nameof(into));
@@ -117,12 +117,12 @@ namespace InkFlow.Core
 
             var cells = shape.Cells;
             for (var i = 0; i < cells.Length; i++)
-                board[new GridPos(anchor.X + cells[i].X, anchor.Y + cells[i].Y)] = pigment;
+                board[new GridPos(anchor.X + cells[i].X, anchor.Y + cells[i].Y)] = color;
 
             CollectFullLines(board, into);
 
             for (var i = 0; i < cells.Length; i++)
-                board[new GridPos(anchor.X + cells[i].X, anchor.Y + cells[i].Y)] = Pigment.None;
+                board[new GridPos(anchor.X + cells[i].X, anchor.Y + cells[i].Y)] = Board.Empty;
         }
 
         /// <summary>

@@ -1,0 +1,19 @@
+id: mushroom
+name: ГРИБОЧОК
+theme: plants
+rarity: common
+colors: K=1 W=4 C=5 R=8
+outline: K
+grid:
+...KKKKKKKK...
+.KKKRRRRRRKKK.
+KKRRRWWRRRRRKK
+KRRRRWWRRWWRRK
+KRRRRRRRRWWRRK
+KRRWWRRRRRRRRK
+KKRRWWRRRRRRKK
+.KKKKCCCCKKKK.
+....KCKKCK....
+...KKCCCCKK...
+...KCCCCCCK...
+...KKKKKKKK...

@@ -1,0 +1,19 @@
+id: lamp
+name: ЛАМПОЧКА
+theme: things
+rarity: common
+colors: K=1 G=7 L=11
+outline: K
+grid:
+..KKKKKK..
+.KKLLLLKK.
+KKLLLLLLKK
+KLLLLLLLLK
+KLLLLLLLLK
+KLLLLLLLLK
+KKLLLLLLKK
+.KKLLLLKK.
+..KGGGGK..
+..KGGGGK..
+..KKGGKK..
+...KKKK...

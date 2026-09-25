@@ -1,0 +1,17 @@
+id: crab
+name: КРАБИК
+theme: sea
+rarity: common
+colors: K=1 W=4 R=8
+outline: K
+grid:
+KKKK....KKKK
+KRRKK..KKRRK
+KRRRKKKKRRRK
+KKRRRRRRRRKK
+KRRWKRRKWRRK
+KRRRRRRRRRRK
+KKRRRRRRRRKK
+KRKRRRRRRKRK
+KKRRKKKKRRKK
+.KKKK..KKKK.

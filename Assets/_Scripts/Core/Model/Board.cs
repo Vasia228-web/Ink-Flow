@@ -1,18 +1,19 @@
 using System;
+using System.Collections.Generic;
 
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Ігрове поле 8×8 (документ §2). Клітинка або порожня, або несе один із трьох
-    /// пігментів — жодних густот, флагів і модифікаторів: єдине дієслово за хід —
-    /// «постав фігуру».
+    /// Ігрове поле 8×8 (документ §2). Клітинка або порожня (0), або несе індекс кольору
+    /// майстер-палітри — і це завжди колір заливки поточної картинки (§5).
     ///
-    /// Масив байтів, а не структур: бот клонує поле тисячі разів за прогін,
-    /// і кожен зайвий байт у клітинці — це секунди.
+    /// Масив байтів, а не структур: бот клонує поле тисячі разів за прогін.
     /// </summary>
     public sealed class Board
     {
-        private readonly Pigment[] _cells;
+        public const byte Empty = MasterPalette.Empty;
+
+        private readonly byte[] _cells;
 
         public int Width { get; }
         public int Height { get; }
@@ -23,12 +24,12 @@ namespace InkFlow.Core
                 throw new ArgumentOutOfRangeException(nameof(width), "Поле має бути мінімум 2×2.");
             Width = width;
             Height = height;
-            _cells = new Pigment[width * height];
+            _cells = new byte[width * height];
         }
 
         public int CellCount => _cells.Length;
 
-        public Pigment this[GridPos p]
+        public byte this[GridPos p]
         {
             get
             {
@@ -42,7 +43,7 @@ namespace InkFlow.Core
             }
         }
 
-        public Pigment this[int x, int y]
+        public byte this[int x, int y]
         {
             get => this[new GridPos(x, y)];
             set => this[new GridPos(x, y)] = value;
@@ -50,7 +51,7 @@ namespace InkFlow.Core
 
         public bool Contains(GridPos p) => p.X >= 0 && p.X < Width && p.Y >= 0 && p.Y < Height;
 
-        public bool IsEmpty(GridPos p) => this[p] == Pigment.None;
+        public bool IsEmpty(GridPos p) => this[p] == Empty;
 
         public void Clear() => Array.Clear(_cells, 0, _cells.Length);
 
@@ -58,25 +59,56 @@ namespace InkFlow.Core
         {
             var count = 0;
             for (var i = 0; i < _cells.Length; i++)
-                if (_cells[i] == Pigment.None)
+                if (_cells[i] == Empty)
                     count++;
             return count;
         }
 
-        public int CountOf(Pigment pigment)
+        public int CountOf(byte color)
         {
             var count = 0;
             for (var i = 0; i < _cells.Length; i++)
-                if (_cells[i] == pigment)
+                if (_cells[i] == color)
                     count++;
             return count;
+        }
+
+        /// <summary>Скільки клітинок кожного кольору: індекс масиву — індекс палітри.</summary>
+        public void CountColors(int[] into)
+        {
+            if (into is null) throw new ArgumentNullException(nameof(into));
+            Array.Clear(into, 0, into.Length);
+            for (var i = 0; i < _cells.Length; i++)
+                if (_cells[i] != Empty && _cells[i] < into.Length)
+                    into[_cells[i]]++;
+        }
+
+        /// <summary>
+        /// Перефарбовує всі клітинки одного кольору в інший (§5: колір закінчився або
+        /// прийшла нова картинка). Клітинки, що змінились, — у буфер викликача, щоб в'ю
+        /// пустила по них хвилю. Повертає, скільки змінилось.
+        /// </summary>
+        public int Recolor(byte from, byte to, List<GridPos>? changed = null)
+        {
+            if (from == Empty || to == Empty)
+                throw new ArgumentOutOfRangeException(nameof(from), "Порожнє не перефарбовується.");
+            var n = 0;
+            for (var i = 0; i < _cells.Length; i++)
+            {
+                if (_cells[i] != from)
+                    continue;
+                _cells[i] = to;
+                changed?.Add(new GridPos(i % Width, i / Width));
+                n++;
+            }
+            return n;
         }
 
         /// <summary>Рядок повністю заповнений — його зриває хід (§2).</summary>
         public bool IsRowFull(int y)
         {
             for (var x = 0; x < Width; x++)
-                if (_cells[y * Width + x] == Pigment.None)
+                if (_cells[y * Width + x] == Empty)
                     return false;
             return true;
         }
@@ -84,7 +116,7 @@ namespace InkFlow.Core
         public bool IsColumnFull(int x)
         {
             for (var y = 0; y < Height; y++)
-                if (_cells[y * Width + x] == Pigment.None)
+                if (_cells[y * Width + x] == Empty)
                     return false;
             return true;
         }
@@ -112,7 +144,7 @@ namespace InkFlow.Core
             {
                 long hash = 17;
                 for (var i = 0; i < _cells.Length; i++)
-                    hash = hash * 31 + (int)_cells[i];
+                    hash = hash * 31 + _cells[i];
                 return hash;
             }
         }

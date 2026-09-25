@@ -33,9 +33,9 @@ namespace InkFlow.Meta
             if (scorePerOil < 1)
                 throw new ArgumentOutOfRangeException(nameof(scorePerOil));
             ScorePerOil = scorePerOil;
-            PictureRewards = pictureRewards ?? new long[] { 10, 30, 100 };
-            if (PictureRewards.Length != 3)
-                throw new ArgumentOutOfRangeException(nameof(pictureRewards), "Три виплати: звичайна, рідкісна, легендарна.");
+            PictureRewards = pictureRewards ?? DefaultPictureRewards();
+            if (PictureRewards.Length != Core.Rarities.Count)
+                throw new ArgumentOutOfRangeException(nameof(pictureRewards), "Шість виплат: звичайна … космічна.");
             StarterOil = starterOil;
             StarterPaintLiters = starterPaintLiters;
             BaseLevelReward = baseLevelReward;
@@ -78,8 +78,11 @@ namespace InkFlow.Meta
         /// </summary>
         public long ScorePerOil { get; }
 
-        /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 10 / 30 / 100.</summary>
+        /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 10 / 20 / 40 / 80 / 160 / 400.</summary>
         public long[] PictureRewards { get; }
+
+        /// <summary>Стартова таблиця (§19: «з EconomySimulator»): подвоюється з рідкістю, космічна — окрема подія.</summary>
+        public static long[] DefaultPictureRewards() => new long[] { 10, 20, 40, 80, 160, 400 };
 
         /// <summary>§9, §12: інтерстиціал раз на стільки забігів; 0 — ніколи. «Частіше — видаляють гру».</summary>
         public int InterstitialEveryRuns { get; }

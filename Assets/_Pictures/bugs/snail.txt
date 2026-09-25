@@ -1,0 +1,17 @@
+id: snail
+name: РАВЛИК
+theme: bugs
+rarity: uncommon
+colors: K=1 O=9 A=10 E=13
+outline: K
+grid:
+........KKKKK
+..KKKKKKKEKEK
+.KKOOOOKKEEEK
+KKOOOOOOKEEKK
+KOOOAAOOOEEK.
+KOOAAAAOOEEK.
+KOOOAAOOEEEK.
+KEEEEEEEEEEK.
+KKEEEEEEEEKK.
+.KKKKKKKKKK..

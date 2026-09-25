@@ -24,13 +24,13 @@ namespace InkFlow.UI
         /// <summary>Базовий розмір без ракурсу: стиснення робить localScale.</summary>
         public float BaseSize => Rect.sizeDelta.x;
 
-        public void Bind(PictureDef def, float longitude, float latitude)
+        public void Bind(PixelPicture picture, float longitude, float latitude)
         {
             Longitude = longitude;
             Latitude = latitude;
             IsBound = true;
             gameObject.SetActive(true);
-            picture?.ShowCompleted(def, string.Empty);
+            this.picture?.ShowCompleted(picture, string.Empty);
         }
 
         public void Release()

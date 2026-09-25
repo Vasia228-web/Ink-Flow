@@ -22,6 +22,7 @@ namespace InkFlow.App
         [Header("Конфіги")]
         [SerializeField] private BalanceConfig balanceConfig;
         [SerializeField] private EconomyConfig economyConfig;
+        [SerializeField] private PictureLibraryAsset pictureLibrary;
 
         [Header("Сцена")]
         [SerializeField] private AppRouter router;
@@ -101,12 +102,12 @@ namespace InkFlow.App
             _storage = new JsonSaveStorage();
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
 
-            // Колода й баланс — щоб незавершена картинка читалась назвою, а спроби — з конфіга.
-            var pictures = PictureCatalogData.Default;
+            // Бібліотека й баланс — щоб незавершена картинка читалась назвою, а спроби — з конфіга.
+            var library = LoadLibrary();
             var balance = balanceConfig.ToBalanceData();
             _state = _storage.Exists
-                ? new PlayerState(_storage.Load(), economy, _storage, pictures, balance)
-                : PlayerState.NewPlayer(economy, _storage, pictures, balance);
+                ? new PlayerState(_storage.Load(), economy, _storage, library, balance)
+                : PlayerState.NewPlayer(economy, _storage, library, balance);
 
             // Новому гравцю файл треба створити одразу: інакше перший же збій
             // до кінця першої партії виглядав би як «гра не запам'ятала нічого».
@@ -118,6 +119,16 @@ namespace InkFlow.App
             ServiceLocator.Register(_state.DailyLimit);
             ServiceLocator.Register(_state.Rewards);
             ServiceLocator.Register(_storage);
+        }
+
+        /// <summary>Бібліотека картинок з асета; без нього — запасне серце, і про це голосно в консоль.</summary>
+        private PictureLibrary LoadLibrary()
+        {
+            if (pictureLibrary != null && pictureLibrary.Count > 0)
+                return pictureLibrary.ToLibrary();
+            Debug.LogError("[InkFlow] GameBootstrap.pictureLibrary не підв'язаний або порожній — у забігу лише запасна картинка. " +
+                           "Ink Flow → Setup → Refresh Picture Library, потім Build Main Scene.");
+            return PictureLibrary.Fallback;
         }
 
         /// <summary>
@@ -160,7 +171,7 @@ namespace InkFlow.App
 
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
             var balance = balanceConfig.ToBalanceData();
-            _state = PlayerState.NewPlayer(economy, _storage, PictureCatalogData.Default, balance);
+            _state = PlayerState.NewPlayer(economy, _storage, LoadLibrary(), balance);
             _state.Persist();
 
             ServiceLocator.Register(_state);

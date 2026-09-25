@@ -1,0 +1,17 @@
+id: stego
+name: СТЕГОЗАВРИК
+theme: dinos
+rarity: uncommon
+colors: K=1 O=9 M=12 E=13
+outline: K
+grid:
+...KKKKKKKKK..
+..KKOKKOKKOKK.
+.KKOOOOOOOOOKK
+KKEEEEEEEEEEEK
+KEEEEEEEEEEEEK
+KEKEEEEEEEEEEK
+KEEMMMMMMEEEKK
+KKEEEEEEEEEKK.
+.KKEEKKKEEKK..
+..KKKK.KKKK...

@@ -1,56 +1,53 @@
+using System;
 using System.Collections.Generic;
 
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Повний опис ходу у вигляді впорядкованої стрічки подій.
+    /// Повний опис того, що сталося за хід, у вигляді впорядкованого списку подій.
+    /// Core не анімує — повертає стрічку; в'ю програє її з таймінгами.
     ///
-    /// Головне архітектурне рішення проєкту, яке нове ядро зберігає без змін: Core не
-    /// анімує — він повертає події, а в'ю програє їх із таймінгами. Завдяки цьому правила
-    /// тестуються без жодного кадру рендеру, анімації прискорюються, не чіпаючи логіку,
-    /// а бот ганяє тисячі партій за секунди.
-    ///
-    /// Екземпляр ПЕРЕВИКОРИСТОВУЄТЬСЯ сесією між ходами (нуль алокацій): хто хоче
-    /// зберегти події довше — копіює їх собі.
+    /// Буфери переиспользуються між ходами (нуль алокацій у сталому режимі): результат
+    /// живе до наступного ходу, а хто хоче зберегти — копіює.
     /// </summary>
     public sealed class MoveResult
     {
         private readonly List<GameEvent> _events = new List<GameEvent>(64);
         private readonly List<GridPos> _cells = new List<GridPos>(256);
 
-        /// <summary>false — розміщення відхилено: стан НЕ змінився, фігура лишилась у лотку.</summary>
         public bool Accepted { get; private set; }
-
         public IReadOnlyList<GameEvent> Events => _events;
 
-        /// <summary>Скільки ліній зірвано за цей хід — від цього залежить ланцюг і feel.</summary>
         public int LinesCleared { get; private set; }
-
-        /// <summary>Скільки з них були чистими. Прямий вимір головної ідеї гри.</summary>
         public int PureLinesCleared { get; private set; }
 
-        /// <summary>Скільки одиниць фарби видали лінії цього ходу (вже з ланцюгом).</summary>
-        public int PaintYielded { get; private set; }
+        /// <summary>Пікселів картинки заповнено цього ходу.</summary>
+        public int PixelsFilled { get; private set; }
 
-        /// <summary>Скільки разів спрацював змішувач цього ходу.</summary>
-        public int Splashes { get; private set; }
+        /// <summary>Пікселів згоріло: колір уже не потрібен картинці (§5).</summary>
+        public int PixelsWasted { get; private set; }
 
-        /// <summary>Відтінок останнього виплеску ходу; None, якщо змішувач мовчав.</summary>
-        public Hue LastSplashHue { get; private set; }
-
-        /// <summary>Зон картинки закінчено цього ходу.</summary>
-        public int ZonesCompleted { get; private set; }
+        public int ScoreGained { get; private set; }
 
         /// <summary>Картинок закінчено цього ходу.</summary>
         public int PicturesCompleted { get; private set; }
 
-        /// <summary>Фарби з виплесків, якій не було куди лягти.</summary>
-        public int PaintMissed { get; private set; }
+        /// <summary>Клітинка події за номером у її діапазоні.</summary>
+        public GridPos Cell(in GameEvent e, int i) => _cells[e.CellStart + i];
 
-        public int ScoreGained { get; private set; }
+        public int CountEvents(GameEventType type)
+        {
+            var n = 0;
+            for (var i = 0; i < _events.Count; i++)
+                if (_events[i].Type == type)
+                    n++;
+            return n;
+        }
 
-        /// <summary>Клітинка зрізу події — списки клітинок лежать спільним буфером.</summary>
-        public GridPos Cell(in GameEvent e, int index) => _cells[e.CellStart + index];
+        public bool Has(GameEventType type) => CountEvents(type) > 0;
+
+        /// <summary>Знімок подій — для тестів і реплеїв; у грі стрічку читають на місці.</summary>
+        public GameEvent[] SnapshotEvents() => _events.ToArray();
 
         internal void Reset()
         {
@@ -59,19 +56,15 @@ namespace InkFlow.Core
             Accepted = false;
             LinesCleared = 0;
             PureLinesCleared = 0;
-            PaintYielded = 0;
-            Splashes = 0;
-            LastSplashHue = Hue.None;
-            ZonesCompleted = 0;
-            PicturesCompleted = 0;
-            PaintMissed = 0;
+            PixelsFilled = 0;
+            PixelsWasted = 0;
             ScoreGained = 0;
+            PicturesCompleted = 0;
         }
 
         internal void MarkAccepted() => Accepted = true;
 
-        /// <summary>Кладе клітинки в спільний буфер і повертає початок зрізу.</summary>
-        internal int PushCells(IReadOnlyList<GridPos> cells)
+        internal int PushCells(List<GridPos> cells)
         {
             var start = _cells.Count;
             for (var i = 0; i < cells.Count; i++)
@@ -79,103 +72,73 @@ namespace InkFlow.Core
             return start;
         }
 
-        internal void AddPiecePlaced(int trayIndex, int cellStart, int cellCount, Pigment pigment) =>
-            _events.Add(new GameEvent(GameEventType.PiecePlaced, LineKind.Row, pigment,
-                0, trayIndex, 0f, false, cellStart, cellCount));
-
-        internal void AddLineCleared(LineKind kind, int index, int cellStart, int cellCount,
-            Pigment dominant, bool isPure, int amount)
+        internal int PushCell(GridPos cell)
         {
-            _events.Add(new GameEvent(GameEventType.LineCleared, kind, dominant,
-                amount, index, 0f, isPure, cellStart, cellCount));
+            _cells.Add(cell);
+            return _cells.Count - 1;
+        }
+
+        internal void AddPiecePlaced(int trayIndex, int cellStart, int cellCount, byte color) =>
+            _events.Add(new GameEvent(GameEventType.PiecePlaced, LineKind.Row, color, trayIndex, 0, 0f, false, cellStart, cellCount));
+
+        /// <summary>Лінію зірвано; пікселі йдуть ПІСЛЯ неї, тож їхню кількість дописує <see cref="SetLinePixels"/>. Повертає індекс події.</summary>
+        internal int AddLineCleared(LineKind kind, int index, int cellStart, int cellCount, byte dominant, bool isPure)
+        {
+            _events.Add(new GameEvent(GameEventType.LineCleared, kind, dominant, 0, index, 0f, isPure, cellStart, cellCount));
             LinesCleared++;
             if (isPure)
                 PureLinesCleared++;
-            PaintYielded += amount;
+            return _events.Count - 1;
         }
 
-        internal void AddCombo(int lineCount, float multiplier) =>
-            _events.Add(new GameEvent(GameEventType.ComboApplied, LineKind.Row, Pigment.None,
-                0, lineCount, multiplier, false, 0, 0));
+        internal void SetLinePixels(int eventIndex, int pixels)
+        {
+            var e = _events[eventIndex];
+            _events[eventIndex] = new GameEvent(e.Type, e.Kind, e.Color, pixels, e.Extra, e.Multiplier, e.IsPure, e.CellStart, e.CellCount);
+        }
+
+        internal void AddCombo(int lines, float multiplier) =>
+            _events.Add(new GameEvent(GameEventType.ComboApplied, LineKind.Row, 0, lines, lines, multiplier, false, 0, 0));
 
         internal void AddScore(int gained, int total)
         {
+            _events.Add(new GameEvent(GameEventType.ScoreGained, LineKind.Row, 0, gained, total, 0f, false, 0, 0));
             ScoreGained += gained;
-            _events.Add(new GameEvent(GameEventType.ScoreGained, LineKind.Row, Pigment.None,
-                gained, total, 0f, false, 0, 0));
         }
 
-        internal void AddPaintPoured(Pigment pigment, int amount, int levelAfter) =>
-            _events.Add(new GameEvent(GameEventType.PaintPoured, LineKind.Row, pigment,
-                amount, levelAfter, 0f, false, 0, 0));
-
-        internal void AddTankDrained(Pigment pigment, int amount, int levelAfter) =>
-            _events.Add(new GameEvent(GameEventType.TankDrained, LineKind.Row, pigment,
-                amount, levelAfter, 0f, false, 0, 0));
-
-        internal void AddMixerFired(Hue hue, int amount)
+        internal void AddPixelFilled(int pixelIndex, byte color, bool fromPureLine, int sourceCellStart)
         {
-            _events.Add(new GameEvent(GameEventType.MixerFired, LineKind.Row, Pigment.None,
-                amount, (int)hue, 0f, false, 0, 0));
-            Splashes++;
-            LastSplashHue = hue;
+            _events.Add(new GameEvent(GameEventType.PixelFilled, LineKind.Row, color, pixelIndex, 0, 0f, fromPureLine, sourceCellStart, 1));
+            PixelsFilled++;
         }
 
-        internal void AddZoneFilled(int zone, int amount, int levelAfter, int capacity)
-        {
-            var complete = levelAfter >= capacity;
-            _events.Add(new GameEvent(GameEventType.ZoneFilled, LineKind.Row, Pigment.None,
-                zone, levelAfter, 0f, complete, capacity, amount));
-            if (complete)
-                ZonesCompleted++;
-        }
+        internal void AddPixelsWasted(int amount) => PixelsWasted += amount;
 
-        internal void AddPictureCompleted(int catalogIndex)
+        internal void AddBoardRecolored(byte from, byte to, int cellStart, int cellCount) =>
+            _events.Add(new GameEvent(GameEventType.BoardRecolored, LineKind.Row, to, from, to, 0f, false, cellStart, cellCount));
+
+        internal void AddTrayRecolored(int slot, byte to) =>
+            _events.Add(new GameEvent(GameEventType.TrayRecolored, LineKind.Row, to, slot, to, 0f, false, 0, 0));
+
+        internal void AddPictureCompleted(int libraryIndex)
         {
-            _events.Add(new GameEvent(GameEventType.PictureCompleted, LineKind.Row, Pigment.None,
-                catalogIndex, 0, 0f, false, 0, 0));
+            _events.Add(new GameEvent(GameEventType.PictureCompleted, LineKind.Row, 0, libraryIndex, 0, 0f, false, 0, 0));
             PicturesCompleted++;
         }
 
-        internal void AddSplashMissed(Hue hue, int amount)
-        {
-            _events.Add(new GameEvent(GameEventType.SplashMissed, LineKind.Row, Pigment.None,
-                amount, (int)hue, 0f, false, 0, 0));
-            PaintMissed += amount;
-        }
-
-        internal void AddPictureStarted(int catalogIndex) =>
-            _events.Add(new GameEvent(GameEventType.PictureStarted, LineKind.Row, Pigment.None,
-                catalogIndex, 0, 0f, false, 0, 0));
+        internal void AddPictureStarted(int libraryIndex) =>
+            _events.Add(new GameEvent(GameEventType.PictureStarted, LineKind.Row, 0, libraryIndex, 0, 0f, false, 0, 0));
 
         internal void AddRunContinued(int continues) =>
-            _events.Add(new GameEvent(GameEventType.RunContinued, LineKind.Row, Pigment.None,
-                continues, 0, 0f, false, 0, 0));
+            _events.Add(new GameEvent(GameEventType.RunContinued, LineKind.Row, 0, continues, 0, 0f, false, 0, 0));
 
         internal void AddTrayRefilled(int round) =>
-            _events.Add(new GameEvent(GameEventType.TrayRefilled, LineKind.Row, Pigment.None,
-                round, 0, 0f, false, 0, 0));
+            _events.Add(new GameEvent(GameEventType.TrayRefilled, LineKind.Row, 0, round, 0, 0f, false, 0, 0));
 
         internal void AddTrayRescued() =>
-            _events.Add(new GameEvent(GameEventType.TrayRescued, LineKind.Row, Pigment.None,
-                0, 0, 0f, false, 0, 0));
+            _events.Add(new GameEvent(GameEventType.TrayRescued, LineKind.Row, 0, 0, 0, 0f, false, 0, 0));
 
-        internal void AddGameLost(int placementCount, int score) =>
-            _events.Add(new GameEvent(GameEventType.GameLost, LineKind.Row, Pigment.None,
-                score, placementCount, 0f, false, 0, 0));
-
-        /// <summary>Знімок подій — для тестів і логів (алокує, у грі не використовується).</summary>
-        public GameEvent[] SnapshotEvents() => _events.ToArray();
-
-        public int CountEvents(GameEventType type)
-        {
-            var count = 0;
-            for (var i = 0; i < _events.Count; i++)
-                if (_events[i].Type == type)
-                    count++;
-            return count;
-        }
-
-        public bool Has(GameEventType type) => CountEvents(type) > 0;
+        internal void AddGameLost(int placements, int score) =>
+            _events.Add(new GameEvent(GameEventType.GameLost, LineKind.Row, 0, placements, score, 0f, false, 0, 0));
     }
 }

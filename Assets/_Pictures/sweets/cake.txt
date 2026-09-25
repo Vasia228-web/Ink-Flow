@@ -1,0 +1,23 @@
+id: cake
+name: ТОРТ
+theme: sweets
+rarity: epic
+colors: k=2 W=4 R=8 A=10 I=20 D=22
+outline: k
+grid:
+.......kkkk.......
+.......kAAk.......
+....kkkkAAkkkk....
+...kkIIIIIIIIkk...
+...kIIIIIIIIIIk...
+...kWWWWWWWWWWk...
+.kkkRRRRRRRRRRkkk.
+.kIIIIIIIIIIIIIIk.
+.kIIIIIIIIIIIIIIk.
+.kWWWWWWWWWWWWWWk.
+kkRRRRRRRRRRRRRRkk
+kIIIIIIIIIIIIIIIIk
+kIIIIIIIIIIIIIIIIk
+kWWWWWWWWWWWWWWWWk
+kDDDDDDDDDDDDDDDDk
+kkkkkkkkkkkkkkkkkk

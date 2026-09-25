@@ -1,15 +1,19 @@
-// Прогонник нового ядра: тисяча забігів бота замість десяти ручних партій.
+// Прогонник ядра піксельних картинок: тисяча забігів бота замість десяти ручних партій.
 //
 //   dotnet run --project Tools/InkFlow.Sim -c Release -- --games 1000 --seed 42 --noise 3
 //   dotnet run --project Tools/InkFlow.Sim -c Release -- --games 1000 --csv
+//   dotnet run --project Tools/InkFlow.Sim -c Release -- --seconds-per-move 4
 //
 // Робочий цикл: змінив число в BalanceData → прогнав → подивився на цифри → лишив або відкотив.
 // Бот — жадібний із шумом (RunBot): моделює звичайного гравця, а не оптимальну гру.
+// «Хвилини на картинку» = розміщень на картинку × секунд на розміщення (--seconds-per-move,
+// типово 4 с — оцінка для мобільного гравця; міряється руками в Фазі 2).
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using InkFlow.Core;
@@ -20,8 +24,10 @@ var seed = 42u;
 var noise = 3f;
 var csv = false;
 var carry = true;
+var secondsPerMove = 4f;
 var botName = "default";
 var weights = BotWeights.Default;
+string? picturesDir = null;
 
 for (var i = 0; i < args.Length; i++)
 {
@@ -30,21 +36,18 @@ for (var i = 0; i < args.Length; i++)
         case "--games": games = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--seed": seed = uint.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--noise": noise = float.Parse(args[++i], CultureInfo.InvariantCulture); break;
+        case "--seconds-per-move": secondsPerMove = float.Parse(args[++i], CultureInfo.InvariantCulture); break;
+        case "--pictures": picturesDir = args[++i]; break;
         case "--csv": csv = true; break;
         case "--no-carry": carry = false; break;
         case "--bot":
             botName = args[++i];
             // «Акуратний» цілиться в чисті лінії, «неакуратний» не бачить кольору взагалі —
-            // різниця між ними в фарбі і є критерієм кроку 2 («видно різницю між акуратною
-            // й неакуратною грою»).
+            // різниця між ними в пікселях і є критерієм §5 («чиста лінія має важити»).
             weights = botName switch
             {
-                // Ваги підібрано перебором (--weights): «акуратний» готує чисті лінії, але не
-                // ціною партії — при purityPotential ≥ 0.3 бот беріг кольори й гинув удвічі раніше.
-                // wantedBias лишається 0: бот на один хід, що «цілиться» в колір картинки,
-                // просто береже поле під нього й гине вдвічі раніше (перебір кроку 4).
                 "careful" => new BotWeights(lineCleared: 12f, pureLine: 30f, emptyCell: 1f,
-                    fragmentation: 0.5f, purityPotential: 0.25f, wantedBias: 0f),
+                    fragmentation: 0.5f, purityPotential: 0.25f),
                 "sloppy" => new BotWeights(lineCleared: 12f, pureLine: 0f, emptyCell: 1f,
                     fragmentation: 0.35f, purityPotential: 0f),
                 "default" => BotWeights.Default,
@@ -53,17 +56,16 @@ for (var i = 0; i < args.Length; i++)
             break;
         case "--weights":
         {
-            // Довільні ваги для перебору: lineCleared,pureLine,emptyCell,fragmentation,purityPotential.
             var parts = args[++i].Split(',');
-            if (parts.Length != 5 && parts.Length != 6)
-                throw new ArgumentException("--weights чекає п'ять або шість чисел через кому (шосте — wantedBias)");
+            if (parts.Length != 5)
+                throw new ArgumentException("--weights чекає п'ять чисел через кому: lineCleared,pureLine,emptyCell,fragmentation,purityPotential");
             float W(int k) => float.Parse(parts[k], CultureInfo.InvariantCulture);
-            weights = new BotWeights(W(0), W(1), W(2), W(3), W(4), parts.Length == 6 ? W(5) : 0f);
+            weights = new BotWeights(W(0), W(1), W(2), W(3), W(4));
             botName = "custom(" + args[i] + ")";
             break;
         }
         case "--help":
-            Console.WriteLine("--games N  --seed S  --noise F  --bot default|careful|sloppy  --weights a,b,c,d,e[,w]  --no-carry  --csv");
+            Console.WriteLine("--games N  --seed S  --noise F  --seconds-per-move F  --pictures DIR  --bot default|careful|sloppy  --weights a,b,c,d,e  --no-carry  --csv");
             return 0;
         default:
             Console.Error.WriteLine($"Невідомий аргумент: {args[i]}");
@@ -73,27 +75,37 @@ for (var i = 0; i < args.Length; i++)
 
 var balance = BalanceData.Default;
 var catalog = PieceCatalogData.Default;
+var library = PictureLibrary.LoadFromDirectory(picturesDir ?? FindPictures());
 var stopwatch = Stopwatch.StartNew();
 var results = new RunStats[games];
-// Незавершені картинки (§7) переносяться між послідовними забігами одного бота — як у гравця.
+var timing = new PictureTiming(Rarities.Count);
+// Незавершені картинки (§9) переносяться між послідовними забігами одного бота — як у гравця.
 var unfinished = new UnfinishedPicture(balance.UnfinishedAttempts);
+// Колекція бота: колода віддає невидані спершу (§7), тож без неї частки рідкостей брехали б.
+var collection = new HashSet<string>(StringComparer.Ordinal);
 
-// З перенесенням незавершеної забіги залежать один від одного — граємо послідовно,
-// як гравець; без нього — паралельно.
+// З перенесенням незавершеної й колекцією забіги залежать один від одного — граємо послідовно,
+// як гравець; без нього — паралельно (тоді таймінги картинок збираються під замком).
 if (carry)
 {
     for (var i = 0; i < games; i++)
     {
         var runSeed = unchecked(seed + (uint)i * 2654435761u);
-        results[i] = PlayOne(balance, catalog, runSeed, noise, weights, unfinished);
+        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, unfinished, collection, timing);
     }
 }
 else
 {
+    var gate = new object();
     Parallel.For(0, games, i =>
     {
         var runSeed = unchecked(seed + (uint)i * 2654435761u);
-        results[i] = PlayOne(balance, catalog, runSeed, noise, weights, null);
+        var local = new PictureTiming(Rarities.Count);
+        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, null, null, local);
+        lock (gate)
+            for (var r = 0; r < Rarities.Count; r++)
+                for (var k = 0; k < local.CountOf(r); k++)
+                    timing.Add(r, (int)local.Of(r).Percentile(0f) /* усі значення однакові лише в межах одного запису */);
     });
 }
 
@@ -105,131 +117,158 @@ var score = new Distribution(results.Select(r => (float)r.Score).ToArray());
 var lines = new Distribution(results.Select(r => (float)r.Lines).ToArray());
 var pureShare = new Distribution(results.Select(r => r.Lines == 0 ? 0f : 100f * r.PureLines / r.Lines).ToArray());
 var bestChain = new Distribution(results.Select(r => (float)r.BestChain).ToArray());
-var paint = new Distribution(results.Select(r => (float)r.PaintYielded).ToArray());
-var paintPerPlacement = new Distribution(results.Select(r => r.Placements == 0 ? 0f : (float)r.PaintYielded / r.Placements).ToArray());
-var splashes = new Distribution(results.Select(r => (float)r.Splashes).ToArray());
-var placementsPerSplash = new Distribution(results.Select(r => r.Splashes == 0 ? (float)r.Placements : (float)r.Placements / r.Splashes).ToArray());
-var splashTotal = results.Sum(r => r.Splashes);
-var baseShare = splashTotal == 0 ? 0f : 100f * results.Sum(r => r.BaseSplashes) / splashTotal;
-var secondaryShare = splashTotal == 0 ? 0f : 100f * results.Sum(r => r.SecondarySplashes) / splashTotal;
-var brownShare = splashTotal == 0 ? 0f : 100f * results.Sum(r => r.BrownSplashes) / splashTotal;
-var noSplash = results.Count(r => r.Splashes == 0);
+var pixels = new Distribution(results.Select(r => (float)r.PixelsFilled).ToArray());
+var pixelsPerPlacement = new Distribution(results.Select(r => r.Placements == 0 ? 0f : (float)r.PixelsFilled / r.Placements).ToArray());
+var pixelsPerLine = new Distribution(results.Select(r => r.Lines == 0 ? 0f : (float)r.PixelsFilled / r.Lines).ToArray());
+var pixelsTotal = results.Sum(r => (long)r.PixelsFilled);
+var wastedTotal = results.Sum(r => (long)r.PixelsWasted);
+var wastedShare = pixelsTotal + wastedTotal == 0 ? 0f : 100f * wastedTotal / (pixelsTotal + wastedTotal);
 var pictures = new Distribution(results.Select(r => (float)r.Pictures).ToArray());
-var zones = new Distribution(results.Select(r => (float)r.Zones).ToArray());
 var fillAtDeath = new Distribution(results.Select(r => 100f * r.PictureFillAtDeath).ToArray());
-var paintTotal = results.Sum(r => (long)r.PaintYielded);
-var missedShare = paintTotal == 0 ? 0f : 100f * results.Sum(r => (long)r.PaintMissed) / paintTotal;
 var noPicture = results.Count(r => r.Pictures == 0);
-var rareSeen = results.Sum(r => r.RareSeen);
-var legendarySeen = results.Sum(r => r.LegendarySeen);
-var rareDone = results.Sum(r => r.RareDone);
-var legendaryDone = results.Sum(r => r.LegendaryDone);
-var picturesSeen = results.Sum(r => r.Pictures) + games - results.Count(r => r.Carried > 0); // нові витяги: по одному на партію плюс по одному на кожну закінчену, крім перенесених
+var firstPicture = new Distribution(results.Where(r => r.PlacementsToFirstPicture >= 0).Select(r => (float)r.PlacementsToFirstPicture).ToArray());
+var minutesPerRun = placements.Scaled(secondsPerMove / 60f);
 var carriedRuns = results.Count(r => r.Carried > 0);
 var rescuedTotal = results.Sum(r => r.Rescued);
 var annulledTotal = results.Sum(r => r.Annulled);
-var paintPerLine = new Distribution(results.Select(r => r.Lines == 0 ? 0f : (float)r.PaintYielded / r.Lines).ToArray());
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
     .Select(r => 100f * r.PressureAt / Math.Max(1, r.Placements)).ToArray());
 var emptyAtDeath = new Distribution(results.Select(r => (float)r.EmptyAtDeath).ToArray());
 var rescues = new Distribution(results.Select(r => (float)r.Rescues).ToArray());
-
 var lostAtRefill = results.Count(r => r.LostAtRefill);
 var unfair = results.Count(r => r.Unfair);
 var neverPressured = results.Count(r => r.PressureAt < 0);
+var seenByRarity = new int[Rarities.Count];
+var doneByRarity = new int[Rarities.Count];
+foreach (var r in results)
+    for (var k = 0; k < Rarities.Count; k++)
+    {
+        seenByRarity[k] += r.SeenByRarity[k];
+        doneByRarity[k] += r.DoneByRarity[k];
+    }
+var seenTotal = Math.Max(1, seenByRarity.Sum());
 
 if (csv)
 {
     Console.WriteLine("metric,unit,mean,p10,median,p90,min,max");
     Console.WriteLine(placements.Csv("placements_per_run", "шт"));
+    Console.WriteLine(minutesPerRun.Csv("minutes_per_run", "хв"));
     Console.WriteLine(rounds.Csv("rounds_per_run", "шт"));
     Console.WriteLine(score.Csv("score", "очок"));
     Console.WriteLine(lines.Csv("lines_per_run", "шт"));
     Console.WriteLine(pureShare.Csv("pure_line_share", "%"));
     Console.WriteLine(bestChain.Csv("best_chain", "ліній"));
-    Console.WriteLine(paint.Csv("paint_yielded", "од"));
-    Console.WriteLine(paintPerPlacement.Csv("paint_per_placement", "од"));
-    Console.WriteLine(splashes.Csv("splashes", "шт"));
-    Console.WriteLine(placementsPerSplash.Csv("placements_per_splash", "шт"));
-    Console.WriteLine($"splash_hue_base,%,{baseShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"splash_hue_secondary,%,{secondaryShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"splash_hue_brown,%,{brownShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"runs_without_splash,%,{(100f * noSplash / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine(pixels.Csv("pixels_filled", "px"));
+    Console.WriteLine(pixelsPerPlacement.Csv("pixels_per_placement", "px"));
+    Console.WriteLine(pixelsPerLine.Csv("pixels_per_line", "px"));
+    Console.WriteLine($"pixels_wasted_share,%,{F(wastedShare)},,,,,");
     Console.WriteLine(pictures.Csv("pictures_completed", "шт"));
-    Console.WriteLine(zones.Csv("zones_completed", "шт"));
     Console.WriteLine(fillAtDeath.Csv("picture_fill_at_death", "%"));
-    Console.WriteLine($"paint_missed_share,%,{missedShare.ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"runs_without_picture,%,{(100f * noPicture / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"rare_seen_per_run,шт,{((float)rareSeen / games).ToString("0.###", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"legendary_seen_per_run,шт,{((float)legendarySeen / games).ToString("0.###", CultureInfo.InvariantCulture)},,,,,");
-    Console.WriteLine($"rare_done,шт,{rareDone},,,,,");
-    Console.WriteLine($"legendary_done,шт,{legendaryDone},,,,,");
-    Console.WriteLine($"runs_started_with_unfinished,%,{(100f * carriedRuns / games).ToString("0.##", CultureInfo.InvariantCulture)},,,,,");
+    Console.WriteLine(firstPicture.Csv("placements_to_first_picture", "шт"));
+    Console.WriteLine($"runs_without_picture,%,{F(100f * noPicture / games)},,,,,");
+    for (var k = 0; k < Rarities.Count; k++)
+    {
+        var id = Rarities.IdOf((Rarity)k);
+        Console.WriteLine($"seen_{id},%,{F(100f * seenByRarity[k] / seenTotal)},,,,,");
+        Console.WriteLine($"done_{id},шт,{doneByRarity[k]},,,,,");
+        if (timing.CountOf(k) > 0)
+            Console.WriteLine(timing.Of(k).Scaled(secondsPerMove / 60f).Csv($"minutes_per_picture_{id}", "хв"));
+    }
+    Console.WriteLine($"runs_started_with_unfinished,%,{F(100f * carriedRuns / games)},,,,,");
     Console.WriteLine($"unfinished_rescued,шт,{rescuedTotal},,,,,");
     Console.WriteLine($"unfinished_annulled,шт,{annulledTotal},,,,,");
-    Console.WriteLine(paintPerLine.Csv("paint_per_line", "од"));
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
     Console.WriteLine(emptyAtDeath.Csv("empty_cells_at_death", "шт"));
     Console.WriteLine(rescues.Csv("tray_rescues", "шт"));
-    Console.WriteLine($"lost_at_refill,%,{100f * lostAtRefill / games:0.##},,,,,");
+    Console.WriteLine($"lost_at_refill,%,{F(100f * lostAtRefill / games)},,,,,");
     Console.WriteLine($"unfair_deaths,шт,{unfair},,,,,");
-    return 0;
+    return unfair == 0 ? 0 : 1;
 }
 
-Console.WriteLine($"Ink Flow · прогін {games} забігів · бот {botName} · сід {seed} · шум {noise} · {stopwatch.Elapsed.TotalSeconds:0.0} с");
+Console.WriteLine($"Ink Flow · прогін {games} забігів · бот {botName} · сід {seed} · шум {noise} · {secondsPerMove:0.#} с/хід · бібліотека {library.Count} · {stopwatch.Elapsed.TotalSeconds:0.0} с");
 Console.WriteLine();
 Console.WriteLine(placements.Row("розміщень за партію", "шт"));
+Console.WriteLine(minutesPerRun.Row("хвилин за партію", "хв"));
 Console.WriteLine(rounds.Row("лотків (раундів)", "шт"));
 Console.WriteLine(score.Row("очки", "очок"));
 Console.WriteLine(lines.Row("ліній за партію", "шт"));
 Console.WriteLine(pureShare.Row("частка чистих ліній", "%"));
 Console.WriteLine(bestChain.Row("найдовший ланцюг", "ліній"));
-Console.WriteLine(paint.Row("фарби за партію", "од"));
-Console.WriteLine(paintPerPlacement.Row("фарби на розміщення", "од"));
-Console.WriteLine(paintPerLine.Row("фарби на лінію", "од"));
-Console.WriteLine(splashes.Row("виплесків за партію", "шт"));
-Console.WriteLine(placementsPerSplash.Row("розміщень на виплеск", "шт"));
+Console.WriteLine(pixels.Row("пікселів за партію", "px"));
+Console.WriteLine(pixelsPerPlacement.Row("пікселів на розміщення", "px"));
+Console.WriteLine(pixelsPerLine.Row("пікселів на лінію", "px"));
 Console.WriteLine(pictures.Row("картинок за партію", "шт"));
-Console.WriteLine(zones.Row("зон залито за партію", "шт"));
 Console.WriteLine(fillAtDeath.Row("поточна картинка в момент смерті", "%"));
+Console.WriteLine(firstPicture.Row("розміщень до першої картинки", "шт"));
 Console.WriteLine(pressure.Row("початок тиску (розміщ.)", "шт"));
 Console.WriteLine(pressureShare.Row("початок тиску (% партії)", "%"));
 Console.WriteLine(emptyAtDeath.Row("вільних клітинок у смерть", "шт"));
 Console.WriteLine(rescues.Row("рятувань мішка", "шт"));
 Console.WriteLine();
-Console.WriteLine($"тиск не настав узагалі: {neverPressured} з {games} ({100f * neverPressured / games:0.#} %)");
-Console.WriteLine($"відтінки виплесків: чисті {baseShare:0.#} % · вторинні {secondaryShare:0.#} % · коричневі {brownShare:0.#} %");
-Console.WriteLine($"партій без жодного виплеску: {noSplash} з {games} ({100f * noSplash / games:0.#} %)");
-Console.WriteLine($"фарби пропало мимо (відтінок нікому не потрібен): {missedShare:0.#} % від усієї");
+Console.WriteLine("хвилин на картинку за рідкістю (§19: звичайна 1.5–2 хв, легендарна 5+):");
+for (var k = 0; k < Rarities.Count; k++)
+{
+    var id = Rarities.IdOf((Rarity)k);
+    Console.WriteLine(timing.CountOf(k) > 0
+        ? timing.Of(k).Scaled(secondsPerMove / 60f).Row($"  {id} (n={timing.CountOf(k)})", "хв")
+        : $"  {id,-28} —  жодної не закінчено");
+}
+Console.WriteLine();
+Console.WriteLine($"пікселів згоріло (колір уже не потрібен): {wastedShare:0.#} % від усіх");
 Console.WriteLine($"партій без жодної закінченої картинки: {noPicture} з {games} ({100f * noPicture / games:0.#} %)");
-Console.WriteLine($"незавершені (§7): забігів, що почались із перенесеної — {100f * carriedRuns / games:0.#} %; врятовано {rescuedTotal}, анульовано {annulledTotal}");
-Console.WriteLine($"рідкість побачених картинок: рідкісних {100f * rareSeen / picturesSeen:0.#} % · легендарних {100f * legendarySeen / picturesSeen:0.#} % (§6: 25 / 5); закінчено рідкісних {rareDone}, легендарних {legendaryDone}");
+Console.WriteLine($"тиск не настав узагалі: {neverPressured} з {games} ({100f * neverPressured / games:0.#} %)");
+Console.WriteLine($"незавершені (§9): забігів, що почались із перенесеної — {100f * carriedRuns / games:0.#} %; врятовано {rescuedTotal}, анульовано {annulledTotal}");
+Console.Write("рідкість нових витягів (§6: 45/25/15/9/5/1):");
+for (var k = 0; k < Rarities.Count; k++)
+    Console.Write($" {Rarities.IdOf((Rarity)k)} {100f * seenByRarity[k] / seenTotal:0.#} % (закінчено {doneByRarity[k]})");
+Console.WriteLine();
 Console.WriteLine($"смерть одразу після поповнення лотка: {lostAtRefill} з {games} ({100f * lostAtRefill / games:0.#} %)");
 Console.WriteLine($"смертей не з вини гравця (мішок дав неможливий набір, хоч 2-клітинкова влазила): {unfair}");
 return unfair == 0 ? 0 : 1;
 
-static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runSeed, float noise, BotWeights weights,
-    UnfinishedPicture? unfinished)
+static string F(float v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+static string FindPictures()
+{
+    foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+    {
+        var dir = new DirectoryInfo(start);
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "Assets", "_Pictures");
+            if (Directory.Exists(candidate))
+                return candidate;
+            dir = dir.Parent;
+        }
+    }
+    throw new DirectoryNotFoundException("Не знайшов Assets/_Pictures — вкажи --pictures DIR.");
+}
+
+static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLibrary library, uint runSeed, float noise,
+    BotWeights weights, UnfinishedPicture? unfinished, HashSet<string>? collection, PictureTiming timing)
 {
     PictureStart? start = unfinished != null && unfinished.HasPicture
         ? new PictureStart(unfinished.PictureIndex, unfinished.Filled, unfinished.AttemptsLeft)
         : (PictureStart?)null;
-    var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed), null, start);
+    Func<string, bool>? isCollected = collection is null ? null : id => collection.Contains(id);
+    var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed), library, start, isCollected);
     var carried = start.HasValue ? 1 : 0;
     var rescued = 0;
     var annulled = 0;
     var bot = new RunBot(weights, new XorShiftRandom(unchecked(runSeed ^ 0x9E3779B9u)), noise);
+    var filledBuffer = new List<int>(256);
 
     var pressureAt = -1;
-    var zonesCompleted = 0;
     var lostAtRefill = false;
+    var firstPictureAt = -1;
+    var pictureStartedAt = 0; // розміщення, на якому почалась поточна картинка (перенесена — з нуля забігу)
+    var seen = new int[Rarities.Count];
+    var done = new int[Rarities.Count];
     // Перенесена — не «побачена вперше»: рідкість рахуємо лише за новими витягами.
-    var rareSeen = !start.HasValue && session.Picture.Def.Rarity == Rarity.Rare ? 1 : 0;
-    var legendarySeen = !start.HasValue && session.Picture.Def.Rarity == Rarity.Legendary ? 1 : 0;
-    var rareDone = 0;
-    var legendaryDone = 0;
+    if (!start.HasValue)
+        seen[(int)session.Picture.Picture.Rarity]++;
     var guard = 0;
 
     while (!session.IsOver && guard++ < 10_000)
@@ -241,33 +280,42 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
         if (!result.Accepted)
             break;
 
-        // «Тиск» — перше розміщення, після якого хоч одна фігура з руки вже нікуди не
-        // влазить: із цього моменту гравець грає не «куди хочу», а «куди можна».
-        zonesCompleted += result.ZonesCompleted;
-        if (unfinished != null && result.Splashes > 0)
-            unfinished.Track(session.Picture.CatalogIndex, session.Picture.Filled);
         for (var e = 0; e < result.Events.Count; e++)
         {
             var ev = result.Events[e];
             if (ev.Type == GameEventType.PictureCompleted)
             {
-                var rarity = session.Pictures[ev.Value].Rarity;
-                if (rarity == Rarity.Rare) rareDone++;
-                else if (rarity == Rarity.Legendary) legendaryDone++;
+                var rarity = library[ev.Value].Rarity;
+                done[(int)rarity]++;
+                // Перенесена вже мала прогрес — її час не міряємо, він розмитий між забігами.
+                if (!(session.StartedWithCarried && ev.Value == session.CarriedIndex && session.PicturesCompleted == 1))
+                    timing.Add((int)rarity, session.PlacementCount - pictureStartedAt);
+                if (firstPictureAt < 0)
+                    firstPictureAt = session.PlacementCount;
+                collection?.Add(library[ev.Value].Id);
                 if (unfinished != null)
                 {
-                    if (unfinished.HasPicture && unfinished.PictureIndex == ev.Value && session.StartedWithCarried)
+                    if (session.StartedWithCarried && ev.Value == session.CarriedIndex)
                         rescued++;
                     unfinished.Complete(ev.Value);
                 }
             }
             else if (ev.Type == GameEventType.PictureStarted)
             {
-                var rarity = session.Pictures[ev.Value].Rarity;
-                if (rarity == Rarity.Rare) rareSeen++;
-                else if (rarity == Rarity.Legendary) legendarySeen++;
+                seen[(int)library[ev.Value].Rarity]++;
+                pictureStartedAt = session.PlacementCount;
             }
         }
+
+        // §9: прогрес незавершеної пишеться раз на лоток.
+        if (unfinished != null && result.Has(GameEventType.TrayRefilled) && session.Picture.FilledCount > 0)
+        {
+            session.Picture.FilledIndices(filledBuffer);
+            unfinished.Track(session.Picture.LibraryIndex, filledBuffer);
+        }
+
+        // «Тиск» — перше розміщення, після якого хоч одна фігура з руки вже нікуди не
+        // влазить: із цього моменту гравець грає не «куди хочу», а «куди можна».
         if (pressureAt < 0 && !session.IsOver && session.AnyPieceStuck())
             pressureAt = session.PlacementCount;
 
@@ -281,23 +329,16 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, uint runS
             if (catalog[i].Size == catalog.MinSize && PlacementRules.AnyFit(session.Board, catalog[i]))
                 unfair = true;
 
-    if (unfinished != null && unfinished.Settle(session.Picture.CatalogIndex, session.Picture.Filled, session.StartedWithCarried))
-        annulled++;
+    if (unfinished != null)
+    {
+        session.Picture.FilledIndices(filledBuffer);
+        if (unfinished.Settle(session.Picture.LibraryIndex, filledBuffer, session.StartedWithCarried))
+            annulled++;
+    }
 
     return new RunStats(session.PlacementCount, session.Round, session.Score, session.LinesCleared,
-        session.PureLinesCleared, session.BestChain, session.PaintYielded, pressureAt,
+        session.PureLinesCleared, session.BestChain, session.PixelsFilled, session.PixelsWasted, pressureAt,
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
-        session.Splashes, CountHues(session, Hues.IsBase), CountHues(session, Hues.IsSecondary),
-        session.SplashesByHue[(int)Hue.Brown],
-        session.PicturesCompleted, zonesCompleted, session.PaintMissed, session.Picture.FilledFraction,
-        rareSeen, legendarySeen, rareDone, legendaryDone, carried, rescued, annulled);
-}
-
-static int CountHues(RunSession session, Func<Hue, bool> filter)
-{
-    var n = 0;
-    foreach (var hue in Hues.All)
-        if (filter(hue))
-            n += session.SplashesByHue[(int)hue];
-    return n;
+        session.PicturesCompleted, session.Picture.FilledFraction, firstPictureAt,
+        done, seen, carried, rescued, annulled);
 }

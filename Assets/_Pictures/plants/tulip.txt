@@ -1,0 +1,18 @@
+id: tulip
+name: ТЮЛЬПАН
+theme: plants
+rarity: common
+colors: K=1 E=13 I=20
+outline: K
+grid:
+KKKKKKKKKK
+KIIKIIKIIK
+KIIIIIIIIK
+KIIIIIIIIK
+KKIIIIIIKK
+.KKKEEKKK.
+KKKKEEKKKK
+KEEKEEKEEK
+KKEEEEEEKK
+.KKKEEKKK.
+...KKKK...

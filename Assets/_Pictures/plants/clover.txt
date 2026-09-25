@@ -1,0 +1,19 @@
+id: clover
+name: КОНЮШИНА
+theme: plants
+rarity: uncommon
+colors: K=1 M=12 E=13 N=23
+outline: K
+grid:
+..KKKKKKKKKK..
+.KKEEEKKEEEKK.
+.KEEEEEEEEEEK.
+.KEEEMEEMEEEK.
+KKKEEEEEEEEKKK
+KEEEEEEEEEEEEK
+KEEEMEEEEMEEEK
+KKEEEEEEEEEEKK
+.KKEEEKKEEEKK.
+..KKKKKNNKKK..
+.....KNNKK....
+.....KKKK.....

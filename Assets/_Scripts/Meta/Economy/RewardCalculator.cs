@@ -40,7 +40,7 @@ namespace InkFlow.Meta
             _bossMultiplier = bossMultiplier;
             _endlessMilestones = endlessMilestones ?? new long[] { 5000, 10000, 25000, 50000 };
             _scorePerOil = scorePerOil < 1 ? 1 : scorePerOil;
-            _pictureRewards = pictureRewards ?? new long[] { 10, 30, 100 };
+            _pictureRewards = pictureRewards ?? EconomyData.DefaultPictureRewards();
         }
 
         /// <summary>

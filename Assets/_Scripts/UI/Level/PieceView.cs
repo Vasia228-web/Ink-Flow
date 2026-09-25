@@ -56,7 +56,7 @@ namespace InkFlow.UI
                 ? ((RectTransform)blocks[0].transform).sizeDelta.x
                 : BoardGeometry.TrayBox * DesignSystem.MockupToReference;
             var step = box * (BoardGeometry.TrayStep / BoardGeometry.TrayBox);
-            var color = design.PigmentColor(piece.Pigment);
+            var color = DesignSystem.PaletteColor(piece.Color);
             var offsetX = (shape.Width - 1) * 0.5f;
             var offsetY = (shape.Height - 1) * 0.5f;
 

@@ -1,0 +1,17 @@
+id: jellyfish
+name: МЕДУЗКА
+theme: sea
+rarity: uncommon
+colors: K=1 W=4 F=19 I=20
+outline: K
+grid:
+...KKKKKKKK...
+.KKKFFFFFFKKK.
+KKFFFFFFFFFFKK
+KFFFWKFFWKFFFK
+KFFIFFFFFFIFFK
+KKFKFKFFKFKFKK
+.KFKFKFFKFKFK.
+.KKKFKFFKFKKK.
+...KFKKKKFK...
+...KKK..KKK...

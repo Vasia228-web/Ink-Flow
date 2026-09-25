@@ -1,0 +1,18 @@
+id: cupcake
+name: КАПКЕЙК
+theme: sweets
+rarity: uncommon
+colors: k=2 R=8 I=20 D=22
+outline: k
+grid:
+....kkkk....
+..kkkRRkkk..
+.kkIIIIIIkk.
+kkIIIIIIIIkk
+kIIIIIIIIIIk
+kIIIIIIIIIIk
+kkDDDDDDDDkk
+.kDDDDDDDDk.
+.kkDDDDDDkk.
+..kDDDDDDk..
+..kkkkkkkk..

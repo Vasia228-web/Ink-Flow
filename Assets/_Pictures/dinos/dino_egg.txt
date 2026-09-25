@@ -1,0 +1,18 @@
+id: dino_egg
+name: ЯЙЦЕ ДИНОЗАВРА
+theme: dinos
+rarity: common
+colors: K=1 C=5 E=13
+outline: K
+grid:
+...KKKKKK...
+..KKCCCCKK..
+.KKCCCCCCKK.
+.KCCEECCCCK.
+KKCCCCCEECKK
+KCCCCCCCCCCK
+KCCEECCCCCCK
+KCCCCCCEECCK
+KKCCCCCCCCKK
+.KKCCCCCCKK.
+..KKKKKKKK..

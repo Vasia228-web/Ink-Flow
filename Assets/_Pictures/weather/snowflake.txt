@@ -1,0 +1,18 @@
+id: snowflake
+name: СНІЖИНКА
+theme: weather
+rarity: uncommon
+colors: n=3 W=4 B=16 X=25
+outline: n
+grid:
+.....nnnn.....
+..nnnnBBnnnn..
+..nXnnXXnnXn..
+..nnXnXXnXnn..
+nnnnnXXXXnnnnn
+nBXXXXWWXXXXBn
+nnnnnXXXXnnnnn
+..nnXnXXnXnn..
+..nXnnXXnnXn..
+..nnnnBBnnnn..
+.....nnnn.....

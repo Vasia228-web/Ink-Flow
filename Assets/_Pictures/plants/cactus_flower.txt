@@ -1,0 +1,19 @@
+id: cactus_flower
+name: КАКТУС У ЦВІТУ
+theme: plants
+rarity: uncommon
+colors: K=1 E=13 I=20 D=22
+outline: K
+grid:
+...KKKKKK...
+...KIIIIK...
+KKKKKIIKKKKK
+KIEKKEEKKEIK
+KEEKKEEKKEEK
+KEEEEEEEEEEK
+KKKEEEEEEKKK
+..KKKEEKKK..
+..KKKEEKKK..
+.KKDDDDDDKK.
+.KDDDDDDDDK.
+.KKKKKKKKKK.

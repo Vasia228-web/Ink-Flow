@@ -1,0 +1,17 @@
+id: heart
+name: СЕРДЕЧКО
+theme: things
+rarity: common
+colors: K=1 W=4 R=8
+outline: K
+grid:
+.KKKKKKKKKK.
+KKRRRKKRRRKK
+KRRRRRRRRRRK
+KRWRRRRRRRRK
+KRRRRRRRRRRK
+KKRRRRRRRRKK
+.KKRRRRRRKK.
+..KKRRRRKK..
+...KKRRKK...
+....KKKK....

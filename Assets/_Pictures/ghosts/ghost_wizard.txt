@@ -1,0 +1,21 @@
+id: ghost_wizard
+name: ПРИВИД-ЧАРІВНИК
+theme: ghosts
+rarity: rare
+colors: K=1 W=4 A=10 P=18 U=27
+outline: K
+grid:
+...KKKK...
+..KKPPKK..
+.KKPPPPKK.
+KKPPAPPPKK
+KPPPPPPPPK
+KKWWWWWWKK
+KWWWWWWWWK
+KWWKWWKWWK
+KWUWWWWUWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWKWWKWWK
+KKKKKKKKKK

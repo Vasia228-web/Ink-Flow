@@ -1,0 +1,19 @@
+id: potion
+name: ЗІЛЛЯ
+theme: things
+rarity: uncommon
+colors: K=1 S=6 P=18 D=22
+outline: K
+grid:
+...KKKKKK...
+...KDDDDK...
+...KSSSSK...
+..KKSSSSKK..
+.KKSSSSSSKK.
+KKSSPPPPSSKK
+KSPPPPPPPPSK
+KSPPSPPPPPSK
+KSPPPPPPPPSK
+KKSPPPPPPSKK
+.KKSSSSSSKK.
+..KKKKKKKK..

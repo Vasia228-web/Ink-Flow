@@ -1,0 +1,19 @@
+id: taco
+name: ТАКО
+theme: food
+rarity: rare
+colors: k=2 R=8 A=10 E=13
+outline: k
+grid:
+....kkkkkkkk....
+..kkkEEkkEEkkk..
+.kkEERRREERREkk.
+kkERRRRRRRRRREkk
+kAAAAAAAAAAAAAAk
+kAAAAAAAAAAAAAAk
+kkAAAAAAAAAAAAkk
+.kkAAAAAAAAAAkk.
+..kkAAAAAAAAkk..
+...kkAAAAAAkk...
+....kkAAAAkk....
+.....kkkkkk.....

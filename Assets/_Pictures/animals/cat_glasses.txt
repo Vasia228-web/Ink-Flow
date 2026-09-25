@@ -1,0 +1,19 @@
+id: cat_glasses
+name: КОТИК В ОКУЛЯРАХ
+theme: animals
+rarity: rare
+colors: K=1 O=9 Y=15 I=20
+outline: K
+grid:
+.KKKK....KKKK.
+.KOOKK..KKOOK.
+.KOOOKKKKOOOK.
+.KOOOOOOOOOOK.
+.KOOOOOOOOOOK.
+.KYYKKKKKYYKK.
+KKYYOOIIOYYOKK
+KOOOOOIKIOOOOK
+KOOOOOOOOOOOOK
+KKOOOOOOOOOOKK
+.KKOOOOOOOOKK.
+..KKKKKKKKKK..

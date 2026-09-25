@@ -17,13 +17,13 @@ namespace InkFlow.Tests.Meta
             var storage = new MemoryStorage();
             var state = PlayerState.NewPlayer(EconomyData.Default, storage);
 
-            var reward = state.CompleteRun(new RunSummary(score: 4_450, bestChain: 3, commonDone: 2, rareDone: 1, legendaryDone: 0), Today);
+            var reward = state.CompleteRun(new RunSummary(4_450, 3, new[] { 2, 0, 1, 0, 0, 0 }), Today);
 
             Assert.AreEqual(44, reward.ForScore, "4 450 ÷ 100, униз");
-            Assert.AreEqual(2 * 10 + 30, reward.ForPictures);
-            Assert.AreEqual(94, reward.Total);
+            Assert.AreEqual(2 * 10 + 40, reward.ForPictures, "дві звичайні по 10 і рідкісна за 40");
+            Assert.AreEqual(104, reward.Total);
             Assert.IsTrue(reward.NewRecord);
-            Assert.AreEqual(94, state.Wallet.OilDrops);
+            Assert.AreEqual(104, state.Wallet.OilDrops);
             Assert.AreEqual(4_450, state.Progress.EndlessRecord);
             Assert.AreEqual(3, state.Progress.BestChain);
             Assert.AreEqual(1, state.Progress.RunsPlayed);
@@ -37,12 +37,12 @@ namespace InkFlow.Tests.Meta
             var economy = new EconomyData(fullRewardPlays: 1, reducedRewardRate: 0.25f);
             var state = PlayerState.NewPlayer(economy);
 
-            var first = state.CompleteRun(new RunSummary(1_000, 1, 0, 0, 0), Today);
-            var second = state.CompleteRun(new RunSummary(1_000, 1, 0, 0, 1), Today.AddMinutes(5));
+            var first = state.CompleteRun(new RunSummary(1_000, 1), Today);
+            var second = state.CompleteRun(new RunSummary(1_000, 1, new[] { 0, 0, 0, 0, 1, 0 }), Today.AddMinutes(5));
 
             Assert.AreEqual(10, first.ForScore);
             Assert.AreEqual(2, second.ForScore, "ліміт вичерпано — чверть");
-            Assert.AreEqual(100, second.ForPictures, "картинка — подія, не фарм: без множника");
+            Assert.AreEqual(160, second.ForPictures, "картинка — подія, не фарм: без множника");
             Assert.IsFalse(second.NewRecord);
         }
 
@@ -50,7 +50,7 @@ namespace InkFlow.Tests.Meta
         public void CompleteRun_ZeroScorePaysNothingButStillCounts()
         {
             var state = PlayerState.NewPlayer(EconomyData.Default);
-            var reward = state.CompleteRun(new RunSummary(0, 0, 0, 0, 0), Today);
+            var reward = state.CompleteRun(new RunSummary(0, 0), Today);
             Assert.AreEqual(0, reward.Total);
             Assert.AreEqual(1, state.Progress.RunsPlayed);
             Assert.AreEqual(1, state.DailyLimit.PlaysToday);
@@ -61,7 +61,7 @@ namespace InkFlow.Tests.Meta
         {
             var storage = new MemoryStorage();
             var state = PlayerState.NewPlayer(EconomyData.Default, storage);
-            var reward = state.CompleteRun(new RunSummary(3_000, 1, 1, 0, 0), Today);
+            var reward = state.CompleteRun(new RunSummary(3_000, 1, new[] { 1, 0, 0, 0, 0, 0 }), Today);
             Assert.AreEqual(30, reward.ForScore);
 
             var bonus = state.DoubleRunReward(reward.ForScore);
@@ -79,20 +79,21 @@ namespace InkFlow.Tests.Meta
             Assert.IsFalse(state.ShouldShowInterstitial, "до першого забігу — ні");
             for (var i = 1; i <= 8; i++)
             {
-                state.CompleteRun(new RunSummary(100, 1, 0, 0, 0), Today.AddMinutes(i));
+                state.CompleteRun(new RunSummary(100, 1), Today.AddMinutes(i));
                 Assert.AreEqual(i % 4 == 0, state.ShouldShowInterstitial, $"забіг {i}");
             }
             var never = PlayerState.NewPlayer(new EconomyData(interstitialEveryRuns: 0));
-            never.CompleteRun(new RunSummary(100, 1, 0, 0, 0), Today);
+            never.CompleteRun(new RunSummary(100, 1), Today);
             Assert.IsFalse(never.ShouldShowInterstitial);
         }
 
         [Test]
         public void RescueAd_RestoresTheAnnulledPictureWithOneAttempt()
         {
-            var state = PlayerState.NewPlayer(EconomyData.Default);
-            var owl = state.Pictures.IndexOf("owl");
-            var filled = new List<int> { 8, 8, 0, 0, 0, 0, 0, 0, 0, 0 };
+            var state = PlayerState.NewPlayer(EconomyData.Default, null, TestLibrary.Real);
+            var owl = state.Library.IndexOf("owl");
+            Assert.GreaterOrEqual(owl, 0);
+            var filled = new List<int> { 8, 9 };
             state.TrackUnfinished(owl, filled);
             state.SettleUnfinished(owl, filled, wasCarried: false);
             state.SettleUnfinished(owl, filled, wasCarried: true);
@@ -104,7 +105,7 @@ namespace InkFlow.Tests.Meta
 
             Assert.IsTrue(state.Unfinished.HasPicture);
             Assert.AreEqual(1, state.Unfinished.AttemptsLeft, "одна спроба за ролик");
-            Assert.AreEqual(8, state.Unfinished.Filled[1], "прогрес повернуто");
+            Assert.AreEqual(9, state.Unfinished.Filled[1], "прогрес повернуто");
             Assert.IsTrue(state.RunStart.HasValue);
         }
 
@@ -112,8 +113,25 @@ namespace InkFlow.Tests.Meta
         public void RewardPicture_PaysByRarity()
         {
             var state = PlayerState.NewPlayer(EconomyData.Default);
-            Assert.AreEqual(100, state.RewardPicture(Rarity.Legendary));
-            Assert.AreEqual(100, state.Wallet.OilDrops);
+            Assert.AreEqual(160, state.RewardPicture(Rarity.Legendary));
+            Assert.AreEqual(160, state.Wallet.OilDrops);
+            Assert.AreEqual(400, state.RewardPicture(Rarity.Cosmic));
+            Assert.AreEqual(10, state.RewardPicture(Rarity.Common));
+            for (var r = 1; r < Rarities.Count; r++)
+                Assert.Greater(state.Rewards.ForPicture((Rarity)r), state.Rewards.ForPicture((Rarity)(r - 1)), "нафта росте з рідкістю");
+        }
+
+        [Test]
+        public void RunSummary_CountsCollectedPicturesByRarity()
+        {
+            var library = TestLibrary.Real;
+            var collected = new List<int> { library.IndexOf("ghost"), library.IndexOf("ghost"), library.IndexOf("blackhole") };
+            var summary = RunSummary.Of(500, 2, collected, library);
+            Assert.AreEqual(3, summary.PicturesDone);
+            Assert.AreEqual(2, summary.DoneOf(library[library.IndexOf("ghost")].Rarity));
+            Assert.AreEqual(1, summary.DoneOf(Rarity.Cosmic));
+            Assert.AreEqual(0, new RunSummary(1, 1).PicturesDone);
+            Assert.Throws<ArgumentOutOfRangeException>(() => new RunSummary(1, 1, new[] { 1, 2 }));
         }
 
         [Test]

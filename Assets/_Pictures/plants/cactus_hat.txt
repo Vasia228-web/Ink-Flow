@@ -1,0 +1,22 @@
+id: cactus_hat
+name: КАКТУС У СОМБРЕРО
+theme: plants
+rarity: rare
+colors: K=1 R=8 A=10 E=13 D=22
+outline: K
+grid:
+...KKKKKK...
+...KAAAAK...
+KKKKRRRRKKKK
+KAAAAAAAAAAK
+KKKKKEEKKKKK
+KKKKKEEKKKKK
+KEEKKEEKKEEK
+KEEKKEEKKEEK
+KEEEEEEEEEEK
+KKKEEEEEEKKK
+..KKKEEKKK..
+..KKKEEKKK..
+.KKDDDDDDKK.
+.KDDDDDDDDK.
+.KKKKKKKKKK.

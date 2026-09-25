@@ -1,0 +1,16 @@
+id: ufo
+name: ЛЕТЮЧА ТАРІЛКА
+theme: space
+rarity: uncommon
+colors: K=1 S=6 E=13 Y=15
+outline: K
+grid:
+....KKKKKK....
+...KKYYYYKK...
+...KYYEEYYK...
+KKKKYYEEYYKKKK
+KSSSSSSSSSSSSK
+KSSSSSSSSSSSSK
+KKSSSSSSSSSSKK
+.KKYKKYYKKYKK.
+..KKKKKKKKKK..

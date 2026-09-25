@@ -1,0 +1,18 @@
+id: alien
+name: ІНОПЛАНЕТЯНИН
+theme: space
+rarity: uncommon
+colors: K=1 W=4 M=12 E=13
+outline: K
+grid:
+..KKKKKKKK..
+.KKEEEEEEKK.
+KKEMMEEEEEKK
+KEEWKEEEWKEK
+KEEKKEEEKKEK
+KEEEEEEEEEEK
+KKEEEKKEEEKK
+.KKEEEEEEKK.
+..KKEKKEKK..
+..KEEKKEEK..
+..KKKKKKKK..

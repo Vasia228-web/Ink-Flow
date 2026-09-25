@@ -1,0 +1,16 @@
+id: raincloud
+name: ДОЩОВА ХМАРКА
+theme: weather
+rarity: uncommon
+colors: K=1 W=4 G=7 B=16
+outline: K
+grid:
+....KKKKKK....
+..KKKGGGGKKK..
+.KKGWWGGGGGKK.
+KKGGGGGGGGGGKK
+KGGGGGGGGGGGGK
+KKGGGGGGGGGGKK
+.KKBKKBKKBKKK.
+..KKBKKBKKBK..
+...KKKKKKKKK..

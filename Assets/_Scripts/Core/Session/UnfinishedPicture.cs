@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Незавершена картинка (документ §7) — правило, без збереження (його робить Meta):
+    /// Незавершена картинка (документ §9) — правило, без збереження (його робить Meta):
     ///  1. одна одночасно: нову не отримаєш, поки не закриєш цю;
     ///  2. три забіги на порятунок: вона гарантовано перша в наступному забігу;
     ///  3. прогрес зберігається — на кожне спрацювання змішувача (<see cref="Track"/>);
@@ -33,7 +33,7 @@ namespace InkFlow.Core
 
         public bool HasPicture => PictureIndex >= 0;
 
-        /// <summary>Рівні зон на момент останнього збереження.</summary>
+        /// <summary>Індекси заповнених пікселів на момент останнього збереження.</summary>
         public IReadOnlyList<int> Filled => _filled;
 
         public int AttemptsUsed { get; private set; }
@@ -103,7 +103,7 @@ namespace InkFlow.Core
         /// <summary>Відновлення зі збереження. Поза межами — як «немає».</summary>
         public void Restore(int pictureIndex, IReadOnlyList<int> filled, int attemptsUsed)
         {
-            if (pictureIndex < 0 || filled is null || attemptsUsed < 0 || attemptsUsed >= MaxAttempts)
+            if (pictureIndex < 0 || filled is null || filled.Count == 0 || attemptsUsed < 0 || attemptsUsed >= MaxAttempts)
             {
                 Clear();
                 return;
@@ -128,26 +128,20 @@ namespace InkFlow.Core
                 _filled[i] = filled[i];
         }
 
-        private static bool Any(IReadOnlyList<int> filled)
-        {
-            for (var i = 0; i < filled.Count; i++)
-                if (filled[i] > 0)
-                    return true;
-            return false;
-        }
+        private static bool Any(IReadOnlyList<int> filled) => filled.Count > 0;
     }
 
-    /// <summary>З чого починається забіг: незавершена картинка з її прогресом і спробами (§7).</summary>
+    /// <summary>З чого починається забіг: незавершена картинка з її пікселями й спробами (§9).</summary>
     public readonly struct PictureStart
     {
-        public PictureStart(int catalogIndex, IReadOnlyList<int> filled, int attemptsLeft)
+        public PictureStart(int libraryIndex, IReadOnlyList<int> filled, int attemptsLeft)
         {
-            CatalogIndex = catalogIndex;
+            LibraryIndex = libraryIndex;
             Filled = filled ?? throw new ArgumentNullException(nameof(filled));
             AttemptsLeft = attemptsLeft;
         }
 
-        public int CatalogIndex { get; }
+        public int LibraryIndex { get; }
         public IReadOnlyList<int> Filled { get; }
         public int AttemptsLeft { get; }
     }

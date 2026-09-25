@@ -1,0 +1,19 @@
+id: astronaut
+name: КОСМОНАВТ
+theme: space
+rarity: rare
+colors: n=3 W=4 S=6 R=8
+outline: n
+grid:
+....nnnnnn....
+...nnWWWWnn...
+..nnWWWWWWnn..
+..nWWnnnnWWn..
+..nWWnnnnWWn..
+.nnWWWWWWWWnn.
+nnWWWWWWWWWWnn
+nWWWWRRRRWWWWn
+nWWnWWWWWWnWWn
+nnnnSSSSSSnnnn
+...nSSnnSSn...
+...nnnnnnnn...

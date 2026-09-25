@@ -38,6 +38,7 @@ namespace InkFlow.Editor
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string BalancePath = "Assets/_ScriptableObjects/Balance/BalanceConfig.asset";
         private const string EconomyPath = "Assets/_ScriptableObjects/Balance/EconomyConfig.asset";
+        private const string PicturesPath = RefreshPictureLibrary.AssetPath;
 
         /// <summary>Імена префабів у порядку, в якому вони лягають у сцену.</summary>
         private static readonly string[] ScreenNames =
@@ -64,12 +65,14 @@ namespace InkFlow.Editor
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             var balance = AssetDatabase.LoadAssetAtPath<BalanceConfig>(BalancePath);
             var economy = AssetDatabase.LoadAssetAtPath<EconomyConfig>(EconomyPath);
+            var pictures = AssetDatabase.LoadAssetAtPath<PictureLibraryAsset>(PicturesPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
 
             var missing = new List<string>();
             if (design == null) missing.Add(DesignSystemPath);
             if (balance == null) missing.Add(BalancePath);
             if (economy == null) missing.Add(EconomyPath);
+            if (pictures == null) missing.Add($"{PicturesPath} (Ink Flow → Setup → Refresh Picture Library)");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
 
             var prefabs = new Dictionary<string, GameObject>();
@@ -163,6 +166,7 @@ namespace InkFlow.Editor
             Wire(bootstrap,
                 ("balanceConfig", balance!),
                 ("economyConfig", economy!),
+                ("pictureLibrary", pictures!),
                 ("router", router),
                 ("endlessScreen", screens["EndlessScreen"]),
                 ("boardFeedback", feedback));

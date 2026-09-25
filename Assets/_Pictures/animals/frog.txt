@@ -1,0 +1,17 @@
+id: frog
+name: ЖАБКА
+theme: animals
+rarity: common
+colors: K=1 W=4 E=13
+outline: K
+grid:
+.KKKK..KKKK.
+.KEEK..KEEK.
+KKEWKKKKEWKK
+KEEEEEEEEEEK
+KEEEEEEEEEEK
+KEEKKKKKKEEK
+KEEEEEEEEEEK
+KKEEEEEEEEKK
+KEEKKKKKKEEK
+KKKK....KKKK

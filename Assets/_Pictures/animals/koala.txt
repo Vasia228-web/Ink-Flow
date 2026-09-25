@@ -1,0 +1,18 @@
+id: koala
+name: КОАЛА
+theme: animals
+rarity: uncommon
+colors: K=1 W=4 G=7 U=27
+outline: K
+grid:
+KKKK......KKKK
+KGGKKK..KKKGGK
+KGWWGKKKKGWWGK
+KGGGGGGGGGGGGK
+KGGGGGGGGGGGGK
+KKGGKGGGGKGGKK
+.KGUGGKKGGUGK.
+.KGGGGKKGGGGK.
+.KKGGGGGGGGKK.
+..KKGGGGGGKK..
+...KKKKKKKK...

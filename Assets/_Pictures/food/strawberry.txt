@@ -1,0 +1,19 @@
+id: strawberry
+name: ПОЛУНИЦЯ
+theme: food
+rarity: common
+colors: K=1 R=8 L=11 E=13
+outline: K
+grid:
+..KKKKKK..
+KKKEEEEKKK
+KEEEEEEEEK
+KKRRRRRRKK
+KRRRLRRRRK
+KRRRRRRLRK
+KRLRRRRRRK
+KRRRRLRRRK
+KKRRRRRRKK
+.KKRRRRKK.
+..KKRRKK..
+...KKKK...

@@ -45,6 +45,21 @@ namespace InkFlow.Meta
                     save.Galaxy.Placements ??= new List<PicturePlacement>();
                     save.Version = 4;
                     return save;
+                },
+
+                // v4 → v5: піксельні картинки. Незавершена v4 зберігала лічильники зон, а не
+                // індекси пікселів — прочитати її як пікселі означало б заповнити випадкові
+                // клітинки, тому вона скидається (колекція лишається: там лише назви).
+                // У профілі з'явились аватар і вітрина.
+                [4] = save =>
+                {
+                    save.Collection ??= new CollectionData();
+                    save.Collection.Unfinished = new UnfinishedData();
+                    save.Profile ??= new ProfileData();
+                    save.Profile.AvatarId = 0;
+                    save.Profile.ShowcasePictureId ??= string.Empty;
+                    save.Version = 5;
+                    return save;
                 }
             };
 

@@ -1,0 +1,17 @@
+id: shell
+name: МУШЛЯ
+theme: sea
+rarity: common
+colors: K=1 W=4 I=20
+outline: K
+grid:
+....KKKKKK....
+..KKKIIIIKKK..
+.KKIIIIIIIIKK.
+.KIIWIIWIIWIK.
+KKIIIIIIIIIIKK
+KIIWIIWIIWIIIK
+KKIIIIIIIIIIKK
+.KKIIIIIIIIKK.
+..KKKIIIIKKK..
+....KKKKKK....

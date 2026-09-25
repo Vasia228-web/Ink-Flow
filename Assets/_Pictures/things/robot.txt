@@ -1,0 +1,19 @@
+id: robot
+name: РОБОТИК
+theme: things
+rarity: uncommon
+colors: K=1 S=6 A=10 Y=15
+outline: K
+grid:
+.....KKK......
+....KKAKKK....
+...KKSSSSKK...
+...KSSSSSSKK..
+...KSYKSYKSK..
+...KSSSSSSKK..
+KKKKSSKKKSKKKK
+KSSKSSSSSSKSSK
+KSSSSSSSSSSSSK
+KKKKSSSSSSKKKK
+...KSSKKSSK...
+...KKKKKKKK...

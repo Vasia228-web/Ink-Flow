@@ -1,0 +1,18 @@
+id: ghost_love
+name: ЗАКОХАНИЙ ПРИВИД
+theme: ghosts
+rarity: uncommon
+colors: K=1 W=4 R=8 U=27
+outline: K
+grid:
+..KKKKKK..
+.KKWWWWKK.
+KKWWWWWWKK
+KWWWWWWWWK
+KWRRWWRRWK
+KWUWWWWUWK
+KWWKKKKWWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWKWWKWWK
+KKKKKKKKKK

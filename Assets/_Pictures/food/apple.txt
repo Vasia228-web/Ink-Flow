@@ -1,0 +1,18 @@
+id: apple
+name: ЯБЛУКО
+theme: food
+rarity: common
+colors: K=1 R=8 E=13 N=23
+outline: K
+grid:
+.....KKKK...
+....KKNNKKK.
+..KKKNNKEEK.
+.KKRRRRRRRKK
+KKRRRRRRRRRK
+KRRRRRRRRRRK
+KRRRRRRRRRRK
+KRRRRRRRRRRK
+KKRRRRRRRRKK
+.KKRRRKRRRK.
+..KKKKKKKKK.

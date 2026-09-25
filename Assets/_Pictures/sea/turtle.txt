@@ -1,0 +1,16 @@
+id: turtle
+name: ЧЕРЕПАШКА
+theme: sea
+rarity: uncommon
+colors: K=1 M=12 E=13 U=27
+outline: K
+grid:
+....KKKKKKKK..
+..KKKEEEEEEKKK
+.KKEEEEEEEEEEK
+KKEEEEEEEEEEEK
+KMMEEEEEEEEEKK
+KMKMUEEEEEEEKK
+KMMMMMMMMMMMMK
+KKKMMKMMMKMMKK
+..KKKKKKKKKKK.

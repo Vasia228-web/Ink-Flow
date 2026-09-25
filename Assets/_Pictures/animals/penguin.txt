@@ -1,0 +1,19 @@
+id: penguin
+name: ПІНГВІН
+theme: animals
+rarity: common
+colors: K=1 W=4 G=7 O=9
+outline: K
+grid:
+...KKKKKK...
+..KKGGGGKK..
+.KKGGGGGGKK.
+.KGGWKGWKGK.
+.KGGGOOGGGK.
+KKGGWWWWGGKK
+KGGWWWWWWGGK
+KGGWWWWWWGGK
+KGGWWWWWWGGK
+KKGWWWWWWGKK
+.KKOOKKOOKK.
+..KKKKKKKK..

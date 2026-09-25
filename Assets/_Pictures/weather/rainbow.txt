@@ -1,0 +1,15 @@
+id: rainbow
+name: ВЕСЕЛКА
+theme: weather
+rarity: rare
+colors: K=1 R=8 A=10 E=13 B=16
+outline: K
+grid:
+....KKKKKKKK....
+..KKKRRRRRRKKK..
+.KKRRAAAAAARRKK.
+KKRAAEEEEEEAARKK
+KRAEEBBBBBBEEARK
+KRAEBKKKKKKBEARK
+KRAEBK....KBEARK
+KKKKKK....KKKKKK

@@ -1,0 +1,19 @@
+id: lollipop
+name: ЛЬОДЯНИК
+theme: sweets
+rarity: common
+colors: K=1 W=4 R=8
+outline: K
+grid:
+..KKKKKKKK..
+.KKRRRRRRKK.
+KKRRWWRRRRKK
+KRRWRRRRWRRK
+KRRRRRWWRRRK
+KRRRWWRRRRRK
+KKRRRRRRRRKK
+.KKRRRRRRKK.
+..KKKWWKKK..
+....KWWK....
+....KWWK....
+....KKKK....

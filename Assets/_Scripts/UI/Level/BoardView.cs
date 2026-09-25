@@ -121,11 +121,11 @@ namespace InkFlow.UI
                     var i = y * board.Width + x;
                     if (i >= blocks.Length || blocks[i] == null)
                         continue;
-                    var pigment = board[x, y];
-                    if (pigment == Pigment.None)
+                    var color = board[x, y];
+                    if (color == Board.Empty)
                         blocks[i].Hide();
                     else
-                        blocks[i].Show(design.PigmentColor(pigment));
+                        blocks[i].Show(DesignSystem.PaletteColor(color));
                 }
         }
 
@@ -134,13 +134,13 @@ namespace InkFlow.UI
         /// клітинки лише коли якір або форма змінились — під час перетягування це
         /// раз на клітинку, а не раз на кадр.
         /// </summary>
-        public void ShowGhost(PieceShape shape, Pigment pigment, GridPos anchor, bool valid)
+        public void ShowGhost(PieceShape shape, byte color, GridPos anchor, bool valid)
         {
             if (_session == null || design == null)
                 return;
 
             var key = ((long)shape.GetHashCode() << 32) ^ (anchor.X << 16) ^ (anchor.Y << 4) ^ (valid ? 1 : 0)
-                      ^ ((long)pigment << 40);
+                      ^ ((long)color << 40);
             if (key == _ghostKey)
                 return;
             _ghostKey = key;
@@ -148,16 +148,16 @@ namespace InkFlow.UI
             ClearGhostColors();
 
             var board = _session.Board;
-            var tint = design.PigmentColor(pigment);
+            var tint = DesignSystem.PaletteColor(color);
 
             if (valid)
             {
-                PlacementRules.PreviewLines(board, shape, anchor, pigment, _previewLines);
+                PlacementRules.PreviewLines(board, shape, anchor, color, _previewLines);
                 for (var i = 0; i < _previewLines.Count; i++)
                 {
                     var line = _previewLines[i];
                     var length = LineResolver.LengthOf(board, line.Kind);
-                    var pure = IsPurePreview(board, line, shape, anchor, pigment);
+                    var pure = IsPurePreview(board, line, shape, anchor, color);
                     var alpha = pure ? design.LinePreviewPureAlpha : design.LinePreviewMixedAlpha;
                     for (var c = 0; c < length; c++)
                         SetGhost(IndexOf(LineResolver.CellAt(line, c)), DesignSystem.WithAlpha(tint, alpha));
@@ -197,23 +197,23 @@ namespace InkFlow.UI
                 ghosts[index].color = color;
         }
 
-        /// <summary>Чи буде лінія чистою, якщо покласти сюди фігуру цього пігменту.</summary>
-        private static bool IsPurePreview(Board board, Line line, PieceShape shape, GridPos anchor, Pigment pigment)
+        /// <summary>Чи буде лінія чистою, якщо покласти сюди фігуру цього кольору.</summary>
+        private static bool IsPurePreview(Board board, Line line, PieceShape shape, GridPos anchor, byte color)
         {
             var length = LineResolver.LengthOf(board, line.Kind);
             for (var c = 0; c < length; c++)
             {
                 var cell = LineResolver.CellAt(line, c);
                 var current = board[cell];
-                if (current == Pigment.None)
+                if (current == Board.Empty)
                 {
                     // Порожня клітинка лінії — це клітинка фігури (інакше лінія не була б повною).
-                    if (pigment == Pigment.None)
+                    if (color == Board.Empty)
                         return false;
                     continue;
                 }
 
-                if (current != pigment)
+                if (current != color)
                     return false;
             }
 
@@ -266,7 +266,7 @@ namespace InkFlow.UI
         {
             if (design == null)
                 return;
-            var color = design.PigmentColor(e.Pigment);
+            var color = DesignSystem.PaletteColor(e.Color);
             for (var c = 0; c < e.CellCount; c++)
             {
                 var i = IndexOf(result.Cell(e, c));
@@ -294,7 +294,7 @@ namespace InkFlow.UI
             }
 
             var middle = result.Cell(e, e.CellCount / 2);
-            PrepareFloat(e.Value, e.IsPure, e.Pigment, middle);
+            PrepareFloat(e.Value, e.IsPure, e.Color, middle);
             StartCoroutine(FloatRoutine(floats[_nextFloat]));
             _nextFloat = (_nextFloat + 1) % Mathf.Max(1, floats.Length);
 
@@ -314,7 +314,7 @@ namespace InkFlow.UI
         /// Число «+фарба» над лінією. Текст і колір ставляться ТУТ, до старту корутини:
         /// усередині IEnumerator графіку чіпати не можна.
         /// </summary>
-        private void PrepareFloat(int amount, bool pure, Pigment pigment, GridPos at)
+        private void PrepareFloat(int amount, bool pure, byte color, GridPos at)
         {
             if (floats.Length == 0 || design == null)
                 return;
@@ -324,7 +324,7 @@ namespace InkFlow.UI
 
             label.text = $"+{amount}";
             label.fontSize = pure ? design.FontSizeLineFloatPure : design.FontSizeLineFloatMixed;
-            label.color = pure ? design.TextPrimary : DesignSystem.WithAlpha(design.PigmentColor(pigment), 0.85f);
+            label.color = pure ? design.TextPrimary : DesignSystem.WithAlpha(DesignSystem.PaletteColor(color), 0.85f);
             if (design.Font != null)
                 label.font = design.Font;
 

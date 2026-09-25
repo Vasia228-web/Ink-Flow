@@ -1,0 +1,19 @@
+id: trice
+name: ТРИЦЕРАТОПСИК
+theme: dinos
+rarity: rare
+colors: k=2 W=4 I=20 U=27
+outline: k
+grid:
+..kkk....kkk....
+.kkWkk..kkWkk...
+kkWWIkkkkIWWk...
+kIIIIIIIIIIIkk..
+kIIIIIIIIIIIIkk.
+kIIIkIIIIIIIIIkk
+kIIIIIIIUIIIIIIk
+kkIIIIIIIIIIIIIk
+.kkIIIIIIIIIIIkk
+..kIIIkkIIIkkkk.
+..kIIIkkIIIk....
+..kkkkkkkkkk....

@@ -1,0 +1,29 @@
+id: blackhole
+name: ЧОРНА ДІРА
+theme: space
+rarity: cosmic
+colors: n=3 S=6 O=9 A=10 V=17 P=18 F=19
+outline: n
+grid:
+.....nnnnnnnnnn.....
+...nnnPPPPPPPPnnn...
+..nnPPPPPPPPPPPPnn..
+.nnPPPVVVVVVVVPPPnn.
+.nPPVVVVFFFFVVVVPPn.
+nnPVVVFFFOOOFFFVVPnn
+nPPVVFFOOOOOOOFFVVPn
+nPVVFFOOAAAAAOOFFVPn
+nPVVFOOAAAAAAAOOFVPn
+nPVVFOOAAnnnAAOOFVPn
+nPVVFOOAAnnnAAOOFVPn
+nPVVFOOAAAAAAAOOFVPn
+nPVVFFOOAAAAAOOFFVPn
+nPPVVFFOOOOOOOFFVVPn
+nnPVVVFFFOOOFFFVVPnn
+.nPPVVVVFFFFVVVVPPn.
+.nnPPPVVVVVVVVPPPnn.
+..nnPPPPPPPPPPPPnn..
+nnnnnnPPPPPPPPnnnnnn
+nSnnSnnnSnnnSnnnSnSn
+nnSnnn.nSn.nnn.nSnnn
+.nnn...nnn.....nnn..

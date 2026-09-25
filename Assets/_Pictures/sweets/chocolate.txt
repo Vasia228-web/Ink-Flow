@@ -1,0 +1,16 @@
+id: chocolate
+name: ШОКОЛАДКА
+theme: sweets
+rarity: common
+colors: k=2 D=22 N=23
+outline: k
+grid:
+kkkkkkkkkkkk
+kNNNNNNNNNNk
+kNDDNDDNDDNk
+kNDDNDDNDDNk
+kNNNNNNNNNNk
+kNDDNDDNDDNk
+kNDDNDDNDDNk
+kNNNNNNNNNNk
+kkkkkkkkkkkk

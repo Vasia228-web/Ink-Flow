@@ -254,8 +254,8 @@ namespace InkFlow.App
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Зібрати випадкову картинку"))
             {
-                var catalog = state.Pictures;
-                var pick = catalog[UnityEngine.Random.Range(0, catalog.Count)];
+                var library = state.Library;
+                var pick = library[UnityEngine.Random.Range(0, library.Count)];
                 var isNew = state.CollectPicture(pick.Id, System.DateTime.UtcNow);
                 Report($"«{pick.Name}» у колекції{(isNew ? " (нова)" : "")}: різних {state.Collection.Distinct}");
             }
@@ -271,7 +271,7 @@ namespace InkFlow.App
             {
                 state.File.Collection.Pictures.Clear();
                 state.Galaxy.Placements.Clear();
-                var fresh = new PlayerState(state.File, state.Economy, null, state.Pictures, state.Balance);
+                var fresh = new PlayerState(state.File, state.Economy, null, state.Library, state.Balance);
                 _ = fresh;
                 state.Persist();
                 Report("колекцію очищено у файлі — перезапусти застосунок, щоб перечитати");

@@ -1,0 +1,18 @@
+id: mouse
+name: МИШКА
+theme: animals
+rarity: common
+colors: K=1 G=7 I=20
+outline: K
+grid:
+.KKKK..KKKK.
+KKGGKKKKGGKK
+KGIIGKKGIIGK
+KGGGGGGGGGGK
+KKGGGGGGGGKK
+.KGKGGGGKGK.
+.KGGGGGGGGK.
+.KGGGGIGGGK.
+.KKGGGGGGKK.
+..KKGGGGKK..
+...KKKKKK...

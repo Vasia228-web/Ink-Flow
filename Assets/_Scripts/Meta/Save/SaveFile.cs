@@ -12,7 +12,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
@@ -38,6 +38,8 @@ namespace InkFlow.Meta
     public sealed class UnfinishedData
     {
         public string PictureId = string.Empty;
+
+        /// <summary>Індекси заповнених пікселів (§9). До v5 тут лежали лічильники зон старого ядра.</summary>
         public List<int> Filled = new List<int>();
         public int AttemptsUsed;
     }
@@ -58,6 +60,12 @@ namespace InkFlow.Meta
         /// міняється в Профілі олівцем біля аватара.
         /// </summary>
         public string Nick = DefaultNick;
+
+        /// <summary>Номер аватара з набору (§14); 0 — перший.</summary>
+        public int AvatarId;
+
+        /// <summary>Картинка на вітрині профілю (§14): назва з бібліотеки; порожньо — остання зібрана.</summary>
+        public string ShowcasePictureId = string.Empty;
 
         public const string DefaultNick = "Гравець";
     }

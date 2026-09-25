@@ -124,6 +124,7 @@ namespace InkFlow.Editor
             EnsureFolder("Assets/_ScriptableObjects/Balance");
             EnsureAsset<BalanceConfig>(BalanceConfigPath);
             EnsureAsset<EconomyConfig>(EconomyConfigPath);
+            RefreshPictureLibrary.Refresh();
         }
 
         private static void EnsureAsset<T>(string path) where T : ScriptableObject

@@ -1,0 +1,18 @@
+id: cherry
+name: ЧЕРЕШНІ
+theme: food
+rarity: common
+colors: K=1 W=4 R=8 E=13
+outline: K
+grid:
+.....KKK....
+....KKEK....
+...KKEEKK...
+..KKEEKEKK..
+.KKEEKKEEKK.
+KKRRKKKKRRKK
+KRRRRKKRRRRK
+KRWRRKKRWRRK
+KRRRRKKRRRRK
+KKRRKKKKRRKK
+.KKKK..KKKK.

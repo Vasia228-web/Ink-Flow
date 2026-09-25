@@ -1,0 +1,20 @@
+id: diamond
+name: ДІАМАНТ
+theme: things
+rarity: epic
+colors: n=3 W=4 Y=15 B=16 X=25
+outline: n
+grid:
+....nnnnnnnnnn....
+..nnnYYYYYYYYnnn..
+.nnYYXXYYYYXXYYnn.
+nnYYXXXXYYXXXXYYnn
+nYYYYYYYYYYYYYYYYn
+nnYYYYYYYYYYYYYYnn
+.nnYYYWWYYYYYYYnn.
+..nnYYYWWYYYYYnn..
+...nnYYBBBBYYnn...
+....nnYBBBBYnn....
+.....nnYYYYnn.....
+......nnYYnn......
+.......nnnn.......

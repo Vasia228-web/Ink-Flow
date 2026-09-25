@@ -15,61 +15,41 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
-        public void PureLine_PaysLengthOverDivisorTimesBonus()
+        public void PureLine_GivesTheBonusPerCell()
         {
             var yield = LineResolver.Resolve(Row("bbbbbbbb"), new Line(LineKind.Row, 0), _balance);
 
             Assert.IsTrue(yield.IsPure);
-            Assert.AreEqual(Pigment.Blue, yield.Pigment);
-            Assert.AreEqual(8 / 2 * 3, yield.Amount, "документ §12: чистий рядок ×3 до фарби");
+            Assert.AreEqual(TestBoard.Blue, yield.Dominant);
+            Assert.AreEqual(3, yield.PixelsPerCell, "документ §5: чиста лінія ×3 пікселів на клітинку");
+            Assert.AreEqual(_balance.PureLineBonus, yield.PixelsPerCell);
         }
 
         [Test]
-        public void MixedLine_PaysOnlyTheDominantPigmentHalved()
+        public void MixedLine_GivesOnePixelPerCell()
         {
             var yield = LineResolver.Resolve(Row("bbbbbbbr"), new Line(LineKind.Row, 0), _balance);
 
             Assert.IsFalse(yield.IsPure);
-            Assert.AreEqual(Pigment.Blue, yield.Pigment);
-            Assert.AreEqual(7 / 2, yield.Amount);
+            Assert.AreEqual(TestBoard.Blue, yield.Dominant, "головний — той, кого більше");
+            Assert.AreEqual(1, yield.PixelsPerCell);
         }
 
         [Test]
-        public void PureLine_PaysSeveralTimesMoreThanTheBestMixedLine()
+        public void Tie_GoesToTheLowerPaletteIndex()
         {
-            var pure = LineResolver.Resolve(Row("yyyyyyyy"), new Line(LineKind.Row, 0), _balance).Amount;
-            var mixed = LineResolver.Resolve(Row("yyyyyyyb"), new Line(LineKind.Row, 0), _balance).Amount;
-
-            Assert.GreaterOrEqual(pure, mixed * 3, "«в рази більше» (§3): інакше колір не має значення");
-        }
-
-        [Test]
-        public void Tie_GoesToThePigmentWithLessInTheTanks()
-        {
-            var board = Row("bbbbrrrr");
-            var line = new Line(LineKind.Row, 0);
-
-            var tanks = new[] { 10, 2, 0 }; // blue, red, yellow
-            Assert.AreEqual(Pigment.Red, LineResolver.Resolve(board, line, _balance, tanks).Pigment,
-                "нічия віддає колір, якого в баках менше");
-
-            tanks = new[] { 1, 9, 0 };
-            Assert.AreEqual(Pigment.Blue, LineResolver.Resolve(board, line, _balance, tanks).Pigment);
-        }
-
-        [Test]
-        public void Tie_WithoutTanksFallsBackToEnumOrder()
-        {
-            var yield = LineResolver.Resolve(Row("rrrryyyy"), new Line(LineKind.Row, 0), _balance);
-            Assert.AreEqual(Pigment.Red, yield.Pigment, "Red йде в enum раніше за Yellow");
+            var yield = LineResolver.Resolve(Row("rrrrbbbb"), new Line(LineKind.Row, 0), _balance);
+            Assert.AreEqual(TestBoard.Red, yield.Dominant, "8 < 16 — нічия не залежить від порядку клітинок");
+            Assert.AreEqual(TestBoard.Red, LineResolver.Resolve(Row("bbbbrrrr"), new Line(LineKind.Row, 0), _balance).Dominant);
         }
 
         [Test]
         public void EmptyLine_YieldsNothing()
         {
             var yield = LineResolver.Resolve(new Board(4, 4), new Line(LineKind.Column, 1), _balance);
-            Assert.AreEqual(Pigment.None, yield.Pigment);
-            Assert.AreEqual(0, yield.Amount);
+            Assert.AreEqual(Board.Empty, yield.Dominant);
+            Assert.AreEqual(0, yield.PixelsPerCell);
+            Assert.IsFalse(yield.IsPure);
         }
 
         [Test]
@@ -82,7 +62,7 @@ namespace InkFlow.Core.Tests
                 "b...");
             var yield = LineResolver.Resolve(board, new Line(LineKind.Column, 0), _balance);
             Assert.IsFalse(yield.IsPure);
-            Assert.AreEqual(Pigment.Blue, yield.Pigment);
+            Assert.AreEqual(TestBoard.Blue, yield.Dominant);
             Assert.AreEqual(new GridPos(0, 3), LineResolver.CellAt(new Line(LineKind.Column, 0), 3));
         }
 

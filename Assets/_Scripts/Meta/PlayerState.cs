@@ -21,12 +21,12 @@ namespace InkFlow.Meta
         private readonly ISaveStorage? _storage;
 
         public PlayerState(SaveFile save, EconomyData economy, ISaveStorage? storage = null,
-            Core.PictureCatalogData? pictures = null, Core.BalanceData? balance = null)
+            Core.PictureLibrary? library = null, Core.BalanceData? balance = null)
         {
             File = save ?? throw new ArgumentNullException(nameof(save));
             Economy = economy ?? EconomyData.Default;
             _storage = storage;
-            Pictures = pictures ?? Core.PictureCatalogData.Default;
+            Library = library ?? Core.PictureLibrary.Fallback;
             Balance = balance ?? Core.BalanceData.Default;
 
             File.Profile ??= new ProfileData();
@@ -42,7 +42,7 @@ namespace InkFlow.Meta
             Wallet = new Wallet(File.Wallet.OilDrops);
             Paints = PaintInventory.Load(File.Paints);
             Collection = PictureCollection.Load(File.Collection);
-            Unfinished = UnfinishedStore.Load(File.Collection.Unfinished, Pictures, Balance);
+            Unfinished = UnfinishedStore.Load(File.Collection.Unfinished, Library, Balance);
             Rewards = new RewardCalculator(Economy);
             DailyLimit = new DailyLimitTracker(Economy);
             DailyLimit.Restore(File.Wallet.PlaysToday, File.Wallet.DayUtc);
@@ -58,8 +58,8 @@ namespace InkFlow.Meta
         /// <summary>Зібрані картинки (§5, §10). Рекорд колекції = <see cref="PictureCollection.Distinct"/>.</summary>
         public PictureCollection Collection { get; }
 
-        /// <summary>Колода й баланс, з якими читається файл: незавершена зберігається назвою картинки.</summary>
-        public Core.PictureCatalogData Pictures { get; }
+        /// <summary>Бібліотека й баланс, з якими читається файл: незавершена зберігається назвою картинки.</summary>
+        public Core.PictureLibrary Library { get; }
         public Core.BalanceData Balance { get; }
 
         /// <summary>Незавершена картинка (§7): одна, з прогресом і спробами.</summary>
@@ -85,9 +85,9 @@ namespace InkFlow.Meta
 
         /// <summary>Стан щойно створеного гравця: усе по нулях, крім явно виданого стартового.</summary>
         public static PlayerState NewPlayer(EconomyData economy, ISaveStorage? storage = null,
-            Core.PictureCatalogData? pictures = null, Core.BalanceData? balance = null)
+            Core.PictureLibrary? library = null, Core.BalanceData? balance = null)
         {
-            var state = new PlayerState(new SaveFile(), economy, storage, pictures, balance);
+            var state = new PlayerState(new SaveFile(), economy, storage, library, balance);
 
             if (economy.StarterOil > 0)
                 state.Wallet.Add(economy.StarterOil, RewardSource.Debug);
@@ -111,12 +111,12 @@ namespace InkFlow.Meta
             File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");
             PaintInventory.Save(Paints, File.Paints);
             PictureCollection.Save(Collection, File.Collection);
-            UnfinishedStore.Save(Unfinished, Pictures, File.Collection.Unfinished);
+            UnfinishedStore.Save(Unfinished, Library, File.Collection.Unfinished);
 
             _storage?.Save(File);
         }
 
-        /// <summary>Прогрес картинки на спрацювання змішувача (§7, п. 3) — одразу у файл.</summary>
+        /// <summary>Прогрес картинки (§9): раз на лоток і на паузу — одразу у файл.</summary>
         public void TrackUnfinished(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled)
         {
             Unfinished.Track(pictureIndex, filled);
@@ -138,7 +138,7 @@ namespace InkFlow.Meta
         public bool CollectPicture(string pictureId, DateTime utcNow)
         {
             var isNew = Collection.Add(pictureId, utcNow);
-            var index = Pictures.IndexOf(pictureId);
+            var index = Library.IndexOf(pictureId);
             if (index >= 0)
                 Unfinished.Complete(index);
             Persist();
@@ -183,9 +183,8 @@ namespace InkFlow.Meta
 
             var forScore = Rewards.ForRun(run.Score, DailyLimit.RewardMultiplier);
             long forPictures = 0;
-            forPictures += run.CommonDone * Rewards.ForPicture(Core.Rarity.Common);
-            forPictures += run.RareDone * Rewards.ForPicture(Core.Rarity.Rare);
-            forPictures += run.LegendaryDone * Rewards.ForPicture(Core.Rarity.Legendary);
+            for (var r = 0; r < Core.Rarities.Count; r++)
+                forPictures += run.DoneOf((Core.Rarity)r) * Rewards.ForPicture((Core.Rarity)r);
 
             if (forScore > 0)
                 Wallet.Add(forScore, RewardSource.RunScore);
@@ -282,24 +281,50 @@ namespace InkFlow.Meta
         }
     }
 
-    /// <summary>Підсумок забігу, який екран віддає в Meta. Кольорів і фігур тут немає.</summary>
+    /// <summary>Підсумок забігу, який екран віддає в Meta: очки, ланцюг і скільки картинок кожної рідкості закінчено.</summary>
     public readonly struct RunSummary
     {
-        public RunSummary(int score, int bestChain, int commonDone, int rareDone, int legendaryDone)
+        private readonly int[]? _doneByRarity;
+
+        /// <param name="doneByRarity">Закінчених картинок за рідкістю, індекс — (int)<see cref="Core.Rarity"/>; null — жодної.</param>
+        public RunSummary(int score, int bestChain, int[]? doneByRarity = null)
         {
+            if (doneByRarity != null && doneByRarity.Length != Core.Rarities.Count)
+                throw new ArgumentOutOfRangeException(nameof(doneByRarity), "Шість лічильників: звичайна … космічна.");
             Score = score;
             BestChain = bestChain;
-            CommonDone = commonDone;
-            RareDone = rareDone;
-            LegendaryDone = legendaryDone;
+            _doneByRarity = doneByRarity;
+        }
+
+        /// <summary>З індексів зібраних у забігу картинок (<c>RunSession.PicturesCollected</c>) і бібліотеки.</summary>
+        public static RunSummary Of(int score, int bestChain, System.Collections.Generic.IReadOnlyList<int> collected, Core.PictureLibrary library)
+        {
+            if (collected is null) throw new ArgumentNullException(nameof(collected));
+            if (library is null) throw new ArgumentNullException(nameof(library));
+            var done = new int[Core.Rarities.Count];
+            for (var i = 0; i < collected.Count; i++)
+                if (collected[i] >= 0 && collected[i] < library.Count)
+                    done[(int)library[collected[i]].Rarity]++;
+            return new RunSummary(score, bestChain, done);
         }
 
         public int Score { get; }
         public int BestChain { get; }
-        public int CommonDone { get; }
-        public int RareDone { get; }
-        public int LegendaryDone { get; }
-        public int PicturesDone => CommonDone + RareDone + LegendaryDone;
+
+        public int DoneOf(Core.Rarity rarity) => _doneByRarity is null ? 0 : _doneByRarity[(int)rarity];
+
+        public int PicturesDone
+        {
+            get
+            {
+                if (_doneByRarity is null)
+                    return 0;
+                var n = 0;
+                for (var i = 0; i < _doneByRarity.Length; i++)
+                    n += _doneByRarity[i];
+                return n;
+            }
+        }
     }
 
     /// <summary>Що нарахували за забіг — окремо за очки й за картинки, щоб екран показав обидва.</summary>

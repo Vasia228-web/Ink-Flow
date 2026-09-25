@@ -148,10 +148,10 @@ namespace InkFlow.UI
         private void RefreshDrawer()
         {
             _drawerIds.Clear();
-            var catalog = State?.Pictures ?? PictureCatalogData.Default;
+            var library = State?.Library ?? PictureLibrary.Fallback;
             if (State != null)
                 for (var i = 0; i < State.Collection.Ids.Count; i++)
-                    if (catalog.IndexOf(State.Collection.Ids[i]) >= 0)
+                    if (library.IndexOf(State.Collection.Ids[i]) >= 0)
                         _drawerIds.Add(State.Collection.Ids[i]);
 
             Toggle(collectionEmpty, _drawerIds.Count == 0);
@@ -167,7 +167,7 @@ namespace InkFlow.UI
                 Toggle(thumb, show);
                 if (show)
                 {
-                    var def = catalog[catalog.IndexOf(_drawerIds[i])];
+                    var def = library[library.IndexOf(_drawerIds[i])];
                     thumb.ShowCompleted(def, $"×{State!.Collection.CountOf(def.Id)}");
                 }
             }
@@ -180,8 +180,8 @@ namespace InkFlow.UI
             if (index < 0 || index >= _drawerIds.Count)
                 return;
             _placingId = _drawerIds[index];
-            var catalog = State?.Pictures ?? PictureCatalogData.Default;
-            var def = catalog[catalog.IndexOf(_placingId)];
+            var library = State?.Library ?? PictureLibrary.Fallback;
+            var def = library[library.IndexOf(_placingId)];
             Toggle(placeHint, true);
             if (placeHint != null)
                 placeHint.text = $"Тапни на планету, куди поставити «{def.Name}»";
@@ -226,7 +226,7 @@ namespace InkFlow.UI
             if (stage == null)
                 return;
             GalaxyState.PlacementsOf(State?.Galaxy, PlanetId, _placements);
-            var catalog = State?.Pictures ?? PictureCatalogData.Default;
+            var library = State?.Library ?? PictureLibrary.Fallback;
             var slots = stage.Placements;
             for (var i = 0; i < slots.Count; i++)
             {
@@ -238,13 +238,13 @@ namespace InkFlow.UI
                     slot.Release();
                     continue;
                 }
-                var index = catalog.IndexOf(_placements[i].PictureId);
+                var index = library.IndexOf(_placements[i].PictureId);
                 if (index < 0)
                 {
                     slot.Release();
                     continue;
                 }
-                slot.Bind(catalog[index], _placements[i].Longitude, _placements[i].Latitude);
+                slot.Bind(library[index], _placements[i].Longitude, _placements[i].Latitude);
             }
             stage.RefreshPlacements();
         }

@@ -8,8 +8,8 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Плитка з картинкою — одна збірка на всі місця: над полем, у картці перед забігом,
-    /// у галереї фіналу, у шухляді колекції й на планеті. Розійшлися б на першій правці.
+    /// Плитка з піксельною картинкою — одна збірка на всі місця: над полем, у картці перед
+    /// забігом, у галереї фіналу, у шухляді колекції й на планеті. Розійшлися б на першій правці.
     /// </summary>
     internal static class PictureViewBuilder
     {
@@ -17,16 +17,12 @@ namespace InkFlow.Editor
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 
-        /// <summary>Скільки зон може показати картинка: легендарна — 15+ (§6).</summary>
-        internal const int ZoneSlots = 20;
-
         /// <summary>
-        /// Плитка з картинкою: скло, гало завершення, назва згори, квадрат зон знизу і,
-        /// за потреби, підпис під плиткою. Одна збірка на три місця — картинка над полем,
-        /// картка перед забігом, мініатюри галереї, — щоб вони не розійшлися на першій правці.
+        /// Плитка: скло, гало завершення, рамка в колір рідкості, назва згори, квадрат пікселів
+        /// і, за потреби, підпис під плиткою.
         /// </summary>
         internal static PictureView MakePictureView(GameObject go, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite nebula, Shader zoneShader, PictureArtCatalog art,
+            Sprite rounded, Sprite outline, Sprite nebula,
             float width, float plateHeight, float canvasSide, bool withTitle, float captionHeight, bool bare = false)
         {
             var plateGo = Child(go, "Plate");
@@ -67,12 +63,12 @@ namespace InkFlow.Editor
             TMP_Text? attempts = null;
             if (withTitle)
             {
-                title = Label(plateGo, "Title", "КИТ · 0/5", design, font,
+                title = Label(plateGo, "Title", "КИТ", design, font,
                     design.FontSizePictureName, design.TextPrimary, TextAlignmentOptions.Center);
                 Place(title, new Vector2(0f, -M(5f)), new Vector2(width, M(14f)),
                     new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
 
-                // §7 п.5: «Спроб лишилось» видно завжди — під назвою, золотом, лише коли є що рятувати.
+                // §9 п.5: «Спроб лишилось» видно завжди — під назвою, золотом, лише коли є що рятувати.
                 attempts = Label(plateGo, "Attempts", "СПРОБ · 3", design, font,
                     design.FontSizePictureCaption, design.AccentGold, TextAlignmentOptions.Center);
                 Place(attempts, new Vector2(0f, -M(19f)), new Vector2(width, M(12f)),
@@ -80,7 +76,7 @@ namespace InkFlow.Editor
                 attempts.gameObject.SetActive(false);
             }
 
-            // Квадрат зон — знизу плитки; без назви — по центру.
+            // Квадрат пікселів — знизу плитки; без назви — по центру.
             var canvasGo = Child(plateGo, "Canvas");
             var canvas = canvasGo.GetComponent<RectTransform>();
             if (withTitle)
@@ -97,39 +93,30 @@ namespace InkFlow.Editor
             }
             canvas.sizeDelta = new Vector2(canvasSide, canvasSide);
 
-            var zones = new PictureZoneView[ZoneSlots];
-            for (var i = 0; i < ZoneSlots; i++)
-            {
-                var zoneGo = Child(canvasGo, $"Zone_{i}");
-                Stretch(zoneGo);
-                var image = zoneGo.AddComponent<Image>();
-                image.raycastTarget = false;
-                image.preserveAspect = true;
-                var zone = zoneGo.AddComponent<PictureZoneView>();
-                Wire(zone, ("design", design), ("zoneShader", zoneShader), ("image", image));
-                zoneGo.SetActive(false);
-                zones[i] = zone;
-            }
+            var pixelsGo = Child(canvasGo, "Pixels");
+            var pixels = pixelsGo.AddComponent<RawImage>();
+            pixels.raycastTarget = false;
+            pixels.color = Color.white;
+            Place(pixels, Vector2.zero, new Vector2(canvasSide, canvasSide),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             TMP_Text? caption = null;
             if (captionHeight > 0f)
             {
-                caption = Label(go, "Caption", "ТІЛО · СИНІЙ", design, font,
+                caption = Label(go, "Caption", "0 / 96", design, font,
                     design.FontSizePictureCaption, design.TextMuted, TextAlignmentOptions.Center);
                 Place(caption, new Vector2(0f, 0f), new Vector2(width, captionHeight),
                     new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
             }
 
             var view = go.AddComponent<PictureView>();
-            Wire(view, ("design", design), ("art", art), ("plate", plate), ("plateFill", plateFill),
-                ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas));
+            Wire(view, ("design", design), ("plate", plate), ("plateFill", plateFill),
+                ("plateStroke", plateStroke), ("glow", glow), ("canvas", canvas), ("pixels", pixels));
             if (title != null) Wire(view, ("title", title));
             if (attempts != null) Wire(view, ("attempts", attempts));
             if (caption != null) Wire(view, ("caption", caption));
-            WireArray(view, "zones", zones);
             view.Apply();
             return view;
         }
-
     }
 }

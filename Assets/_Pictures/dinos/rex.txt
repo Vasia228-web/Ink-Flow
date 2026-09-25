@@ -1,0 +1,24 @@
+id: rex
+name: ТИРАНОЗАВР
+theme: dinos
+rarity: epic
+colors: K=1 W=4 M=12 E=13 D=22
+outline: K
+grid:
+......KKKKKKKK...
+......KEEEEEEKKK.
+......KEEKEEEEEK.
+......KEEEEEEEEK.
+......KEEEWWWWEK.
+......KEEEEEEKKK.
+KKKK.KKEEEEEKK...
+KEEKKKEEEEEEEKK..
+KKEEKEEEEEMMEEKKK
+.KKEEEEEEEMMEEEEK
+..KKEEEEEEMMEEKKK
+...KKEEEEEEEEKK..
+....KKEEEEEEEK...
+.....KEEEEEEEK...
+....KKEEEKEEEK...
+....KDDDKKDDDK...
+....KKKKKKKKKK...

@@ -1,0 +1,17 @@
+id: egg
+name: ЯЄЧНЯ
+theme: food
+rarity: common
+colors: K=1 W=4 A=10
+outline: K
+grid:
+...KKKKKK...
+.KKKWWWWKKK.
+KKWWWWWWWWKK
+KWWWAAAWWWWK
+KWWAAAAAWWWK
+KWWAAAAAWWWK
+KWWWAAAWWWWK
+KKWWWWWWWWKK
+.KKKWWWWKKK.
+...KKKKKK...

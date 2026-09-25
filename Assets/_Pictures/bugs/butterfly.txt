@@ -1,0 +1,17 @@
+id: butterfly
+name: МЕТЕЛИК
+theme: bugs
+rarity: uncommon
+colors: K=1 A=10 P=18 I=20
+outline: K
+grid:
+KKKKK...KKKKK
+KPPPKKKKKPPPK
+KPPPPKKKPPPPK
+KPIPPPKPPPIPK
+KPPAPPKPPAPPK
+KKPPPPKPPPPKK
+.KPPIPKPIPPK.
+.KKPPPKPPPKK.
+..KKPPKPPKK..
+...KKKKKKK...

@@ -1,0 +1,17 @@
+id: bee
+name: БДЖІЛКА
+theme: bugs
+rarity: common
+colors: K=1 A=10 X=25
+outline: K
+grid:
+..KKKKKKKK..
+.KKXXKKXXKK.
+KKXXXXXXXXKK
+KAAKAAAAAAAK
+KAAAAAAAAAAK
+KAAAAKKKKAAK
+KAAAAAAAAAAK
+KKAAAKKKKAKK
+.KKAAAAAAKK.
+..KKKKKKKK..

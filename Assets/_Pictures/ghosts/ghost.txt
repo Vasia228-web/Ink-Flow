@@ -1,0 +1,18 @@
+id: ghost
+name: ПРИВИДИК
+theme: ghosts
+rarity: common
+colors: K=1 W=4 U=27
+outline: K
+grid:
+..KKKKKK..
+.KKWWWWKK.
+KKWWWWWWKK
+KWWWWWWWWK
+KWWKWWKWWK
+KWUWWWWUWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWKWWKWWK
+KKKKKKKKKK

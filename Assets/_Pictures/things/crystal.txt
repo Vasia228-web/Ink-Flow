@@ -1,0 +1,25 @@
+id: crystal
+name: КРИСТАЛ
+theme: things
+rarity: legendary
+colors: n=3 W=4 S=6 P=18 F=19 I=20
+outline: n
+grid:
+......nnn......
+.....nnPnn.....
+....nnPPPnn....
+...nnPPFPPnn...
+..nnPPFFFPPnn..
+.nnPPFFFFFPPnn.
+.nPPFIWWIFFPPn.
+nnPPFIWWIFFPPnn
+nPPFFFFFFFFFPPn
+nPPFFFFFFFFFPPn
+nPPPFFFFFFFPPPn
+nnPPPFFFFFPPPnn
+.nnPPPFFFPPPnn.
+..nnPPPFPPPnn..
+...nnPPPPPnn...
+..nnSSSSSSSnn..
+..nSSSSSSSSSn..
+..nnnnnnnnnnn..

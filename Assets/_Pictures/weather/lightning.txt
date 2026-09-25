@@ -1,0 +1,17 @@
+id: lightning
+name: БЛИСКАВКА
+theme: weather
+rarity: common
+colors: K=1 A=10 L=11
+outline: K
+grid:
+....KKKKKK
+...KKLLLLK
+..KKLLLLKK
+.KKLLLLKK.
+.KLAAALLK.
+.KKKLLLKK.
+.KKLLLKK..
+KKLLLKK...
+KLLKKK....
+KKKK......

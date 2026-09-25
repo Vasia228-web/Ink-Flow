@@ -1,0 +1,17 @@
+id: banana
+name: БАНАН
+theme: food
+rarity: common
+colors: K=1 L=11 N=23
+outline: K
+grid:
+.........KKK
+........KKNK
+.......KKLLK
+......KKLLLK
+.....KKLLLKK
+...KKKLLLKK.
+KKKKLLLLKK..
+KLLLLLLKK...
+KKLLLLKK....
+.KKKKKK.....

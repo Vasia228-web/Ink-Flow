@@ -4,42 +4,44 @@ using System.Collections.Generic;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Забіг «Нескінченного» (документ §2, §8): порожнє поле 8×8, три одноколірні фігури
-    /// в руці, зрив рядків і стовпців, очки, програш — коли жодна фігура не влазить.
+    /// Забіг «Нескінченного» (документ §1–5, §10): порожнє поле 8×8, три одноколірні
+    /// фігури в кольорах поточної картинки, зрив рядків і стовпців — і кожна клітинка
+    /// зірваної лінії заповнює один піксель картинки свого кольору.
     ///
     /// Core не анімує: <see cref="TryPlace"/> мутує модель і повертає стрічку подій.
-    /// Порядок кроків ходу фіксований — він же порядок подій, і в'ю відтворює його один
-    /// до одного:
-    ///  1. валідація → 2. клітинки фігури → 3. фігура зникає з лотка → 4. усі повні лінії
-    ///  за станом ПІСЛЯ розміщення → 5. вихід кожної лінії за станом ДО очищення (клітинка
-    ///  на перетині рахується в обидві) → 6. очищення всіх ліній одночасно → 7. ланцюг
-    ///  і очки, фарба в баки, виплески змішувача → 8. поповнення лотка, якщо порожній →
-    ///  9. перевірка живості.
+    /// Порядок кроків ходу — це порядок подій, і в'ю відтворює його один до одного:
+    ///  1. валідація → 2. клітинки фігури → 3. фігура зникає з лотка → 4. кожна повна лінія
+    ///  (LineCleared) і одразу за нею її пікселі (PixelFilled, у порядку клітинок) → 5. очищення
+    ///  ліній → 6. ланцюг і очки → 7. картинку закінчено: наступна й перефарбування поля й лотка
+    ///  АБО колір вичерпано: перефарбування лише його → 8. поповнення лотка → 9. живість.
     /// </summary>
     public sealed class RunSession
     {
         private readonly MoveResult _result = new MoveResult();
         private readonly List<Line> _lines = new List<Line>(16);
-        private readonly List<GridPos> _cellBuffer = new List<GridPos>(8);
-        private readonly PaintYield[] _yields = new PaintYield[32];
+        private readonly List<GridPos> _cellBuffer = new List<GridPos>(64);
+        private readonly LineYield[] _yields = new LineYield[32];
         private readonly TrayGenerator _trays;
-        private readonly int[] _taken = new int[Pigments.Count];
-        private readonly int[] _splashesByHue = new int[Hues.Count + 1];
-        private readonly List<int> _collected = new List<int>(4);
         private readonly PictureDeck _deck;
+        private readonly Func<string, bool>? _isCollected;
+        private readonly List<int> _collected = new List<int>(4);
+        private readonly List<byte> _colors = new List<byte>(8);
+        private readonly List<int> _colorWeights = new List<int>(8);
+        private readonly List<int> _pixelBuffer = new List<int>(64);
+        private readonly int[] _boardCounts = new int[MasterPalette.Count];
+        private readonly byte[] _colorMap = new byte[MasterPalette.Count];
 
         public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random,
-            PictureCatalogData? pictures = null, PictureStart? start = null)
+            PictureLibrary? library = null, PictureStart? start = null, Func<string, bool>? isCollected = null)
         {
             Balance = balance ?? throw new ArgumentNullException(nameof(balance));
             Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             Random = random ?? throw new ArgumentNullException(nameof(random));
-            Pictures = pictures ?? PictureCatalogData.Default;
-            _deck = new PictureDeck(Pictures, balance);
+            Library = library ?? PictureLibrary.Fallback;
+            _isCollected = isCollected;
+            _deck = new PictureDeck(Library, balance);
 
             Board = new Board(balance.GridWidth, balance.GridHeight);
-            Tanks = new TankSet();
-            Mixer = new Mixer(balance);
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
@@ -47,62 +49,16 @@ namespace InkFlow.Core
             RefillTray(_result, silent: true);
         }
 
-        /// <summary>§7: незавершена гарантовано перша, з тим самим прогресом.</summary>
-        private PictureProgress Carry(PictureStart start)
-        {
-            if (start.CatalogIndex < 0 || start.CatalogIndex >= Pictures.Count)
-                throw new ArgumentOutOfRangeException(nameof(start), "Незавершеної картинки немає в колоді.");
-            var progress = new PictureProgress(Pictures[start.CatalogIndex], start.CatalogIndex, Balance);
-            progress.Restore(start.Filled);
-            StartedWithCarried = true;
-            CarriedIndex = start.CatalogIndex;
-            AttemptsLeft = start.AttemptsLeft;
-            return progress;
-        }
-
-        /// <summary>Забіг почався з незавершеної картинки (§7).</summary>
-        public bool StartedWithCarried { get; private set; }
-
-        /// <summary>Індекс перенесеної картинки; −1, якщо забіг почався з нової.</summary>
-        public int CarriedIndex { get; private set; } = -1;
-
-        /// <summary>Скільки спроб лишилось на перенесену — для напису «Спроб лишилось: N».</summary>
-        public int AttemptsLeft { get; private set; }
-
         public BalanceData Balance { get; }
         public PieceCatalogData Catalog { get; }
         public IRandomSource Random { get; }
         public Board Board { get; }
 
-        /// <summary>Три баки фарби (§4). Зірвана лінія ллє сюди, змішувач забирає звідси.</summary>
-        public TankSet Tanks { get; }
+        /// <summary>Бібліотека картинок (§7).</summary>
+        public PictureLibrary Library { get; }
 
-        /// <summary>Четвертий бак (§4): спрацьовує сам, щойно в трьох разом набралось на виплеск.</summary>
-        public Mixer Mixer { get; }
-
-        /// <summary>Скільки виплесків за партію.</summary>
-        public int Splashes { get; private set; }
-
-        /// <summary>Виплески за відтінками, індекс — (int)<see cref="Hue"/>.</summary>
-        public IReadOnlyList<int> SplashesByHue => _splashesByHue;
-
-        /// <summary>Відтінок останнього виплеску партії; None, якщо їх ще не було.</summary>
-        public Hue LastSplashHue { get; private set; }
-
-        /// <summary>Колода картинок (§5–6).</summary>
-        public PictureCatalogData Pictures { get; }
-
-        /// <summary>Картинка, яка зараз малюється (§5). Після завершення — одразу наступна.</summary>
+        /// <summary>Картинка, яка зараз малюється (§4). Після завершення — одразу наступна.</summary>
         public PictureProgress Picture { get; private set; }
-
-        /// <summary>Картинок закінчено за партію — головний рекорд документа (§8).</summary>
-        public int PicturesCompleted { get; private set; }
-
-        /// <summary>Індекси закінчених картинок у колоді, у порядку завершення — для галереї партії.</summary>
-        public IReadOnlyList<int> PicturesCollected => _collected;
-
-        /// <summary>Фарби з виплесків, якій не було куди лягти.</summary>
-        public int PaintMissed { get; private set; }
 
         /// <summary>Лоток. Порожня комірка означає «фігуру вже поставили» (§2).</summary>
         public PieceDef[] TrayPieces { get; }
@@ -113,33 +69,49 @@ namespace InkFlow.Core
         public bool IsOver => State != GameState.Playing;
 
         public int Score { get; private set; }
-
-        /// <summary>Найдовший ланцюг за партію — другий рекорд документа (§8).</summary>
         public int BestChain { get; private set; }
-
-        /// <summary>Скільки фігур поставлено за партію.</summary>
         public int PlacementCount { get; private set; }
-
-        /// <summary>Скільки лотків видано — раунд для прогресії складності (§8).</summary>
         public int Round => _trays.TraysIssued;
-
         public int LinesCleared { get; private set; }
         public int PureLinesCleared { get; private set; }
-        public int PaintYielded { get; private set; }
 
+        /// <summary>Пікселів заповнено за партію.</summary>
+        public int PixelsFilled { get; private set; }
 
-        /// <summary>Скільки разів мішок мусив зменшувати фігури — метрика якості мішка.</summary>
+        /// <summary>Пікселів згоріло за партію — колір уже не був потрібен.</summary>
+        public int PixelsWasted { get; private set; }
+
+        public int PicturesCompleted { get; private set; }
+
+        /// <summary>Індекси закінчених картинок у бібліотеці, у порядку завершення.</summary>
+        public IReadOnlyList<int> PicturesCollected => _collected;
+
         public int TrayRescues => _trays.RescuesUsed;
 
-        /// <summary>
-        /// Тиск: поле майже забите АБО хоч одна фігура з руки вже нікуди не влазить —
-        /// в'ю світить попереджувальне гало. Друга умова головна: прогони показали, що
-        /// партія гине з ~25 вільними клітинками, «дірявою», а не повною, і сам лише
-        /// поріг вільних клітинок не спрацьовував жодного разу.
-        /// </summary>
-        public bool HaloWarning => Board.CountEmpty() < Balance.HaloWarningFreeCells || AnyPieceStuck();
+        // ── Незавершена (§9) ──
 
-        /// <summary>Чи є в руці фігура, якій уже немає місця на полі.</summary>
+        public bool StartedWithCarried { get; private set; }
+        public int CarriedIndex { get; private set; } = -1;
+        public int AttemptsLeft { get; private set; }
+
+        private PictureProgress Carry(PictureStart start)
+        {
+            if (start.LibraryIndex < 0 || start.LibraryIndex >= Library.Count)
+                throw new ArgumentOutOfRangeException(nameof(start), "Незавершеної картинки немає в бібліотеці.");
+            var progress = new PictureProgress(Library[start.LibraryIndex], start.LibraryIndex);
+            progress.Restore(start.Filled);
+            StartedWithCarried = true;
+            CarriedIndex = start.LibraryIndex;
+            AttemptsLeft = start.AttemptsLeft;
+            return progress;
+        }
+
+        // ── Продовження (§10) ──
+
+        public int ContinuesUsed { get; private set; }
+        public bool CanContinue => IsOver && ContinuesUsed < Balance.ContinuesPerRun;
+
+        /// <summary>Чи є в руці фігура, якій уже немає місця на полі — «тиск» для прогонів.</summary>
         public bool AnyPieceStuck()
         {
             for (var i = 0; i < TrayPieces.Length; i++)
@@ -148,50 +120,7 @@ namespace InkFlow.Core
                 if (!piece.IsEmpty && !PlacementRules.AnyFit(Board, piece.Shape!))
                     return true;
             }
-
             return false;
-        }
-
-        /// <summary>
-        /// Який пігмент бажаний для наступного лотка (прототип v3: перша фігура лотка —
-        /// кольору активної зони). Чистий відтінок — його пігмент; вторинний — той із двох,
-        /// якого в баках менше, щоб пропорція йшла до потрібного; коричневий — найменший
-        /// із трьох. None — картинку закінчено, мішок вирішує сам.
-        /// </summary>
-        public Pigment WantedPigment
-        {
-            get
-            {
-                WantedPigments(out var first, out _);
-                return first;
-            }
-        }
-
-        /// <summary>Обидва пігменти потрібного відтінку (для вторинного); second = None для чистого.</summary>
-        public void WantedPigments(out Pigment first, out Pigment second)
-        {
-            first = Pigment.None;
-            second = Pigment.None;
-            switch (Picture.WantedHue)
-            {
-                case Hue.Blue: first = Pigment.Blue; return;
-                case Hue.Red: first = Pigment.Red; return;
-                case Hue.Yellow: first = Pigment.Yellow; return;
-                case Hue.Green: Order(Pigment.Blue, Pigment.Yellow, out first, out second); return;
-                case Hue.Orange: Order(Pigment.Red, Pigment.Yellow, out first, out second); return;
-                case Hue.Purple: Order(Pigment.Blue, Pigment.Red, out first, out second); return;
-                case Hue.Brown:
-                    first = Pigment.Blue;
-                    if (Tanks[Pigment.Red] < Tanks[first]) first = Pigment.Red;
-                    if (Tanks[Pigment.Yellow] < Tanks[first]) first = Pigment.Yellow;
-                    return;
-            }
-        }
-
-        private void Order(Pigment a, Pigment b, out Pigment lower, out Pigment higher)
-        {
-            if (Tanks[b] < Tanks[a]) { lower = b; higher = a; }
-            else { lower = a; higher = b; }
         }
 
         /// <summary>
@@ -210,29 +139,31 @@ namespace InkFlow.Core
                 return _result;
 
             var shape = piece.Shape!;
-
-            // 1. Валідація.
             if (!PlacementRules.CanPlace(Board, shape, anchor))
                 return _result;
 
             _result.MarkAccepted();
             PlacementCount++;
 
-            // 2. Заповнити клітинки. 3. Прибрати фігуру з лотка.
             _cellBuffer.Clear();
             for (var i = 0; i < shape.Cells.Length; i++)
             {
                 var p = new GridPos(anchor.X + shape.Cells[i].X, anchor.Y + shape.Cells[i].Y);
-                Board[p] = piece.Pigment;
+                Board[p] = piece.Color;
                 _cellBuffer.Add(p);
             }
 
             TrayPieces[trayIndex] = PieceDef.None;
-            _result.AddPiecePlaced(trayIndex, _result.PushCells(_cellBuffer), _cellBuffer.Count, piece.Pigment);
+            _result.AddPiecePlaced(trayIndex, _result.PushCells(_cellBuffer), _cellBuffer.Count, piece.Color);
 
             var gained = shape.Size * Balance.ScorePerPlacedCell;
             gained += ResolveLines();
             AddScore(gained);
+
+            if (Picture.IsComplete)
+                CompletePicture();
+            else
+                RecolorExhausted();
 
             RefillTrayIfEmpty();
             EvaluateState();
@@ -243,29 +174,25 @@ namespace InkFlow.Core
             return _result;
         }
 
-        /// <summary>Миттєвий рестарт без перезавантаження сцени (&lt; 300 мс).</summary>
+        /// <summary>Миттєвий рестарт без перезавантаження сцени.</summary>
         public void Restart()
         {
             Board.Clear();
-            Tanks.Reset();
             _trays.Reset();
-            Array.Clear(_splashesByHue, 0, _splashesByHue.Length);
-            Splashes = 0;
-            LastSplashHue = Hue.None;
             PicturesCompleted = 0;
-            PaintMissed = 0;
+            PixelsFilled = 0;
+            PixelsWasted = 0;
             _collected.Clear();
             StartedWithCarried = false;
             CarriedIndex = -1;
             AttemptsLeft = 0;
             ContinuesUsed = 0;
-            Picture = DrawPicture(exclude: Picture.CatalogIndex);
+            Picture = DrawPicture(exclude: Picture.LibraryIndex);
             Score = 0;
             BestChain = 0;
             PlacementCount = 0;
             LinesCleared = 0;
             PureLinesCleared = 0;
-            PaintYielded = 0;
             State = GameState.Playing;
             for (var i = 0; i < TrayPieces.Length; i++)
                 TrayPieces[i] = PieceDef.None;
@@ -273,17 +200,7 @@ namespace InkFlow.Core
             RefillTray(_result, silent: true);
         }
 
-        /// <summary>Скільки разів продовжували після програшу цього забігу.</summary>
-        public int ContinuesUsed { get; private set; }
-
-        /// <summary>§9: продовжити можна лише після програшу і не більше, ніж дозволяє баланс.</summary>
-        public bool CanContinue => IsOver && ContinuesUsed < Balance.ContinuesPerRun;
-
-        /// <summary>
-        /// Продовження за ролик (§9): поле очищується, рахунок, баки й картинка лишаються,
-        /// лоток — новий. Повертає стрічку з однією подією <see cref="GameEventType.RunContinued"/>
-        /// і поповненням лотка; або порожню, якщо продовжувати не можна.
-        /// </summary>
+        /// <summary>Продовження (§10): поле очищується, рахунок і картинка лишаються, лоток — новий.</summary>
         public MoveResult ContinueAfterLoss()
         {
             _result.Reset();
@@ -302,9 +219,8 @@ namespace InkFlow.Core
         }
 
         /// <summary>
-        /// Донат (§9): домалювати поточну картинку одразу. Заливає всі зони, зараховує
-        /// картинку, витягує наступну. На поле, лоток і рахунок не впливає — «донат не
-        /// впливає на проходження». Порожню стрічку — якщо картинка вже закінчена.
+        /// «Домалювати одразу» (§13): усі пікселі, картинка зарахована, наступна, поле
+        /// перефарбовано. На лоток-форми, поле-форми й рахунок не впливає.
         /// </summary>
         public MoveResult CompletePictureNow()
         {
@@ -313,26 +229,22 @@ namespace InkFlow.Core
                 return _result;
 
             _result.MarkAccepted();
-            for (var zone = 0; zone < Picture.ZoneCount; zone++)
+            _pixelBuffer.Clear();
+            Picture.FillAll(_pixelBuffer);
+            for (var i = 0; i < _pixelBuffer.Count; i++)
             {
-                var missing = Picture.Capacity(zone) - Picture.Filled[zone];
-                if (missing > 0)
-                    Picture.Apply(Picture.Def.Zones[zone].Hue, missing, _result);
+                var index = _pixelBuffer[i];
+                _result.AddPixelFilled(index, Picture.Picture.Pixels[index], false, -1);
+                PixelsFilled++;
             }
-
-            _result.AddPictureCompleted(Picture.CatalogIndex);
-            PicturesCompleted++;
-            _collected.Add(Picture.CatalogIndex);
-            Picture = DrawPicture(exclude: Picture.CatalogIndex);
-            _result.AddPictureStarted(Picture.CatalogIndex);
+            CompletePicture();
             return _result;
         }
 
-        /// <summary>Підказка від застою: перша фігура й перше місце, куди вона влазить.</summary>
         public bool TryFindHint(out int trayIndex, out GridPos anchor) =>
             PlacementRules.TryFindHint(Board, TrayPieces, out trayIndex, out anchor);
 
-        /// <summary>Жодна фігура лотка не влазить — єдина перевірка живості (§8).</summary>
+        /// <summary>Жодна фігура лотка не влазить — єдина перевірка живості (§10).</summary>
         public bool NoPieceFits() => !PlacementRules.AnyPieceFits(Board, TrayPieces);
 
         private void EvaluateState()
@@ -341,20 +253,19 @@ namespace InkFlow.Core
                 State = GameState.Lost;
         }
 
-        /// <summary>Кроки 4–7 ходу. Повертає очки за лінії.</summary>
+        // ── Кроки 4–7 ──
+
         private int ResolveLines()
         {
-            // 4. Зібрати ВСІ повні лінії за станом ПІСЛЯ розміщення.
             _lines.Clear();
             PlacementRules.CollectFullLines(Board, _lines);
             if (_lines.Count == 0)
                 return 0;
 
-            // 5. Порахувати вихід кожної лінії за станом ДО очищення. Клітинка на перетині
-            //    зараховується в обидві лінії — саме тому рахуємо все до єдиного очищення.
+            // 5. Вихід кожної лінії — за станом ДО очищення; клітинка на перетині рахується в обидві.
             var count = _lines.Count < _yields.Length ? _lines.Count : _yields.Length;
             for (var i = 0; i < count; i++)
-                _yields[i] = LineResolver.Resolve(Board, _lines[i], Balance, TankLevels());
+                _yields[i] = LineResolver.Resolve(Board, _lines[i], Balance);
 
             var multiplier = Balance.ComboFor(count);
             var score = 0;
@@ -366,23 +277,44 @@ namespace InkFlow.Core
                 _cellBuffer.Clear();
                 for (var c = 0; c < length; c++)
                     _cellBuffer.Add(LineResolver.CellAt(line, c));
+                var cellStart = _result.PushCells(_cellBuffer);
+                var lineEvent = _result.AddLineCleared(line.Kind, line.Index, cellStart, length, _yields[i].Dominant, _yields[i].IsPure);
 
-                var amount = LineResolver.ApplyCombo(_yields[i].Amount, multiplier);
-                _result.AddLineCleared(line.Kind, line.Index,
-                    _result.PushCells(_cellBuffer), _cellBuffer.Count,
-                    _yields[i].Pigment, _yields[i].IsPure, amount);
+                // Пікселі — з кожної клітинки, у порядку клітинок: крапля летить із клітинки в піксель.
+                var pixels = 0;
+                for (var c = 0; c < length; c++)
+                {
+                    var color = Board[_cellBuffer[c]];
+                    if (color == Board.Empty)
+                        continue;
+                    for (var k = 0; k < _yields[i].PixelsPerCell; k++)
+                    {
+                        var index = Picture.FillOne(color);
+                        if (index < 0)
+                        {
+                            _result.AddPixelsWasted(1);
+                            PixelsWasted++;
+                            continue;
+                        }
+                        _result.AddPixelFilled(index, color, _yields[i].IsPure, cellStart + c);
+                        PixelsFilled++;
+                        pixels++;
+                    }
+                }
+
+                _result.SetLinePixels(lineEvent, pixels);
 
                 var lineScore = Balance.ScorePerLine * (_yields[i].IsPure ? Balance.PureLineScoreBonus : 1);
                 score += LineResolver.ApplyCombo(lineScore, multiplier);
             }
 
-            // 6. Очистити всі знайдені лінії ОДНОЧАСНО: перетин очищується один раз.
+            // 6. Очистити всі лінії ОДНОЧАСНО: перетин очищується один раз.
             for (var i = 0; i < count; i++)
             {
                 var line = _lines[i];
                 var length = LineResolver.LengthOf(Board, line.Kind);
                 for (var c = 0; c < length; c++)
-                    Board[LineResolver.CellAt(line, c)] = Pigment.None;
+                    Board[LineResolver.CellAt(line, c)] = Board.Empty;
             }
 
             // 7. Ланцюг.
@@ -391,64 +323,121 @@ namespace InkFlow.Core
             if (count > BestChain)
                 BestChain = count;
 
-            // 7б. Фарба — у бак свого кольору (§4).
-            for (var i = 0; i < count; i++)
-            {
-                if (_yields[i].Pigment == Pigment.None)
-                    continue;
-                var amount = LineResolver.ApplyCombo(_yields[i].Amount, multiplier);
-                if (amount <= 0)
-                    continue;
-                Tanks.Pour(_yields[i].Pigment, amount);
-                _result.AddPaintPoured(_yields[i].Pigment, amount, Tanks[_yields[i].Pigment]);
-            }
-
-            // 7в. Змішувач (§4): набралось на виплеск — спрацьовує сам; стільки разів,
-            //     скільки набралось. Три струмені (TankDrained) — потім виплеск (MixerFired).
-            while (Mixer.CanFire(Tanks))
-            {
-                var splash = Mixer.Fire(Tanks, _taken);
-                for (var i = 0; i < Pigments.Count; i++)
-                    if (_taken[i] > 0)
-                        _result.AddTankDrained(Pigments.Base[i], _taken[i], Tanks.Levels[i]);
-                _result.AddMixerFired(splash.Hue, splash.Amount);
-                Splashes++;
-                _splashesByHue[(int)splash.Hue]++;
-                LastSplashHue = splash.Hue;
-
-                // 7г. Виплеск лягає на картинку (§5) — сам, у зону свого відтінку.
-                var missed = Picture.Apply(splash.Hue, splash.Amount, _result);
-                if (missed > 0)
-                {
-                    _result.AddSplashMissed(splash.Hue, missed);
-                    PaintMissed += missed;
-                }
-
-                if (Picture.IsComplete)
-                {
-                    _result.AddPictureCompleted(Picture.CatalogIndex);
-                    PicturesCompleted++;
-                    _collected.Add(Picture.CatalogIndex);
-                    Picture = DrawPicture(exclude: Picture.CatalogIndex);
-                    _result.AddPictureStarted(Picture.CatalogIndex);
-                }
-            }
-
             LinesCleared += count;
             PureLinesCleared += _result.PureLinesCleared;
-            PaintYielded += _result.PaintYielded;
             return score;
         }
 
-        /// <summary>Наступна картинка з колоди за рідкістю (§6), крім щойно закінченої.</summary>
-        private PictureProgress DrawPicture(int exclude)
+        // ── Крок 8: картинка закінчена / колір вичерпано ──
+
+        private void CompletePicture()
         {
-            var index = _deck.Draw(Random, exclude);
-            return new PictureProgress(Pictures[index], index, Balance);
+            _result.AddPictureCompleted(Picture.LibraryIndex);
+            PicturesCompleted++;
+            _collected.Add(Picture.LibraryIndex);
+            Picture = DrawPicture(exclude: Picture.LibraryIndex);
+            _result.AddPictureStarted(Picture.LibraryIndex);
+            RecolorToPicture();
         }
 
-        /// <summary>Рівні баків для тайбрейка мішаної лінії: нічия віддає колір, якого менше.</summary>
-        private IReadOnlyList<int> TankLevels() => Tanks.Levels;
+        /// <summary>
+        /// Нова картинка (§5): усе на полі й у лотку перефарбовується в її кольори. Старі
+        /// кольори за рангом кількості на полі й у лотку зіставляються з новими за рангом
+        /// залишку пікселів; колір, який є в обох, лишається собою. Старих кольорів може
+        /// бути більше за нові — тоді зайві йдуть по колу.
+        /// </summary>
+        private void RecolorToPicture()
+        {
+            Picture.RemainingColors(_colors, _colorWeights);
+            if (_colors.Count == 0)
+                return;
+
+            Board.CountColors(_boardCounts);
+            for (var i = 0; i < TrayPieces.Length; i++)
+                if (!TrayPieces[i].IsEmpty)
+                    _boardCounts[TrayPieces[i].Color] += TrayPieces[i].Size;
+
+            // Старі кольори — за спаданням кількості (нічия — менший індекс).
+            var old = new List<byte>();
+            for (var c = 1; c < _boardCounts.Length; c++)
+                if (_boardCounts[c] > 0)
+                    old.Add((byte)c);
+            old.Sort((a, b) => _boardCounts[b] != _boardCounts[a] ? _boardCounts[b].CompareTo(_boardCounts[a]) : a.CompareTo(b));
+
+            Array.Clear(_colorMap, 0, _colorMap.Length);
+            var nextNew = 0;
+            for (var i = 0; i < old.Count; i++)
+            {
+                var from = old[i];
+                if (_colors.Contains(from))
+                {
+                    _colorMap[from] = from;
+                    continue;
+                }
+                // Перший ще не зайнятий новий колір за рангом; коли всі зайняті — по колу.
+                var to = _colors[nextNew % _colors.Count];
+                nextNew++;
+                _colorMap[from] = to;
+            }
+
+            ApplyColorMap(old);
+        }
+
+        /// <summary>Колір закінчився (§5): його клітинки й фігури — у колір, якого лишилось найбільше.</summary>
+        private void RecolorExhausted()
+        {
+            var target = Picture.MostNeededColor();
+            if (target == Board.Empty)
+                return;
+
+            Board.CountColors(_boardCounts);
+            for (var i = 0; i < TrayPieces.Length; i++)
+                if (!TrayPieces[i].IsEmpty)
+                    _boardCounts[TrayPieces[i].Color]++;
+
+            var old = new List<byte>();
+            Array.Clear(_colorMap, 0, _colorMap.Length);
+            for (var c = 1; c < _boardCounts.Length; c++)
+            {
+                if (_boardCounts[c] == 0 || Picture.Remaining((byte)c) > 0)
+                    continue;
+                old.Add((byte)c);
+                _colorMap[c] = target;
+            }
+
+            if (old.Count > 0)
+                ApplyColorMap(old);
+        }
+
+        private void ApplyColorMap(List<byte> from)
+        {
+            for (var i = 0; i < from.Count; i++)
+            {
+                var source = from[i];
+                var to = _colorMap[source];
+                if (to == Board.Empty || to == source)
+                    continue;
+
+                _cellBuffer.Clear();
+                Board.Recolor(source, to, _cellBuffer);
+                if (_cellBuffer.Count > 0)
+                    _result.AddBoardRecolored(source, to, _result.PushCells(_cellBuffer), _cellBuffer.Count);
+
+                for (var k = 0; k < TrayPieces.Length; k++)
+                {
+                    if (TrayPieces[k].IsEmpty || TrayPieces[k].Color != source)
+                        continue;
+                    TrayPieces[k] = TrayPieces[k].WithColor(to);
+                    _result.AddTrayRecolored(k, to);
+                }
+            }
+        }
+
+        private PictureProgress DrawPicture(int exclude)
+        {
+            var index = _deck.Draw(Random, exclude, _isCollected);
+            return new PictureProgress(Library[index], index);
+        }
 
         private void AddScore(int gained)
         {
@@ -468,7 +457,18 @@ namespace InkFlow.Core
 
         private void RefillTray(MoveResult result, bool silent)
         {
-            var rescued = _trays.Fill(TrayPieces, Board, Random, WantedPigment);
+            Picture.RemainingColors(_colors, _colorWeights);
+            if (_colors.Count == 0)
+            {
+                // Картинка повна лише між ходами на мить; про всяк випадок — її кольори, порівну.
+                for (var i = 0; i < Picture.Picture.FillColors.Count; i++)
+                {
+                    _colors.Add(Picture.Picture.FillColors[i]);
+                    _colorWeights.Add(1);
+                }
+            }
+
+            var rescued = _trays.Fill(TrayPieces, Board, Random, _colors, _colorWeights);
             if (silent)
                 return;
             if (rescued)

@@ -1,0 +1,13 @@
+id: key
+name: КЛЮЧИК
+theme: things
+rarity: common
+colors: K=1 A=10 D=22
+outline: K
+grid:
+KKKKKK......
+KAAAAKKKKKKK
+KAKKAAAAAAAK
+KAKKAAAAAAAK
+KAAAAKKKDKDK
+KKKKKK.KKKKK

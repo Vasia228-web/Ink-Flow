@@ -1,0 +1,17 @@
+id: planet
+name: ПЛАНЕТА
+theme: space
+rarity: common
+colors: K=1 A=10 E=13 B=16
+outline: K
+grid:
+...KKKKKK...
+..KKBBBBKK..
+.KKBBEEBBKK.
+KKBBBBBEBBKK
+KABBBBBBBBAK
+KKAAAAAAAAKK
+.KBBBBBBBBK.
+.KKBEEBBBKK.
+..KKBBBBKK..
+...KKKKKK...

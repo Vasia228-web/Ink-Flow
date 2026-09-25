@@ -1,0 +1,18 @@
+id: burger
+name: БУРГЕР
+theme: food
+rarity: epic
+colors: k=2 R=8 A=10 E=13 D=22 N=23
+outline: k
+grid:
+..kkkkkkkkkk..
+.kkDDDDDDDDkk.
+kkDDDDDDDDDDkk
+kDDDDDDDDDDDDk
+kEEEEEEEEEEEEk
+kkRRRRRRRRRRkk
+kNNNNNNNNNNNNk
+kAAAAAAAAAAAAk
+kkDDDDDDDDDDkk
+.kkDDDDDDDDkk.
+..kkkkkkkkkk..

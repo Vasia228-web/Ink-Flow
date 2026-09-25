@@ -1,0 +1,18 @@
+id: ghost_shy
+name: СОРОМ'ЯЗЛИВИЙ ПРИВИД
+theme: ghosts
+rarity: common
+colors: K=1 W=4 U=27
+outline: K
+grid:
+..KKKKKK..
+.KKWWWWKK.
+KKWWWWWWKK
+KWWWWWWWWK
+KWWKKKKWWK
+KWUWWWWUWK
+KWWWWWWWWK
+KWWWKKWWWK
+KWWWWWWWWK
+KWWKWWKWWK
+KKKKKKKKKK

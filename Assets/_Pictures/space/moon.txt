@@ -1,0 +1,18 @@
+id: moon
+name: МІСЯЦЬ
+theme: space
+rarity: common
+colors: K=1 A=10 L=11
+outline: K
+grid:
+...KKKKKK
+..KKLLLLK
+.KKLLLKKK
+KKLALKK..
+KLLLKK...
+KLLAK....
+KLLLKK...
+KKLLLKK..
+.KKLLLKKK
+..KKLLLLK
+...KKKKKK

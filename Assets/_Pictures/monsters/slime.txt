@@ -1,0 +1,17 @@
+id: slime
+name: СЛИМАЧОК
+theme: monsters
+rarity: common
+colors: K=1 W=4 M=12 E=13
+outline: K
+grid:
+....KKKKKK....
+..KKKEEEEKKK..
+.KKEMMEEEEEKK.
+.KEEEEEEEEEEK.
+.KEWKEEEWKEEK.
+KKEEEEEEEEEEKK
+KEEEEEEEEEEEEK
+KEEEEEEEEEEEEK
+KKEEEEEEEEEEKK
+.KKKKKKKKKKKK.

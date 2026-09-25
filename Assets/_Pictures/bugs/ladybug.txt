@@ -1,0 +1,17 @@
+id: ladybug
+name: СОНЕЧКО-ЖУЧОК
+theme: bugs
+rarity: common
+colors: K=1 W=4 R=8
+outline: K
+grid:
+....KKKK....
+..KKKWWKKK..
+.KKRRRRRRKK.
+KKRRKRRKRRKK
+KRRRRKKRRRRK
+KRKRRKKRRKRK
+KRRRRKKRRRRK
+KKRRKKKKRRKK
+.KKRRRRRRKK.
+..KKKKKKKK..

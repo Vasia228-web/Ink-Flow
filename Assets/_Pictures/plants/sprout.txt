@@ -1,0 +1,18 @@
+id: sprout
+name: ПАРОСТОК
+theme: plants
+rarity: common
+colors: K=1 E=13 N=23
+outline: K
+grid:
+.KKKK..KKKK.
+KKEEKKKKEEKK
+KEEEEKKEEEEK
+KKEEEEEEEEKK
+.KKKEEEEKKK.
+...KKEEKK...
+..KKKEEKKK..
+..KNNNNNNK..
+..KNNNNNNK..
+..KKNNNNKK..
+...KKKKKK...

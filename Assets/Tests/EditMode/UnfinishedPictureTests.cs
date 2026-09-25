@@ -4,26 +4,27 @@ using NUnit.Framework;
 
 namespace InkFlow.Core.Tests
 {
+    /// <summary>Документ §9: одна незавершена, три спроби, прогрес як індекси пікселів.</summary>
     public sealed class UnfinishedPictureTests
     {
-        private static readonly List<int> Some = new List<int> { 3, 0 };
-        private static readonly List<int> None = new List<int> { 0, 0 };
+        private static readonly List<int> Some = new List<int> { 3 };
+        private static readonly List<int> None = new List<int>();
 
         [Test]
         public void Track_RegistersTheFirstPaintedPictureOnly()
         {
             var unfinished = new UnfinishedPicture(3);
             unfinished.Track(4, None);
-            Assert.IsFalse(unfinished.HasPicture, "без краплі фарби реєструвати нічого");
+            Assert.IsFalse(unfinished.HasPicture, "без жодного пікселя реєструвати нічого");
 
             unfinished.Track(4, Some);
             Assert.IsTrue(unfinished.HasPicture);
             Assert.AreEqual(4, unfinished.PictureIndex);
             Assert.AreEqual(3, unfinished.Filled[0]);
-            Assert.AreEqual(3, unfinished.AttemptsLeft, "§7: три реальні спроби");
+            Assert.AreEqual(3, unfinished.AttemptsLeft, "§9: три реальні спроби");
 
             unfinished.Track(9, new List<int> { 8 });
-            Assert.AreEqual(4, unfinished.PictureIndex, "§7 п.1: одна одночасно");
+            Assert.AreEqual(4, unfinished.PictureIndex, "§9 п.1: одна одночасно");
             Assert.AreEqual(3, unfinished.Filled[0]);
         }
 
@@ -35,14 +36,14 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(0, unfinished.AttemptsUsed);
             Assert.AreEqual(3, unfinished.AttemptsLeft);
 
-            Assert.IsFalse(unfinished.Settle(4, new List<int> { 5, 0 }, wasCarried: true));
+            Assert.IsFalse(unfinished.Settle(4, new List<int> { 3, 5 }, wasCarried: true));
             Assert.AreEqual(2, unfinished.AttemptsLeft);
-            Assert.AreEqual(5, unfinished.Filled[0], "прогрес зберігається між спробами (п. 3)");
+            Assert.AreEqual(2, unfinished.Filled.Count, "прогрес зберігається між спробами (п. 3)");
 
-            Assert.IsFalse(unfinished.Settle(4, new List<int> { 6, 0 }, wasCarried: true));
+            Assert.IsFalse(unfinished.Settle(4, new List<int> { 3, 5, 6 }, wasCarried: true));
             Assert.AreEqual(1, unfinished.AttemptsLeft);
 
-            Assert.IsTrue(unfinished.Settle(4, new List<int> { 7, 0 }, wasCarried: true), "третя спроба — анулювання (п. 4)");
+            Assert.IsTrue(unfinished.Settle(4, new List<int> { 3, 5, 6, 7 }, wasCarried: true), "третя спроба — анулювання (п. 4)");
             Assert.IsFalse(unfinished.HasPicture);
             Assert.AreEqual(0, unfinished.Filled.Count, "прогрес згорає");
         }
@@ -78,6 +79,8 @@ namespace InkFlow.Core.Tests
             Assert.IsFalse(unfinished.HasPicture, "усі спроби витрачено — нема чого нести");
             unfinished.Restore(-1, Some, 0);
             Assert.IsFalse(unfinished.HasPicture);
+            unfinished.Restore(4, None, 0);
+            Assert.IsFalse(unfinished.HasPicture, "без пікселів — не незавершена");
             unfinished.Restore(4, Some, 2);
             Assert.IsTrue(unfinished.HasPicture);
             Assert.AreEqual(1, unfinished.AttemptsLeft);
@@ -86,23 +89,28 @@ namespace InkFlow.Core.Tests
         [Test]
         public void Run_StartsWithTheCarriedPictureAndItsProgress()
         {
-            var catalog = PictureCatalogData.Default;
-            var whale = catalog.IndexOf("whale");
-            var filled = new List<int> { 16, 0, 0, 0, 0 }; // тіло кита — 22 клітинки, два виплески
+            var library = TestBoard.Library(
+                TestBoard.Picture("a", Rarity.Common, "kbbk", "kbbk"),
+                TestBoard.Picture("b", Rarity.Common, "krrk", "krrk"));
+            var carried = library.IndexOf("b");
+            var filled = new List<int> { library[carried].RevealOrder[0], library[carried].RevealOrder[1] };
             var session = new RunSession(BalanceData.Default, PieceCatalogData.Default, new XorShiftRandom(3u),
-                catalog, new PictureStart(whale, filled, attemptsLeft: 2));
+                library, new PictureStart(carried, filled, attemptsLeft: 2));
 
             Assert.IsTrue(session.StartedWithCarried);
-            Assert.AreEqual(whale, session.Picture.CatalogIndex);
-            Assert.AreEqual(whale, session.CarriedIndex);
+            Assert.AreEqual(carried, session.Picture.LibraryIndex);
+            Assert.AreEqual(carried, session.CarriedIndex);
             Assert.AreEqual(2, session.AttemptsLeft);
-            Assert.AreEqual(16, session.Picture.Filled[0], "§7 п.3: починаєш із того ж прогресу");
-            Assert.IsTrue(session.Picture.IsZoneComplete(0));
-            Assert.AreEqual(1, session.Picture.ActiveZone);
+            Assert.AreEqual(2, session.Picture.FilledCount, "§9 п.3: починаєш із того ж прогресу");
+            Assert.AreEqual(2, session.Picture.Remaining(TestBoard.Red));
+            foreach (var piece in session.Tray)
+                Assert.AreEqual(TestBoard.Red, piece.Color, "лоток — у кольорах перенесеної картинки");
 
             session.Restart();
             Assert.IsFalse(session.StartedWithCarried, "рестарт — новий забіг із нової");
             Assert.AreEqual(-1, session.CarriedIndex);
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new RunSession(BalanceData.Default, PieceCatalogData.Default,
+                new XorShiftRandom(1u), library, new PictureStart(99, filled, 1)), "перенесеної немає в бібліотеці");
         }
     }
 }

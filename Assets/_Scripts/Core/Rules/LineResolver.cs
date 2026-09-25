@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace InkFlow.Core
 {
@@ -28,31 +27,31 @@ namespace InkFlow.Core
         public override string ToString() => $"{Kind}[{Index}]";
     }
 
-    /// <summary>Що дала зірвана лінія: пігмент, кількість одиниць і чи була вона чистою (§3).</summary>
-    public readonly struct PaintYield
+    /// <summary>Що дала зірвана лінія: чи чиста, її головний колір і скільки пікселів на клітинку.</summary>
+    public readonly struct LineYield
     {
-        public PaintYield(Pigment pigment, int amount, bool isPure)
+        public LineYield(bool isPure, byte dominant, int pixelsPerCell)
         {
-            Pigment = pigment;
-            Amount = amount;
             IsPure = isPure;
+            Dominant = dominant;
+            PixelsPerCell = pixelsPerCell;
         }
 
-        public Pigment Pigment { get; }
-        public int Amount { get; }
+        /// <summary>Усі клітинки одного кольору (§5: «чиста одноколірна лінія»).</summary>
         public bool IsPure { get; }
 
-        public override string ToString() => $"{Pigment}+{Amount}{(IsPure ? " pure" : "")}";
+        /// <summary>Колір, якого в лінії найбільше — для напису «+N» і його кольору.</summary>
+        public byte Dominant { get; }
+
+        /// <summary>Скільки пікселів дає кожна клітинка лінії: 1, або PureLineBonus для чистої.</summary>
+        public int PixelsPerCell { get; }
     }
 
     /// <summary>
-    /// Серце ядра: скільки фарби дає зірвана лінія (документ §3, §12).
-    ///
-    /// Мішана лінія віддає лише домінантний пігмент, ⌊домінантних ÷ MixedDivisor⌋.
-    /// Чиста — ⌊довжина ÷ MixedDivisor⌋ × PureLineBonus, тобто рівно «×3 до фарби» з §12
-    /// відносно того, що дала б ця ж лінія, якби була мішаною, але вся одного кольору.
-    /// Розрив навмисно великий: «зібрати рядок одного кольору» має бути рішенням,
-    /// заради якого гравець терпить незручну фігуру, а не приємним бонусом.
+    /// Серце ядра (документ §5): кожна клітинка зірваної лінії кольору X заповнює один
+    /// піксель кольору X у картинці; чиста одноколірна лінія дає ×PureLineBonus пікселів
+    /// на клітинку. Розрив навмисно великий: «зібрати рядок одного кольору» має бути
+    /// рішенням, заради якого гравець терпить незручну фігуру, а не приємним бонусом.
     /// </summary>
     public static class LineResolver
     {
@@ -64,63 +63,48 @@ namespace InkFlow.Core
         public static GridPos CellAt(Line line, int i) =>
             line.Kind == LineKind.Row ? new GridPos(i, line.Index) : new GridPos(line.Index, i);
 
-        /// <summary>
-        /// Рахує вихід фарби ЗА СТАНОМ ДО ОЧИЩЕННЯ. <paramref name="tankLevels"/> (індекс =
-        /// <see cref="Pigments.IndexOf"/>) потрібен лише для тайбрейка при рівності: нічия
-        /// віддає колір, якого в баках МЕНШЕ, — так фарба тече туди, де потрібніша, і
-        /// нічия ніколи не залежить від випадковості. Без рівнів баків нічию розв'язує
-        /// порядок enum.
-        /// </summary>
-        public static PaintYield Resolve(Board board, Line line, BalanceData balance,
-            IReadOnlyList<int>? tankLevels = null)
+        /// <summary>Рахує вихід лінії ЗА СТАНОМ ДО ОЧИЩЕННЯ.</summary>
+        public static LineYield Resolve(Board board, Line line, BalanceData balance)
         {
             if (board is null) throw new ArgumentNullException(nameof(board));
             if (balance is null) throw new ArgumentNullException(nameof(balance));
 
             var length = LengthOf(board, line.Kind);
+            var first = Board.Empty;
+            var pure = true;
+            var dominant = Board.Empty;
+            var best = 0;
 
-            var counts = new int[Pigments.Count];
+            // Домінантний — за кількістю; при рівності — менший індекс палітри, щоб нічия
+            // не залежала від порядку клітинок.
             for (var i = 0; i < length; i++)
             {
-                var pigment = board[CellAt(line, i)];
-                if (pigment != Pigment.None)
-                    counts[Pigments.IndexOf(pigment)]++;
-            }
+                var color = board[CellAt(line, i)];
+                if (color == Board.Empty)
+                    continue;
+                if (first == Board.Empty)
+                    first = color;
+                else if (color != first)
+                    pure = false;
 
-            var dominant = Pigment.None;
-            var best = -1;
-            for (var i = 0; i < Pigments.Count; i++)
-            {
-                var pigment = Pigments.FromIndex(i);
-                var n = counts[i];
-                if (n > best)
+                var n = 0;
+                for (var j = 0; j < length; j++)
+                    if (board[CellAt(line, j)] == color)
+                        n++;
+                if (n > best || (n == best && color < dominant))
                 {
                     best = n;
-                    dominant = pigment;
-                    continue;
+                    dominant = color;
                 }
-
-                if (n != best || tankLevels is null)
-                    continue;
-
-                if (tankLevels[i] < tankLevels[Pigments.IndexOf(dominant)])
-                    dominant = pigment;
             }
 
-            if (best <= 0)
-                return new PaintYield(Pigment.None, 0, false);
+            if (best == 0)
+                return new LineYield(false, Board.Empty, 0);
 
-            if (best == length)
-                return new PaintYield(dominant, PureYield(length, balance), isPure: true);
-
-            return new PaintYield(dominant, best / balance.MixedDivisor, isPure: false);
+            return new LineYield(pure, dominant, pure ? balance.PureLineBonus : 1);
         }
 
-        /// <summary>Скільки дає чиста лінія цієї довжини — стеля виходу фарби за одну лінію.</summary>
-        public static int PureYield(int length, BalanceData balance) =>
-            length / balance.MixedDivisor * balance.PureLineBonus;
-
-        /// <summary>Множник ланцюга застосовується до КОЖНОЇ лінії окремо, округлення вниз (§2).</summary>
+        /// <summary>Множник ланцюга — до очок за лінію, округлення вниз (§2).</summary>
         public static int ApplyCombo(int amount, float multiplier) => (int)Math.Floor(amount * multiplier);
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using InkFlow.Core;
 using NUnit.Framework;
 
@@ -5,25 +6,46 @@ namespace InkFlow.Core.Tests
 {
     public sealed class RunSessionTests
     {
+        /// <summary>Картинка з трьома смугами по 24 пікселі: синя, червона, жовта — щоб лоток мав усі три кольори.</summary>
+        private static PictureLibrary ThreeStripes() => TestBoard.Library(TestBoard.Picture("stripes", Rarity.Common,
+            "kkkkkkkkkk",
+            "kbbbbbbbbk",
+            "kbbbbbbbbk",
+            "kbbbbbbbbk",
+            "krrrrrrrrk",
+            "krrrrrrrrk",
+            "krrrrrrrrk",
+            "kyyyyyyyyk",
+            "kyyyyyyyyk",
+            "kyyyyyyyyk",
+            "kkkkkkkkkk"));
+
+        private static RunSession Stripes(uint seed = 7u) => TestBoard.NewSession(seed, null, ThreeStripes());
+
         [Test]
-        public void NewRun_StartsWithAnEmptyBoardAndAFullTray()
+        public void NewRun_StartsWithAnEmptyBoardAndAFullTrayInPictureColors()
         {
             var session = TestBoard.NewSession();
 
             Assert.AreEqual(64, session.Board.CountEmpty(), "документ §2: поле порожнє на старті");
             Assert.AreEqual(3, session.Tray.Count);
             foreach (var piece in session.Tray)
+            {
                 Assert.IsFalse(piece.IsEmpty);
+                Assert.IsTrue(session.Picture.Picture.UsesColor(piece.Color), "§5: фігури — у кольорах картинки");
+            }
             Assert.AreEqual(1, session.Round);
             Assert.AreEqual(GameState.Playing, session.State);
             Assert.AreEqual(0, session.Score);
+            Assert.AreEqual(0, session.Picture.FilledCount);
+            Assert.AreSame(TestBoard.RealLibrary, session.Library);
         }
 
         [Test]
         public void RejectedPlacement_ChangesNothing()
         {
-            var session = TestBoard.NewSession();
-            TestBoard.SetTray(session, TestBoard.Piece("square", Pigment.Blue));
+            var session = Stripes();
+            TestBoard.SetTray(session, TestBoard.Piece("square", TestBoard.Blue));
             var before = session.Board.StateHash();
 
             var result = session.TryPlace(0, new GridPos(7, 7));
@@ -38,8 +60,8 @@ namespace InkFlow.Core.Tests
         [Test]
         public void EmptySlot_CannotBePlaced()
         {
-            var session = TestBoard.NewSession();
-            TestBoard.SetTray(session, TestBoard.Piece("2h", Pigment.Red));
+            var session = Stripes();
+            TestBoard.SetTray(session, TestBoard.Piece("2h", TestBoard.Red));
             Assert.IsFalse(session.TryPlace(1, new GridPos(0, 0)).Accepted);
             Assert.IsFalse(session.TryPlace(-1, new GridPos(0, 0)).Accepted);
         }
@@ -47,14 +69,14 @@ namespace InkFlow.Core.Tests
         [Test]
         public void AcceptedPlacement_FillsCellsRemovesPieceAndScores()
         {
-            var session = TestBoard.NewSession();
-            TestBoard.SetTray(session, TestBoard.Piece("square", Pigment.Yellow), TestBoard.Piece("2h", Pigment.Red));
+            var session = Stripes();
+            TestBoard.SetTray(session, TestBoard.Piece("square", TestBoard.Yellow), TestBoard.Piece("2h", TestBoard.Red));
 
             var result = session.TryPlace(0, new GridPos(2, 3));
 
             Assert.IsTrue(result.Accepted);
-            Assert.AreEqual(Pigment.Yellow, session.Board[2, 3]);
-            Assert.AreEqual(Pigment.Yellow, session.Board[3, 4]);
+            Assert.AreEqual(TestBoard.Yellow, session.Board[2, 3]);
+            Assert.AreEqual(TestBoard.Yellow, session.Board[3, 4]);
             Assert.IsTrue(session.Tray[0].IsEmpty);
             Assert.IsFalse(session.Tray[1].IsEmpty, "лоток не поповнюється, поки не порожній");
             Assert.AreEqual(1, session.PlacementCount);
@@ -62,313 +84,235 @@ namespace InkFlow.Core.Tests
 
             var placed = result.Events[0];
             Assert.AreEqual(GameEventType.PiecePlaced, placed.Type);
-            Assert.AreEqual(0, placed.Extra);
+            Assert.AreEqual(0, placed.Value);
             Assert.AreEqual(4, placed.CellCount);
-            Assert.AreEqual(Pigment.Yellow, placed.Pigment);
+            Assert.AreEqual(TestBoard.Yellow, placed.Color);
+            Assert.AreEqual(0, result.PixelsFilled, "без лінії — жодного пікселя");
         }
 
         [Test]
-        public void PureRow_IsClearedAndPaysThePureYield()
+        public void PureRow_IsClearedAndFillsThreePixelsPerCell()
         {
-            var session = TestBoard.NewSession();
+            var session = Stripes();
             TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue));
 
             var result = session.TryPlace(0, new GridPos(7, 0));
 
             Assert.IsTrue(result.Accepted);
             Assert.AreEqual(1, result.LinesCleared);
             Assert.AreEqual(1, result.PureLinesCleared);
-            Assert.AreEqual(12, result.PaintYielded);
+            Assert.AreEqual(24, result.PixelsFilled, "§5: 8 клітинок × 3");
+            Assert.AreEqual(24, session.PixelsFilled);
+            Assert.AreEqual(0, result.PixelsWasted);
+            Assert.AreEqual(24, session.Picture.FilledCount);
+            Assert.AreEqual(0, session.Picture.Remaining(TestBoard.Blue), "сині пікселі закінчились");
             for (var x = 0; x < 8; x++)
-                Assert.AreEqual(Pigment.None, session.Board[x, 0], $"клітинка ({x},0) мала очиститись");
-            Assert.AreEqual(Pigment.Blue, session.Board[7, 1], "друга клітинка фігури лишається");
+                Assert.AreEqual(Board.Empty, session.Board[x, 0], $"клітинка ({x},0) мала очиститись");
 
             var cleared = result.Events[1];
             Assert.AreEqual(GameEventType.LineCleared, cleared.Type);
             Assert.AreEqual(LineKind.Row, cleared.Kind);
             Assert.AreEqual(0, cleared.Extra);
             Assert.IsTrue(cleared.IsPure);
-            Assert.AreEqual(12, cleared.Value);
+            Assert.AreEqual(TestBoard.Blue, cleared.Color);
+            Assert.AreEqual(24, cleared.Value, "Value лінії — скільки пікселів вона дала");
             Assert.AreEqual(8, cleared.CellCount);
             Assert.AreEqual(new GridPos(0, 0), result.Cell(cleared, 0));
+
+            Assert.AreEqual(24, result.CountEvents(GameEventType.PixelFilled));
+            var pixel = result.Events[2];
+            Assert.AreEqual(GameEventType.PixelFilled, pixel.Type);
+            Assert.AreEqual(TestBoard.Blue, pixel.Color);
+            Assert.IsTrue(pixel.IsPure);
+            var firstBlue = -1;
+            foreach (var i in session.Picture.Picture.RevealOrder)
+                if (session.Picture.Picture.Pixels[i] == TestBoard.Blue) { firstBlue = i; break; }
+            Assert.AreEqual(firstBlue, pixel.Value, "Value — індекс першого синього пікселя в порядку проявлення");
+            Assert.AreEqual(1, pixel.CellCount);
+            Assert.AreEqual(new GridPos(0, 0), result.Cell(pixel, 0), "клітинка-джерело першої краплі — перша клітинка лінії");
+            Assert.AreEqual(new GridPos(1, 0), result.Cell(result.Events[5], 0), "четверта крапля — з другої клітинки");
 
             var expected = 2 * 10 + 100 * 2;
             Assert.AreEqual(expected, session.Score, "2 клітинки + чиста лінія ×2");
         }
 
         [Test]
-        public void MixedRow_PaysTheDominantPigmentOnly()
+        public void MixedRow_GivesOnePixelPerCellInEachCellsColor()
         {
-            var session = TestBoard.NewSession();
+            var session = Stripes();
             TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Red));
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Red));
 
             var result = session.TryPlace(0, new GridPos(7, 0));
 
             var cleared = result.Events[1];
             Assert.AreEqual(GameEventType.LineCleared, cleared.Type);
             Assert.IsFalse(cleared.IsPure);
-            Assert.AreEqual(Pigment.Blue, cleared.Pigment);
-            Assert.AreEqual(3, cleared.Value);
+            Assert.AreEqual(TestBoard.Blue, cleared.Color, "головний колір — той, кого більше");
+            Assert.AreEqual(8, cleared.Value);
+            Assert.AreEqual(8, result.PixelsFilled);
+            Assert.AreEqual(7, 24 - session.Picture.Remaining(TestBoard.Blue));
+            Assert.AreEqual(1, 24 - session.Picture.Remaining(TestBoard.Red), "червона клітинка дала червоний піксель");
+            Assert.AreEqual(TestBoard.Red, result.Events[9].Color, "восьма крапля — червона, з восьмої клітинки");
+            Assert.IsFalse(result.Events[9].IsPure);
             Assert.AreEqual(2 * 10 + 100, session.Score);
+        }
+
+        [Test]
+        public void Events_LineClearedComesBeforeItsPixelsAndScoreAfterAll()
+        {
+            var session = Stripes();
+            TestBoard.FillRow(session.Board, 0, "bbb.bbbb");
+            for (var y = 2; y < 8; y++)
+                session.Board[3, y] = TestBoard.Blue;
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue));
+
+            var result = session.TryPlace(0, new GridPos(3, 0));
+
+            var types = new List<GameEventType>();
+            foreach (var e in result.Events)
+                types.Add(e.Type);
+            Assert.AreEqual(GameEventType.PiecePlaced, types[0]);
+            Assert.AreEqual(GameEventType.LineCleared, types[1]);
+            var secondLine = types.IndexOf(GameEventType.LineCleared, 2);
+            Assert.Greater(secondLine, 2, "між двома лініями — пікселі першої");
+            for (var i = 2; i < secondLine; i++)
+                Assert.AreEqual(GameEventType.PixelFilled, types[i]);
+            Assert.Less(secondLine, types.IndexOf(GameEventType.ComboApplied));
+            Assert.Less(types.IndexOf(GameEventType.ComboApplied), types.IndexOf(GameEventType.ScoreGained));
         }
 
         [Test]
         public void RowAndColumn_ClearTogetherWithComboAndSharedCellOnce()
         {
-            var session = TestBoard.NewSession();
-            // Рядок 0 без (3,0); стовпець 3 без (3,0) і (3,1).
+            var session = Stripes();
             TestBoard.FillRow(session.Board, 0, "bbb.bbbb");
             for (var y = 2; y < 8; y++)
-                session.Board[3, y] = Pigment.Blue;
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+                session.Board[3, y] = TestBoard.Blue;
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue));
 
             var result = session.TryPlace(0, new GridPos(3, 0));
 
             Assert.AreEqual(2, result.LinesCleared);
             Assert.AreEqual(2, session.BestChain);
-            var combo = result.Events[3];
-            Assert.AreEqual(GameEventType.ComboApplied, combo.Type);
-            Assert.AreEqual(2, combo.Extra);
+            var combo = TestBoard.Find(result, GameEventType.ComboApplied);
+            Assert.AreEqual(2, combo.Value);
             Assert.AreEqual(1.5f, combo.Multiplier, 1e-4);
 
             for (var x = 0; x < 8; x++)
-                Assert.AreEqual(Pigment.None, session.Board[x, 0]);
+                Assert.AreEqual(Board.Empty, session.Board[x, 0]);
             for (var y = 0; y < 8; y++)
-                Assert.AreEqual(Pigment.None, session.Board[3, y]);
+                Assert.AreEqual(Board.Empty, session.Board[3, y]);
             Assert.AreEqual(64, session.Board.CountEmpty(), "перетин очищено один раз, поле знову порожнє");
 
-            // Дві чисті лінії по 12, кожна ×1.5 → 18 + 18.
-            Assert.AreEqual(36, result.PaintYielded);
+            // Дві чисті лінії по 8 × 3 = 48 пікселів, але синіх лише 24: решта згорає.
+            Assert.AreEqual(24, result.PixelsFilled);
+            Assert.AreEqual(24, result.PixelsWasted, "§5: лишок понад потребу згорає");
+            Assert.AreEqual(24, session.PixelsWasted);
+            Assert.AreEqual(2 * 10 + (int)(200 * 1.5f) * 2, session.Score, "множник ланцюга — до очок");
         }
 
         [Test]
-        public void PureRow_PoursItsPaintIntoTheMatchingTankAndFiresTheMixer()
+        public void WastedPixels_BurnWhenTheColorIsNotNeeded()
         {
-            var session = TestBoard.NewSession();
+            var session = TestBoard.NewSession(7u, null, TestBoard.Library(TestBoard.Picture("one", Rarity.Common, "kbk", "kbk")));
             TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue));
 
             var result = session.TryPlace(0, new GridPos(7, 0));
 
-            var poured = FindEvent(result, GameEventType.PaintPoured);
-            Assert.AreEqual(Pigment.Blue, poured.Pigment, "чиста синя лінія → синій бак");
-            Assert.AreEqual(12, poured.Value);
-            Assert.AreEqual(12, poured.Extra, "Extra — рівень бака після наливання");
-
-            // 12 ≥ 8 → змішувач спрацював один раз, забрав 8 синього; лишилось 4.
-            Assert.AreEqual(1, result.Splashes);
-            Assert.AreEqual(1, session.Splashes);
-            Assert.AreEqual(Hue.Blue, result.LastSplashHue);
-            Assert.AreEqual(4, session.Tanks[Pigment.Blue]);
-            Assert.AreEqual(0, session.Tanks[Pigment.Red]);
-            var drained = FindEvent(result, GameEventType.TankDrained);
-            Assert.AreEqual(Pigment.Blue, drained.Pigment);
-            Assert.AreEqual(8, drained.Value);
-            Assert.AreEqual(4, drained.Extra, "Extra — рівень бака після зливу");
-            var fired = FindEvent(result, GameEventType.MixerFired);
-            Assert.AreEqual(8, fired.Value);
-            Assert.AreEqual((int)Hue.Blue, fired.Extra);
-            Assert.AreEqual(1, session.SplashesByHue[(int)Hue.Blue]);
+            Assert.AreEqual(2, result.PixelsFilled);
+            Assert.AreEqual(22, result.PixelsWasted);
+            Assert.AreEqual(1, result.PicturesCompleted);
         }
 
         [Test]
-        public void Events_PourBeforeDrainBeforeSplash()
+        public void CompletedPicture_IsReplacedAndTheBoardIsRecoloredToTheNextOne()
         {
-            var session = TestBoard.NewSession();
-            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
-
-            var result = session.TryPlace(0, new GridPos(7, 0));
-
-            var cleared = IndexOf(result, GameEventType.LineCleared);
-            var poured = IndexOf(result, GameEventType.PaintPoured);
-            var drained = IndexOf(result, GameEventType.TankDrained);
-            var fired = IndexOf(result, GameEventType.MixerFired);
-            Assert.Less(cleared, poured, "спершу лінія зривається, потім фарба ллється");
-            Assert.Less(poured, drained, "потім три струмені в змішувач");
-            Assert.Less(drained, fired, "і аж тоді виплеск");
-        }
-
-        [Test]
-        public void BigYield_FiresTheMixerSeveralTimes()
-        {
-            var session = TestBoard.NewSession();
-            session.Tanks.Pour(Pigment.Yellow, 6);
-            TestBoard.FillRow(session.Board, 0, "yyyyyyy.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Yellow));
-
-            var result = session.TryPlace(0, new GridPos(7, 0));
-
-            // 6 + 12 = 18 → два виплески по 8, лишилось 2.
-            Assert.AreEqual(2, result.Splashes);
-            Assert.AreEqual(2, result.CountEvents(GameEventType.MixerFired));
-            Assert.AreEqual(2, session.Tanks.Total);
-        }
-
-        [Test]
-        public void MixedTanks_GiveASecondaryHue()
-        {
-            var session = TestBoard.NewSession();
-            session.Tanks.Pour(Pigment.Blue, 4);
-            session.Tanks.Pour(Pigment.Yellow, 3);
-            TestBoard.FillRow(session.Board, 0, "bbbbrrr.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Red));
-
-            var result = session.TryPlace(0, new GridPos(7, 0));
-
-            // Мішана 4:4 → нічия → червоний (його в баках менше) → +2. Разом 4 / 2 / 3 = 9 ≥ 8:
-            // синій 44 % не домінує, червоний 22 % — нижче порогу помітності → синій + жовтий.
-            Assert.AreEqual(1, result.Splashes);
-            Assert.AreEqual(Hue.Green, result.LastSplashHue, "синій + жовтий = зелений, червоного замало");
-        }
-
-        [Test]
-        public void TieInAMixedLine_GoesToTheEmptierTank()
-        {
-            var session = TestBoard.NewSession();
-            session.Tanks.Pour(Pigment.Blue, 3);
-            TestBoard.FillRow(session.Board, 0, "bbbbrrr.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Red));
-
-            var result = session.TryPlace(0, new GridPos(7, 0));
-
-            var cleared = FindEvent(result, GameEventType.LineCleared);
-            Assert.AreEqual(Pigment.Red, cleared.Pigment, "4:4 — червоного в баках менше");
-            Assert.AreEqual(2, session.Tanks[Pigment.Red]);
-            Assert.AreEqual(3, session.Tanks[Pigment.Blue]);
-            Assert.AreEqual(0, result.Splashes, "5 < 8 — змішувач мовчить");
-        }
-
-        [Test]
-        public void Restart_EmptiesTanksAndSplashes()
-        {
-            var session = TestBoard.NewSession();
-            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
-            session.TryPlace(0, new GridPos(7, 0));
-            Assert.AreEqual(1, session.Splashes);
-
-            session.Restart();
-
-            Assert.IsTrue(session.Tanks.IsEmpty);
-            Assert.AreEqual(0, session.Splashes);
-            Assert.AreEqual(Hue.None, session.LastSplashHue);
-            Assert.AreEqual(0, session.SplashesByHue[(int)Hue.Blue]);
-        }
-
-        [Test]
-        public void Splash_LandsOnThePictureZoneOfItsHue()
-        {
-            var one = PictureCatalogData.Picture("one", "ОДНА", Rarity.Common,
-                new[] { "AAAAAAAA", "AAAAAAAA", "BBBB...." },
-                PictureCatalogData.Zone('A', Hue.Blue, "небо"),
-                PictureCatalogData.Zone('B', Hue.Red, "земля"));
-            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
-                new XorShiftRandom(7u), new PictureCatalogData(new[] { one }));
-            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
-
-            var result = session.TryPlace(0, new GridPos(7, 0));
-
-            // Виплеск 8 синього → зона «небо» (16 клітинок, стеля 8) залита повністю.
-            var filled = FindEvent(result, GameEventType.ZoneFilled);
-            Assert.AreEqual(0, filled.Value);
-            Assert.AreEqual(8, filled.CellCount, "скільки лягло");
-            Assert.AreEqual(8, filled.Extra, "рівень зони після");
-            Assert.IsTrue(filled.IsPure, "зону закінчено");
-            Assert.IsTrue(session.Picture.IsZoneComplete(0));
-            Assert.AreEqual(1, session.Picture.ActiveZone);
-            Assert.AreEqual(Hue.Red, session.Picture.WantedHue);
-            Assert.AreEqual(0, result.PaintMissed);
-            Assert.IsFalse(result.Has(GameEventType.PictureCompleted));
-        }
-
-        [Test]
-        public void Splash_OfAnUnneededHueIsMissed()
-        {
-            var one = PictureCatalogData.Picture("one", "ОДНА", Rarity.Common,
-                new[] { "AAAA" }, PictureCatalogData.Zone('A', Hue.Red, "усе"));
-            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
-                new XorShiftRandom(7u), new PictureCatalogData(new[] { one }));
-            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
-
-            var result = session.TryPlace(0, new GridPos(7, 0));
-
-            var missed = FindEvent(result, GameEventType.SplashMissed);
-            Assert.AreEqual(8, missed.Value);
-            Assert.AreEqual((int)Hue.Blue, missed.Extra);
-            Assert.AreEqual(8, session.PaintMissed);
-            Assert.AreEqual(0, session.Picture.TotalFilled);
-        }
-
-        [Test]
-        public void CompletedPicture_IsReplacedByAnotherOneImmediately()
-        {
-            var small = PictureCatalogData.Picture("small", "МАЛА", Rarity.Common,
-                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Blue, "усе"));
-            var other = PictureCatalogData.Picture("other", "ІНША", Rarity.Common,
-                new[] { "BB" }, PictureCatalogData.Zone('B', Hue.Red, "усе"));
-            var catalog = new PictureCatalogData(new[] { small, other });
-            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
-                new XorShiftRandom(3u), catalog);
-            var wanted = session.Picture.CatalogIndex == 0 ? Pigment.Blue : Pigment.Red;
-            var row = wanted == Pigment.Blue ? "bbbbbbb." : "rrrrrrr.";
-            TestBoard.FillRow(session.Board, 0, row);
-            TestBoard.SetTray(session, TestBoard.Piece("2v", wanted));
-            var before = session.Picture.CatalogIndex;
+            var library = TestBoard.Library(
+                TestBoard.Picture("blue", Rarity.Common, "kbbk"),
+                TestBoard.Picture("red", Rarity.Common, "krrk"));
+            var session = TestBoard.NewSession(3u, null, library);
+            var before = session.Picture.LibraryIndex;
+            var wanted = before == 0 ? TestBoard.Blue : TestBoard.Red;
+            var other = before == 0 ? TestBoard.Red : TestBoard.Blue;
+            TestBoard.FillRow(session.Board, 0, before == 0 ? "bbbbbbb." : "rrrrrrr.");
+            session.Board[0, 5] = wanted;
+            TestBoard.SetTray(session, TestBoard.Piece("2v", wanted), TestBoard.Piece("2h", wanted));
 
             var result = session.TryPlace(0, new GridPos(7, 0));
 
             Assert.AreEqual(1, result.PicturesCompleted);
             Assert.AreEqual(1, session.PicturesCompleted);
-            Assert.AreEqual(before, FindEvent(result, GameEventType.PictureCompleted).Value);
-            var started = FindEvent(result, GameEventType.PictureStarted);
-            Assert.AreNotEqual(before, started.Value, "та сама не приходить двічі поспіль");
-            Assert.AreEqual(started.Value, session.Picture.CatalogIndex);
-            Assert.AreEqual(0, session.Picture.TotalFilled, "нова картинка чиста");
-            Assert.AreEqual(0, result.PaintMissed, "стеля зони — рівно виплеск, нічого не пропало");
-            Assert.Less(IndexOf(result, GameEventType.ZoneFilled), IndexOf(result, GameEventType.PictureCompleted));
-            Assert.Less(IndexOf(result, GameEventType.PictureCompleted), IndexOf(result, GameEventType.PictureStarted));
+            Assert.AreEqual(before, TestBoard.Find(result, GameEventType.PictureCompleted).Value);
+            var started = TestBoard.Find(result, GameEventType.PictureStarted);
+            Assert.AreEqual(1 - before, started.Value, "та сама не приходить двічі поспіль");
+            Assert.AreEqual(started.Value, session.Picture.LibraryIndex);
+            Assert.AreEqual(0, session.Picture.FilledCount, "нова картинка чиста");
+            Assert.AreEqual(before, session.PicturesCollected[0]);
+
+            // §5: усе на полі й у лотку — у кольори нової картинки.
+            Assert.AreEqual(other, session.Board[7, 1]);
+            Assert.AreEqual(other, session.Board[0, 5]);
+            var recolored = TestBoard.Find(result, GameEventType.BoardRecolored);
+            Assert.AreEqual(wanted, recolored.Value);
+            Assert.AreEqual(other, recolored.Extra);
+            Assert.AreEqual(2, recolored.CellCount);
+            var tray = TestBoard.Find(result, GameEventType.TrayRecolored);
+            Assert.AreEqual(1, tray.Value);
+            Assert.AreEqual(other, tray.Extra);
+            Assert.AreEqual(other, session.Tray[1].Color);
+
+            Assert.Less(TestBoard.IndexOf(result, GameEventType.PixelFilled), TestBoard.IndexOf(result, GameEventType.PictureCompleted));
+            Assert.Less(TestBoard.IndexOf(result, GameEventType.PictureCompleted), TestBoard.IndexOf(result, GameEventType.PictureStarted));
+            Assert.Less(TestBoard.IndexOf(result, GameEventType.PictureStarted), TestBoard.IndexOf(result, GameEventType.BoardRecolored));
         }
 
         [Test]
-        public void Restart_DrawsAFreshPicture()
+        public void ExhaustedColor_IsRecoloredToTheMostNeededOne()
         {
-            var session = TestBoard.NewSession();
+            var session = Stripes();
             TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
-            TestBoard.SetTray(session, TestBoard.Piece("2v", Pigment.Blue));
-            session.TryPlace(0, new GridPos(7, 0));
+            session.Board[0, 5] = TestBoard.Blue;
+            session.Board[1, 5] = TestBoard.Blue;
+            session.Board[2, 5] = TestBoard.Yellow;
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Yellow));
 
-            session.Restart();
+            var result = session.TryPlace(0, new GridPos(7, 0));
 
-            Assert.AreEqual(0, session.Picture.TotalFilled);
-            Assert.AreEqual(0, session.PicturesCompleted);
-            Assert.AreEqual(0, session.PaintMissed);
+            Assert.AreEqual(0, session.Picture.Remaining(TestBoard.Blue));
+            Assert.IsFalse(result.Has(GameEventType.PictureCompleted));
+            var recolored = TestBoard.Find(result, GameEventType.BoardRecolored);
+            Assert.AreEqual(TestBoard.Blue, recolored.Value);
+            Assert.AreEqual(TestBoard.Red, recolored.Extra, "червоного й жовтого порівну — нижчий індекс палітри");
+            Assert.AreEqual(3, recolored.CellCount, "(0,5), (1,5) і хвіст фігури (7,1)");
+            Assert.AreEqual(TestBoard.Red, session.Board[7, 1]);
+            Assert.AreEqual(TestBoard.Yellow, session.Board[2, 5], "жовтий ще потрібен — лишається");
+            var tray = TestBoard.Find(result, GameEventType.TrayRecolored);
+            Assert.AreEqual(1, tray.Value);
+            Assert.AreEqual(TestBoard.Red, session.Tray[1].Color);
+            Assert.AreEqual(TestBoard.Yellow, session.Tray[2].Color);
+            Assert.AreEqual(0, session.Board.CountOf(TestBoard.Blue));
         }
 
         [Test]
-        public void WantedPigment_FollowsTheActiveZoneAndTheTanks()
+        public void TrayColors_AlwaysComeFromTheRemainingPixels()
         {
-            var green = PictureCatalogData.Picture("g", "З", Rarity.Common,
-                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Green, "листя"));
-            var session = new RunSession(BalanceData.Default, PieceCatalogData.Default,
-                new XorShiftRandom(7u), new PictureCatalogData(new[] { green }));
-
-            session.WantedPigments(out var first, out var second);
-            Assert.AreEqual(Pigment.Blue, first, "порівну — перший за порядком");
-            Assert.AreEqual(Pigment.Yellow, second);
-
-            session.Tanks.Pour(Pigment.Blue, 5);
-            Assert.AreEqual(Pigment.Yellow, session.WantedPigment, "синього вже досить — тягнемо жовтий");
-
-            var red = PictureCatalogData.Picture("r", "Ч", Rarity.Common,
-                new[] { "AA" }, PictureCatalogData.Zone('A', Hue.Red, "усе"));
-            var pure = new RunSession(BalanceData.Default, PieceCatalogData.Default,
-                new XorShiftRandom(7u), new PictureCatalogData(new[] { red }));
-            Assert.AreEqual(Pigment.Red, pure.WantedPigment);
+            var session = Stripes(5u);
+            var bot = new RunBot();
+            var guard = 0;
+            while (!session.IsOver && guard++ < 400 && bot.TryChooseMove(session, out var index, out var anchor))
+            {
+                session.TryPlace(index, anchor);
+                foreach (var piece in session.Tray)
+                    if (!piece.IsEmpty)
+                        Assert.Greater(session.Picture.Remaining(piece.Color), 0,
+                            $"хід {guard}: у лотку колір {MasterPalette.NameOf(piece.Color)}, якого картинці вже не треба");
+                foreach (var color in new[] { TestBoard.Blue, TestBoard.Red, TestBoard.Yellow })
+                    if (session.Picture.Remaining(color) == 0)
+                        Assert.AreEqual(0, session.Board.CountOf(color), $"хід {guard}: вичерпаний колір лишився на полі");
+            }
         }
 
         [Test]
@@ -377,8 +321,7 @@ namespace InkFlow.Core.Tests
             var session = LostSession(out var scoreAtLoss);
             Assert.IsTrue(session.IsOver);
             Assert.IsTrue(session.CanContinue);
-            var tanksAtLoss = session.Tanks.Total;
-            var pictureAtLoss = session.Picture.TotalFilled;
+            var pictureAtLoss = session.Picture.FilledCount;
 
             var result = session.ContinueAfterLoss();
 
@@ -388,47 +331,63 @@ namespace InkFlow.Core.Tests
             Assert.IsFalse(session.IsOver);
             Assert.AreEqual(64, session.Board.CountEmpty(), "поле чисте");
             Assert.AreEqual(scoreAtLoss, session.Score, "рахунок лишається");
-            Assert.AreEqual(tanksAtLoss, session.Tanks.Total, "баки лишаються");
-            Assert.AreEqual(pictureAtLoss, session.Picture.TotalFilled, "картинка лишається");
+            Assert.AreEqual(pictureAtLoss, session.Picture.FilledCount, "картинка лишається");
             Assert.AreEqual(1, session.ContinuesUsed);
-            Assert.IsFalse(session.CanContinue, "§9: раз за забіг");
+            Assert.IsFalse(session.CanContinue, "§10: раз за забіг");
+            Assert.IsFalse(session.ContinueAfterLoss().Accepted);
 
             session.Restart();
             Assert.AreEqual(0, session.ContinuesUsed);
         }
 
         [Test]
-        public void CompletePictureNow_FillsEveryZoneAndMovesOn()
+        public void CompletePictureNow_FillsEverythingAndMovesOn()
         {
             var session = TestBoard.NewSession();
-            var before = session.Picture.CatalogIndex;
-            var zones = session.Picture.ZoneCount;
+            var before = session.Picture.LibraryIndex;
+            var total = session.Picture.Total;
 
             var result = session.CompletePictureNow();
 
             Assert.IsTrue(result.Accepted);
-            Assert.AreEqual(zones, result.CountEvents(GameEventType.ZoneFilled));
-            Assert.AreEqual(zones, result.ZonesCompleted);
+            Assert.AreEqual(total, result.CountEvents(GameEventType.PixelFilled));
+            Assert.AreEqual(total, result.PixelsFilled);
             Assert.AreEqual(1, result.PicturesCompleted);
-            Assert.AreEqual(before, FindEvent(result, GameEventType.PictureCompleted).Value);
-            Assert.AreNotEqual(before, session.Picture.CatalogIndex, "прийшла наступна");
+            Assert.AreEqual(before, TestBoard.Find(result, GameEventType.PictureCompleted).Value);
+            Assert.AreNotEqual(before, session.Picture.LibraryIndex, "прийшла наступна");
             Assert.AreEqual(1, session.PicturesCompleted);
             Assert.AreEqual(before, session.PicturesCollected[0]);
             Assert.AreEqual(0, session.PlacementCount, "донат не чіпає поле й рахунок");
             Assert.AreEqual(0, session.Score);
+            Assert.IsFalse(session.CompletePictureNow().Accepted == false && session.Picture.IsComplete, "нова картинка не повна");
         }
 
-        /// <summary>Сесія, доведена до програшу одним ходом: поле в шаховому порядку з двома дірками, у руці — те, що влазить лише в одну.</summary>
+        [Test]
+        public void Restart_DrawsAFreshPicture()
+        {
+            var session = Stripes();
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue));
+            session.TryPlace(0, new GridPos(7, 0));
+            Assert.Greater(session.PixelsFilled, 0);
+
+            session.Restart();
+
+            Assert.AreEqual(0, session.Picture.FilledCount);
+            Assert.AreEqual(0, session.PicturesCompleted);
+            Assert.AreEqual(0, session.PixelsFilled);
+            Assert.AreEqual(0, session.PixelsWasted);
+            Assert.AreEqual(0, session.PicturesCollected.Count);
+        }
+
+        /// <summary>Сесія, доведена до програшу: шахове поле з двома дірками й лоток, який швидко застрягає.</summary>
         private static RunSession LostSession(out int score)
         {
-            var session = TestBoard.NewSession();
+            var session = Stripes();
             for (var y = 0; y < 7; y++)
                 TestBoard.FillRow(session.Board, y, "brbrbrbr");
             TestBoard.FillRow(session.Board, 7, "brbrbr..");
-            session.Tanks.Pour(Pigment.Blue, 3);
-            // Перший хід закриває дірки й зриває лінії; далі граємо «куди влазить», доки не
-            // прийде програш — лоток із великих фігур на майже повному полі гарантує його швидко.
-            TestBoard.SetTray(session, TestBoard.Piece("2h", Pigment.Yellow), TestBoard.Piece("5h", Pigment.Red), TestBoard.Piece("plus", Pigment.Blue));
+            TestBoard.SetTray(session, TestBoard.Piece("2h", TestBoard.Yellow), TestBoard.Piece("5h", TestBoard.Red), TestBoard.Piece("plus", TestBoard.Blue));
             var result = session.TryPlace(0, new GridPos(6, 7));
             Assert.IsTrue(result.Accepted);
             var guard = 0;
@@ -443,30 +402,12 @@ namespace InkFlow.Core.Tests
             return session;
         }
 
-        private static int IndexOf(MoveResult result, GameEventType type)
-        {
-            for (var i = 0; i < result.Events.Count; i++)
-                if (result.Events[i].Type == type)
-                    return i;
-            Assert.Fail($"події {type} немає");
-            return -1;
-        }
-
-        private static GameEvent FindEvent(MoveResult result, GameEventType type)
-        {
-            for (var i = 0; i < result.Events.Count; i++)
-                if (result.Events[i].Type == type)
-                    return result.Events[i];
-            Assert.Fail($"події {type} немає");
-            return default;
-        }
-
         [Test]
         public void Tray_RefillsOnlyWhenAllThreeArePlaced()
         {
-            var session = TestBoard.NewSession();
+            var session = Stripes();
             TestBoard.SetTray(session,
-                TestBoard.Piece("2h", Pigment.Blue), TestBoard.Piece("2h", Pigment.Red), TestBoard.Piece("2h", Pigment.Yellow));
+                TestBoard.Piece("2h", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Red), TestBoard.Piece("2h", TestBoard.Yellow));
 
             Assert.IsFalse(session.TryPlace(0, new GridPos(0, 7)).Has(GameEventType.TrayRefilled));
             Assert.IsFalse(session.TryPlace(1, new GridPos(0, 5)).Has(GameEventType.TrayRefilled));
@@ -481,7 +422,7 @@ namespace InkFlow.Core.Tests
         [Test]
         public void Run_IsLostWhenNoPieceFitsAfterAMove()
         {
-            var session = TestBoard.NewSession();
+            var session = Stripes();
             // Діагональ порожня + пара сусідніх дірок у верхньому ряду. Жодна лінія
             // не зривається (у кожному рядку й стовпці лишається дірка), а після
             // ходу лишаються лише несуміжні дірки.
@@ -495,7 +436,7 @@ namespace InkFlow.Core.Tests
                 "bbbbbb.b",
                 ".bbbbbb.");
             TestBoard.SetTray(session,
-                TestBoard.Piece("2h", Pigment.Blue), TestBoard.Piece("2h", Pigment.Red), TestBoard.Piece("2v", Pigment.Yellow));
+                TestBoard.Piece("2h", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Red), TestBoard.Piece("2v", TestBoard.Yellow));
 
             var result = session.TryPlace(0, new GridPos(0, 7));
 
@@ -509,8 +450,8 @@ namespace InkFlow.Core.Tests
         [Test]
         public void Restart_ResetsEverythingInPlace()
         {
-            var session = TestBoard.NewSession();
-            TestBoard.SetTray(session, TestBoard.Piece("square", Pigment.Blue));
+            var session = Stripes();
+            TestBoard.SetTray(session, TestBoard.Piece("square", TestBoard.Blue));
             session.TryPlace(0, new GridPos(0, 0));
             Assert.Greater(session.Score, 0);
 
@@ -526,28 +467,27 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
-        public void Replay_ReproducesTheRunByteForByte()
+        public void SameSeed_ReproducesTheRunByteForByte()
         {
             const uint seed = 4242u;
             var original = TestBoard.NewSession(seed);
-            var replay = new RunReplay(seed);
+            var copy = TestBoard.NewSession(seed);
             var bot = new RunBot();
+            var moves = 0;
 
             while (!original.IsOver && bot.TryChooseMove(original, out var index, out var anchor))
             {
-                replay.Record(index, anchor);
                 original.TryPlace(index, anchor);
+                copy.TryPlace(index, anchor);
+                moves++;
             }
 
-            Assert.Greater(replay.Steps.Count, 5);
-
-            var copy = TestBoard.NewSession(seed);
-            replay.Replay(copy);
-
+            Assert.Greater(moves, 5);
             Assert.AreEqual(original.Board.StateHash(), copy.Board.StateHash());
             Assert.AreEqual(original.Score, copy.Score);
             Assert.AreEqual(original.State, copy.State);
-            Assert.AreEqual(original.Round, copy.Round);
+            Assert.AreEqual(original.Picture.LibraryIndex, copy.Picture.LibraryIndex);
+            Assert.AreEqual(original.Picture.FilledCount, copy.Picture.FilledCount);
         }
 
         [Test]
@@ -559,22 +499,9 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
-        public void HaloWarning_TurnsOnWhenTheBoardIsNearlyFull()
+        public void AnyPieceStuck_SeesAPieceWithoutRoom()
         {
-            var session = TestBoard.NewSession();
-            Assert.IsFalse(session.HaloWarning);
-            for (var y = 0; y < 8; y++)
-                for (var x = 0; x < 8; x++)
-                    if ((x + y) % 7 != 0)
-                        session.Board[x, y] = Pigment.Red;
-            Assert.IsTrue(session.HaloWarning);
-        }
-
-        [Test]
-        public void HaloWarning_TurnsOnWhenAPieceInHandIsStuck()
-        {
-            var session = TestBoard.NewSession();
-            // Багато вільного місця, але воно діряве: квадрат 2×2 нікуди не влазить.
+            var session = Stripes();
             TestBoard.Load(session.Board,
                 "b.b.b.b.",
                 ".b.b.b.b",
@@ -584,11 +511,29 @@ namespace InkFlow.Core.Tests
                 ".b.b.b.b",
                 "b.b.b.b.",
                 ".b.b.b.b");
-            TestBoard.SetTray(session, TestBoard.Piece("square", Pigment.Yellow), TestBoard.Piece("2h", Pigment.Blue));
+            TestBoard.SetTray(session, TestBoard.Piece("square", TestBoard.Yellow), TestBoard.Piece("2h", TestBoard.Blue));
 
             Assert.AreEqual(32, session.Board.CountEmpty(), "місця вдосталь — тиск не через кількість");
             Assert.IsTrue(session.AnyPieceStuck());
-            Assert.IsTrue(session.HaloWarning);
+            Assert.IsTrue(session.NoPieceFits(), "на шахівниці не влазить і двійка — це вже програш");
+            session.Board[1, 0] = Board.Empty;
+            Assert.IsFalse(session.NoPieceFits(), "з'явилась пара сусідніх дірок — двійка влазить");
+            Assert.IsTrue(session.AnyPieceStuck(), "а квадрат — досі ні");
+        }
+
+        [Test]
+        public void IsCollected_SteersTheDeckTowardUnseenPictures()
+        {
+            var library = TestBoard.Library(
+                TestBoard.Picture("a", Rarity.Common, "kbk"),
+                TestBoard.Picture("b", Rarity.Common, "krk"),
+                TestBoard.Picture("c", Rarity.Common, "kyk"));
+            for (uint seed = 1; seed < 30; seed++)
+            {
+                var session = new RunSession(BalanceData.Default, PieceCatalogData.Default, new XorShiftRandom(seed), library, null,
+                    id => id != "c");
+                Assert.AreEqual("c", session.Picture.Picture.Id, "§7: спершу те, чого немає в колекції");
+            }
         }
     }
 }

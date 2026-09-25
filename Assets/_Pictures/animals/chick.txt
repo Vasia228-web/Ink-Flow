@@ -1,0 +1,17 @@
+id: chick
+name: КУРЧА
+theme: animals
+rarity: common
+colors: K=1 O=9 L=11
+outline: K
+grid:
+..KKKKKK..
+.KKLLLLKK.
+KKLLLLLLKK
+KLLKLLKLLK
+KLLLOOLLLK
+KLLLLLLLLK
+KKLLLLLLKK
+.KKLLLLKK.
+..KOKKOK..
+..KKKKKK..

@@ -1,0 +1,16 @@
+id: bat
+name: КАЖАНЧИК
+theme: animals
+rarity: uncommon
+colors: n=3 W=4 P=18 I=20
+outline: n
+grid:
+nnn..nnnn..nnn
+nInn.nPPn.nnIn
+nPPnnnPPnnnPPn
+nPPPnPPPPnPPPn
+nPPPPWnWnPPPPn
+nPPPPPPPPPPPPn
+nnPPnPWWPnPPnn
+.nnnnPPPPnnnn.
+....nnnnnn....

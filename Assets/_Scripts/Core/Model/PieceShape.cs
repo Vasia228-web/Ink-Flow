@@ -62,31 +62,34 @@ namespace InkFlow.Core
         public override string ToString() => $"{Id}({Size})";
     }
 
-    /// <summary>Фігура в лотку: форма плюс пігмент. Усі клітинки одного кольору (§2).</summary>
+    /// <summary>Фігура в лотку: форма плюс колір (індекс майстер-палітри). Усі клітинки одного кольору (§2).</summary>
     public readonly struct PieceDef : IEquatable<PieceDef>
     {
-        public PieceDef(PieceShape shape, Pigment pigment)
+        public PieceDef(PieceShape shape, byte color)
         {
             Shape = shape;
-            Pigment = pigment;
+            Color = color;
         }
 
         public PieceShape? Shape { get; }
-        public Pigment Pigment { get; }
+        public byte Color { get; }
 
         /// <summary>Порожня комірка лотка: фігуру вже поставили, лоток ще не поповнено.</summary>
         public bool IsEmpty => Shape is null;
 
         public int Size => Shape?.Size ?? 0;
 
+        /// <summary>Та сама форма іншим кольором — перефарбування на нову картинку (§5).</summary>
+        public PieceDef WithColor(byte color) => Shape is null ? None : new PieceDef(Shape, color);
+
         public static readonly PieceDef None = default;
 
         public bool Equals(PieceDef other) =>
-            ReferenceEquals(Shape, other.Shape) && Pigment == other.Pigment;
+            ReferenceEquals(Shape, other.Shape) && Color == other.Color;
 
         public override bool Equals(object? obj) => obj is PieceDef other && Equals(other);
-        public override int GetHashCode() => ((Shape?.Id.GetHashCode() ?? 0) * 397) ^ (int)Pigment;
+        public override int GetHashCode() => ((Shape?.Id.GetHashCode() ?? 0) * 397) ^ Color;
 
-        public override string ToString() => IsEmpty ? "—" : $"{Pigment} {Shape!.Id}";
+        public override string ToString() => IsEmpty ? "—" : $"{MasterPalette.NameOf(Color)} {Shape!.Id}";
     }
 }

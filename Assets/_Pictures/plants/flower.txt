@@ -1,0 +1,20 @@
+id: flower
+name: КВІТКА
+theme: plants
+rarity: common
+colors: K=1 R=8 A=10 E=13
+outline: K
+grid:
+.KKKKKKKK.
+KKRRKKRRKK
+KRRRRRRRRK
+KRRRAARRRK
+KRRRAARRRK
+KRRRRRRRRK
+KKRRKKRRKK
+KKKKEEKKK.
+KEEKEEKKKK
+KKEEEEKEEK
+.KKKEEEEKK
+...KEEKKK.
+...KKKK...

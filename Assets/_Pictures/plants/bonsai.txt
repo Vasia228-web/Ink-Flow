@@ -1,0 +1,20 @@
+id: bonsai
+name: БОНСАЙ
+theme: plants
+rarity: rare
+colors: k=2 E=13 D=22 N=23
+outline: k
+grid:
+.kkkkkk..kkkkk.
+kkEEEEkkkkEEEkk
+kEEEEEEEkEEEEEk
+kEEEEEEEEEEEEkk
+kkkEEEEEEEEEkk.
+..kkkkkNNkkkk..
+.....kNNkk.....
+.kkkkkNNkkkkk..
+kkDDDDDDDDDDkk.
+kDDDDDDDDDDDDk.
+kDDDDDDDDDDDDk.
+kkDDDDDDDDDDkk.
+.kkkkkkkkkkkk..

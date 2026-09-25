@@ -1,0 +1,20 @@
+id: ghost_crown
+name: ПРИВИД-КОРОЛЬ
+theme: ghosts
+rarity: rare
+colors: K=1 W=4 R=8 A=10 U=27
+outline: K
+grid:
+.KKKKKKKK.
+.KAKAKKAK.
+.KARAARAK.
+.KKWWWWKK.
+KKWWWWWWKK
+KWWWWWWWWK
+KWWKWWKWWK
+KWUWWWWUWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWKWWKWWK
+KKKKKKKKKK

@@ -1,0 +1,25 @@
+id: gem_cosmic
+name: СЕРЦЕ ГАЛАКТИКИ
+theme: things
+rarity: cosmic
+colors: n=3 W=4 R=8 A=10 Y=15 P=18 F=19
+outline: n
+grid:
+......nnnnnnnn......
+....nnnPPPPPPnnn....
+...nnPPFFFFFFPPnn...
+..nnPFFYYYYYYFFPnn..
+.nnPFYYWWWWWWYYFPnn.
+.nPFYWWAAAAAAWWYFPn.
+nnPFYWAARRRRAAWYFPnn
+nPFYWAARRnnRRAAWYFPn
+nPFYWAARnnnnRAAWYFPn
+nPFYWAARnnnnRAAWYFPn
+nPFYWAARRnnRRAAWYFPn
+nnPFYWAARRRRAAWYFPnn
+.nPFYWWAAAAAAWWYFPn.
+.nnPFYYWWWWWWYYFPnn.
+..nnPFFYYYYYYFFPnn..
+...nnPPFFFFFFPPnn...
+....nnnPPPPPPnnn....
+......nnnnnnnn......

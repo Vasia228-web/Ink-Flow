@@ -8,66 +8,32 @@ namespace InkFlow.Sim
     public readonly struct RunStats
     {
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
-            int paintYielded, int pressureAt, int rescues, bool lostAtRefill, bool unfair, int emptyAtDeath,
-            int splashes = 0, int baseSplashes = 0, int secondarySplashes = 0, int brownSplashes = 0,
-            int pictures = 0, int zones = 0, int paintMissed = 0, float pictureFillAtDeath = 0f,
-            int rareSeen = 0, int legendarySeen = 0, int rareDone = 0, int legendaryDone = 0,
-            int carried = 0, int rescued = 0, int annulled = 0)
+            int pixelsFilled, int pixelsWasted, int pressureAt, int rescues, bool lostAtRefill, bool unfair,
+            int emptyAtDeath, int pictures, float pictureFillAtDeath, int placementsToFirstPicture,
+            int[] doneByRarity, int[] seenByRarity, int carried, int rescued, int annulled)
         {
-            Carried = carried;
-            Rescued = rescued;
-            Annulled = annulled;
-            RareSeen = rareSeen;
-            LegendarySeen = legendarySeen;
-            RareDone = rareDone;
-            LegendaryDone = legendaryDone;
-            Pictures = pictures;
-            Zones = zones;
-            PaintMissed = paintMissed;
-            PictureFillAtDeath = pictureFillAtDeath;
-            Splashes = splashes;
-            BaseSplashes = baseSplashes;
-            SecondarySplashes = secondarySplashes;
-            BrownSplashes = brownSplashes;
             Placements = placements;
             Rounds = rounds;
             Score = score;
             Lines = lines;
             PureLines = pureLines;
             BestChain = bestChain;
-            PaintYielded = paintYielded;
+            PixelsFilled = pixelsFilled;
+            PixelsWasted = pixelsWasted;
             PressureAt = pressureAt;
             Rescues = rescues;
             LostAtRefill = lostAtRefill;
             Unfair = unfair;
             EmptyAtDeath = emptyAtDeath;
+            Pictures = pictures;
+            PictureFillAtDeath = pictureFillAtDeath;
+            PlacementsToFirstPicture = placementsToFirstPicture;
+            DoneByRarity = doneByRarity;
+            SeenByRarity = seenByRarity;
+            Carried = carried;
+            Rescued = rescued;
+            Annulled = annulled;
         }
-
-        /// <summary>Скільки клітинок лишалось вільними в момент програшу — міра «дірявості» поля.</summary>
-        public int EmptyAtDeath { get; }
-
-        /// <summary>Виплесків змішувача за партію і їхні відтінки: чисті / вторинні / коричневі.</summary>
-        public int Splashes { get; }
-        public int BaseSplashes { get; }
-        public int SecondarySplashes { get; }
-        public int BrownSplashes { get; }
-
-        /// <summary>Картинок закінчено, зон залито, фарби пропало мимо, частка поточної картинки в момент смерті.</summary>
-        public int Pictures { get; }
-        public int Zones { get; }
-        public int PaintMissed { get; }
-        public float PictureFillAtDeath { get; }
-
-        /// <summary>Рідкісних і легендарних картинок побачено за партію та закінчено.</summary>
-        public int RareSeen { get; }
-        public int LegendarySeen { get; }
-        public int RareDone { get; }
-        public int LegendaryDone { get; }
-
-        /// <summary>§7: забіг почався з перенесеної; перенесену домальовано; перенесену анульовано.</summary>
-        public int Carried { get; }
-        public int Rescued { get; }
-        public int Annulled { get; }
 
         public int Placements { get; }
         public int Rounds { get; }
@@ -75,11 +41,13 @@ namespace InkFlow.Sim
         public int Lines { get; }
         public int PureLines { get; }
         public int BestChain { get; }
-        public int PaintYielded { get; }
+
+        /// <summary>Пікселів картинок заповнено й згоріло (колір уже не був потрібен).</summary>
+        public int PixelsFilled { get; }
+        public int PixelsWasted { get; }
 
         /// <summary>Розміщення, після якого вперше хоч одна фігура з руки нікуди не влазила; −1 — не сталось.</summary>
         public int PressureAt { get; }
-
         public int Rescues { get; }
 
         /// <summary>Програш стався одразу після поповнення лотка (не посеред руки).</summary>
@@ -87,6 +55,42 @@ namespace InkFlow.Sim
 
         /// <summary>Програш після поповнення, хоч двоклітинкова фігура ще влазила — вина мішка.</summary>
         public bool Unfair { get; }
+
+        /// <summary>Скільки клітинок лишалось вільними в момент програшу — міра «дірявості» поля.</summary>
+        public int EmptyAtDeath { get; }
+
+        /// <summary>Картинок закінчено; частка поточної в момент смерті; розміщень до першої закінченої (−1 — жодної).</summary>
+        public int Pictures { get; }
+        public float PictureFillAtDeath { get; }
+        public int PlacementsToFirstPicture { get; }
+
+        /// <summary>За рідкістю: закінчено й побачено (нові витяги, без перенесеної).</summary>
+        public int[] DoneByRarity { get; }
+        public int[] SeenByRarity { get; }
+
+        /// <summary>§9: забіг почався з перенесеної; перенесену домальовано; перенесену анульовано.</summary>
+        public int Carried { get; }
+        public int Rescued { get; }
+        public int Annulled { get; }
+    }
+
+    /// <summary>Скільки розміщень пішло на одну закінчену картинку — окремо за рідкістю; це і є «хвилини на картинку».</summary>
+    public sealed class PictureTiming
+    {
+        private readonly List<float>[] _placements;
+
+        public PictureTiming(int rarities)
+        {
+            _placements = new List<float>[rarities];
+            for (var i = 0; i < rarities; i++)
+                _placements[i] = new List<float>();
+        }
+
+        public void Add(int rarity, int placements) => _placements[rarity].Add(placements);
+
+        public int CountOf(int rarity) => _placements[rarity].Count;
+
+        public Distribution Of(int rarity) => new Distribution(_placements[rarity]);
     }
 
     /// <summary>Розподіл однієї метрики: медіана і хвости важливіші за середнє.</summary>
@@ -123,8 +127,16 @@ namespace InkFlow.Sim
             return _sorted[index];
         }
 
+        public Distribution Scaled(float factor)
+        {
+            var scaled = new float[_sorted.Length];
+            for (var i = 0; i < _sorted.Length; i++)
+                scaled[i] = _sorted[i] * factor;
+            return new Distribution(scaled);
+        }
+
         public string Row(string name, string unit) =>
-            $"{name,-26} {unit,-6} mean {F(Mean),8}  p10 {F(P10),7}  med {F(Median),7}  p90 {F(P90),7}  min {F(Min),6}  max {F(Max),6}";
+            $"{name,-30} {unit,-6} mean {F(Mean),8}  p10 {F(P10),7}  med {F(Median),7}  p90 {F(P90),7}  min {F(Min),6}  max {F(Max),6}";
 
         public string Csv(string name, string unit) =>
             string.Join(",", name, unit, F(Mean), F(P10), F(Median), F(P90), F(Min), F(Max));

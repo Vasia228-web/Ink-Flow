@@ -1,0 +1,19 @@
+id: cactus
+name: КАКТУС
+theme: plants
+rarity: common
+colors: K=1 E=13 D=22
+outline: K
+grid:
+....KKKK....
+....KEEK....
+KKKKKEEKKKKK
+KEEKKEEKKEEK
+KEEKKEEKKEEK
+KEEEEEEEEEEK
+KKKEEEEEEKKK
+..KKKEEKKK..
+..KKKEEKKK..
+.KKDDDDDDKK.
+.KDDDDDDDDK.
+.KKKKKKKKKK.

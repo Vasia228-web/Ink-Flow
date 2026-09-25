@@ -27,8 +27,8 @@ namespace InkFlow.UI
     }
 
     /// <summary>
-    /// Екран «Нескінченний» (документ §11, крок 1): рахунок, живий рекорд, поле 8×8,
-    /// лоток із трьома фігурами, попередження про переповнення й чесний фінал.
+    /// Екран забігу (документ §11): картинка, рахунок і живий рекорд, поле 8×8,
+    /// лоток із трьома фігурами в кольорах картинки, попередження про застрягання й чесний фінал.
     ///
     /// Правил тут немає — усе рахує <see cref="RunSession"/>. Екран лише показує її
     /// стан, віддає намір гравця (фігура № в клітинку) і програє те, що вона повернула.
@@ -54,10 +54,8 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text recordLabel;
         [SerializeField] private TMP_Text recordNumber;
 
-        [Header("Картинка, баки і змішувач")]
+        [Header("Картинка (§11: головний фокус)")]
         [SerializeField] private PictureView picture;
-        [SerializeField] private TankView[] tanks = System.Array.Empty<TankView>();
-        [SerializeField] private MixerView mixer;
 
         [Header("Поле і лоток")]
         [SerializeField] private BoardView board;
@@ -128,7 +126,8 @@ namespace InkFlow.UI
         private long _rewardForScore;
         private bool _doubled;
         private int _annulledIndex = -1;
-        private readonly System.Collections.Generic.List<int> _annulledFilled = new System.Collections.Generic.List<int>(20);
+        private readonly System.Collections.Generic.List<int> _annulledFilled = new System.Collections.Generic.List<int>(256);
+        private readonly System.Collections.Generic.List<int> _filledBuffer = new System.Collections.Generic.List<int>(256);
 
         /// <summary>Ідентифікатор товару «домалювати картинку одразу» (§9). Ціну показує стор.</summary>
         public const string FinishPictureProductId = "finish_picture";
@@ -247,9 +246,11 @@ namespace InkFlow.UI
         {
             // Сід — час старту: у Нескінченному рандом бажаний.
             var seed = unchecked((uint)System.DateTime.UtcNow.Ticks);
-            // §7: незавершена картинка гарантовано перша — з тим самим прогресом і лічильником спроб.
+            // §9: незавершена картинка гарантовано перша — з тим самим прогресом і лічильником спроб.
+            // §7: колода віддає невидані спершу — тому їй потрібна колекція.
+            var collection = _state?.Collection;
             _session = new RunSession(_balance, PieceCatalogData.Default, new XorShiftRandom(seed),
-                _state?.Pictures, _state?.RunStart);
+                _state?.Library, _state?.RunStart, collection != null ? collection.Has : (System.Func<string, bool>?)null);
             GameEvents.RaiseSessionStarted(_session);
 
             _record = new LiveRecord(_progress?.EndlessRecord ?? _record.Stored);
@@ -268,7 +269,6 @@ namespace InkFlow.UI
             }
 
             tray?.Show(_session.Tray);
-            ApplyTanks(animate: false);
             picture?.Show(_session.Picture);
             picture?.ShowAttempts(_session.StartedWithCarried ? _session.AttemptsLeft : 0);
             HideOver();
@@ -286,8 +286,8 @@ namespace InkFlow.UI
             if (introCard == null || _session == null || design == null)
                 return;
 
-            var def = _session.Picture.Def;
-            var theme = _session.Pictures.ThemeOf(def);
+            var def = _session.Picture.Picture;
+            var theme = ThemeNames.Of(def.ThemeId);
             introCard.gameObject.SetActive(true);
             if (introGroup != null) introGroup.alpha = 1f;
             if (introScrim != null) introScrim.color = design.OverScrim;
@@ -298,17 +298,20 @@ namespace InkFlow.UI
             if (introKicker != null)
                 introKicker.text = _session.StartedWithCarried
                     ? $"НЕЗАВЕРШЕНА · СПРОБ ЛИШИЛОСЬ: {_session.AttemptsLeft}"
-                    : theme != null ? $"ЦЬОГО ЗАБІГУ · {theme.Name.ToUpperInvariant()}" : "ЦЬОГО ЗАБІГУ";
+                    : $"ЦЬОГО ЗАБІГУ · {theme.ToUpperInvariant()}";
             ApplyFont(introName, design.FontSizeIntroName, design.TextPrimary, FontStyles.Bold, 0f);
             if (introName != null) introName.text = def.Name;
             ApplyFont(introRarity, design.FontSizeIntroRarity, design.RarityColor(def.Rarity), FontStyles.Bold, design.LetterSpacingWide);
-            if (introRarity != null) introRarity.text = $"{RarityNames.Of(def.Rarity)} · {def.ZoneCount} ЗОН";
+            if (introRarity != null) introRarity.text = $"{RarityNames.Of(def.Rarity)} · {RarityNames.Colors(def.FillColors.Count)}";
             ApplyFont(introHint, design.FontSizeIntroHint, design.TextMuted, FontStyles.Bold, 0f);
             if (introHint != null) introHint.text = "Тапни, щоб грати";
 
-            introPicture?.ShowCompleted(def, string.Empty);
+            // Силует без кольорів: інтрига лишається, форму видно (уточнення Сесії 1).
             if (_session.StartedWithCarried)
-                introPicture?.ShowAttempts(_session.AttemptsLeft);
+                introPicture?.Show(_session.Picture);
+            else
+                introPicture?.ShowOutline(def);
+            introPicture?.ShowAttempts(_session.StartedWithCarried ? _session.AttemptsLeft : 0);
 
             if (board != null)
                 board.Router.Locked = true;
@@ -358,157 +361,74 @@ namespace InkFlow.UI
             _idleSince = Time.time;
         }
 
-        /// <summary>Рівні баків і змішувача — із сесії, як є. Для старту партії й миттєвих станів.</summary>
-        private void ApplyTanks(bool animate)
-        {
-            if (_session == null)
-                return;
-            var capacity = _session.Mixer.SplashSize;
-            for (var i = 0; i < tanks.Length; i++)
-            {
-                var tank = tanks[i];
-                if (tank == null)
-                    continue;
-                tank.Show(_session.Tanks[tank.Pigment], capacity, animate);
-            }
-            mixer?.Show(_session.Tanks.Levels, capacity, _session.Balance, animate);
-        }
-
-        private readonly int[] _levelsAfter = new int[Pigments.Count];
-        private readonly int[] _taken = new int[Pigments.Count];
-
         /// <summary>
-        /// Програє фарбу ходу: наливання в баки — з подій (рівень після кожного), спрацювання
-        /// змішувача — чергою у <see cref="MixerView"/>, яка НЕ блокує поле (§4: «не відволікає»).
+        /// Програє картинку ходу: кожен PixelFilled кладе піксель (Фаза 2 — крапля з клітинки
+        /// летить у піксель), завершення — спалах і наступна картинка, поповнення лотка —
+        /// збереження незавершеної (§9: раз на лоток).
         /// </summary>
-        private void PlayPaint(MoveResult result)
+        private void PlayPixels(MoveResult result)
         {
             if (_session == null)
                 return;
-            var capacity = _session.Mixer.SplashSize;
-            for (var i = 0; i < Pigments.Count; i++)
-            {
-                _levelsAfter[i] = _session.Tanks.Levels[i];
-                _taken[i] = 0;
-            }
 
-            var fired = false;
             var events = result.Events;
+            var completedIndex = -1;
             for (var e = 0; e < events.Count; e++)
             {
                 var ev = events[e];
                 switch (ev.Type)
                 {
-                    case GameEventType.PaintPoured:
-                        _levelsAfter[Pigments.IndexOf(ev.Pigment)] = ev.Extra;
-                        TankFor(ev.Pigment)?.Show(ev.Extra, capacity, animate: true);
-                        break;
-                    case GameEventType.TankDrained:
-                        _taken[Pigments.IndexOf(ev.Pigment)] = ev.Value;
-                        _levelsAfter[Pigments.IndexOf(ev.Pigment)] = ev.Extra;
-                        break;
-                    case GameEventType.MixerFired:
-                        fired = true;
-                        e = FireShot(events, e, capacity);
+                    case GameEventType.PixelFilled:
+                        // Пікселі належать картинці, що була ДО завершення; після нього їх у стрічці немає.
+                        if (completedIndex < 0)
+                            picture?.PlayPixel(ev.Value);
                         break;
                     case GameEventType.PictureCompleted:
+                        completedIndex = ev.Value;
                         // Модель — правда: у колекцію одразу, не чекаючи анімації.
-                        _state?.CollectPicture(_session.Pictures[ev.Value].Id, System.DateTime.UtcNow);
+                        _state?.CollectPicture(_session.Library[ev.Value].Id, System.DateTime.UtcNow);
                         break;
                 }
             }
 
-            if (!fired && result.PaintYielded > 0)
-                mixer?.Show(_session.Tanks.Levels, capacity, _session.Balance, animate: true);
-
-            // §7 п.3: прогрес незавершеної — у файл на кожне спрацювання змішувача.
-            if (fired)
-                _state?.TrackUnfinished(_session.Picture.CatalogIndex, _session.Picture.Filled);
-        }
-
-        /// <summary>
-        /// Збирає виплеск і те, що сталося з ним на картинці (ZoneFilled / SplashMissed /
-        /// PictureCompleted аж до наступного MixerFired) в один постріл змішувача: мазок
-        /// грає, коли виплеск долетів, а не коли модель уже все порахувала.
-        /// Повертає індекс останньої спожитої події.
-        /// </summary>
-        private int FireShot(System.Collections.Generic.IReadOnlyList<GameEvent> events, int fired, int capacity)
-        {
-            var ev = events[fired];
-            var shot = new MixerView.Shot
+            if (completedIndex >= 0)
             {
-                Hue = (Hue)ev.Extra,
-                Taken0 = _taken[0], Taken1 = _taken[1], Taken2 = _taken[2],
-                After0 = _levelsAfter[0], After1 = _levelsAfter[1], After2 = _levelsAfter[2],
-                Capacity = capacity
-            };
-            for (var i = 0; i < Pigments.Count; i++)
-                _taken[i] = 0;
-
-            var fills = new System.Collections.Generic.List<(int zone, float fraction)>(2);
-            var completed = false;
-            var legendary = false;
-            var missed = false;
-            var last = fired;
-            for (var e = fired + 1; e < events.Count; e++)
-            {
-                var next = events[e];
-                if (next.Type == GameEventType.MixerFired)
-                    break;
-                last = e;
-                switch (next.Type)
+                // §6: легендарна й вище — спецефект при завершенні. Той самий дощ, що й на рекорд.
+                if (_session.Library[completedIndex].Rarity >= Rarity.Legendary && isActiveAndEnabled)
                 {
-                    case GameEventType.ZoneFilled:
-                        fills.Add((next.Value, next.CellStart > 0 ? (float)next.Extra / next.CellStart : 1f));
-                        break;
-                    case GameEventType.SplashMissed:
-                        missed = fills.Count == 0;
-                        break;
-                    case GameEventType.PictureCompleted:
-                        completed = true;
-                        legendary = _session != null && _session.Pictures[next.Value].Rarity == Rarity.Legendary;
-                        break;
+                    if (_confetti != null) StopCoroutine(_confetti);
+                    _confetti = StartCoroutine(ConfettiRoutine());
                 }
-            }
-
-            shot.Missed = missed;
-            if (picture != null)
-            {
-                shot.Target = picture.ZoneWorldPosition(fills.Count > 0 ? fills[0].zone : -1);
-                var view = picture;
                 var session = _session;
-                shot.Arrived = () =>
+                picture?.PlayCompleted(() =>
                 {
-                    var uv = view.UvOf(shot.Target);
-                    for (var i = 0; i < fills.Count; i++)
-                        view.PlayFill(fills[i].zone, fills[i].fraction, uv);
-                    if (completed)
+                    if (session == _session && picture != null)
                     {
-                        // §6: легендарна — спецефект при завершенні. Той самий дощ, що й на рекорд.
-                        if (legendary && isActiveAndEnabled)
-                        {
-                            if (_confetti != null) StopCoroutine(_confetti);
-                            _confetti = StartCoroutine(ConfettiRoutine());
-                        }
-                        view.PlayCompleted(() =>
-                        {
-                            if (session != null && session == _session)
-                                view.Show(session.Picture);
-                        });
+                        picture.Show(session.Picture);
+                        picture.ShowAttempts(0);
                     }
-                };
+                });
             }
 
-            mixer?.Fire(shot);
-            return last;
+            // §9: прогрес незавершеної — у файл раз на лоток (і на паузу, див. OnApplicationPause).
+            if (result.Has(GameEventType.TrayRefilled))
+                TrackUnfinished();
         }
 
-        private TankView? TankFor(Pigment pigment)
+        /// <summary>Поточна картинка з її пікселями — у стан гравця. Порожня не реєструється.</summary>
+        private void TrackUnfinished()
         {
-            for (var i = 0; i < tanks.Length; i++)
-                if (tanks[i] != null && tanks[i].Pigment == pigment)
-                    return tanks[i];
-            return null;
+            if (_session == null || _state == null || _session.Picture.FilledCount == 0)
+                return;
+            _session.Picture.FilledIndices(_filledBuffer);
+            _state.TrackUnfinished(_session.Picture.LibraryIndex, _filledBuffer);
+        }
+
+        /// <summary>§9: на згортання застосунку прогрес картинки пишеться одразу.</summary>
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused && _session != null && !_session.IsOver && !_finalised)
+                TrackUnfinished();
         }
 
         /// <summary>Миттєвий рестарт: нова сесія на місці, без перезавантаження сцени.</summary>
@@ -526,7 +446,6 @@ namespace InkFlow.UI
                 if (routine != null)
                     StopCoroutine(routine);
             _playback = _flash = _combo = _overflowPulse = _confetti = _hint = null;
-            mixer?.StopAll();
             picture?.StopAll();
             introPicture?.StopAll();
             if (_intro != null)
@@ -589,7 +508,7 @@ namespace InkFlow.UI
             var shape = piece.Shape!;
             _ghostAnchor = BoardGeometry.AnchorFor(shape, column, row);
             _ghostValid = PlacementRules.CanPlace(_session.Board, shape, _ghostAnchor);
-            board.ShowGhost(shape, piece.Pigment, _ghostAnchor, _ghostValid);
+            board.ShowGhost(shape, piece.Color, _ghostAnchor, _ghostValid);
         }
 
         // ── Хід ──
@@ -613,7 +532,7 @@ namespace InkFlow.UI
             yield return board!.PlayEvents(result);
 
             tray?.Show(_session!.Tray);
-            PlayPaint(result);
+            PlayPixels(result);
             ApplyStats();
             GameEvents.RaiseMovePlayed(result);
 
@@ -662,7 +581,7 @@ namespace InkFlow.UI
 
             GameEvents.RaiseHint(index, anchor);
             var piece = _session.TrayPieces[index];
-            board.ShowGhost(piece.Shape!, piece.Pigment, anchor, valid: true);
+            board.ShowGhost(piece.Shape!, piece.Color, anchor, valid: true);
             if (_hint != null)
                 StopCoroutine(_hint);
             if (isActiveAndEnabled)
@@ -710,9 +629,6 @@ namespace InkFlow.UI
             if (comboPop != null) comboPop.gameObject.SetActive(false);
 
             tray?.Apply();
-            foreach (var tank in tanks)
-                tank?.Apply();
-            mixer?.Apply();
             picture?.Apply();
             introPicture?.Apply();
             foreach (var thumb in overThumbs)
@@ -754,7 +670,7 @@ namespace InkFlow.UI
             if (_session == null || overflowRing == null)
                 return;
 
-            var warn = !_session.IsOver && _session.HaloWarning;
+            var warn = !_session.IsOver && _session.AnyPieceStuck();
             if (warn == _overflow)
                 return;
             _overflow = warn;
@@ -871,15 +787,14 @@ namespace InkFlow.UI
             _annulledIndex = -1;
             _annulledFilled.Clear();
 
-            var index = _session.Picture.CatalogIndex;
-            var filled = _session.Picture.Filled;
-            // §7: незавершена реєструється або витрачає спробу; на третій — анулюється.
-            _annulled = _state?.SettleUnfinished(index, filled, _session.StartedWithCarried) ?? false;
+            var index = _session.Picture.LibraryIndex;
+            _session.Picture.FilledIndices(_filledBuffer);
+            // §9: незавершена реєструється або витрачає спробу; на третій — анулюється.
+            _annulled = _state?.SettleUnfinished(index, _filledBuffer, _session.StartedWithCarried) ?? false;
             if (_annulled)
             {
                 _annulledIndex = index;
-                for (var i = 0; i < filled.Count; i++)
-                    _annulledFilled.Add(filled[i]);
+                _annulledFilled.AddRange(_filledBuffer);
             }
 
             ShowOver(final: true);
@@ -934,7 +849,7 @@ namespace InkFlow.UI
                 _annulledIndex = -1;
                 Toggle(overRescue, false);
                 if (overBestLabel != null && _session != null)
-                    overBestLabel.text = $"«{_session.Pictures[_state.Unfinished.PictureIndex].Name}» повернуто — одна спроба";
+                    overBestLabel.text = $"«{_session.Library[_state.Unfinished.PictureIndex].Name}» повернуто — одна спроба";
             });
         }
 
@@ -946,7 +861,7 @@ namespace InkFlow.UI
             {
                 if (!purchase.Success || _session == null || _state == null)
                     return;
-                var def = _session.Picture.Def;
+                var def = _session.Picture.Picture;
                 var result = _session.CompletePictureNow();
                 if (!result.Accepted)
                     return;
@@ -1024,7 +939,7 @@ namespace InkFlow.UI
             Toggle(overBestLabel, final);
             if (overBestLabel != null)
                 overBestLabel.text = _annulled
-                    ? $"Картинку «{_session.Picture.Def.Name}» анульовано — спроби вичерпано"
+                    ? $"Картинку «{_session.Picture.Picture.Name}» анульовано — спроби вичерпано"
                     : $"Рекорд · {Format(_record.Shown)} · ланцюг ×{_session.BestChain}";
 
             if (overAgainFill != null)
@@ -1069,17 +984,17 @@ namespace InkFlow.UI
             if (overDoubleLabel != null) overDoubleLabel.text = "Подвоїти нафту · ролик";
 
             var showRescue = final && adsReady && _annulledIndex >= 0 &&
-                             _session.Pictures[_annulledIndex].Rarity != Rarity.Common;
+                             _session.Library[_annulledIndex].Rarity != Rarity.Common;
             Toggle(overRescue, showRescue);
             ApplyFont(overRescueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
             if (overRescueLabel != null) overRescueLabel.text = "Повернути картинку · ролик";
 
             var showFinish = final && _iap != null && _state != null && !_session.Picture.IsComplete &&
-                             _session.Picture.TotalFilled > 0;
+                             _session.Picture.FilledCount > 0;
             Toggle(overFinishPicture, showFinish);
             ApplyFont(overFinishPictureLabel, design.FontSizeOverSecondary, design.AccentGold, FontStyles.Bold, 0f);
             if (overFinishPictureLabel != null)
-                overFinishPictureLabel.text = $"Домалювати «{_session.Picture.Def.Name}» одразу";
+                overFinishPictureLabel.text = $"Домалювати «{_session.Picture.Picture.Name}» одразу";
         }
 
         /// <summary>Галерея партії (§11 крок 5): що домальовано цього забігу.</summary>
@@ -1104,7 +1019,7 @@ namespace InkFlow.UI
                 var show = index >= 0 && index < collected.Count;
                 Toggle(thumb, show);
                 if (show)
-                    thumb.ShowCompleted(_session.Pictures[collected[index]], string.Empty);
+                    thumb.ShowCompleted(_session.Library[collected[index]], string.Empty);
             }
         }
 
@@ -1118,22 +1033,8 @@ namespace InkFlow.UI
             if (_state == null || _session == null)
                 return 0;
 
-            var common = 0;
-            var rare = 0;
-            var legendary = 0;
-            var collected = _session.PicturesCollected;
-            for (var i = 0; i < collected.Count; i++)
-            {
-                switch (_session.Pictures[collected[i]].Rarity)
-                {
-                    case Rarity.Rare: rare++; break;
-                    case Rarity.Legendary: legendary++; break;
-                    default: common++; break;
-                }
-            }
-
             var reward = _state.CompleteRun(
-                new RunSummary(score, _session.BestChain, common, rare, legendary), System.DateTime.UtcNow);
+                RunSummary.Of(score, _session.BestChain, _session.PicturesCollected, _session.Library), System.DateTime.UtcNow);
             _rewardForScore = reward.ForScore;
             return reward.Total;
         }
@@ -1159,12 +1060,16 @@ namespace InkFlow.UI
         private void PrepareConfetti(Vector3[] starts, float[] drift, float height)
         {
             var spread = design.PaintConfettiSpread;
+            // Конфеті — у кольорах поточної картинки: дощ «її» фарби, а не випадкової.
+            var palette = _session?.Picture.Picture.FillColors;
             for (var i = 0; i < confetti.Length; i++)
             {
                 if (confetti[i] == null)
                     continue;
                 confetti[i].gameObject.SetActive(true);
-                confetti[i].color = design.PigmentColor(Pigments.FromIndex(i % Pigments.Count));
+                confetti[i].color = palette != null && palette.Count > 0
+                    ? DesignSystem.PaletteColor(palette[i % palette.Count])
+                    : design.AccentGold;
                 starts[i] = new Vector3(
                     Random.Range(-spread, spread),
                     height * 0.5f + Random.Range(0f, spread),

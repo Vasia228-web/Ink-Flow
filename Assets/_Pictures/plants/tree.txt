@@ -1,0 +1,19 @@
+id: tree
+name: ДЕРЕВЦЕ
+theme: plants
+rarity: common
+colors: K=1 E=13 N=23
+outline: K
+grid:
+...KKKKKK...
+.KKKEEEEKKK.
+KKEEEEEEEEKK
+KEEEEEEEEEEK
+KEEEEEEEEEEK
+KKEEEEEEEEKK
+.KKKEEEEKKK.
+...KKNNKK...
+....KNNK....
+..KKKNNKKK..
+..KNNNNNNK..
+..KKKKKKKK..

@@ -1,0 +1,18 @@
+id: ghost_pirate
+name: ПРИВИД-ПІРАТ
+theme: ghosts
+rarity: uncommon
+colors: K=1 W=4 R=8 U=27
+outline: K
+grid:
+.KKKKKKKK.
+KKRRRRRRKK
+KRRRRRRRRK
+KWKWWWWWWK
+KKKKWWKWWK
+KWUWWWWUWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWWWWWWWK
+KWWKWWKWWK
+KKKKKKKKKK

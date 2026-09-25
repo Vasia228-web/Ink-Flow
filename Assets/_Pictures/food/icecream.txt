@@ -1,0 +1,19 @@
+id: icecream
+name: МОРОЗИВО
+theme: food
+rarity: uncommon
+colors: K=1 W=4 I=20 D=22
+outline: K
+grid:
+..KKKKKK..
+.KKIIIIKK.
+KKIIIIIIKK
+KIIIIIIIIK
+KWWWWWWWWK
+KWWWWWWWWK
+KKDDDDDDKK
+.KDDDDDDK.
+.KKDDDDKK.
+..KDDDDK..
+..KKDDKK..
+...KKKK...

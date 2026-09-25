@@ -1,0 +1,20 @@
+id: pizza
+name: ПІЦА
+theme: food
+rarity: rare
+colors: k=2 R=8 A=10 D=22
+outline: k
+grid:
+......kkkk......
+.....kkAAkk.....
+....kkAAAAkk....
+....kAARRAAk....
+...kkAAAAAAkk...
+...kAARRAAAAk...
+..kkAAAAAAAAkk..
+..kAAAAAARRAAk..
+.kkAARRAAAAAAkk.
+.kAAAAAAAAAAAAk.
+kkDDDDDDDDDDDDkk
+kDDDDDDDDDDDDDDk
+kkkkkkkkkkkkkkkk

@@ -7,21 +7,14 @@ namespace InkFlow.Core
     public readonly struct BotWeights
     {
         public BotWeights(float lineCleared, float pureLine, float emptyCell, float fragmentation,
-            float purityPotential, float wantedBias = 0f)
+            float purityPotential)
         {
             LineCleared = lineCleared;
             PureLine = pureLine;
             EmptyCell = emptyCell;
             Fragmentation = fragmentation;
             PurityPotential = purityPotential;
-            WantedBias = wantedBias;
         }
-
-        /// <summary>
-        /// Наскільки бот ЦІЛИТЬСЯ в колір, потрібний картинці: множник до потенціалу чистоти
-        /// ліній, де домінує бажаний пігмент. 0 — не бачить картинки взагалі.
-        /// </summary>
-        public float WantedBias { get; }
 
         /// <summary>Цінність зірваної лінії.</summary>
         public float LineCleared { get; }
@@ -60,6 +53,7 @@ namespace InkFlow.Core
         private readonly List<Line> _lines = new List<Line>(16);
         private readonly IRandomSource? _noiseSource;
         private readonly float _noise;
+        private readonly int[] _lineCounts = new int[MasterPalette.Count];
         private Board? _scratch;
 
         public RunBot(BotWeights weights, IRandomSource? noiseSource = null, float noise = 0f)
@@ -101,7 +95,7 @@ namespace InkFlow.Core
                         if (!PlacementRules.CanPlace(board, shape, candidate))
                             continue;
 
-                        var score = Evaluate(session, shape, candidate, piece.Pigment);
+                        var score = Evaluate(session, shape, candidate, piece.Color);
                         if (_noiseSource is not null && _noise > 0f)
                             score += _noise * (_noiseSource.Next(1024) / 1024f);
                         if (score <= bestScore)
@@ -116,103 +110,73 @@ namespace InkFlow.Core
             return trayIndex >= 0;
         }
 
-        private float Evaluate(RunSession session, PieceShape shape, GridPos anchor, Pigment pigment)
+        private float Evaluate(RunSession session, PieceShape shape, GridPos anchor, byte color)
         {
             var scratch = _scratch!;
             scratch.CopyFrom(session.Board);
 
             for (var i = 0; i < shape.Cells.Length; i++)
-                scratch[new GridPos(anchor.X + shape.Cells[i].X, anchor.Y + shape.Cells[i].Y)] = pigment;
+                scratch[new GridPos(anchor.X + shape.Cells[i].X, anchor.Y + shape.Cells[i].Y)] = color;
 
             _lines.Clear();
             PlacementRules.CollectFullLines(scratch, _lines);
 
-            session.WantedPigments(out var wantedA, out var wantedB);
             var pureLines = 0;
-            var wantedLines = 0;
             for (var i = 0; i < _lines.Count; i++)
-            {
-                var yield = LineResolver.Resolve(scratch, _lines[i], session.Balance);
-                if (!yield.IsPure)
-                    continue;
-                pureLines++;
-                if (yield.Pigment == wantedA || yield.Pigment == wantedB)
-                    wantedLines++;
-            }
+                if (LineResolver.Resolve(scratch, _lines[i], session.Balance).IsPure)
+                    pureLines++;
 
             for (var i = 0; i < _lines.Count; i++)
             {
                 var line = _lines[i];
                 var length = LineResolver.LengthOf(scratch, line.Kind);
                 for (var c = 0; c < length; c++)
-                    scratch[LineResolver.CellAt(line, c)] = Pigment.None;
+                    scratch[LineResolver.CellAt(line, c)] = Board.Empty;
             }
 
-            var potential = PurityPotential(scratch, wantedA, wantedB, out var wantedPotential);
-
-            // Бажаний колір: чиста лінія ТОГО кольору цінніша і в момент зриву, і як план.
             return _weights.LineCleared * _lines.Count
-                   + _weights.PureLine * (pureLines + _weights.WantedBias * wantedLines)
-                   + _weights.PurityPotential * (potential + _weights.WantedBias * wantedPotential)
+                   + _weights.PureLine * pureLines
+                   + _weights.PurityPotential * PurityPotential(scratch)
                    + _weights.EmptyCell * scratch.CountEmpty()
                    - _weights.Fragmentation * Fragmentation(scratch);
         }
 
         /// <summary>
         /// Наскільки поле «готове» до чистих ліній: за кожну лінію — перевага домінантного
-        /// пігменту над рештою, і лише додатна частина: гравцю потрібні НЕ всі лінії
-        /// чистими, а хоч якісь. Окремо — та сама сума лише по лініях бажаних пігментів.
+        /// кольору над рештою, і лише додатна частина: гравцю потрібні НЕ всі лінії
+        /// чистими, а хоч якісь. Ближча до повної лінія цінніша.
         /// </summary>
-        private static int PurityPotential(Board board, Pigment wantedA, Pigment wantedB, out int wanted)
+        private int PurityPotential(Board board)
         {
             var score = 0;
-            wanted = 0;
             for (var y = 0; y < board.Height; y++)
-            {
-                var balance = LineBalance(board, LineKind.Row, y, out var dominant);
-                score += balance;
-                if (dominant == wantedA || dominant == wantedB) wanted += balance;
-            }
+                score += LineBalance(board, LineKind.Row, y);
             for (var x = 0; x < board.Width; x++)
-            {
-                var balance = LineBalance(board, LineKind.Column, x, out var dominant);
-                score += balance;
-                if (dominant == wantedA || dominant == wantedB) wanted += balance;
-            }
+                score += LineBalance(board, LineKind.Column, x);
             return score;
         }
 
-        private static int LineBalance(Board board, LineKind kind, int index, out Pigment dominant)
+        private int LineBalance(Board board, LineKind kind, int index)
         {
-            dominant = Pigment.None;
             var length = kind == LineKind.Row ? board.Width : board.Height;
-            var blue = 0;
-            var red = 0;
-            var yellow = 0;
+            Array.Clear(_lineCounts, 0, _lineCounts.Length);
+            var filled = 0;
+            var max = 0;
             for (var i = 0; i < length; i++)
             {
-                var pigment = kind == LineKind.Row ? board[i, index] : board[index, i];
-                if (pigment == Pigment.Blue) blue++;
-                else if (pigment == Pigment.Red) red++;
-                else if (pigment == Pigment.Yellow) yellow++;
+                var color = kind == LineKind.Row ? board[i, index] : board[index, i];
+                if (color == Board.Empty)
+                    continue;
+                filled++;
+                var n = ++_lineCounts[color];
+                if (n > max)
+                    max = n;
             }
 
-            var filled = blue + red + yellow;
             if (filled == 0)
                 return 0;
-
-            var max = blue;
-            dominant = Pigment.Blue;
-            if (red > max) { max = red; dominant = Pigment.Red; }
-            if (yellow > max) { max = yellow; dominant = Pigment.Yellow; }
-
             var balance = 2 * max - filled;
-            if (balance <= 0)
-                return 0;
-
-            // Ближча до повної лінія цінніша: три сині клітинки в порожньому ряду —
-            // ще нічого, шість — уже план.
-            return balance * filled;
+            return balance <= 0 ? 0 : balance * filled;
         }
 
         /// <summary>Подряпаність поля: скільки «стінок» у вільних клітинок.</summary>
@@ -222,7 +186,7 @@ namespace InkFlow.Core
             for (var y = 0; y < board.Height; y++)
                 for (var x = 0; x < board.Width; x++)
                 {
-                    if (board[x, y] != Pigment.None)
+                    if (board[x, y] != Board.Empty)
                         continue;
                     penalty += Blocked(board, x + 1, y) + Blocked(board, x - 1, y)
                                + Blocked(board, x, y + 1) + Blocked(board, x, y - 1);
@@ -235,7 +199,7 @@ namespace InkFlow.Core
         {
             if (x < 0 || x >= board.Width || y < 0 || y >= board.Height)
                 return 1;
-            return board[x, y] == Pigment.None ? 0 : 1;
+            return board[x, y] == Board.Empty ? 0 : 1;
         }
     }
 }

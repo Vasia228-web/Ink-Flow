@@ -1,27 +1,47 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using InkFlow.Core;
 
 namespace InkFlow.Core.Tests
 {
     /// <summary>
-    /// Хелпери для тестів ядра. Поле задається текстом: рядки ЗВЕРХУ ВНИЗ,
-    /// '.' — порожньо, 'b'/'r'/'y' — пігменти. Тест, у якому поле видно очима,
+    /// Хелпери для тестів ядра. Поле задається текстом: рядки ЗВЕРХУ ВНИЗ, '.' — порожньо,
+    /// літера — колір майстер-палітри (w білий, r червоний, y жовтий, g зелений, b синій,
+    /// p фіолетовий; k — контурне чорнило для картинок). Тест, у якому поле видно очима,
     /// ловить помилку швидше за тест, який його збирає викликами.
     /// </summary>
     public static class TestBoard
     {
-        public static Pigment PigmentOf(char c) => c switch
+        public const byte Ink = 1;
+        public const byte White = 4;
+        public const byte Red = 8;
+        public const byte Yellow = 11;
+        public const byte Green = 13;
+        public const byte Blue = 16;
+        public const byte Violet = 18;
+
+        public static byte ColorOf(char c) => c switch
         {
-            'b' => Pigment.Blue,
-            'r' => Pigment.Red,
-            'y' => Pigment.Yellow,
-            _ => Pigment.None
+            'k' => Ink,
+            'w' => White,
+            'r' => Red,
+            'y' => Yellow,
+            'g' => Green,
+            'b' => Blue,
+            'p' => Violet,
+            _ => Board.Empty
         };
 
-        public static char CharOf(Pigment p) => p switch
+        public static char CharOf(byte color) => color switch
         {
-            Pigment.Blue => 'b',
-            Pigment.Red => 'r',
-            Pigment.Yellow => 'y',
+            Ink => 'k',
+            White => 'w',
+            Red => 'r',
+            Yellow => 'y',
+            Green => 'g',
+            Blue => 'b',
+            Violet => 'p',
             _ => '.'
         };
 
@@ -32,7 +52,7 @@ namespace InkFlow.Core.Tests
             var board = new Board(width, height);
             for (var r = 0; r < height; r++)
                 for (var x = 0; x < width; x++)
-                    board[x, height - 1 - r] = PigmentOf(rows[r][x]);
+                    board[x, height - 1 - r] = ColorOf(rows[r][x]);
             return board;
         }
 
@@ -43,11 +63,11 @@ namespace InkFlow.Core.Tests
             target.CopyFrom(source);
         }
 
-        /// <summary>Заповнює рядок пігментами з тексту — щоб зібрати конкретну лінію під зрив.</summary>
+        /// <summary>Заповнює рядок кольорами з тексту — щоб зібрати конкретну лінію під зрив.</summary>
         public static void FillRow(Board board, int y, string colors)
         {
             for (var x = 0; x < colors.Length; x++)
-                board[x, y] = PigmentOf(colors[x]);
+                board[x, y] = ColorOf(colors[x]);
         }
 
         public static string Dump(Board board)
@@ -69,7 +89,7 @@ namespace InkFlow.Core.Tests
             for (var i = 0; i < catalog.Count; i++)
                 if (catalog[i].Id == id)
                     return catalog[i];
-            throw new System.ArgumentException($"Немає форми {id}.");
+            throw new ArgumentException($"Немає форми {id}.");
         }
 
         /// <summary>Підміняє лоток сесії заданими фігурами — щоб перевірити конкретний хід.</summary>
@@ -79,9 +99,79 @@ namespace InkFlow.Core.Tests
                 session.TrayPieces[i] = i < pieces.Length ? pieces[i] : PieceDef.None;
         }
 
-        public static PieceDef Piece(string shapeId, Pigment pigment) => new PieceDef(ShapeById(shapeId), pigment);
+        public static PieceDef Piece(string shapeId, byte color) => new PieceDef(ShapeById(shapeId), color);
 
-        public static RunSession NewSession(uint seed = 7u, BalanceData? balance = null) =>
-            new RunSession(balance ?? BalanceData.Default, PieceCatalogData.Default, new XorShiftRandom(seed));
+        // ── Картинки ──
+
+        /// <summary>
+        /// Картинка з рядків тими самими літерами, що й поле (k — контур). Рядки — згори вниз,
+        /// як у файлі. Тема «test».
+        /// </summary>
+        public static PixelPicture Picture(string id, Rarity rarity, params string[] rows)
+        {
+            var text = $"id: {id}\nname: {id.ToUpperInvariant()}\ntheme: test\nrarity: {Rarities.IdOf(rarity)}\n" +
+                       "colors: k=1 w=4 r=8 y=11 g=13 b=16 p=18\noutline: k\ngrid:\n" + string.Join("\n", rows);
+            return PixelPicture.Parse(text);
+        }
+
+        public static PictureLibrary Library(params PixelPicture[] pictures) => new PictureLibrary(pictures);
+
+        /// <summary>Одна картинка «bb / bb» — щоб сесія мала лише синій колір.</summary>
+        public static PictureLibrary BlueSquare(int side = 2)
+        {
+            var row = new string('b', side);
+            var rows = new string[side];
+            for (var i = 0; i < side; i++)
+                rows[i] = row;
+            return Library(Picture("blue_square", Rarity.Common, rows));
+        }
+
+        private static string? _picturesDirectory;
+
+        /// <summary>Тека Assets/_Pictures — шукається вгору від робочої теки й від збірки тестів.</summary>
+        public static string PicturesDirectory
+        {
+            get
+            {
+                if (_picturesDirectory != null)
+                    return _picturesDirectory;
+                foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+                {
+                    var dir = new DirectoryInfo(start);
+                    while (dir != null)
+                    {
+                        var candidate = Path.Combine(dir.FullName, "Assets", "_Pictures");
+                        if (Directory.Exists(candidate))
+                            return _picturesDirectory = candidate;
+                        dir = dir.Parent;
+                    }
+                }
+                throw new DirectoryNotFoundException("Не знайшов Assets/_Pictures — тести бібліотеки потребують справжніх картинок.");
+            }
+        }
+
+        private static PictureLibrary? _real;
+
+        /// <summary>Справжня бібліотека гри з Assets/_Pictures.</summary>
+        public static PictureLibrary RealLibrary => _real ??= PictureLibrary.LoadFromDirectory(PicturesDirectory);
+
+        public static RunSession NewSession(uint seed = 7u, BalanceData? balance = null, PictureLibrary? library = null) =>
+            new RunSession(balance ?? BalanceData.Default, PieceCatalogData.Default, new XorShiftRandom(seed), library ?? RealLibrary);
+
+        public static int IndexOf(MoveResult result, GameEventType type)
+        {
+            for (var i = 0; i < result.Events.Count; i++)
+                if (result.Events[i].Type == type)
+                    return i;
+            return -1;
+        }
+
+        public static GameEvent Find(MoveResult result, GameEventType type)
+        {
+            var i = IndexOf(result, type);
+            if (i < 0)
+                throw new InvalidOperationException($"події {type} немає");
+            return result.Events[i];
+        }
     }
 }

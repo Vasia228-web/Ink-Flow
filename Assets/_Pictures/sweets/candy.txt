@@ -1,0 +1,17 @@
+id: candy
+name: ЦУКЕРКА
+theme: sweets
+rarity: common
+colors: K=1 W=4 I=20
+outline: K
+grid:
+KKKK....KKKK
+KIIKK..KKIIK
+KIIIKKKKIIIK
+KIIIIIIIIIIK
+KIIWIIWIIIIK
+KIIIIWIIWIIK
+KIIIIIIIIIIK
+KIIIKKKKIIIK
+KIIKK..KKIIK
+KKKK....KKKK

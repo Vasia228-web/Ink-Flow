@@ -50,10 +50,10 @@ namespace InkFlow.Core.Tests
                 "bbbb",
                 "bbbb",
                 "bbb.");
-            var tray = new[] { PieceDef.None, TestBoard.Piece("2h", Pigment.Red), PieceDef.None };
+            var tray = new[] { PieceDef.None, TestBoard.Piece("2h", TestBoard.Red), PieceDef.None };
             Assert.IsFalse(PlacementRules.AnyPieceFits(board, tray));
 
-            board[2, 0] = Pigment.None;
+            board[2, 0] = Board.Empty;
             Assert.IsTrue(PlacementRules.AnyPieceFits(board, tray));
         }
 
@@ -85,7 +85,7 @@ namespace InkFlow.Core.Tests
                 "bbb.");
             var before = board.StateHash();
             var lines = new List<Line>();
-            PlacementRules.PreviewLines(board, TestBoard.ShapeById("2v"), new GridPos(3, 0), Pigment.Red, lines);
+            PlacementRules.PreviewLines(board, TestBoard.ShapeById("2v"), new GridPos(3, 0), TestBoard.Red, lines);
 
             Assert.AreEqual(1, lines.Count);
             Assert.AreEqual(new Line(LineKind.Row, 0), lines[0]);
@@ -100,7 +100,7 @@ namespace InkFlow.Core.Tests
                 "bbbb",
                 "b..b",
                 "bbbb");
-            var tray = new[] { TestBoard.Piece("square", Pigment.Blue), TestBoard.Piece("2h", Pigment.Red) };
+            var tray = new[] { TestBoard.Piece("square", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Red) };
 
             Assert.IsTrue(PlacementRules.TryFindHint(board, tray, out var index, out var anchor));
             Assert.AreEqual(1, index, "квадрат не влазить — підказка бере другу фігуру");

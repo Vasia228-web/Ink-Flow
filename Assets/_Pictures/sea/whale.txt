@@ -1,0 +1,18 @@
+id: whale
+name: КИТ
+theme: sea
+rarity: rare
+colors: K=1 W=4 B=16 X=25
+outline: K
+grid:
+......KKKK......
+.....KKXXK......
+..KKKKXKXKKK....
+.KKBBBBBBBBKKK..
+KKBBKBBBBBBBBKKK
+KBBBBBBBBBBBBKBK
+KBBBBBBBBBBBBBBK
+KBWWWWWWWWBBBBBK
+KKWWWWWWWWBBBKKK
+.KKWWWWWWWBKKK..
+..KKKKKKKKKK....

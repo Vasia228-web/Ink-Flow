@@ -1,0 +1,15 @@
+id: cloud
+name: ХМАРКА
+theme: weather
+rarity: common
+colors: K=1 W=4 X=25
+outline: K
+grid:
+....KKKKKK....
+..KKKWWWWKKK..
+.KKWWWWWWWWKK.
+KKWWWWWWWWWWKK
+KWWWWKWWKWWWWK
+KWWWWWWWWWWWWK
+KKWXXXXXXXXWKK
+.KKKKKKKKKKKK.

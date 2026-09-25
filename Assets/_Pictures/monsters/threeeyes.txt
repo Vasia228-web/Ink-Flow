@@ -1,0 +1,18 @@
+id: threeeyes
+name: ТРИОКИЙ
+theme: monsters
+rarity: uncommon
+colors: K=1 W=4 T=14 U=27
+outline: K
+grid:
+....KKKKKK....
+..KKKTTTTKKK..
+.KKTTTTTTTTKK.
+.KTTTTTTTTTTK.
+.KTWKTTWKTWKK.
+.KTUTTTTTTUTK.
+KKTTTTTTTTTTKK
+KTTTTTTTTTTTTK
+KKTTKTTTTKTTKK
+.KKTKKKKKKTKK.
+..KKK....KKK..

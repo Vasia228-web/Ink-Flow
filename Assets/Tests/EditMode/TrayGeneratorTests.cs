@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using InkFlow.Core;
 using NUnit.Framework;
 
@@ -5,6 +6,11 @@ namespace InkFlow.Core.Tests
 {
     public sealed class TrayGeneratorTests
     {
+        private static readonly byte[] Colors = { TestBoard.Blue, TestBoard.Red, TestBoard.Yellow };
+
+        private static readonly List<byte> ThreeColors = new List<byte> { TestBoard.Blue, TestBoard.Red, TestBoard.Yellow };
+        private static readonly List<int> EvenWeights = new List<int> { 1, 1, 1 };
+
         private static Board RandomBoard(uint seed, int filled)
         {
             var random = new XorShiftRandom(seed);
@@ -14,9 +20,9 @@ namespace InkFlow.Core.Tests
             while (placed < filled && guard++ < 10_000)
             {
                 var p = new GridPos(random.Next(8), random.Next(8));
-                if (board[p] != Pigment.None)
+                if (board[p] != Board.Empty)
                     continue;
-                board[p] = Pigments.FromIndex(random.Next(Pigments.Count));
+                board[p] = Colors[random.Next(Colors.Length)];
                 placed++;
             }
 
@@ -37,15 +43,61 @@ namespace InkFlow.Core.Tests
         {
             var generator = new TrayGenerator(PieceCatalogData.Default, BalanceData.Default);
             var tray = new PieceDef[3];
-            generator.Fill(tray, new Board(8, 8), new XorShiftRandom(3));
+            generator.Fill(tray, new Board(8, 8), new XorShiftRandom(3), ThreeColors, EvenWeights);
 
             foreach (var piece in tray)
             {
                 Assert.IsFalse(piece.IsEmpty);
-                Assert.AreNotEqual(Pigment.None, piece.Pigment);
+                Assert.AreNotEqual(Board.Empty, piece.Color);
             }
 
             Assert.AreEqual(1, generator.TraysIssued);
+        }
+
+        [Test]
+        public void Fill_UsesOnlyTheColorsOfThePicture()
+        {
+            var generator = new TrayGenerator(PieceCatalogData.Default, BalanceData.Default);
+            var tray = new PieceDef[3];
+            var random = new XorShiftRandom(9);
+            var only = new List<byte> { TestBoard.Green, TestBoard.Violet };
+            var weights = new List<int> { 5, 5 };
+            for (var i = 0; i < 100; i++)
+            {
+                generator.Fill(tray, new Board(8, 8), random, only, weights);
+                foreach (var piece in tray)
+                    Assert.IsTrue(piece.Color == TestBoard.Green || piece.Color == TestBoard.Violet,
+                        "§5: у лотку лише кольори поточної картинки");
+            }
+        }
+
+        [Test]
+        public void Fill_WeighsColorsByRemainingPixels()
+        {
+            var generator = new TrayGenerator(PieceCatalogData.Default, BalanceData.Default);
+            var tray = new PieceDef[3];
+            var random = new XorShiftRandom(17);
+            var weights = new List<int> { 90, 10, 0 };
+            var counts = new int[MasterPalette.Count];
+            for (var i = 0; i < 400; i++)
+            {
+                generator.Fill(tray, new Board(8, 8), random, ThreeColors, weights);
+                foreach (var piece in tray)
+                    counts[piece.Color]++;
+            }
+
+            Assert.Greater(counts[TestBoard.Blue], counts[TestBoard.Red] * 4, "кольору, якого лишилось більше, і фігур більше");
+            Assert.AreEqual(0, counts[TestBoard.Yellow], "нульова вага — колір не приходить");
+        }
+
+        [Test]
+        public void Fill_RejectsAnEmptyColorList()
+        {
+            var generator = new TrayGenerator(PieceCatalogData.Default, BalanceData.Default);
+            Assert.Throws<System.ArgumentException>(() =>
+                generator.Fill(new PieceDef[3], new Board(8, 8), new XorShiftRandom(1), new List<byte>(), new List<int>()));
+            Assert.Throws<System.ArgumentException>(() =>
+                generator.Fill(new PieceDef[3], new Board(8, 8), new XorShiftRandom(1), ThreeColors, new List<int> { 1 }));
         }
 
         [Test]
@@ -62,7 +114,7 @@ namespace InkFlow.Core.Tests
                     continue;
 
                 var generator = new TrayGenerator(catalog, balance);
-                generator.Fill(tray, board, new XorShiftRandom(seed * 7919u));
+                generator.Fill(tray, board, new XorShiftRandom(seed * 7919u), ThreeColors, EvenWeights);
                 Assert.IsTrue(PlacementRules.AnyPieceFits(board, tray),
                     $"сід {seed}: двоклітинкова влазить, а мішок дав неможливий набір\n{TestBoard.Dump(board)}");
             }
@@ -74,8 +126,8 @@ namespace InkFlow.Core.Tests
             var board = RandomBoard(11, 20);
             var a = new PieceDef[3];
             var b = new PieceDef[3];
-            new TrayGenerator(PieceCatalogData.Default, BalanceData.Default).Fill(a, board, new XorShiftRandom(99));
-            new TrayGenerator(PieceCatalogData.Default, BalanceData.Default).Fill(b, board, new XorShiftRandom(99));
+            new TrayGenerator(PieceCatalogData.Default, BalanceData.Default).Fill(a, board, new XorShiftRandom(99), ThreeColors, EvenWeights);
+            new TrayGenerator(PieceCatalogData.Default, BalanceData.Default).Fill(b, board, new XorShiftRandom(99), ThreeColors, EvenWeights);
 
             for (var i = 0; i < 3; i++)
                 Assert.AreEqual(a[i], b[i]);
@@ -93,7 +145,7 @@ namespace InkFlow.Core.Tests
             var fiveBeforeTier = 0;
             for (var round = 1; round < balance.TierRounds[0]; round++)
             {
-                generator.Fill(tray, board, random);
+                generator.Fill(tray, board, random, ThreeColors, EvenWeights);
                 foreach (var piece in tray)
                     if (piece.Size >= 5)
                         fiveBeforeTier++;
@@ -104,36 +156,13 @@ namespace InkFlow.Core.Tests
             var fiveAfter = 0;
             for (var round = 0; round < 60; round++)
             {
-                generator.Fill(tray, board, random);
+                generator.Fill(tray, board, random, ThreeColors, EvenWeights);
                 foreach (var piece in tray)
                     if (piece.Size >= 5)
                         fiveAfter++;
             }
 
             Assert.Greater(fiveAfter, 0, "після порогу п'ятиклітинкові мають з'являтись");
-        }
-
-        [Test]
-        public void WantedPigment_LandsInTheTray()
-        {
-            var generator = new TrayGenerator(PieceCatalogData.Default, BalanceData.Default);
-            var tray = new PieceDef[3];
-            for (uint seed = 1; seed <= 20; seed++)
-            {
-                generator.Fill(tray, new Board(8, 8), new XorShiftRandom(seed), Pigment.Yellow);
-                var found = false;
-                foreach (var piece in tray)
-                    if (piece.Pigment == Pigment.Yellow)
-                        found = true;
-                Assert.IsTrue(found, $"сід {seed}: бажаного пігменту в лотку немає");
-            }
-        }
-
-        [Test]
-        public void ColorStreaks_HappenMoreOftenEarlyThanLate()
-        {
-            var balance = BalanceData.Default;
-            Assert.Greater(balance.StreakChance(0), balance.StreakChance(3), "§8: серії кольору рідшають");
         }
 
         [Test]
@@ -160,7 +189,7 @@ namespace InkFlow.Core.Tests
             var total = 0;
             for (var i = 0; i < 100; i++)
             {
-                generator.Fill(tray, board, random);
+                generator.Fill(tray, board, random, ThreeColors, EvenWeights);
                 foreach (var piece in tray)
                 {
                     total++;
