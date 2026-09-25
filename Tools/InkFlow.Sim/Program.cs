@@ -79,19 +79,16 @@ var library = PictureLibrary.LoadFromDirectory(picturesDir ?? FindPictures());
 var stopwatch = Stopwatch.StartNew();
 var results = new RunStats[games];
 var timing = new PictureTiming(Rarities.Count);
-// Незавершені картинки (§9) переносяться між послідовними забігами одного бота — як у гравця.
-var unfinished = new UnfinishedPicture(balance.UnfinishedAttempts);
 // Колекція бота: колода віддає невидані спершу (§7), тож без неї частки рідкостей брехали б.
+// Через неї забіги залежать один від одного — граємо послідовно, як гравець; --no-carry — паралельно.
 var collection = new HashSet<string>(StringComparer.Ordinal);
 
-// З перенесенням незавершеної й колекцією забіги залежать один від одного — граємо послідовно,
-// як гравець; без нього — паралельно (тоді таймінги картинок збираються під замком).
 if (carry)
 {
     for (var i = 0; i < games; i++)
     {
         var runSeed = unchecked(seed + (uint)i * 2654435761u);
-        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, unfinished, collection, timing);
+        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, collection, timing);
     }
 }
 else
@@ -101,7 +98,7 @@ else
     {
         var runSeed = unchecked(seed + (uint)i * 2654435761u);
         var local = new PictureTiming(Rarities.Count);
-        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, null, null, local);
+        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, null, local);
         lock (gate)
             for (var r = 0; r < Rarities.Count; r++)
                 for (var k = 0; k < local.CountOf(r); k++)
@@ -128,9 +125,6 @@ var fillAtDeath = new Distribution(results.Select(r => 100f * r.PictureFillAtDea
 var noPicture = results.Count(r => r.Pictures == 0);
 var firstPicture = new Distribution(results.Where(r => r.PlacementsToFirstPicture >= 0).Select(r => (float)r.PlacementsToFirstPicture).ToArray());
 var minutesPerRun = placements.Scaled(secondsPerMove / 60f);
-var carriedRuns = results.Count(r => r.Carried > 0);
-var rescuedTotal = results.Sum(r => r.Rescued);
-var annulledTotal = results.Sum(r => r.Annulled);
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
     .Select(r => 100f * r.PressureAt / Math.Max(1, r.Placements)).ToArray());
@@ -175,9 +169,6 @@ if (csv)
         if (timing.CountOf(k) > 0)
             Console.WriteLine(timing.Of(k).Scaled(secondsPerMove / 60f).Csv($"minutes_per_picture_{id}", "хв"));
     }
-    Console.WriteLine($"runs_started_with_unfinished,%,{F(100f * carriedRuns / games)},,,,,");
-    Console.WriteLine($"unfinished_rescued,шт,{rescuedTotal},,,,,");
-    Console.WriteLine($"unfinished_annulled,шт,{annulledTotal},,,,,");
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
     Console.WriteLine(emptyAtDeath.Csv("empty_cells_at_death", "шт"));
@@ -219,7 +210,6 @@ Console.WriteLine();
 Console.WriteLine($"пікселів згоріло (колір уже не потрібен): {wastedShare:0.#} % від усіх");
 Console.WriteLine($"партій без жодної закінченої картинки: {noPicture} з {games} ({100f * noPicture / games:0.#} %)");
 Console.WriteLine($"тиск не настав узагалі: {neverPressured} з {games} ({100f * neverPressured / games:0.#} %)");
-Console.WriteLine($"незавершені (§9): забігів, що почались із перенесеної — {100f * carriedRuns / games:0.#} %; врятовано {rescuedTotal}, анульовано {annulledTotal}");
 Console.Write("рідкість нових витягів (§6: 45/25/15/9/5/1):");
 for (var k = 0; k < Rarities.Count; k++)
     Console.Write($" {Rarities.IdOf((Rarity)k)} {100f * seenByRarity[k] / seenTotal:0.#} % (закінчено {doneByRarity[k]})");
@@ -247,28 +237,19 @@ static string FindPictures()
 }
 
 static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLibrary library, uint runSeed, float noise,
-    BotWeights weights, UnfinishedPicture? unfinished, HashSet<string>? collection, PictureTiming timing)
+    BotWeights weights, HashSet<string>? collection, PictureTiming timing)
 {
-    PictureStart? start = unfinished != null && unfinished.HasPicture
-        ? new PictureStart(unfinished.PictureIndex, unfinished.Filled, unfinished.AttemptsLeft)
-        : (PictureStart?)null;
     Func<string, bool>? isCollected = collection is null ? null : id => collection.Contains(id);
-    var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed), library, start, isCollected);
-    var carried = start.HasValue ? 1 : 0;
-    var rescued = 0;
-    var annulled = 0;
+    var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed), library, isCollected);
     var bot = new RunBot(weights, new XorShiftRandom(unchecked(runSeed ^ 0x9E3779B9u)), noise);
-    var filledBuffer = new List<int>(256);
 
     var pressureAt = -1;
     var lostAtRefill = false;
     var firstPictureAt = -1;
-    var pictureStartedAt = 0; // розміщення, на якому почалась поточна картинка (перенесена — з нуля забігу)
+    var pictureStartedAt = 0; // розміщення, на якому почалась поточна картинка
     var seen = new int[Rarities.Count];
     var done = new int[Rarities.Count];
-    // Перенесена — не «побачена вперше»: рідкість рахуємо лише за новими витягами.
-    if (!start.HasValue)
-        seen[(int)session.Picture.Picture.Rarity]++;
+    seen[(int)session.Picture.Picture.Rarity]++;
     var guard = 0;
 
     while (!session.IsOver && guard++ < 10_000)
@@ -287,31 +268,16 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
             {
                 var rarity = library[ev.Value].Rarity;
                 done[(int)rarity]++;
-                // Перенесена вже мала прогрес — її час не міряємо, він розмитий між забігами.
-                if (!(session.StartedWithCarried && ev.Value == session.CarriedIndex && session.PicturesCompleted == 1))
-                    timing.Add((int)rarity, session.PlacementCount - pictureStartedAt);
+                timing.Add((int)rarity, session.PlacementCount - pictureStartedAt);
                 if (firstPictureAt < 0)
                     firstPictureAt = session.PlacementCount;
                 collection?.Add(library[ev.Value].Id);
-                if (unfinished != null)
-                {
-                    if (session.StartedWithCarried && ev.Value == session.CarriedIndex)
-                        rescued++;
-                    unfinished.Complete(ev.Value);
-                }
             }
             else if (ev.Type == GameEventType.PictureStarted)
             {
                 seen[(int)library[ev.Value].Rarity]++;
                 pictureStartedAt = session.PlacementCount;
             }
-        }
-
-        // §9: прогрес незавершеної пишеться раз на лоток.
-        if (unfinished != null && result.Has(GameEventType.TrayRefilled) && session.Picture.FilledCount > 0)
-        {
-            session.Picture.FilledIndices(filledBuffer);
-            unfinished.Track(session.Picture.LibraryIndex, filledBuffer);
         }
 
         // «Тиск» — перше розміщення, після якого хоч одна фігура з руки вже нікуди не
@@ -329,16 +295,9 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
             if (catalog[i].Size == catalog.MinSize && PlacementRules.AnyFit(session.Board, catalog[i]))
                 unfair = true;
 
-    if (unfinished != null)
-    {
-        session.Picture.FilledIndices(filledBuffer);
-        if (unfinished.Settle(session.Picture.LibraryIndex, filledBuffer, session.StartedWithCarried))
-            annulled++;
-    }
-
     return new RunStats(session.PlacementCount, session.Round, session.Score, session.LinesCleared,
         session.PureLinesCleared, session.BestChain, session.PixelsFilled, session.PixelsWasted, pressureAt,
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
         session.PicturesCompleted, session.Picture.FilledFraction, firstPictureAt,
-        done, seen, carried, rescued, annulled);
+        done, seen);
 }

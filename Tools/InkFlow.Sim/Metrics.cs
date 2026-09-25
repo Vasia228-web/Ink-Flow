@@ -10,7 +10,7 @@ namespace InkFlow.Sim
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
             int pixelsFilled, int pixelsWasted, int pressureAt, int rescues, bool lostAtRefill, bool unfair,
             int emptyAtDeath, int pictures, float pictureFillAtDeath, int placementsToFirstPicture,
-            int[] doneByRarity, int[] seenByRarity, int carried, int rescued, int annulled)
+            int[] doneByRarity, int[] seenByRarity)
         {
             Placements = placements;
             Rounds = rounds;
@@ -30,9 +30,6 @@ namespace InkFlow.Sim
             PlacementsToFirstPicture = placementsToFirstPicture;
             DoneByRarity = doneByRarity;
             SeenByRarity = seenByRarity;
-            Carried = carried;
-            Rescued = rescued;
-            Annulled = annulled;
         }
 
         public int Placements { get; }
@@ -67,11 +64,6 @@ namespace InkFlow.Sim
         /// <summary>За рідкістю: закінчено й побачено (нові витяги, без перенесеної).</summary>
         public int[] DoneByRarity { get; }
         public int[] SeenByRarity { get; }
-
-        /// <summary>§9: забіг почався з перенесеної; перенесену домальовано; перенесену анульовано.</summary>
-        public int Carried { get; }
-        public int Rescued { get; }
-        public int Annulled { get; }
     }
 
     /// <summary>Скільки розміщень пішло на одну закінчену картинку — окремо за рідкістю; це і є «хвилини на картинку».</summary>

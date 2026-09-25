@@ -5,6 +5,7 @@ using InkFlow.Style;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace InkFlow.UI
 {
@@ -13,21 +14,47 @@ namespace InkFlow.UI
     ///
     /// Модель на момент виклику вже у ФІНАЛЬНОМУ стані — дошка лише відтворює шлях
     /// до нього подія за подією, а наприкінці робить синхронізуючий Repaint.
-    /// Розійтись із моделлю вона тому не може навіть теоретично.
     ///
-    /// Сітка фіксована, тож пулу немає: 64 блоки й 64 привиди лежать у сцені завжди,
-    /// порожня клітинка — вимкнений блок. Під час партії нічого не інстанціюється.
-    /// Привид фігури й підсвітка ліній перефарбовуються лише коли клітинка під пальцем
-    /// змінилась — не щокадру.
+    /// Клітинки — краплі (V2InkBlob): один квад із шейдером <c>InkFlow/InkBoard</c>, який
+    /// читає сітку з текстури 8×8 (rgb — колір, a — масштаб) і зливає сусідні клітинки
+    /// одного кольору в одну краплю. Анімації (приземлення, зрив, хвиля перефарбування)
+    /// пишуть масштаб у ту саму текстуру з одного LateUpdate — жодних 64 об'єктів і
+    /// жодного дотику до графіки канваса щокадру. Привид фігури — другий такий квад.
     /// </summary>
     public sealed class BoardView : MonoBehaviour
     {
+        private enum AnimKind : byte { None, Land, Clear }
+
+        private struct CellAnim
+        {
+            public AnimKind Kind;
+            public float Time;
+        }
+
         [SerializeField] private DesignSystem design;
         [SerializeField] private RectTransform canvasRect;
-        [SerializeField] private BlockView[] blocks = System.Array.Empty<BlockView>();
-        [SerializeField] private UnityEngine.UI.Image[] ghosts = System.Array.Empty<UnityEngine.UI.Image>();
+        [SerializeField] private Image blobs;
+        [SerializeField] private Image ghostBlob;
+        [SerializeField] private Shader boardShader;
+        [SerializeField] private Image[] highlights = System.Array.Empty<Image>();
         [SerializeField] private TMP_Text[] floats = System.Array.Empty<TMP_Text>();
         [SerializeField] private BoardFeedback? feedback;
+
+        private static readonly int CellsId = Shader.PropertyToID("_Cells");
+        private static readonly int GridId = Shader.PropertyToID("_Grid");
+        private static readonly int OriginId = Shader.PropertyToID("_Origin");
+        private static readonly int SizeId = Shader.PropertyToID("_Size");
+        private static readonly int StepId = Shader.PropertyToID("_Step");
+        private static readonly int RadiusId = Shader.PropertyToID("_Radius");
+        private static readonly int BridgeId = Shader.PropertyToID("_Bridge");
+        private static readonly int SmoothId = Shader.PropertyToID("_Smooth");
+        private static readonly int GlowAlphaId = Shader.PropertyToID("_GlowAlpha");
+        private static readonly int GlowWidthId = Shader.PropertyToID("_GlowWidth");
+        private static readonly int HighlightId = Shader.PropertyToID("_HighlightAlpha");
+        private static readonly int DotId = Shader.PropertyToID("_DotAlpha");
+        private static readonly int LightMixId = Shader.PropertyToID("_LightMix");
+        private static readonly int DarkMixId = Shader.PropertyToID("_DarkMix");
+        private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
 
         private readonly List<Line> _previewLines = new List<Line>(16);
         private RunSession? _session;
@@ -36,6 +63,17 @@ namespace InkFlow.UI
         private long _ghostKey = long.MinValue;
         private int _nextFloat;
         private Coroutine? _shake;
+
+        private Material? _material;
+        private Material? _ghostMaterial;
+        private Texture2D? _cellsTexture;
+        private Texture2D? _ghostTexture;
+        private Color32[] _cells = System.Array.Empty<Color32>();
+        private Color32[] _ghostCells = System.Array.Empty<Color32>();
+        private CellAnim[] _anims = System.Array.Empty<CellAnim>();
+        private bool _cellsDirty;
+        private bool _geometryDirty;
+        private int _animating;
 
         /// <summary>Гравець відпустив фігуру над полем. Валідність вирішує Core.</summary>
         public InputRouter Router { get; } = new InputRouter();
@@ -52,14 +90,15 @@ namespace InkFlow.UI
         {
             _session = session;
             _geometry = BoardGeometry.For(session.Board.Width, session.Board.Height);
+            EnsureBuffers();
             HideGhost();
+            ApplyGeometry();
             Repaint();
         }
 
         /// <summary>
         /// Одиниць канваса на px макета. Рахується з фактичної ширини полотна:
-        /// поле — квадрат, вписаний у ширину екрана, і на вузькому пристрої воно
-        /// стискається разом із нею.
+        /// поле — квадрат, вписаний у те, що лишилось на екрані.
         /// </summary>
         private float Scale
         {
@@ -118,33 +157,248 @@ namespace InkFlow.UI
             return true;
         }
 
+        // ── Геометрія: розмір поля може змінитись (інший екран) — уніформи й підсвітки за ним ──
+
+        private void OnRectTransformDimensionsChange() => _geometryDirty = true;
+
+        /// <summary>Уніформи шейдерів і позиції підсвіток — від фактичного розміру полотна.</summary>
+        public void ApplyGeometry()
+        {
+            _geometryDirty = false;
+            if (design == null || canvasRect == null || _geometry.Width == 0)
+                return;
+            var scale = Scale;
+            var size = canvasRect.rect.size;
+            var step = _geometry.Step * scale;
+            var radius = step * design.PieceRadiusFraction;
+            // Центр клітинки (0,0) у px від лівого нижнього кута: BoardGeometry рахує від верхнього.
+            var origin = new Vector4(
+                _geometry.CenterX(0) * scale,
+                (BoardGeometry.Canvas - _geometry.CenterY(0)) * scale, 0f, 0f);
+
+            // Матеріали — лише в Play Mode: у редакторі збирач кличе Apply() перед збереженням
+            // префаба, і посилання на незбережений Material лягло б у файл порожнім.
+            var materials = Application.isPlaying ? new[] { Material, GhostMaterial } : System.Array.Empty<Material?>();
+            foreach (var material in materials)
+            {
+                if (material == null)
+                    continue;
+                material.SetVector(GridId, new Vector4(_geometry.Width, _geometry.Height, 0f, 0f));
+                material.SetVector(OriginId, origin);
+                material.SetVector(SizeId, new Vector4(size.x, size.y, 0f, 0f));
+                material.SetFloat(StepId, step);
+                material.SetFloat(RadiusId, radius);
+                material.SetFloat(BridgeId, step * design.PieceBridgeFraction);
+                material.SetFloat(SmoothId, radius * design.PieceSmoothFraction);
+                material.SetFloat(GlowAlphaId, design.PieceGlowAlpha);
+                material.SetFloat(GlowWidthId, radius * design.PieceGlowFraction);
+                material.SetFloat(HighlightId, design.PieceHighlightAlpha);
+                material.SetFloat(DotId, design.PieceDotAlpha);
+                material.SetFloat(LightMixId, design.PieceLightMix);
+                material.SetFloat(DarkMixId, design.PieceDarkMix);
+            }
+            if (Application.isPlaying)
+                Material?.SetFloat(OpacityId, 1f);
+
+            var box = _geometry.Box * scale;
+            for (var y = 0; y < _geometry.Height; y++)
+                for (var x = 0; x < _geometry.Width; x++)
+                {
+                    var i = y * _geometry.Width + x;
+                    if (i >= highlights.Length || highlights[i] == null)
+                        continue;
+                    var rect = (RectTransform)highlights[i].transform;
+                    rect.anchoredPosition = CellToLocal(new GridPos(x, y));
+                    rect.sizeDelta = new Vector2(box, box);
+                }
+        }
+
+        private Material? Material
+        {
+            get
+            {
+                if (_material != null)
+                    return _material;
+                if (blobs == null || boardShader == null)
+                    return null;
+                _material = new Material(boardShader) { name = "InkBoard (instance)" };
+                blobs.material = _material;
+                if (_cellsTexture != null)
+                    _material.SetTexture(CellsId, _cellsTexture);
+                return _material;
+            }
+        }
+
+        private Material? GhostMaterial
+        {
+            get
+            {
+                if (_ghostMaterial != null)
+                    return _ghostMaterial;
+                if (ghostBlob == null || boardShader == null)
+                    return null;
+                _ghostMaterial = new Material(boardShader) { name = "InkBoard ghost (instance)" };
+                ghostBlob.material = _ghostMaterial;
+                if (_ghostTexture != null)
+                    _ghostMaterial.SetTexture(CellsId, _ghostTexture);
+                return _ghostMaterial;
+            }
+        }
+
+        private void EnsureBuffers()
+        {
+            var count = _geometry.Width * _geometry.Height;
+            if (_cells.Length == count && _cellsTexture != null)
+                return;
+            _cells = new Color32[count];
+            _ghostCells = new Color32[count];
+            _anims = new CellAnim[count];
+            _cellsTexture = MakeTexture("Board cells");
+            _ghostTexture = MakeTexture("Board ghost");
+            Material?.SetTexture(CellsId, _cellsTexture);
+            GhostMaterial?.SetTexture(CellsId, _ghostTexture);
+        }
+
+        private Texture2D MakeTexture(string name)
+        {
+            var texture = new Texture2D(_geometry.Width, _geometry.Height, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp,
+                name = name
+            };
+            return texture;
+        }
+
+        private void OnDestroy()
+        {
+            if (_material != null) Destroy(_material);
+            if (_ghostMaterial != null) Destroy(_ghostMaterial);
+            if (_cellsTexture != null) Destroy(_cellsTexture);
+            if (_ghostTexture != null) Destroy(_ghostTexture);
+        }
+
         // ── Малювання ──
 
-        /// <summary>Повна синхронізація дошки зі станом моделі.</summary>
+        private static Color32 CellColor(byte color, float scale)
+        {
+            var c = DesignSystem.PaletteColor(color);
+            return new Color32((byte)(c.r * 255f), (byte)(c.g * 255f), (byte)(c.b * 255f), (byte)Mathf.Clamp(scale * 255f, 0f, 255f));
+        }
+
+        private void UploadCells()
+        {
+            if (_cellsTexture == null)
+                return;
+            _cellsTexture.SetPixels32(_cells);
+            _cellsTexture.Apply(false, false);
+            _cellsDirty = false;
+        }
+
+        /// <summary>Повна синхронізація дошки зі станом моделі. Анімації, що ще йдуть, скасовуються.</summary>
         public void Repaint()
         {
             if (_session == null || design == null)
                 return;
+            EnsureBuffers();
 
             var board = _session.Board;
             for (var y = 0; y < board.Height; y++)
                 for (var x = 0; x < board.Width; x++)
                 {
                     var i = y * board.Width + x;
-                    if (i >= blocks.Length || blocks[i] == null)
-                        continue;
                     var color = board[x, y];
-                    if (color == Board.Empty)
-                        blocks[i].Hide();
-                    else
-                        blocks[i].Show(DesignSystem.PaletteColor(color));
+                    _cells[i] = color == Board.Empty ? new Color32(0, 0, 0, 0) : CellColor(color, 1f);
+                    _anims[i].Kind = AnimKind.None;
                 }
+            _animating = 0;
+            UploadCells();
         }
 
+        /// <summary>Модель уже в нових кольорах; показуємо старі там, де перефарбування ще не зіграло (§8).</summary>
+        private void RepaintBeforeRecolor(MoveResult result)
+        {
+            Repaint();
+            for (var i = 0; i < result.Events.Count; i++)
+            {
+                var e = result.Events[i];
+                if (e.Type != GameEventType.BoardRecolored)
+                    continue;
+                for (var c = 0; c < e.CellCount; c++)
+                {
+                    var index = IndexOf(result.Cell(e, c));
+                    if (index >= 0 && index < _cells.Length)
+                        _cells[index] = CellColor((byte)e.Value, 1f);
+                }
+            }
+            UploadCells();
+        }
+
+        private void StartAnim(int index, AnimKind kind)
+        {
+            if (index < 0 || index >= _anims.Length)
+                return;
+            if (_anims[index].Kind == AnimKind.None)
+                _animating++;
+            _anims[index].Kind = kind;
+            _anims[index].Time = 0f;
+        }
+
+        // Одна петля на всі клітинки: масштаби пишуться в текстуру, а не в 64 трансформи.
+        private void LateUpdate()
+        {
+            if (_geometryDirty)
+                ApplyGeometry();
+            if (design == null || _animating == 0)
+            {
+                if (_cellsDirty)
+                    UploadCells();
+                return;
+            }
+
+            var dt = Time.deltaTime;
+            var landDuration = Mathf.Max(design.BoardPlaceDuration, 0.01f);
+            var clearDuration = Mathf.Max(design.LineClearDuration, 0.01f);
+            var landCurve = design.CurveLand;
+            for (var i = 0; i < _anims.Length; i++)
+            {
+                if (_anims[i].Kind == AnimKind.None)
+                    continue;
+                _anims[i].Time += dt;
+                float scale;
+                if (_anims[i].Kind == AnimKind.Land)
+                {
+                    var k = Mathf.Clamp01(_anims[i].Time / landDuration);
+                    scale = Mathf.Lerp(0.6f, 1f, landCurve.Evaluate(k));
+                    if (k >= 1f)
+                    {
+                        _anims[i].Kind = AnimKind.None;
+                        _animating--;
+                        scale = 1f;
+                    }
+                }
+                else
+                {
+                    // Зрив: коротке розширення, потім схлопування в нуль.
+                    var k = Mathf.Clamp01(_anims[i].Time / clearDuration);
+                    scale = k < 0.25f ? 1f + k * 0.8f : Mathf.Lerp(1.2f, 0f, (k - 0.25f) / 0.75f);
+                    if (k >= 1f)
+                    {
+                        _anims[i].Kind = AnimKind.None;
+                        _animating--;
+                        scale = 0f;
+                    }
+                }
+                _cells[i].a = (byte)Mathf.Clamp(scale * 255f, 0f, 255f);
+            }
+            UploadCells();
+        }
+
+        // ── Привид ──
+
         /// <summary>
-        /// Привид фігури під пальцем і підсвітка ліній, які зірвуться. Перефарбовує
-        /// клітинки лише коли якір або форма змінились — під час перетягування це
-        /// раз на клітинку, а не раз на кадр.
+        /// Привид фігури під пальцем (крапля тієї самої форми) і підсвітка ліній, які зірвуться.
+        /// Перемальовується лише коли якір або форма змінились — раз на клітинку, не раз на кадр.
         /// </summary>
         public void ShowGhost(PieceShape shape, byte color, GridPos anchor, bool valid)
         {
@@ -156,9 +410,9 @@ namespace InkFlow.UI
             if (key == _ghostKey)
                 return;
             _ghostKey = key;
+            EnsureBuffers();
 
-            ClearGhostColors();
-
+            ClearHighlights();
             var board = _session.Board;
             var tint = DesignSystem.PaletteColor(color);
 
@@ -172,20 +426,27 @@ namespace InkFlow.UI
                     var pure = IsPurePreview(board, line, shape, anchor, color);
                     var alpha = pure ? design.LinePreviewPureAlpha : design.LinePreviewMixedAlpha;
                     for (var c = 0; c < length; c++)
-                        SetGhost(IndexOf(LineResolver.CellAt(line, c)), DesignSystem.WithAlpha(tint, alpha));
+                        SetHighlight(IndexOf(LineResolver.CellAt(line, c)), DesignSystem.WithAlpha(tint, alpha));
                 }
             }
 
-            var ghostColor = valid
-                ? DesignSystem.WithAlpha(tint, design.GhostValidAlpha)
-                : DesignSystem.WithAlpha(design.GhostInvalidTint, design.GhostInvalidAlpha);
-
+            var ghostColor = valid ? tint : design.GhostInvalidTint;
+            var cell = new Color32((byte)(ghostColor.r * 255f), (byte)(ghostColor.g * 255f), (byte)(ghostColor.b * 255f), 255);
+            System.Array.Clear(_ghostCells, 0, _ghostCells.Length);
             for (var i = 0; i < shape.Cells.Length; i++)
             {
                 var p = new GridPos(anchor.X + shape.Cells[i].X, anchor.Y + shape.Cells[i].Y);
                 if (board.Contains(p))
-                    SetGhost(IndexOf(p), ghostColor);
+                    _ghostCells[IndexOf(p)] = cell;
             }
+            if (_ghostTexture != null)
+            {
+                _ghostTexture.SetPixels32(_ghostCells);
+                _ghostTexture.Apply(false, false);
+            }
+            GhostMaterial?.SetFloat(OpacityId, valid ? design.GhostValidAlpha : design.GhostInvalidAlpha);
+            if (ghostBlob != null && !ghostBlob.gameObject.activeSelf)
+                ghostBlob.gameObject.SetActive(true);
         }
 
         public void HideGhost()
@@ -193,20 +454,22 @@ namespace InkFlow.UI
             if (_ghostKey == long.MinValue)
                 return;
             _ghostKey = long.MinValue;
-            ClearGhostColors();
+            ClearHighlights();
+            if (ghostBlob != null && ghostBlob.gameObject.activeSelf)
+                ghostBlob.gameObject.SetActive(false);
         }
 
-        private void ClearGhostColors()
+        private void ClearHighlights()
         {
-            for (var i = 0; i < ghosts.Length; i++)
-                if (ghosts[i] != null)
-                    ghosts[i].color = Color.clear;
+            for (var i = 0; i < highlights.Length; i++)
+                if (highlights[i] != null && highlights[i].color != Color.clear)
+                    highlights[i].color = Color.clear;
         }
 
-        private void SetGhost(int index, Color color)
+        private void SetHighlight(int index, Color color)
         {
-            if (index >= 0 && index < ghosts.Length && ghosts[index] != null)
-                ghosts[index].color = color;
+            if (index >= 0 && index < highlights.Length && highlights[index] != null)
+                highlights[index].color = color;
         }
 
         /// <summary>Чи буде лінія чистою, якщо покласти сюди фігуру цього кольору.</summary>
@@ -302,23 +565,43 @@ namespace InkFlow.UI
             Repaint();
         }
 
-        /// <summary>Модель уже в нових кольорах; показуємо старі там, де перефарбування ще не зіграло.</summary>
-        private void RepaintBeforeRecolor(MoveResult result)
+        private void ShowPlaced(MoveResult result, in GameEvent e)
         {
-            Repaint();
-            for (var i = 0; i < result.Events.Count; i++)
+            if (design == null)
+                return;
+            for (var c = 0; c < e.CellCount; c++)
             {
-                var e = result.Events[i];
-                if (e.Type != GameEventType.BoardRecolored)
+                var i = IndexOf(result.Cell(e, c));
+                if (i < 0 || i >= _cells.Length)
                     continue;
-                var old = DesignSystem.PaletteColor((byte)e.Value);
-                for (var c = 0; c < e.CellCount; c++)
-                {
-                    var index = IndexOf(result.Cell(e, c));
-                    if (index >= 0 && index < blocks.Length && blocks[index] != null)
-                        blocks[index].Show(old);
-                }
+                _cells[i] = CellColor(e.Color, 0.6f);
+                StartAnim(i, AnimKind.Land);
             }
+            _cellsDirty = true;
+            feedback?.PlayPlace();
+        }
+
+        private IEnumerator PlayLineCleared(MoveResult result, GameEvent e, int lineIndex)
+        {
+            if (design == null)
+                yield break;
+
+            feedback?.PlayLineClear(lineIndex, e.IsPure);
+
+            for (var c = 0; c < e.CellCount; c++)
+            {
+                var i = IndexOf(result.Cell(e, c));
+                if (i >= 0 && i < _cells.Length && _cells[i].a > 0)
+                    StartAnim(i, AnimKind.Clear);
+            }
+
+            var middle = result.Cell(e, e.CellCount / 2);
+            PrepareFloat(e.Value, e.IsPure, e.Color, middle);
+            StartCoroutine(FloatRoutine(floats[_nextFloat]));
+            _nextFloat = (_nextFloat + 1) % Mathf.Max(1, floats.Length);
+
+            if (design.LineClearStagger > 0f)
+                yield return new WaitForSeconds(design.LineClearStagger);
         }
 
         /// <summary>
@@ -329,16 +612,17 @@ namespace InkFlow.UI
         {
             if (design == null || e.CellCount == 0)
                 yield break;
-            var color = DesignSystem.PaletteColor((byte)e.Extra);
+            var color = (byte)e.Extra;
             var stagger = Mathf.Min(design.RecolorWaveStagger, design.RecolorWaveMaxDuration / e.CellCount);
             var elapsed = 0f;
             for (var c = 0; c < e.CellCount; c++)
             {
                 var index = IndexOf(result.Cell(e, c));
-                if (index >= 0 && index < blocks.Length && blocks[index] != null)
+                if (index >= 0 && index < _cells.Length)
                 {
-                    blocks[index].Show(color);
-                    blocks[index].PlayLand();
+                    _cells[index] = CellColor(color, 0.6f);
+                    StartAnim(index, AnimKind.Land);
+                    _cellsDirty = true;
                 }
                 if (stagger <= 0f)
                     continue;
@@ -353,46 +637,6 @@ namespace InkFlow.UI
                 yield return new WaitForSeconds(design.BoardPlaceDuration);
         }
 
-        private void ShowPlaced(MoveResult result, in GameEvent e)
-        {
-            if (design == null)
-                return;
-            var color = DesignSystem.PaletteColor(e.Color);
-            for (var c = 0; c < e.CellCount; c++)
-            {
-                var i = IndexOf(result.Cell(e, c));
-                if (i < 0 || i >= blocks.Length || blocks[i] == null)
-                    continue;
-                blocks[i].Show(color);
-                blocks[i].PlayLand();
-            }
-
-            feedback?.PlayPlace();
-        }
-
-        private IEnumerator PlayLineCleared(MoveResult result, GameEvent e, int lineIndex)
-        {
-            if (design == null)
-                yield break;
-
-            feedback?.PlayLineClear(lineIndex, e.IsPure);
-
-            for (var c = 0; c < e.CellCount; c++)
-            {
-                var i = IndexOf(result.Cell(e, c));
-                if (i >= 0 && i < blocks.Length && blocks[i] != null && blocks[i].IsVisible)
-                    StartCoroutine(blocks[i].ClearRoutine(design.LineClearDuration));
-            }
-
-            var middle = result.Cell(e, e.CellCount / 2);
-            PrepareFloat(e.Value, e.IsPure, e.Color, middle);
-            StartCoroutine(FloatRoutine(floats[_nextFloat]));
-            _nextFloat = (_nextFloat + 1) % Mathf.Max(1, floats.Length);
-
-            if (design.LineClearStagger > 0f)
-                yield return new WaitForSeconds(design.LineClearStagger);
-        }
-
         private void PlayCombo(int lines)
         {
             feedback?.PlayCombo(lines);
@@ -402,7 +646,7 @@ namespace InkFlow.UI
         }
 
         /// <summary>
-        /// Число «+фарба» над лінією. Текст і колір ставляться ТУТ, до старту корутини:
+        /// Число «+пікселі» над лінією. Текст і колір ставляться ТУТ, до старту корутини:
         /// усередині IEnumerator графіку чіпати не можна.
         /// </summary>
         private void PrepareFloat(int amount, bool pure, byte color, GridPos at)
@@ -447,7 +691,7 @@ namespace InkFlow.UI
             label.gameObject.SetActive(false);
         }
 
-        /// <summary>Тряска поля на важкому ланцюгу. Полотно, не окремі блоки.</summary>
+        /// <summary>Тряска поля на важкому ланцюгу. Полотно, не окремі клітинки.</summary>
         private void Shake(int strength)
         {
             if (canvasRect == null || design == null || !isActiveAndEnabled)
@@ -486,6 +730,8 @@ namespace InkFlow.UI
                 if (label != null && label.gameObject.activeSelf)
                     label.gameObject.SetActive(false);
             HideGhost();
+            if (_session != null)
+                Repaint();
         }
     }
 }

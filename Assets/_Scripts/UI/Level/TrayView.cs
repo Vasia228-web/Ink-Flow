@@ -46,5 +46,28 @@ namespace InkFlow.UI
         {
             _ = design;
         }
+
+        /// <summary>
+        /// Три комірки порівну по фактичній ширині лотка (§11, будь-який екран). Виклик — на
+        /// подію розкладки, не щокадру; після нього фігури треба показати знову.
+        /// </summary>
+        public void Layout()
+        {
+            var rect = ((RectTransform)transform).rect;
+            if (rect.width < 1f || slots.Length == 0)
+                return;
+            var gap = rect.width * 0.02f;
+            var slotWidth = (rect.width - gap * (slots.Length - 1)) / slots.Length;
+            for (var i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] == null)
+                    continue;
+                var slot = (RectTransform)slots[i].transform;
+                slot.anchorMin = slot.anchorMax = new Vector2(0f, 0.5f);
+                slot.pivot = new Vector2(0f, 0.5f);
+                slot.anchoredPosition = new Vector2(i * (slotWidth + gap), 0f);
+                slot.sizeDelta = new Vector2(slotWidth, rect.height);
+            }
+        }
     }
 }

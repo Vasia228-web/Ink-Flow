@@ -63,10 +63,6 @@ namespace InkFlow.Gameplay
         [SerializeField] private int[] rarityMinColors = { 2, 3, 3, 4, 5, 6 };
         [SerializeField] private int[] rarityMaxColors = { 3, 3, 4, 5, 6, 8 };
 
-        [Header("Незавершена картинка (§9)")]
-        [Tooltip("Скільки забігів на порятунок незавершеної картинки.")]
-        [SerializeField, Min(1)] private int unfinishedAttempts = 3;
-
         [Header("Продовження після програшу (§10)")]
         [Tooltip("Скільки разів за забіг можна продовжити після програшу.")]
         [SerializeField, Min(0)] private int continuesPerRun = 1;
@@ -84,7 +80,7 @@ namespace InkFlow.Gameplay
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
             hintIdleSeconds,
             rarityWeights, rarityGridSizes, rarityMinColors, rarityMaxColors,
-            unfinishedAttempts, continuesPerRun);
+            continuesPerRun);
 
         private void OnValidate()
         {

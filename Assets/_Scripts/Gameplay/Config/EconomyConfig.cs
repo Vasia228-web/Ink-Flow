@@ -46,6 +46,9 @@ namespace InkFlow.Gameplay
 
         [Tooltip("Нафта за домальовану картинку: звичайна, рідкісна, легендарна.")]
         [SerializeField] private long[] pictureRewards = { 10, 20, 40, 80, 160, 400 };
+        [Tooltip("§13: повна ціна «домалювати одразу» за рідкістю; реальна — пропорційна решті пікселів, не нижче частки.")]
+        [SerializeField] private long[] finishPictureCosts = { 40, 80, 150, 250, 400, 800 };
+        [SerializeField, Range(0f, 1f)] private float finishPictureMinShare = 0.25f;
 
         [Header("Реклама (§9)")]
         [Tooltip("Інтерстиціал раз на стільки забігів. 0 — ніколи.")]
@@ -65,6 +68,8 @@ namespace InkFlow.Gameplay
             scorePerOil,
             pictureRewards,
             interstitialEveryRuns,
-            rewardAdMultiplier);
+            rewardAdMultiplier,
+            finishPictureCosts,
+            finishPictureMinShare);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using InkFlow.Core;
 using InkFlow.Meta;
 using NUnit.Framework;
 
@@ -66,65 +67,72 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void Unfinished_SurvivesARoundTripByPictureName()
+        public void SavedRun_SurvivesAReloadAndContinuesFromTheSamePlace()
         {
             var storage = new MemoryStorage();
             var state = PlayerState.NewPlayer(EconomyData.Default, storage, TestLibrary.Real);
-            var whale = state.Library.IndexOf("whale");
-            Assert.GreaterOrEqual(whale, 0);
-            state.TrackUnfinished(whale, new System.Collections.Generic.List<int> { 8, 2 });
-            Assert.AreEqual(1, storage.Writes, "§9: прогрес пишеться на лоток і паузу");
-            Assert.IsFalse(state.SettleUnfinished(whale, new System.Collections.Generic.List<int> { 8, 2, 3 }, wasCarried: false));
+            Assert.IsNull(state.SavedRun, "новий гравець — забігу немає");
+
+            var session = new RunSession(state.Balance, PieceCatalogData.Default, new XorShiftRandom(11u), state.Library, state.Collection.Has);
+            var bot = new RunBot();
+            for (var i = 0; i < 6 && bot.TryChooseMove(session, out var index, out var anchor); i++)
+                session.TryPlace(index, anchor);
+            state.SaveRun(session);
+            Assert.AreEqual(1, storage.Writes, "§9: зліпок пишеться одразу");
 
             var reloaded = new PlayerState(storage.Load(), EconomyData.Default, storage, TestLibrary.Real);
-            Assert.IsTrue(reloaded.Unfinished.HasPicture);
-            Assert.AreEqual("whale", reloaded.File.Collection.Unfinished.PictureId);
-            Assert.AreEqual(3, reloaded.Unfinished.Filled[2], "індекси пікселів, як були");
-            Assert.AreEqual(3, reloaded.Unfinished.AttemptsLeft);
-            Assert.IsTrue(reloaded.RunStart.HasValue, "гарантоване випадіння наступного забігу");
-            Assert.AreEqual(whale, reloaded.RunStart!.Value.LibraryIndex);
+            Assert.IsNotNull(reloaded.SavedRun);
+            var restored = new RunSession(reloaded.Balance, PieceCatalogData.Default, reloaded.Library, reloaded.SavedRun!, reloaded.Collection.Has);
+            Assert.AreEqual(session.Board.StateHash(), restored.Board.StateHash());
+            Assert.AreEqual(session.Score, restored.Score);
+            Assert.AreEqual(session.Picture.Picture.Id, restored.Picture.Picture.Id);
+            Assert.AreEqual(session.Picture.FilledCount, restored.Picture.FilledCount);
 
-            var otherLibrary = new PlayerState(storage.Load(), EconomyData.Default, storage);
-            Assert.IsFalse(otherLibrary.Unfinished.HasPicture, "у бібліотеці без кита незавершена тихо зникає");
+            reloaded.ClearRun();
+            Assert.IsNull(reloaded.SavedRun);
+            Assert.IsNull(new PlayerState(storage.Load(), EconomyData.Default, storage, TestLibrary.Real).SavedRun, "програш чистить файл");
         }
 
         [Test]
-        public void Migration_V4_DropsTheOldUnfinishedAndAddsProfileFields()
+        public void SavedRun_FromAnotherLibraryIsIgnored()
         {
-            var save = new SaveFile { Version = 4 };
+            var storage = new MemoryStorage();
+            var state = PlayerState.NewPlayer(EconomyData.Default, storage, TestLibrary.Real);
+            var session = new RunSession(state.Balance, PieceCatalogData.Default, new XorShiftRandom(5u), state.Library);
+            state.SaveRun(session);
+
+            var withoutPictures = new PlayerState(storage.Load(), EconomyData.Default, storage);
+            Assert.IsNull(withoutPictures.SavedRun, "картинки немає в запасній бібліотеці — зліпок тихо пропускається");
+        }
+
+        [Test]
+        public void SaveRun_OfAFinishedRunClearsInstead()
+        {
+            var storage = new MemoryStorage();
+            var state = PlayerState.NewPlayer(EconomyData.Default, storage, TestLibrary.Real);
+            var session = new RunSession(state.Balance, PieceCatalogData.Default, new XorShiftRandom(21u), state.Library);
+            var bot = new RunBot();
+            var guard = 0;
+            while (!session.IsOver && guard++ < 5000 && bot.TryChooseMove(session, out var index, out var anchor))
+                session.TryPlace(index, anchor);
+            Assert.IsTrue(session.IsOver);
+            state.SaveRun(session);
+            Assert.IsNull(state.SavedRun, "програний забіг не зберігається");
+        }
+
+        [Test]
+        public void Migration_V4_AndV5_DropTheOldUnfinishedAndAddTheRun()
+        {
+            var save = new SaveFile { Version = 4, Run = null! };
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 2, FirstUtc = Now.ToString("o") });
-            save.Collection.Unfinished.PictureId = "whale";
-            save.Collection.Unfinished.Filled.Add(8);
             save.Profile.AvatarId = 7;
             var migrated = SaveMigrations.Migrate(save);
-            Assert.AreEqual(5, migrated.Version);
-            Assert.AreEqual(string.Empty, migrated.Collection.Unfinished.PictureId, "лічильники зон v4 не є індексами пікселів");
-            Assert.AreEqual(0, migrated.Collection.Unfinished.Filled.Count);
+            Assert.AreEqual(6, migrated.Version);
+            Assert.IsNotNull(migrated.Run);
+            Assert.IsTrue(migrated.Run.IsEmpty, "зліпка забігу в старому файлі не було");
             Assert.AreEqual(1, migrated.Collection.Pictures.Count, "колекція — лише назви, лишається");
             Assert.AreEqual(0, migrated.Profile.AvatarId);
             Assert.AreEqual(string.Empty, migrated.Profile.ShowcasePictureId);
-        }
-
-        [Test]
-        public void Unfinished_UnknownPictureIdIsDropped()
-        {
-            var save = new SaveFile();
-            save.Collection.Unfinished.PictureId = "вилучена";
-            save.Collection.Unfinished.Filled.Add(5);
-            var state = new PlayerState(save, EconomyData.Default);
-            Assert.IsFalse(state.Unfinished.HasPicture);
-            Assert.IsFalse(state.RunStart.HasValue);
-        }
-
-        [Test]
-        public void CollectPicture_ClosesTheUnfinishedOne()
-        {
-            var state = PlayerState.NewPlayer(EconomyData.Default, null, TestLibrary.Real);
-            var whale = state.Library.IndexOf("whale");
-            state.TrackUnfinished(whale, new System.Collections.Generic.List<int> { 8 });
-            state.CollectPicture("whale", Now);
-            Assert.IsFalse(state.Unfinished.HasPicture);
-            Assert.AreEqual(string.Empty, state.File.Collection.Unfinished.PictureId);
         }
 
         [Test]

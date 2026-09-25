@@ -29,7 +29,6 @@ namespace InkFlow.UI
         [SerializeField] private RawImage pixels;
         [SerializeField] private TMP_Text title;
         [SerializeField] private TMP_Text caption;
-        [SerializeField] private TMP_Text attempts;
 
         private PixelPicture? _picture;
         private PictureProgress? _progress;
@@ -57,21 +56,7 @@ namespace InkFlow.UI
             }
             Font(title, design.FontSizePictureName, design.TextPrimary, design.LetterSpacingWide);
             Font(caption, design.FontSizePictureCaption, design.TextMuted, design.LetterSpacingWide);
-            Font(attempts, design.FontSizePictureCaption, design.AccentGold, design.LetterSpacingWide);
-            if (attempts != null && Application.isPlaying == false) attempts.gameObject.SetActive(false);
             if (plate != null) plate.localScale = Vector3.one;
-        }
-
-        /// <summary>§9 п.5: «Спроб лишилось: N» видно завжди, поки картинка перенесена; 0 — напису немає.</summary>
-        public void ShowAttempts(int attemptsLeft)
-        {
-            if (attempts == null)
-                return;
-            var show = attemptsLeft > 0;
-            if (attempts.gameObject.activeSelf != show)
-                attempts.gameObject.SetActive(show);
-            if (show)
-                attempts.text = $"СПРОБ · {attemptsLeft}";
         }
 
         /// <summary>Показує стан картинки як є: контур, заповнені пікселі, решта — ледь помітний силует.</summary>
@@ -89,7 +74,6 @@ namespace InkFlow.UI
         public void ShowCompleted(PixelPicture picture, string captionText)
         {
             _progress = null;
-            ShowAttempts(0);
             Bind(picture);
             for (var i = 0; i < _buffer.Length; i++)
                 _buffer[i] = ColorFor(i, filled: true);

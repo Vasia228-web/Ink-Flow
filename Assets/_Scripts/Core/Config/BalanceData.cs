@@ -42,7 +42,6 @@ namespace InkFlow.Core
             int[]? rarityGridSizes = null,
             int[]? rarityMinColors = null,
             int[]? rarityMaxColors = null,
-            int unfinishedAttempts = 3,
             int continuesPerRun = 1)
         {
             if (gridWidth < 2 || gridHeight < 2)
@@ -55,8 +54,6 @@ namespace InkFlow.Core
                 throw new ArgumentOutOfRangeException(nameof(pureLineBonus));
             if (maxTrayAttempts < 1 || trayRescueAttempts < 1)
                 throw new ArgumentOutOfRangeException(nameof(maxTrayAttempts));
-            if (unfinishedAttempts < 1)
-                throw new ArgumentOutOfRangeException(nameof(unfinishedAttempts));
             if (continuesPerRun < 0)
                 throw new ArgumentOutOfRangeException(nameof(continuesPerRun));
 
@@ -100,7 +97,6 @@ namespace InkFlow.Core
             ScorePerLine = scorePerLine;
             PureLineScoreBonus = pureLineScoreBonus;
             HintIdleSeconds = hintIdleSeconds;
-            UnfinishedAttempts = unfinishedAttempts;
             ContinuesPerRun = continuesPerRun;
         }
 
@@ -193,9 +189,8 @@ namespace InkFlow.Core
             return Rarity.Common;
         }
 
-        // ── Незавершена (§9) і продовження (§10) ──
+        // ── Продовження (§10) ──
 
-        public int UnfinishedAttempts { get; }
         public int ContinuesPerRun { get; }
 
         // ── Похідні ──

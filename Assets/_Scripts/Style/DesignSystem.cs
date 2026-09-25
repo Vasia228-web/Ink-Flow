@@ -959,6 +959,8 @@ namespace InkFlow.Style
         public Color BoardPlateStroke => boardPlateStroke;
         public float TrayDraggingAlpha => trayDraggingAlpha;
 
+        public float PieceLightMix => pieceLightMix;
+        public float PieceDarkMix => pieceDarkMix;
         public float PieceRadiusFraction => pieceRadiusFraction;
         public float PieceBridgeFraction => pieceBridgeFraction;
         public float PieceSmoothFraction => pieceSmoothFraction;

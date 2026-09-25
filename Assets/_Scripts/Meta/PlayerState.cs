@@ -36,13 +36,12 @@ namespace InkFlow.Meta
             File.Progress ??= new ProgressData();
             File.Settings ??= new SettingsData();
             File.Collection ??= new CollectionData();
-            File.Collection.Unfinished ??= new UnfinishedData();
+            File.Run ??= new Core.RunSnapshot();
             File.Galaxy.Placements ??= new System.Collections.Generic.List<PicturePlacement>();
 
             Wallet = new Wallet(File.Wallet.OilDrops);
             Paints = PaintInventory.Load(File.Paints);
             Collection = PictureCollection.Load(File.Collection);
-            Unfinished = UnfinishedStore.Load(File.Collection.Unfinished, Library, Balance);
             Rewards = new RewardCalculator(Economy);
             DailyLimit = new DailyLimitTracker(Economy);
             DailyLimit.Restore(File.Wallet.PlaysToday, File.Wallet.DayUtc);
@@ -58,17 +57,16 @@ namespace InkFlow.Meta
         /// <summary>Зібрані картинки (§5, §10). Рекорд колекції = <see cref="PictureCollection.Distinct"/>.</summary>
         public PictureCollection Collection { get; }
 
-        /// <summary>Бібліотека й баланс, з якими читається файл: незавершена зберігається назвою картинки.</summary>
+        /// <summary>Бібліотека й баланс, з якими читається файл: зліпок забігу говорить назвами картинок і форм.</summary>
         public Core.PictureLibrary Library { get; }
         public Core.BalanceData Balance { get; }
 
-        /// <summary>Незавершена картинка (§7): одна, з прогресом і спробами.</summary>
-        public Core.UnfinishedPicture Unfinished { get; }
-
-        /// <summary>З чого починати наступний забіг: незавершена, якщо є (§7, гарантоване випадіння).</summary>
-        public Core.PictureStart? RunStart => Unfinished.HasPicture
-            ? new Core.PictureStart(Unfinished.PictureIndex, Unfinished.Filled, Unfinished.AttemptsLeft)
-            : (Core.PictureStart?)null;
+        /// <summary>
+        /// Перерваний забіг (§9), якщо його можна продовжити цією грою; null — починати новий.
+        /// Зліпок з іншої версії (картинку прибрали, сітка інша) тихо ігнорується.
+        /// </summary>
+        public Core.RunSnapshot? SavedRun =>
+            Core.RunSession.CanRestore(File.Run, Library, Core.PieceCatalogData.Default, Balance) ? File.Run : null;
 
         public ProgressData Progress => File.Progress;
         public GalaxyData Galaxy => File.Galaxy;
@@ -111,24 +109,30 @@ namespace InkFlow.Meta
             File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");
             PaintInventory.Save(Paints, File.Paints);
             PictureCollection.Save(Collection, File.Collection);
-            UnfinishedStore.Save(Unfinished, Library, File.Collection.Unfinished);
 
             _storage?.Save(File);
         }
 
-        /// <summary>Прогрес картинки (§9): раз на лоток і на паузу — одразу у файл.</summary>
-        public void TrackUnfinished(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled)
+        /// <summary>§9: зліпок забігу — у файл. Пишеться на паузу, вихід і новий лоток, а не після кожного ходу.</summary>
+        public void SaveRun(Core.RunSession session)
         {
-            Unfinished.Track(pictureIndex, filled);
+            if (session is null) throw new ArgumentNullException(nameof(session));
+            if (session.IsOver)
+            {
+                ClearRun();
+                return;
+            }
+            session.Capture(File.Run);
             Persist();
         }
 
-        /// <summary>Кінець забігу: незавершена реєструється або витрачає спробу. Повертає true, якщо анульовано.</summary>
-        public bool SettleUnfinished(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled, bool wasCarried)
+        /// <summary>Забіг закінчено (програш, фінал, рестарт) — продовжувати нічого.</summary>
+        public void ClearRun()
         {
-            var annulled = Unfinished.Settle(pictureIndex, filled, wasCarried);
+            if (File.Run.IsEmpty)
+                return;
+            File.Run.Clear();
             Persist();
-            return annulled;
         }
 
         /// <summary>
@@ -138,9 +142,6 @@ namespace InkFlow.Meta
         public bool CollectPicture(string pictureId, DateTime utcNow)
         {
             var isNew = Collection.Add(pictureId, utcNow);
-            var index = Library.IndexOf(pictureId);
-            if (index >= 0)
-                Unfinished.Complete(index);
             Persist();
             return isNew;
         }
@@ -232,11 +233,21 @@ namespace InkFlow.Meta
             return reward;
         }
 
-        /// <summary>§9: «безкоштовна спроба на рідкісну картинку» — повертає анульовану з однією спробою.</summary>
-        public void RestoreUnfinishedAttempt(int pictureIndex, System.Collections.Generic.IReadOnlyList<int> filled)
+        /// <summary>§13: ціна «домалювати одразу» для цієї картинки — за рідкістю й решті пікселів.</summary>
+        public long FinishPictureCost(Core.Rarity rarity, float remainingFraction) =>
+            Economy.FinishPictureCost(rarity, remainingFraction);
+
+        /// <summary>
+        /// §13: «домалювати одразу» за нафту. Списує ціну; false і нічого не змінює, якщо
+        /// нафти не вистачає. Нафта за домальовану картинку нараховується окремо (RewardPicture).
+        /// </summary>
+        public bool TryFinishPicture(Core.Rarity rarity, float remainingFraction)
         {
-            Unfinished.Restore(pictureIndex, filled, Balance.UnfinishedAttempts - 1);
+            var cost = FinishPictureCost(rarity, remainingFraction);
+            if (!Wallet.TrySpend(cost))
+                return false;
             Persist();
+            return true;
         }
 
         /// <summary>§9: інтерстиціал раз на N забігів — після забігу з номером, кратним N.</summary>

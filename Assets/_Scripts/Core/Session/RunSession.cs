@@ -32,7 +32,7 @@ namespace InkFlow.Core
         private readonly byte[] _colorMap = new byte[MasterPalette.Count];
 
         public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random,
-            PictureLibrary? library = null, PictureStart? start = null, Func<string, bool>? isCollected = null)
+            PictureLibrary? library = null, Func<string, bool>? isCollected = null)
         {
             Balance = balance ?? throw new ArgumentNullException(nameof(balance));
             Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -45,8 +45,141 @@ namespace InkFlow.Core
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
-            Picture = start.HasValue ? Carry(start.Value) : DrawPicture(exclude: -1);
+            Picture = DrawPicture(exclude: -1);
             RefillTray(_result, silent: true);
+        }
+
+        /// <summary>
+        /// Продовження перерваного забігу (§9) зі зліпка: поле, лоток, картинка, лічильники й
+        /// генератор випадковості — ті самі. Кидає, якщо зліпок не з цієї гри
+        /// (перевір <see cref="CanRestore"/>).
+        /// </summary>
+        public RunSession(BalanceData balance, PieceCatalogData catalog, PictureLibrary library, RunSnapshot snapshot,
+            Func<string, bool>? isCollected = null)
+        {
+            Balance = balance ?? throw new ArgumentNullException(nameof(balance));
+            Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+            Library = library ?? throw new ArgumentNullException(nameof(library));
+            if (snapshot is null) throw new ArgumentNullException(nameof(snapshot));
+            if (!CanRestore(snapshot, library, catalog, balance))
+                throw new ArgumentException("Зліпок не з цієї гри: інша сітка, невідома картинка чи форма.", nameof(snapshot));
+
+            Random = new XorShiftRandom(snapshot.RandomState);
+            _isCollected = isCollected;
+            _deck = new PictureDeck(Library, balance);
+
+            Board = new Board(balance.GridWidth, balance.GridHeight);
+            for (var i = 0; i < snapshot.Cells.Length; i++)
+            {
+                var color = (byte)snapshot.Cells[i];
+                Board[new GridPos(i % Board.Width, i / Board.Width)] = MasterPalette.IsFill(color) ? color : Board.Empty;
+            }
+
+            TrayPieces = new PieceDef[balance.TraySize];
+            for (var i = 0; i < TrayPieces.Length && i < snapshot.TrayShapes.Length; i++)
+            {
+                var shape = ShapeById(catalog, snapshot.TrayShapes[i]);
+                var color = i < snapshot.TrayColors.Length ? (byte)snapshot.TrayColors[i] : Board.Empty;
+                TrayPieces[i] = shape is null || !MasterPalette.IsFill(color) ? PieceDef.None : new PieceDef(shape, color);
+            }
+            _trays = new TrayGenerator(catalog, balance);
+            _trays.Restore(snapshot.TraysIssued, snapshot.RescuesUsed);
+
+            var index = Library.IndexOf(snapshot.PictureId);
+            Picture = new PictureProgress(Library[index], index);
+            Picture.Restore(snapshot.FilledPixels);
+
+            Score = snapshot.Score;
+            BestChain = snapshot.BestChain;
+            PlacementCount = snapshot.PlacementCount;
+            LinesCleared = snapshot.LinesCleared;
+            PureLinesCleared = snapshot.PureLinesCleared;
+            PixelsFilled = snapshot.PixelsFilled;
+            PixelsWasted = snapshot.PixelsWasted;
+            PicturesCompleted = snapshot.PicturesCompleted;
+            ContinuesUsed = snapshot.ContinuesUsed;
+            for (var i = 0; i < snapshot.Collected.Length; i++)
+            {
+                var collected = Library.IndexOf(snapshot.Collected[i]);
+                if (collected >= 0)
+                    _collected.Add(collected);
+            }
+
+            // Порожній лоток у зліпку — поповнюємо тихо, як на старті.
+            var anyPiece = false;
+            for (var i = 0; i < TrayPieces.Length; i++)
+                anyPiece |= !TrayPieces[i].IsEmpty;
+            if (!anyPiece)
+                RefillTray(_result, silent: true);
+            EvaluateState();
+        }
+
+        /// <summary>Чи можна продовжити цей зліпок цією грою: та сама сітка, відома картинка, відомі форми.</summary>
+        public static bool CanRestore(RunSnapshot snapshot, PictureLibrary library, PieceCatalogData catalog, BalanceData balance)
+        {
+            if (snapshot is null || snapshot.IsEmpty || library is null || catalog is null || balance is null)
+                return false;
+            if (snapshot.Width != balance.GridWidth || snapshot.Height != balance.GridHeight)
+                return false;
+            if (snapshot.Cells.Length != snapshot.Width * snapshot.Height)
+                return false;
+            if (library.IndexOf(snapshot.PictureId) < 0)
+                return false;
+            for (var i = 0; i < snapshot.TrayShapes.Length; i++)
+                if (snapshot.TrayShapes[i].Length > 0 && ShapeById(catalog, snapshot.TrayShapes[i]) is null)
+                    return false;
+            return true;
+        }
+
+        /// <summary>Зліпок поточного стану — у буфер викликача (§9: пишеться на паузу й на новий лоток).</summary>
+        public void Capture(RunSnapshot into)
+        {
+            if (into is null) throw new ArgumentNullException(nameof(into));
+            into.Width = Board.Width;
+            into.Height = Board.Height;
+            if (into.Cells.Length != Board.CellCount)
+                into.Cells = new int[Board.CellCount];
+            for (var i = 0; i < Board.CellCount; i++)
+                into.Cells[i] = Board[new GridPos(i % Board.Width, i / Board.Width)];
+            if (into.TrayShapes.Length != TrayPieces.Length)
+            {
+                into.TrayShapes = new string[TrayPieces.Length];
+                into.TrayColors = new int[TrayPieces.Length];
+            }
+            for (var i = 0; i < TrayPieces.Length; i++)
+            {
+                into.TrayShapes[i] = TrayPieces[i].Shape?.Id ?? string.Empty;
+                into.TrayColors[i] = TrayPieces[i].Color;
+            }
+            into.PictureId = Picture.Picture.Id;
+            Picture.FilledIndices(_pixelBuffer);
+            into.FilledPixels = _pixelBuffer.ToArray();
+            into.Score = Score;
+            into.BestChain = BestChain;
+            into.PlacementCount = PlacementCount;
+            into.LinesCleared = LinesCleared;
+            into.PureLinesCleared = PureLinesCleared;
+            into.PixelsFilled = PixelsFilled;
+            into.PixelsWasted = PixelsWasted;
+            into.PicturesCompleted = PicturesCompleted;
+            into.ContinuesUsed = ContinuesUsed;
+            into.TraysIssued = _trays.TraysIssued;
+            into.RescuesUsed = _trays.RescuesUsed;
+            var collected = new string[_collected.Count];
+            for (var i = 0; i < _collected.Count; i++)
+                collected[i] = Library[_collected[i]].Id;
+            into.Collected = collected;
+            into.RandomState = Random.State;
+        }
+
+        private static PieceShape? ShapeById(PieceCatalogData catalog, string id)
+        {
+            if (id is null || id.Length == 0)
+                return null;
+            for (var i = 0; i < catalog.Count; i++)
+                if (catalog[i].Id == id)
+                    return catalog[i];
+            return null;
         }
 
         public BalanceData Balance { get; }
@@ -87,24 +220,6 @@ namespace InkFlow.Core
         public IReadOnlyList<int> PicturesCollected => _collected;
 
         public int TrayRescues => _trays.RescuesUsed;
-
-        // ── Незавершена (§9) ──
-
-        public bool StartedWithCarried { get; private set; }
-        public int CarriedIndex { get; private set; } = -1;
-        public int AttemptsLeft { get; private set; }
-
-        private PictureProgress Carry(PictureStart start)
-        {
-            if (start.LibraryIndex < 0 || start.LibraryIndex >= Library.Count)
-                throw new ArgumentOutOfRangeException(nameof(start), "Незавершеної картинки немає в бібліотеці.");
-            var progress = new PictureProgress(Library[start.LibraryIndex], start.LibraryIndex);
-            progress.Restore(start.Filled);
-            StartedWithCarried = true;
-            CarriedIndex = start.LibraryIndex;
-            AttemptsLeft = start.AttemptsLeft;
-            return progress;
-        }
 
         // ── Продовження (§10) ──
 
@@ -183,9 +298,6 @@ namespace InkFlow.Core
             PixelsFilled = 0;
             PixelsWasted = 0;
             _collected.Clear();
-            StartedWithCarried = false;
-            CarriedIndex = -1;
-            AttemptsLeft = 0;
             ContinuesUsed = 0;
             Picture = DrawPicture(exclude: Picture.LibraryIndex);
             Score = 0;

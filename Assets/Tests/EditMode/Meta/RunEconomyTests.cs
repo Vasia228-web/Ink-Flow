@@ -88,25 +88,20 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void RescueAd_RestoresTheAnnulledPictureWithOneAttempt()
+        public void FinishPicture_CostsOilByRarityAndRemainder()
         {
-            var state = PlayerState.NewPlayer(EconomyData.Default, null, TestLibrary.Real);
-            var owl = state.Library.IndexOf("owl");
-            Assert.GreaterOrEqual(owl, 0);
-            var filled = new List<int> { 8, 9 };
-            state.TrackUnfinished(owl, filled);
-            state.SettleUnfinished(owl, filled, wasCarried: false);
-            state.SettleUnfinished(owl, filled, wasCarried: true);
-            state.SettleUnfinished(owl, filled, wasCarried: true);
-            Assert.IsTrue(state.SettleUnfinished(owl, filled, wasCarried: true), "анульовано");
-            Assert.IsFalse(state.Unfinished.HasPicture);
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            Assert.AreEqual(40, state.FinishPictureCost(Rarity.Common, 1f), "§13: повна ціна звичайної");
+            Assert.AreEqual(20, state.FinishPictureCost(Rarity.Common, 0.5f), "половина пікселів — половина ціни");
+            Assert.AreEqual(10, state.FinishPictureCost(Rarity.Common, 0.01f), "але не нижче чверті");
+            Assert.AreEqual(250, state.FinishPictureCost(Rarity.Epic, 1f));
+            Assert.Greater(state.FinishPictureCost(Rarity.Epic, 1f), state.Rewards.ForPicture(Rarity.Epic), "домалювати дорожче, ніж отримаєш");
 
-            state.RestoreUnfinishedAttempt(owl, filled);
-
-            Assert.IsTrue(state.Unfinished.HasPicture);
-            Assert.AreEqual(1, state.Unfinished.AttemptsLeft, "одна спроба за ролик");
-            Assert.AreEqual(9, state.Unfinished.Filled[1], "прогрес повернуто");
-            Assert.IsTrue(state.RunStart.HasValue);
+            Assert.IsFalse(state.TryFinishPicture(Rarity.Common, 1f), "нафти немає — нічого не списано");
+            Assert.AreEqual(0, state.Wallet.OilDrops);
+            state.Wallet.Add(100, RewardSource.Debug);
+            Assert.IsTrue(state.TryFinishPicture(Rarity.Common, 0.5f));
+            Assert.AreEqual(80, state.Wallet.OilDrops);
         }
 
         [Test]

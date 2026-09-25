@@ -259,11 +259,10 @@ namespace InkFlow.App
                 var isNew = state.CollectPicture(pick.Id, System.DateTime.UtcNow);
                 Report($"«{pick.Name}» у колекції{(isNew ? " (нова)" : "")}: різних {state.Collection.Distinct}");
             }
-            if (GUILayout.Button("Скинути незавершену"))
+            if (GUILayout.Button("Скинути збережений забіг"))
             {
-                state.Unfinished.Clear();
-                state.Persist();
-                Report("незавершеної немає");
+                state.ClearRun();
+                Report("перерваного забігу немає — наступний почнеться з нової картинки");
             }
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();

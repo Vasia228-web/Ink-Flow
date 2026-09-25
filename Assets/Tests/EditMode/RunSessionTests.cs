@@ -565,7 +565,7 @@ namespace InkFlow.Core.Tests
                 TestBoard.Picture("c", Rarity.Common, "kyk"));
             for (uint seed = 1; seed < 30; seed++)
             {
-                var session = new RunSession(BalanceData.Default, PieceCatalogData.Default, new XorShiftRandom(seed), library, null,
+                var session = new RunSession(BalanceData.Default, PieceCatalogData.Default, new XorShiftRandom(seed), library,
                     id => id != "c");
                 Assert.AreEqual("c", session.Picture.Picture.Id, "§7: спершу те, чого немає в колекції");
             }

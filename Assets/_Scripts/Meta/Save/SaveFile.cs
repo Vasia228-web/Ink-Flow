@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using InkFlow.Core;
 
 namespace InkFlow.Meta
 {
@@ -12,7 +13,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 5;
+        public const int CurrentVersion = 6;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
@@ -22,6 +23,9 @@ namespace InkFlow.Meta
         public ProgressData Progress = new ProgressData();
         public SettingsData Settings = new SettingsData();
         public CollectionData Collection = new CollectionData();
+
+        /// <summary>Перерваний забіг (§9): порожній зліпок — забігу немає. Програш чистить, пауза пише.</summary>
+        public RunSnapshot Run = new RunSnapshot();
     }
 
     /// <summary>Зібрані картинки (§5, §10): факти «яку, скільки разів, коли вперше».</summary>
@@ -29,19 +33,6 @@ namespace InkFlow.Meta
     public sealed class CollectionData
     {
         public List<CollectedPicture> Pictures = new List<CollectedPicture>();
-
-        /// <summary>Незавершена картинка (§7). Порожній id — немає.</summary>
-        public UnfinishedData Unfinished = new UnfinishedData();
-    }
-
-    [Serializable]
-    public sealed class UnfinishedData
-    {
-        public string PictureId = string.Empty;
-
-        /// <summary>Індекси заповнених пікселів (§9). До v5 тут лежали лічильники зон старого ядра.</summary>
-        public List<int> Filled = new List<int>();
-        public int AttemptsUsed;
     }
 
     [Serializable]

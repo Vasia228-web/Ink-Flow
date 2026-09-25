@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using InkFlow.Core;
 
 namespace InkFlow.Meta
 {
@@ -40,7 +41,6 @@ namespace InkFlow.Meta
                 {
                     save.Collection ??= new CollectionData();
                     save.Collection.Pictures ??= new List<CollectedPicture>();
-                    save.Collection.Unfinished ??= new UnfinishedData();
                     save.Galaxy ??= new GalaxyData();
                     save.Galaxy.Placements ??= new List<PicturePlacement>();
                     save.Version = 4;
@@ -54,11 +54,19 @@ namespace InkFlow.Meta
                 [4] = save =>
                 {
                     save.Collection ??= new CollectionData();
-                    save.Collection.Unfinished = new UnfinishedData();
                     save.Profile ??= new ProfileData();
                     save.Profile.AvatarId = 0;
                     save.Profile.ShowcasePictureId ??= string.Empty;
                     save.Version = 5;
+                    return save;
+                },
+
+                // v5 → v6: систему спроб прибрано (§9 переписано): поле «незавершена» у файлі
+                // просто ігнорується, натомість з'явився зліпок перерваного забігу — порожній.
+                [5] = save =>
+                {
+                    save.Run = new RunSnapshot();
+                    save.Version = 6;
                     return save;
                 }
             };

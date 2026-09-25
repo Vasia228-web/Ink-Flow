@@ -84,6 +84,14 @@ namespace InkFlow.UI
             var offsetX = (shape.Width - 1) * 0.5f;
             var offsetY = (shape.Height - 1) * 0.5f;
 
+            // Фігура мусить уміститись у свою комірку разом зі світінням: довга п'ятірка
+            // на вузькому екрані стискається, а не вилазить за край.
+            var margin = cellStep * (design.PieceRadiusFraction * (1f + design.PieceGlowFraction) + 0.05f);
+            var step = Mathf.Min(cellStep,
+                (size.x - margin * 2f) / Mathf.Max(1, shape.Width - 1 + 1f),
+                (size.y - margin * 2f) / Mathf.Max(1, shape.Height - 1 + 1f));
+            step = Mathf.Max(step, cellStep * 0.35f);
+
             for (var i = 0; i < CellIds.Length; i++)
             {
                 if (i >= shape.Cells.Length)
@@ -93,19 +101,19 @@ namespace InkFlow.UI
                 }
                 var cell = shape.Cells[i];
                 material.SetVector(CellIds[i], new Vector4(
-                    size.x * 0.5f + (cell.X - offsetX) * cellStep,
-                    size.y * 0.5f + (cell.Y - offsetY) * cellStep,
+                    size.x * 0.5f + (cell.X - offsetX) * step,
+                    size.y * 0.5f + (cell.Y - offsetY) * step,
                     1f, 0f));
             }
 
             Recolor(piece.Color);
             material.SetVector(SizeId, new Vector4(size.x, size.y, 0f, 0f));
-            material.SetFloat(StepId, cellStep);
-            material.SetFloat(RadiusId, cellStep * design.PieceRadiusFraction);
-            material.SetFloat(BridgeId, cellStep * design.PieceBridgeFraction);
-            material.SetFloat(SmoothId, cellStep * design.PieceRadiusFraction * design.PieceSmoothFraction);
+            material.SetFloat(StepId, step);
+            material.SetFloat(RadiusId, step * design.PieceRadiusFraction);
+            material.SetFloat(BridgeId, step * design.PieceBridgeFraction);
+            material.SetFloat(SmoothId, step * design.PieceRadiusFraction * design.PieceSmoothFraction);
             material.SetFloat(GlowAlphaId, design.PieceGlowAlpha);
-            material.SetFloat(GlowWidthId, cellStep * design.PieceRadiusFraction * design.PieceGlowFraction);
+            material.SetFloat(GlowWidthId, step * design.PieceRadiusFraction * design.PieceGlowFraction);
             material.SetFloat(HighlightId, design.PieceHighlightAlpha);
             material.SetFloat(DotId, design.PieceDotAlpha);
 

@@ -22,8 +22,16 @@ namespace InkFlow.Meta
             long scorePerOil = 100,
             long[]? pictureRewards = null,
             int interstitialEveryRuns = 4,
-            int rewardAdMultiplier = 2)
+            int rewardAdMultiplier = 2,
+            long[]? finishPictureCosts = null,
+            float finishPictureMinShare = 0.25f)
         {
+            FinishPictureCosts = finishPictureCosts ?? DefaultFinishPictureCosts();
+            if (FinishPictureCosts.Length != Core.Rarities.Count)
+                throw new ArgumentOutOfRangeException(nameof(finishPictureCosts), "Шість цін: звичайна … космічна.");
+            if (finishPictureMinShare < 0f || finishPictureMinShare > 1f)
+                throw new ArgumentOutOfRangeException(nameof(finishPictureMinShare));
+            FinishPictureMinShare = finishPictureMinShare;
             if (interstitialEveryRuns < 0)
                 throw new ArgumentOutOfRangeException(nameof(interstitialEveryRuns));
             if (rewardAdMultiplier < 1)
@@ -83,6 +91,23 @@ namespace InkFlow.Meta
 
         /// <summary>Стартова таблиця (§19: «з EconomySimulator»): подвоюється з рідкістю, космічна — окрема подія.</summary>
         public static long[] DefaultPictureRewards() => new long[] { 10, 20, 40, 80, 160, 400 };
+
+        /// <summary>
+        /// §13: «домалювати картинку одразу» — за нафту, повна ціна за рідкістю. Реальна
+        /// ціна пропорційна решті пікселів, але не нижче <see cref="FinishPictureMinShare"/>.
+        /// </summary>
+        public long[] FinishPictureCosts { get; }
+        public float FinishPictureMinShare { get; }
+
+        /// <summary>§19: епічну можна домалювати раз на кілька забігів (забіг дає ~60–70 нафти).</summary>
+        public static long[] DefaultFinishPictureCosts() => new long[] { 40, 80, 150, 250, 400, 800 };
+
+        /// <summary>Ціна домалювати цю картинку зараз: частка решти пікселів від повної ціни, знизу обмежена.</summary>
+        public long FinishPictureCost(Core.Rarity rarity, float remainingFraction)
+        {
+            var share = Math.Max(FinishPictureMinShare, Math.Min(1f, remainingFraction));
+            return (long)Math.Ceiling(FinishPictureCosts[(int)rarity] * share);
+        }
 
         /// <summary>§9, §12: інтерстиціал раз на стільки забігів; 0 — ніколи. «Частіше — видаляють гру».</summary>
         public int InterstitialEveryRuns { get; }

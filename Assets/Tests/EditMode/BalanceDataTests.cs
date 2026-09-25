@@ -81,7 +81,6 @@ namespace InkFlow.Core.Tests
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(traySize: 0));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(pureLineBonus: 0));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(minPieceSize: 6, maxPieceSize: 5));
-            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(unfinishedAttempts: 0));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(continuesPerRun: -1));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityWeights: new[] { 1, 2 }), "шість значень");
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityWeights: new[] { 0, 0, 0, 0, 0, 0 }));

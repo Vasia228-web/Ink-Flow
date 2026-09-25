@@ -47,6 +47,13 @@ namespace InkFlow.Core
             RescuesUsed = 0;
         }
 
+        /// <summary>Лічильники зі зліпка забігу (§9): раунд прогресії має продовжитись, а не почати з нуля.</summary>
+        public void Restore(int traysIssued, int rescuesUsed)
+        {
+            TraysIssued = Math.Max(0, traysIssued);
+            RescuesUsed = Math.Max(0, rescuesUsed);
+        }
+
         /// <summary>
         /// Наповнює лоток. <paramref name="colors"/> — кольори, які ще потрібні картинці,
         /// <paramref name="colorWeights"/> — скільки пікселів кожного лишилось (вага).
