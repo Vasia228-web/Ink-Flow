@@ -1,0 +1,392 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06429da520e104ee4bab1d8c446249da, type: 3}
+  m_Name: PictureArt
+  m_EditorClassIdentifier: InkFlow.UI::InkFlow.UI.PictureArtCatalog
+  pictures:
+  - id: comet
+    zones:
+    - {fileID: 21300000, guid: 2648fb0f281634cbb9266733eb92afee, type: 3}
+    - {fileID: 21300000, guid: d85373ffe96c947b98d48ddba8462529, type: 3}
+    - {fileID: 21300000, guid: 63d28f2c4c6394b8ca48f7d58980e209, type: 3}
+    - {fileID: 21300000, guid: 2e7828deb04d2417f95b20121757e9ee, type: 3}
+    - {fileID: 21300000, guid: 54d699e4810e84642918f8201ce62d58, type: 3}
+    origins:
+    - {x: 0.79670334, y: 0.79670334}
+    - {x: 0.3021978, y: 0.30219784}
+    - {x: 0.5, y: 0.49999997}
+    - {x: 0.10439561, y: 0.104395606}
+    - {x: 0.64835167, y: 0.5494506}
+    extents:
+    - 0.21879397
+    - 0.21879396
+    - 0.21879399
+    - 0.13235122
+    - 0.5950163
+  - id: rocket
+    zones:
+    - {fileID: 21300000, guid: 006b63d9cbb0648a1981ce9e3f4a2751, type: 3}
+    - {fileID: 21300000, guid: 0835c1d752ae94359b2171a4bc28b7e1, type: 3}
+    - {fileID: 21300000, guid: a181933e5dc45468284d7cea4ae474bc, type: 3}
+    - {fileID: 21300000, guid: 9c373256b25fa4c3da9708c0797d61a2, type: 3}
+    - {fileID: 21300000, guid: 6a6ca50ce350b4948b1c624d840ce7a3, type: 3}
+    origins:
+    - {x: 0.5, y: 0.42582417}
+    - {x: 0.5, y: 0.8791208}
+    - {x: 0.5, y: 0.25274727}
+    - {x: 0.5, y: 0.59890115}
+    - {x: 0.5, y: 0.054945055}
+    extents:
+    - 0.41642967
+    - 0.2143881
+    - 0.422423
+    - 0.13235125
+    - 0.21076925
+  - id: planet
+    zones:
+    - {fileID: 21300000, guid: 46793c2a1742f44e7ac413269718b6b5, type: 3}
+    - {fileID: 21300000, guid: 5ab366e99024f4cd8aba7c2a49df096d, type: 3}
+    - {fileID: 21300000, guid: 703776712bca54facb503b3ed57f495b, type: 3}
+    - {fileID: 21300000, guid: 61e5fd7e75bf54996855b5014d358a8a, type: 3}
+    origins:
+    - {x: 0.49840483, y: 0.57497346}
+    - {x: 0.5, y: 0.45054945}
+    - {x: 0.8131868, y: 0.18681319}
+    - {x: 0.51648355, y: 0.6813187}
+    extents:
+    - 0.41782406
+    - 0.51832914
+    - 0.13613412
+    - 0.13613413
+  - id: star
+    zones:
+    - {fileID: 21300000, guid: d038a303e4ec045bdabeb3f0a27310a8, type: 3}
+    - {fileID: 21300000, guid: 654839f272785478cbd231a284bbb998, type: 3}
+    - {fileID: 21300000, guid: c46b152e1fc334e09ac6a60d24e79810, type: 3}
+    - {fileID: 21300000, guid: 6f75ef1a22d154abf9fb3fc0e37b0ec5, type: 3}
+    origins:
+    - {x: 0.5494505, y: 0.49576142}
+    - {x: 0.5044955, y: 0.5764236}
+    - {x: 0.5494506, y: 0.74725276}
+    - {x: 0.5494506, y: 0.054945055}
+    extents:
+    - 0.5151194
+    - 0.5176859
+    - 0.35912088
+    - 0.458022
+  - id: satellite
+    zones:
+    - {fileID: 21300000, guid: f55b6c8bcf9e8402ea29b42fb88f8867, type: 3}
+    - {fileID: 21300000, guid: 596aeb3d334c14dab9521a4f493ec3ec, type: 3}
+    - {fileID: 21300000, guid: 777c2102f3ec04189a3577c9c7dc80bb, type: 3}
+    - {fileID: 21300000, guid: b7fe0379f65a94aa29307b1f4de9956e, type: 3}
+    - {fileID: 21300000, guid: acec2b42eb9b04d0396bc82ae0084656, type: 3}
+    - {fileID: 21300000, guid: 832006ca8a76e418aaf057fbaa24428d, type: 3}
+    - {fileID: 21300000, guid: 9f1702c46a2a645258755e06e67509e1, type: 3}
+    - {fileID: 21300000, guid: f4fcc5676c5134407802fe3dd8caf7a1, type: 3}
+    - {fileID: 21300000, guid: 583d2d711f7784199922b31b19a53231, type: 3}
+    origins:
+    - {x: 0.54128444, y: 0.45871562}
+    - {x: 0.21100919, y: 0.4587156}
+    - {x: 0.8715597, y: 0.4587156}
+    - {x: 0.5412844, y: 0.89220184}
+    - {x: 0.5412844, y: 0.16972476}
+    - {x: 0.5412844, y: 0.7477064}
+    - {x: 0.3761468, y: 0.4587156}
+    - {x: 0.5412844, y: 0.5412844}
+    - {x: 0.5412844, y: 0.3761468}
+    extents:
+    - 0.2367396
+    - 0.23673956
+    - 0.23673956
+    - 0.13722008
+    - 0.0933945
+    - 0.09339453
+    - 0.42136902
+    - 0.05211009
+    - 0.05211009
+  - id: nebula
+    zones:
+    - {fileID: 21300000, guid: 643e4977b93264086a9b716326675818, type: 3}
+    - {fileID: 21300000, guid: 8bc642e28570042f4a75043879bb9dcc, type: 3}
+    - {fileID: 21300000, guid: 72b41719ccb524e53a5289d61d220b6a, type: 3}
+    - {fileID: 21300000, guid: aa640b4b7774542c98daf58f5a66773a, type: 3}
+    - {fileID: 21300000, guid: b6c569429db26411789e8b9271045bda, type: 3}
+    - {fileID: 21300000, guid: 94770bbc030714d8ea0dead0d7a6ad37, type: 3}
+    - {fileID: 21300000, guid: e09b6ae60e4244fccbf8ff02fa852562, type: 3}
+    - {fileID: 21300000, guid: e27d7dcc805404c28be4f2dbc414f4f1, type: 3}
+    - {fileID: 21300000, guid: 2c806b90e3adf4b828f44b3f6f36c310, type: 3}
+    origins:
+    - {x: 0.4533886, y: 0.5679193}
+    - {x: 0.4626475, y: 0.56880724}
+    - {x: 0.4587156, y: 0.58715594}
+    - {x: 0.5, y: 0.58256876}
+    - {x: 0.3761468, y: 0.95412844}
+    - {x: 0.78899086, y: 0.8715596}
+    - {x: 0.12844037, y: 0.21100917}
+    - {x: 0.58256876, y: 0.16972478}
+    - {x: 0.8715596, y: 0.21100917}
+    extents:
+    - 0.484305
+    - 0.37961197
+    - 0.22350039
+    - 0.11049508
+    - 0.05211009
+    - 0.05211009
+    - 0.05211009
+    - 0.11049508
+    - 0.05211009
+  - id: galaxy
+    zones:
+    - {fileID: 21300000, guid: 151ce1bb729a64b71997ca2e7e823bea, type: 3}
+    - {fileID: 21300000, guid: af17d6a4826674d989db42e7bad88fd7, type: 3}
+    - {fileID: 21300000, guid: 244e55d742d9a4981bed9dedca5836bc, type: 3}
+    - {fileID: 21300000, guid: 144abd613f6ff4adeb7d44880c46fad3, type: 3}
+    - {fileID: 21300000, guid: ee983238739ca445295e8546035d9ba7, type: 3}
+    - {fileID: 21300000, guid: 83fb328ab6c77441b8619a1c709f3c1e, type: 3}
+    - {fileID: 21300000, guid: 3964ce6d51b6844ebb91867aae896343, type: 3}
+    - {fileID: 21300000, guid: c0e38bb0e359b4eafb2273361da0d2cc, type: 3}
+    - {fileID: 21300000, guid: 389e54827907f4b8590c38a159c86380, type: 3}
+    - {fileID: 21300000, guid: 754d19bded0dc47c09315a6c9790c4a1, type: 3}
+    - {fileID: 21300000, guid: 4961a6497791947708a49c4a48c33cb1, type: 3}
+    - {fileID: 21300000, guid: 1b8244ce11fd34f778dff570f82aea7d, type: 3}
+    - {fileID: 21300000, guid: f5e31da44bfcb46edae7f6dea50021c6, type: 3}
+    - {fileID: 21300000, guid: b7d0bed7f3ce94f99a210e98d4c3a8d7, type: 3}
+    - {fileID: 21300000, guid: 43cdc0a11ea304689a9fc5df141b5ef5, type: 3}
+    - {fileID: 21300000, guid: 1961090e31e9f459bbc1015a0457e56d, type: 3}
+    origins:
+    - {x: 0.53103447, y: 0.5931034}
+    - {x: 0.53103447, y: 0.5753694}
+    - {x: 0.5275862, y: 0.7896551}
+    - {x: 0.19172415, y: 0.4772414}
+    - {x: 0.8972413, y: 0.54344827}
+    - {x: 0.59310347, y: 0.27500007}
+    - {x: 0.5931034, y: 0.75862074}
+    - {x: 0.32413796, y: 0.42758623}
+    - {x: 0.23620689, y: 0.9034482}
+    - {x: 0.84137934, y: 0.15862069}
+    - {x: 0.13793103, y: 0.117241375}
+    - {x: 0.6758621, y: 0.055172414}
+    - {x: 0.9034483, y: 0.9034483}
+    - {x: 0.9655172, y: 0.03448276}
+    - {x: 0.8413793, y: 0.8413793}
+    - {x: 0.9034483, y: 0.9655172}
+    extents:
+    - 0.12695123
+    - 0.20267169
+    - 0.318504
+    - 0.2866885
+    - 0.18670861
+    - 0.29331908
+    - 0.11377006
+    - 0.08543591
+    - 0.13853122
+    - 0.12695117
+    - 0.08543589
+    - 0.085435905
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.05
+  - id: whale
+    zones:
+    - {fileID: 21300000, guid: eff8194f1aff14e27a6702c5e7ec8d14, type: 3}
+    - {fileID: 21300000, guid: 08649af0155124c7782c38e11c673d3d, type: 3}
+    - {fileID: 21300000, guid: e9afb87d2a3b44c42b71acd5e1c0d303, type: 3}
+    - {fileID: 21300000, guid: 4c03e52c5b42f4c9a9b6c6e38cbbf402, type: 3}
+    - {fileID: 21300000, guid: 4cbc12697e99d4f809848d35a8ccecd8, type: 3}
+    origins:
+    - {x: 0.49764523, y: 0.5353217}
+    - {x: 0.47963804, y: 0.27020043}
+    - {x: 0.9203297, y: 0.35164836}
+    - {x: 0.45054945, y: 0.84615386}
+    - {x: 0.3021978, y: 0.5494506}
+    extents:
+    - 0.5131612
+    - 0.39823616
+    - 0.16436249
+    - 0.1613187
+    - 0.11186813
+  - id: flower
+    zones:
+    - {fileID: 21300000, guid: 49da693c08af94072833a77330feaf7f, type: 3}
+    - {fileID: 21300000, guid: fb861a5a7347247c1899bc44a1c8c469, type: 3}
+    - {fileID: 21300000, guid: a99bbb5d548d449e09b6cc598e7589ab, type: 3}
+    - {fileID: 21300000, guid: d0126f7b0493b4d9397631a55524bff6, type: 3}
+    origins:
+    - {x: 0.5, y: 0.7624682}
+    - {x: 0.5, y: 0.6978022}
+    - {x: 0.5, y: 0.21978022}
+    - {x: 0.49010992, y: 0.25274727}
+    extents:
+    - 0.41854364
+    - 0.13235125
+    - 0.31185845
+    - 0.26892915
+  - id: tree
+    zones:
+    - {fileID: 21300000, guid: dead020220a4c40a98b89d8725192e9a, type: 3}
+    - {fileID: 21300000, guid: a726aba73b00641ef9e3053c1f61929c, type: 3}
+    - {fileID: 21300000, guid: 4666447f2878b4078a4eb7ca1c393bd1, type: 3}
+    - {fileID: 21300000, guid: afbff8a81fe054914a7c4896f9a903f7, type: 3}
+    origins:
+    - {x: 0.49654996, y: 0.6115512}
+    - {x: 0.5, y: 0.2032967}
+    - {x: 0.52967036, y: 0.60879123}
+    - {x: 0.5, y: 0.05494506}
+    extents:
+    - 0.51520145
+    - 0.13235125
+    - 0.34562722
+    - 0.5074725
+  - id: fish
+    zones:
+    - {fileID: 21300000, guid: 2951892fa89fb4f7e8bff7820ff627c9, type: 3}
+    - {fileID: 21300000, guid: 78b55301cf82646808b73697ea932f4a, type: 3}
+    - {fileID: 21300000, guid: 7ae15f428de4345c09dea89d3a28d18a, type: 3}
+    - {fileID: 21300000, guid: 4d51b8d98ed994cf58138ada903929ed, type: 3}
+    - {fileID: 21300000, guid: 82de2c490545b44c8a909682f2824c67, type: 3}
+    origins:
+    - {x: 0.5631869, y: 0.5934068}
+    - {x: 0.10439561, y: 0.59890115}
+    - {x: 0.45054945, y: 0.2032967}
+    - {x: 0.5494506, y: 0.64835167}
+    - {x: 0.84615386, y: 0.64835167}
+    extents:
+    - 0.44821823
+    - 0.13235123
+    - 0.1729924
+    - 0.20228487
+    - 0.06241758
+  - id: butterfly
+    zones:
+    - {fileID: 21300000, guid: fa24fa16f3a314e4bbb268fe8d2cc780, type: 3}
+    - {fileID: 21300000, guid: fe0d585ab55a6476991e3c8f3de3ef63, type: 3}
+    - {fileID: 21300000, guid: 421734b51c94f4af5a8547da556d19b5, type: 3}
+    - {fileID: 21300000, guid: 1f86c12093a7b4941901ee8ba1599872, type: 3}
+    - {fileID: 21300000, guid: f1a1e2bdf84dc4c0cbaa5de347bbc7bb, type: 3}
+    - {fileID: 21300000, guid: 61a56cc1d0c2847a3b2d7e87124f30ce, type: 3}
+    - {fileID: 21300000, guid: a0073bf4a9e534923ae6f0aab6e60c19, type: 3}
+    - {fileID: 21300000, guid: 1e7c1555352eb432e80db33b0eb0411d, type: 3}
+    - {fileID: 21300000, guid: 657871e732f034d859c3d2339d334b92, type: 3}
+    - {fileID: 21300000, guid: b92810f48501d4c2b95586221a0c3576, type: 3}
+    origins:
+    - {x: 0.22133027, y: 0.6548165}
+    - {x: 0.7786697, y: 0.6548165}
+    - {x: 0.22477065, y: 0.31651375}
+    - {x: 0.7752292, y: 0.31651375}
+    - {x: 0.21100917, y: 0.70642203}
+    - {x: 0.78899086, y: 0.70642203}
+    - {x: 0.21100917, y: 0.3761468}
+    - {x: 0.78899086, y: 0.3761468}
+    - {x: 0.5, y: 0.45871553}
+    - {x: 0.5, y: 0.91284406}
+    extents:
+    - 0.24409369
+    - 0.24409367
+    - 0.2598024
+    - 0.2598023
+    - 0.05211009
+    - 0.05211009
+    - 0.05211009
+    - 0.05211009
+    - 0.46701324
+    - 0.42595625
+  - id: owl
+    zones:
+    - {fileID: 21300000, guid: dcedaf6d2fb724d82a19152464ee8868, type: 3}
+    - {fileID: 21300000, guid: 504d7fb74e544435884ec740b89a3af6, type: 3}
+    - {fileID: 21300000, guid: 8fb4282a919ef4071857c04f2120587f, type: 3}
+    - {fileID: 21300000, guid: 4a1ef4ed3a27c4a3da718ed239dfd927, type: 3}
+    - {fileID: 21300000, guid: b45c04d99996b4525934cc8b0ebcb5a2, type: 3}
+    - {fileID: 21300000, guid: ed755e39fcce84544b4c06084d28b4ab, type: 3}
+    - {fileID: 21300000, guid: f638140411a1f4841b654dacfe92fabb, type: 3}
+    - {fileID: 21300000, guid: 691b95aca2cda475a85441854b4335d4, type: 3}
+    - {fileID: 21300000, guid: 9627b565a81df4942804d4be30032397, type: 3}
+    - {fileID: 21300000, guid: 31896f2361d9a4bca8e205e112eaa74d, type: 3}
+    origins:
+    - {x: 0.5, y: 0.5000002}
+    - {x: 0.5, y: 0.3461218}
+    - {x: 0.2522936, y: 0.66513765}
+    - {x: 0.7477064, y: 0.66513765}
+    - {x: 0.5, y: 0.58256876}
+    - {x: 0.08715597, y: 0.33486238}
+    - {x: 0.912844, y: 0.33486238}
+    - {x: 0.1559633, y: 0.8990826}
+    - {x: 0.84403676, y: 0.8990826}
+    - {x: 0.5, y: 0.04587156}
+    extents:
+    - 0.5228249
+    - 0.28724286
+    - 0.11049508
+    - 0.110495105
+    - 0.11049508
+    - 0.18266283
+    - 0.18266284
+    - 0.113653265
+    - 0.113653295
+    - 0.2585321
+  - id: dragon
+    zones:
+    - {fileID: 21300000, guid: 3b512f5c45c0b4d82adf7f8a0ee2a8cf, type: 3}
+    - {fileID: 21300000, guid: b9567a6c687d2447d8a71baea6befeb0, type: 3}
+    - {fileID: 21300000, guid: 8d36664ed53c64bc781b142b92fe7d1b, type: 3}
+    - {fileID: 21300000, guid: 8d778a36c73734e149547c9e1828b960, type: 3}
+    - {fileID: 21300000, guid: c266d7a9cc46b4d7a996a9aad04e769d, type: 3}
+    - {fileID: 21300000, guid: 0148fb33a7860447b8cc4a37a49b5f96, type: 3}
+    - {fileID: 21300000, guid: 2b2248b1e1ced4697941296d7c7a7cd0, type: 3}
+    - {fileID: 21300000, guid: fffe380766a7540678fe13b3d5781ae2, type: 3}
+    - {fileID: 21300000, guid: 579417d3079b3429e9dffc0c61b5c4b3, type: 3}
+    - {fileID: 21300000, guid: 0f69cd0ad34394cd2b343163f12a78c1, type: 3}
+    - {fileID: 21300000, guid: 77ad3bf2d4bb4465d935d05b02ffe1ba, type: 3}
+    - {fileID: 21300000, guid: b3825fa137e084a248a19b7a54d48682, type: 3}
+    - {fileID: 21300000, guid: 63812a74f6a3b4cf5a1b028937784d2f, type: 3}
+    - {fileID: 21300000, guid: 5fa10c33533344d60ad2f8172b60a307, type: 3}
+    - {fileID: 21300000, guid: 9bd70e28c14f34ae88939795fae510d9, type: 3}
+    - {fileID: 21300000, guid: f5a78a72d40fc4810bb59f28bf2913c0, type: 3}
+    - {fileID: 21300000, guid: 69b6d9c7cb7434cd09991cf61f94308c, type: 3}
+    origins:
+    - {x: 0.5251231, y: 0.8236453}
+    - {x: 0.71724135, y: 0.69950736}
+    - {x: 0.53568965, y: 0.33551732}
+    - {x: 0.9344827, y: 0.21448274}
+    - {x: 0.5103448, y: 0.36137936}
+    - {x: 0.7689655, y: 0.5827586}
+    - {x: 0.9406897, y: 0.60551727}
+    - {x: 0.82586205, y: 0.53103447}
+    - {x: 0.9241379, y: 0.48965517}
+    - {x: 0.53103447, y: 0.9655172}
+    - {x: 0.6551724, y: 0.9655172}
+    - {x: 0.46896553, y: 0.8413793}
+    - {x: 0.1213793, y: 0.76689655}
+    - {x: 0.03448276, y: 0.8103448}
+    - {x: 0.8679803, y: 0.61083746}
+    - {x: 0.15862069, y: 0.1275862}
+    - {x: 0.8103449, y: 0.1275862}
+    extents:
+    - 0.24720594
+    - 0.16235659
+    - 0.43333787
+    - 0.22182818
+    - 0.18494277
+    - 0.15343474
+    - 0.117684156
+    - 0.103151664
+    - 0.0854359
+    - 0.05
+    - 0.05
+    - 0.05
+    - 0.11768411
+    - 0.07020688
+    - 0.2861783
+    - 0.108567625
+    - 0.13731208
