@@ -534,6 +534,7 @@ namespace InkFlow.Core.Tests
             TestBoard.FillRow(session.Board, 0, wanted == TestBoard.Blue ? "bbb.bbbb" : "rrr.rrrr");
             for (var y = 2; y < 8; y++)
                 session.Board[3, y] = wanted;
+            session.Board[0, 5] = wanted; // лишиться після зриву — саме її перефарбують
             TestBoard.SetTray(session, TestBoard.Piece("2v", wanted));
 
             var result = session.TryPlace(0, new GridPos(3, 0));
