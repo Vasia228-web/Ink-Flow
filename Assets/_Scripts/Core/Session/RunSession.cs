@@ -112,6 +112,7 @@ namespace InkFlow.Core
             if (!anyPiece)
                 RefillTray(_result, silent: true);
             EvaluateState();
+            UpdateDanger(fresh: true);
         }
 
         /// <summary>Чи можна продовжити цей зліпок цією грою: та сама сітка, відома картинка, відомі форми.</summary>
@@ -226,8 +227,17 @@ namespace InkFlow.Core
         public int ContinuesUsed { get; private set; }
         public bool CanContinue => IsOver && ContinuesUsed < Balance.ContinuesPerRun;
 
-        /// <summary>Небезпека «мало місця» (§11) за поточним полем і лотком — чистий підрахунок, без стану.</summary>
-        public BoardDanger Danger => BoardDanger.Evaluate(Board, TrayPieces, Balance);
+        private BoardDanger _danger = BoardDanger.Calm;
+
+        /// <summary>
+        /// Небезпека «мало місця» (§11) після останнього ходу. Оновлюється в кожній точці, що
+        /// змінює поле чи лоток (хід, продовження, рестарт, зліпок), — бо попередження має
+        /// гістерезис і пам'ятає попередній рівень. Програний забіг — завжди None.
+        /// </summary>
+        public BoardDanger Danger => IsOver ? BoardDanger.Calm : _danger;
+
+        private void UpdateDanger(bool fresh = false) =>
+            _danger = BoardDanger.Evaluate(Board, TrayPieces, Catalog, Balance, fresh ? DangerLevel.None : _danger.Level);
 
         /// <summary>Чи є в руці фігура, якій уже немає місця на полі — «тиск» для прогонів.</summary>
         public bool AnyPieceStuck()
@@ -285,6 +295,7 @@ namespace InkFlow.Core
 
             RefillTrayIfEmpty();
             EvaluateState();
+            UpdateDanger();
 
             if (State == GameState.Lost)
                 _result.AddGameLost(PlacementCount, Score);
@@ -313,6 +324,7 @@ namespace InkFlow.Core
                 TrayPieces[i] = PieceDef.None;
             _result.Reset();
             RefillTray(_result, silent: true);
+            UpdateDanger(fresh: true);
         }
 
         /// <summary>Продовження (§10): поле очищується, рахунок і картинка лишаються, лоток — новий.</summary>
@@ -330,6 +342,7 @@ namespace InkFlow.Core
             _result.MarkAccepted();
             _result.AddRunContinued(ContinuesUsed);
             RefillTray(_result, silent: false);
+            UpdateDanger(fresh: true);
             return _result;
         }
 

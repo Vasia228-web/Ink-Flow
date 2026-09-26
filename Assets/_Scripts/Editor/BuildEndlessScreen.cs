@@ -450,18 +450,6 @@ namespace InkFlow.Editor
             plateStroke.color = design.PanelShadow;
             plateStroke.raycastTarget = false;
 
-            // Пульсація «мало місця» (§11): світіння по контуру панелі, червоне, альфою керує BoardPulse.
-            var pulseGo = Child(go, "Pulse");
-            Stretch(pulseGo, -design.PulseWidth);
-            var pulseImage = pulseGo.AddComponent<Image>();
-            pulseImage.sprite = cardGlow;
-            pulseImage.type = Image.Type.Sliced;
-            pulseImage.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius + design.PulseWidth);
-            pulseImage.color = design.PulseColor;
-            pulseImage.raycastTarget = false;
-            pulse = go.AddComponent<BoardPulse>();
-            Wire(pulse, ("design", design), ("glow", pulseImage));
-
             var plateGo = Child(go, "Plate");
             Stretch(plateGo);
             plate = plateGo.AddComponent<Image>();
@@ -470,6 +458,18 @@ namespace InkFlow.Editor
             plate.pixelsPerUnitMultiplier = K1Sprites.Panel != null ? K1Sprites.PanelMultiplier(radius) : GlassPanel.PixelsPerUnitFor(radius);
             plate.color = Color.white;
             plate.raycastTarget = false;
+
+            // Пульсація «мало місця» (§11): червоний рант із піком на краю панелі — НАД панеллю й під
+            // лунками, усередину у відступ, назовні не ширше за бічне поле. Спрайт ранту BoardPulse
+            // будує з токенів сам (Apply); тут — лише шар і прив'язки.
+            var pulseGo = Child(go, "Pulse");
+            Stretch(pulseGo, -design.PulseOuterWidth);
+            var pulseImage = pulseGo.AddComponent<Image>();
+            pulseImage.type = Image.Type.Sliced;
+            pulseImage.color = design.PulseColor;
+            pulseImage.raycastTarget = false;
+            pulse = go.AddComponent<BoardPulse>();
+            Wire(pulse, ("design", design), ("glow", pulseImage));
 
             // Вузол тряски: розтягнутий на панель, півот ТОЙ САМИЙ, що в панелі, — тож його спокій
             // (0, 0) за побудовою, і BoardView.EndShake повертає його туди, як би тряску не обірвали.

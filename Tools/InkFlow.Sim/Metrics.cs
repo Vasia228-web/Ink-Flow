@@ -10,8 +10,12 @@ namespace InkFlow.Sim
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
             int pixelsFilled, int pixelsWasted, int pressureAt, int rescues, bool lostAtRefill, bool unfair,
             int emptyAtDeath, int pictures, float pictureFillAtDeath, int placementsToFirstPicture,
-            int[] doneByRarity, int[] seenByRarity, int firstWarnAt = -1, int firstStrongAt = -1, int warnMoves = 0, int strongMoves = 0)
+            int[] doneByRarity, int[] seenByRarity, int firstWarnAt = -1, int firstStrongAt = -1, int warnMoves = 0, int strongMoves = 0,
+            int warnLead = 0, int strongLead = 0, int warnOnsets = 0)
         {
+            WarnLead = warnLead;
+            StrongLead = strongLead;
+            WarnOnsets = warnOnsets;
             FirstWarnAt = firstWarnAt;
             FirstStrongAt = firstStrongAt;
             WarnMoves = warnMoves;
@@ -74,6 +78,16 @@ namespace InkFlow.Sim
         public int FirstStrongAt { get; }
         public int WarnMoves { get; }
         public int StrongMoves { get; }
+
+        /// <summary>
+        /// За скільки ходів до програшу пульсація горить БЕЗ ПЕРЕРВИ до самого кінця (0 — на останньому
+        /// ході не горіла). Саме це бачить гравець: «рамка світиться вже кілька ходів».
+        /// </summary>
+        public int WarnLead { get; }
+        public int StrongLead { get; }
+
+        /// <summary>Скільки разів за забіг попередження вмикалось (блимання на межі — погано).</summary>
+        public int WarnOnsets { get; }
     }
 
     /// <summary>Скільки розміщень пішло на одну закінчену картинку — окремо за рідкістю; це і є «хвилини на картинку».</summary>

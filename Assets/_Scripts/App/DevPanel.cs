@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using InkFlow.Core;
 using InkFlow.Meta;
+using InkFlow.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -134,6 +135,9 @@ namespace InkFlow.App
             GUILayout.BeginArea(new Rect(rect.x + 10f, rect.y + 26f, rect.width - 20f, rect.height - 36f));
             _scroll = GUILayout.BeginScrollView(_scroll);
 
+            // Працює і без стану гравця: перевірка вигляду не має залежати від збереження.
+            DrawPulseActions();
+
             var state = State;
             if (state == null)
             {
@@ -160,6 +164,36 @@ namespace InkFlow.App
 
             GUILayout.EndScrollView();
             GUILayout.EndArea();
+        }
+
+        /// <summary>
+        /// Пульсація «мало місця» (§11): показати рівень вручну, окремо від умови — щоб відрізнити
+        /// «не малюється» від «не спрацьовує». Кожну зміну рівня, яку порахувала гра, видно в консолі
+        /// («[InkFlow] Пульсація: …») і в рядку нижче.
+        /// </summary>
+        private void DrawPulseActions()
+        {
+            GUILayout.Label("Пульсація «мало місця»");
+            var forced = EndlessScreen.DebugPulse;
+            GUILayout.Label(forced.HasValue ? $"  вручну: {forced.Value}" : "  рахує гра");
+            GUILayout.Label($"  гра: {EndlessScreen.LastDanger}");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Пульсація Warn"))
+                SetPulse(DangerLevel.Warn);
+            if (GUILayout.Button("Пульсація Strong"))
+                SetPulse(DangerLevel.Strong);
+            if (GUILayout.Button("Вимкнути"))
+                SetPulse(DangerLevel.None);
+            if (GUILayout.Button("Як у грі"))
+                SetPulse(null);
+            GUILayout.EndHorizontal();
+            GUILayout.Space(8f);
+        }
+
+        private void SetPulse(DangerLevel? level)
+        {
+            EndlessScreen.SetDebugPulse(level);
+            _status = level.HasValue ? $"пульсація вручну: {level.Value}" : "пульсація: як у грі";
         }
 
         private void DrawState(PlayerState state)

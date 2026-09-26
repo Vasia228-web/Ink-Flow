@@ -158,7 +158,17 @@ namespace InkFlow.UI
         /// <summary>Назад у хаб.</summary>
         public System.Action? BackRequested;
 
-        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+        private void OnEnable()
+        {
+            StyleRefresh.Schedule(this, Apply);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            DebugPulseChanged += OnDebugPulseChanged;
+#endif
+        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        private void OnDisable() => DebugPulseChanged -= OnDebugPulseChanged;
+#endif
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
@@ -285,7 +295,8 @@ namespace InkFlow.UI
             drops?.Clear();
             completion?.Hide();
             HideOver();
-            pulse?.SetLevelImmediate(_session.IsOver ? DangerLevel.None : _session.Danger.Level);
+            _loggedDanger = DangerLevel.None;
+            ShowDanger(immediate: true);
             ShowIntro();
             if (_session.IsOver)
                 OnLost();
@@ -491,15 +502,60 @@ namespace InkFlow.UI
 
             if (_session != null && _session.IsOver)
             {
-                pulse?.SetLevel(DangerLevel.None);
+                ShowDanger(immediate: false);
                 GameEvents.RaiseSessionEnded(_session.State);
                 OnLost();
                 return;
             }
             // §11: пульсація «мало місця» — рівень рахує Core за полем і лотком після ходу.
-            if (_session != null)
-                pulse?.SetLevel(_session.Danger.Level);
+            ShowDanger(immediate: false);
         }
+
+        // ── Пульсація «мало місця» (§11) ──
+
+        private DangerLevel _loggedDanger;
+
+        /// <summary>
+        /// Рівень небезпеки з сесії (після програшу — None) на рамку поля. У дев-збірці: лог у
+        /// консоль на кожну зміну рівня і ручне перемикання з дев-панелі (<see cref="SetDebugPulse"/>) —
+        /// щоб відрізнити «не спрацьовує» від «не малюється».
+        /// </summary>
+        private void ShowDanger(bool immediate)
+        {
+            var level = _session == null || _session.IsOver ? DangerLevel.None : _session.Danger.Level;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (_session != null && level != _loggedDanger)
+            {
+                LastDanger = $"{level} на ході {_session.PlacementCount}: {_session.Danger}";
+                Debug.Log($"[InkFlow] Пульсація: {_loggedDanger} → {LastDanger}");
+            }
+            if (DebugPulse.HasValue)
+                level = DebugPulse.Value;
+#endif
+            _loggedDanger = _session == null || _session.IsOver ? DangerLevel.None : _session.Danger.Level;
+            if (immediate)
+                pulse?.SetLevelImmediate(level);
+            else
+                pulse?.SetLevel(level);
+        }
+
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>Дев-панель: примусовий рівень пульсації (null — рахує гра).</summary>
+        public static DangerLevel? DebugPulse { get; private set; }
+
+        /// <summary>Останній рівень, який порахувала гра, — для дев-панелі.</summary>
+        public static string LastDanger { get; private set; } = "—";
+
+        private static event System.Action? DebugPulseChanged;
+
+        public static void SetDebugPulse(DangerLevel? level)
+        {
+            DebugPulse = level;
+            DebugPulseChanged?.Invoke();
+        }
+
+        private void OnDebugPulseChanged() => ShowDanger(immediate: false);
+#endif
 
         /// <summary>§9: зліпок забігу — у стан гравця. Програний чи завершений забіг не пишеться.</summary>
         private void SaveRun()
@@ -975,7 +1031,7 @@ namespace InkFlow.UI
                 HideOver();
                 board?.Bind(_session);
                 tray?.Show(_session.Tray);
-                pulse?.SetLevelImmediate(_session.Danger.Level);
+                ShowDanger(immediate: true);
                 if (board != null)
                     board.Router.Locked = false;
                 _idleSince = Time.time;
@@ -1318,7 +1374,8 @@ namespace InkFlow.UI
             completion?.Hide();
             HideOver();
             if (introCard != null) introCard.gameObject.SetActive(false);
-            pulse?.SetLevelImmediate(session.IsOver ? DangerLevel.None : session.Danger.Level);
+            _loggedDanger = DangerLevel.None;
+            ShowDanger(immediate: true);
             ApplyStats();
         }
 

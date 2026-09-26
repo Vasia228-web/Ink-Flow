@@ -70,13 +70,15 @@ namespace InkFlow.Gameplay
         [SerializeField, Range(1, 8)] private int minFamilies = 4;
         [SerializeField, Range(1, 8)] private int maxFamilies = 6;
 
-        [Header("Пульсація «мало місця» (§11)")]
-        [Tooltip("Попередження: стільки фігур із руки вже нікуди поставити.")]
-        [SerializeField, Min(1)] private int dangerStuckPieces = 1;
-        [Tooltip("Попередження: навіть найзручнішій фігурі лишилось не більше стількох позицій (0 — вимкнено).")]
-        [SerializeField, Min(0)] private int dangerFewFits = 2;
-        [Tooltip("Сильна пульсація: лишилось не більше стількох фігур, які ще влазять, а інша застрягла.")]
-        [SerializeField, Min(1)] private int dangerLastPlaceable = 1;
+        [Header("Пульсація «мало місця» (§11) — калібрування ботом у docs/implementation-notes.md")]
+        [Tooltip("Форма каталогу «тісна», якщо їй лишилось не більше стількох місць на полі.")]
+        [SerializeField, Range(0, 12)] private int dangerTightFits = 3;
+        [Tooltip("Попередження: тісних форм щонайменше стільки (з 34), або фігура з руки застрягла.")]
+        [SerializeField, Range(1, 34)] private int dangerWarnShapes = 8;
+        [Tooltip("Попередження гасне, лише коли тісних форм знову не більше стількох — інакше рамка блимала б на межі.")]
+        [SerializeField, Range(0, 33)] private int dangerCalmShapes = 3;
+        [Tooltip("Сильна пульсація: тісних форм щонайменше стільки, або фігура з руки вже нікуди не влазить.")]
+        [SerializeField, Range(1, 34)] private int dangerStrongShapes = 18;
 
         [Header("Продовження після програшу (§10)")]
         [Tooltip("Скільки разів за забіг можна продовжити після програшу.")]
@@ -97,7 +99,7 @@ namespace InkFlow.Gameplay
             rarityWeights, rarityGridSizes, rarityMinColors, rarityMaxColors,
             continuesPerRun,
             rarityStepTargets, stepTolerance, minFamilies, maxFamilies,
-            dangerStuckPieces, dangerFewFits, dangerLastPlaceable);
+            dangerTightFits, dangerWarnShapes, dangerCalmShapes, dangerStrongShapes);
 
         private void OnValidate()
         {

@@ -47,9 +47,10 @@ namespace InkFlow.Core
             float stepTolerance = 0.35f,
             int minFamilies = 4,
             int maxFamilies = 6,
-            int dangerStuckPieces = 1,
-            int dangerFewFits = 2,
-            int dangerLastPlaceable = 1)
+            int dangerTightFits = 3,
+            int dangerWarnShapes = 8,
+            int dangerCalmShapes = 3,
+            int dangerStrongShapes = 18)
         {
             if (gridWidth < 2 || gridHeight < 2)
                 throw new ArgumentOutOfRangeException(nameof(gridWidth), "Поле мінімум 2×2.");
@@ -73,14 +74,17 @@ namespace InkFlow.Core
                 throw new ArgumentOutOfRangeException(nameof(stepTolerance));
             if (minFamilies < 1 || maxFamilies < minFamilies)
                 throw new ArgumentOutOfRangeException(nameof(minFamilies));
-            if (dangerStuckPieces < 1 || dangerFewFits < 0 || dangerLastPlaceable < 1)
-                throw new ArgumentOutOfRangeException(nameof(dangerStuckPieces));
+            if (dangerTightFits < 0)
+                throw new ArgumentOutOfRangeException(nameof(dangerTightFits));
+            if (dangerWarnShapes < 1 || dangerCalmShapes < 0 || dangerCalmShapes >= dangerWarnShapes || dangerStrongShapes < dangerWarnShapes)
+                throw new ArgumentOutOfRangeException(nameof(dangerWarnShapes), "Потрібно: 0 ≤ гасне < попередження ≤ сильна.");
             StepTolerance = stepTolerance;
             MinFamilies = minFamilies;
             MaxFamilies = maxFamilies;
-            DangerStuckPieces = dangerStuckPieces;
-            DangerFewFits = dangerFewFits;
-            DangerLastPlaceable = dangerLastPlaceable;
+            DangerTightFits = dangerTightFits;
+            DangerWarnShapes = dangerWarnShapes;
+            DangerCalmShapes = dangerCalmShapes;
+            DangerStrongShapes = dangerStrongShapes;
             RarityWeightTotal = 0;
             for (var i = 0; i < Rarities.Count; i++)
             {
@@ -209,14 +213,17 @@ namespace InkFlow.Core
 
         // ── Пульсація «мало місця» (§11) ──
 
-        /// <summary>Попередження: стільки фігур із руки вже нікуди поставити.</summary>
-        public int DangerStuckPieces { get; }
+        /// <summary>Форма каталогу «тісна», якщо їй лишилось не більше стількох місць на полі.</summary>
+        public int DangerTightFits { get; }
 
-        /// <summary>Попередження: навіть найзручнішій фігурі лишилось не більше стількох позицій (0 — вимкнено).</summary>
-        public int DangerFewFits { get; }
+        /// <summary>Попередження вмикається, коли тісних форм щонайменше стільки (або фігура з руки застрягла).</summary>
+        public int DangerWarnShapes { get; }
 
-        /// <summary>Сильна: лишилось не більше стількох фігур, які ще влазять, а інша застрягла.</summary>
-        public int DangerLastPlaceable { get; }
+        /// <summary>Попередження гасне, лише коли тісних форм знову не більше стількох (гістерезис).</summary>
+        public int DangerCalmShapes { get; }
+
+        /// <summary>Сильна пульсація: тісних форм щонайменше стільки, або фігура з руки вже нікуди не влазить.</summary>
+        public int DangerStrongShapes { get; }
 
         /// <summary>Рідкість за кидком у [0, RarityWeightTotal).</summary>
         public Rarity RarityFor(int roll)

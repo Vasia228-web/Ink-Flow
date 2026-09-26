@@ -225,6 +225,22 @@ namespace InkFlow.Editor
             Object.DestroyImmediate(texture);
         }
 
+        /// <summary>Кадр у пам'ять (читабельна текстура; знищує викликач).</summary>
+        public Texture2D Snapshot()
+        {
+            Render();
+            var previous = RenderTexture.active;
+            RenderTexture.active = Target;
+            var texture = new Texture2D(Target.width, Target.height, TextureFormat.RGBA32, false);
+            texture.ReadPixels(new Rect(0, 0, Target.width, Target.height), 0, 0);
+            texture.Apply();
+            RenderTexture.active = previous;
+            return texture;
+        }
+
+        /// <summary>Світова точка → піксель кадру (початок — лівий нижній кут, як у Texture2D.GetPixel).</summary>
+        public Vector2 ToPixel(Vector3 world) => Camera.WorldToScreenPoint(world);
+
         /// <summary>Самоперевірка поля (див. <see cref="BoardView.FindLayoutFault"/>): null — усе на місці.</summary>
         public string? LayoutFault()
         {

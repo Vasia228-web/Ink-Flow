@@ -28,6 +28,7 @@ var secondsPerMove = 4f;
 var botName = "default";
 var weights = BotWeights.Default;
 string? picturesDir = null;
+string? dangerCsv = null;
 
 for (var i = 0; i < args.Length; i++)
 {
@@ -39,6 +40,7 @@ for (var i = 0; i < args.Length; i++)
         case "--seconds-per-move": secondsPerMove = float.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--pictures": picturesDir = args[++i]; break;
         case "--csv": csv = true; break;
+        case "--danger-csv": dangerCsv = args[++i]; break;
         case "--no-carry": carry = false; break;
         case "--bot":
             botName = args[++i];
@@ -65,7 +67,7 @@ for (var i = 0; i < args.Length; i++)
             break;
         }
         case "--help":
-            Console.WriteLine("--games N  --seed S  --noise F  --seconds-per-move F  --pictures DIR  --bot default|careful|sloppy  --weights a,b,c,d,e  --no-carry  --csv");
+            Console.WriteLine("--games N  --seed S  --noise F  --seconds-per-move F  --pictures DIR  --bot default|careful|sloppy  --weights a,b,c,d,e  --no-carry  --csv  --danger-csv FILE");
             return 0;
         default:
             Console.Error.WriteLine($"Невідомий аргумент: {args[i]}");
@@ -83,12 +85,14 @@ var timing = new PictureTiming(Rarities.Count);
 // Через неї забіги залежать один від одного — граємо послідовно, як гравець; --no-carry — паралельно.
 var collection = new HashSet<string>(StringComparer.Ordinal);
 
+// --danger-csv: стан поля після кожного ходу кожного забігу — сирі дані для калібрування пульсації (§11).
+var dangerRows = dangerCsv is null ? null : new List<string>(games * 80);
 if (carry)
 {
     for (var i = 0; i < games; i++)
     {
         var runSeed = unchecked(seed + (uint)i * 2654435761u);
-        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, collection, timing);
+        results[i] = PlayOne(balance, catalog, library, runSeed, noise, weights, collection, timing, dangerRows, i);
     }
 }
 else
@@ -107,6 +111,12 @@ else
 }
 
 stopwatch.Stop();
+
+if (dangerCsv != null && dangerRows != null)
+{
+    File.WriteAllLines(dangerCsv, new[] { "game,move,moves_to_end,lost,free,blocked,blocked_small,blocked_big,pieces,stuck,placeable,best_fits,level,cat_min_fits,cat_fits_sum,big_min_fits,squares3,frag,hand_min_fits,hand_ways,hand_solvable,tight1,tight3,tight6,log_sum10" }.Concat(dangerRows));
+    Console.Error.WriteLine($"Сирі дані пульсації: {dangerRows.Count} ходів → {dangerCsv}");
+}
 
 var placements = new Distribution(results.Select(r => (float)r.Placements).ToArray());
 var rounds = new Distribution(results.Select(r => (float)r.Rounds).ToArray());
@@ -132,6 +142,13 @@ var warnLead = new Distribution(results.Where(r => r.FirstWarnAt >= 0).Select(r 
 var strongLead = new Distribution(results.Where(r => r.FirstStrongAt >= 0).Select(r => (float)(r.Placements - r.FirstStrongAt)).ToArray());
 var warnShareOfRun = new Distribution(results.Where(r => r.FirstWarnAt >= 0).Select(r => 100f * r.FirstWarnAt / Math.Max(1, r.Placements)).ToArray());
 var neverWarned = results.Count(r => r.FirstWarnAt < 0);
+var lostRuns = results.Where(r => r.Placements > 0).ToArray();
+float LeadShare(Func<RunStats, int> lead, int atLeast) => lostRuns.Length == 0 ? 0f : 100f * lostRuns.Count(r => lead(r) >= atLeast) / lostRuns.Length;
+var warnFinalLead = new Distribution(lostRuns.Select(r => (float)r.WarnLead).ToArray());
+var strongFinalLead = new Distribution(lostRuns.Select(r => (float)r.StrongLead).ToArray());
+var warnOnsets = new Distribution(lostRuns.Select(r => (float)r.WarnOnsets).ToArray());
+var warnPooled = 100f * results.Sum(r => (long)r.WarnMoves) / Math.Max(1, results.Sum(r => (long)r.Placements));
+var strongPooled = 100f * results.Sum(r => (long)r.StrongMoves) / Math.Max(1, results.Sum(r => (long)r.Placements));
 var neverStrong = results.Count(r => r.FirstStrongAt < 0);
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
     .Select(r => 100f * r.PressureAt / Math.Max(1, r.Placements)).ToArray());
@@ -183,6 +200,10 @@ if (csv)
     Console.WriteLine(warnLead.Csv("pulse_warn_moves_before_death", "шт"));
     Console.WriteLine(strongLead.Csv("pulse_strong_moves_before_death", "шт"));
     Console.WriteLine($"pulse_never_warned,%,{F(100f * neverWarned / games)},,,,,");
+    Console.WriteLine(warnFinalLead.Csv("pulse_warn_lead_before_loss", "шт"));
+    Console.WriteLine($"pulse_warn_lead_ge2,%,{F(LeadShare(r => r.WarnLead, 2))},,,,,");
+    Console.WriteLine($"pulse_warn_lead_ge3,%,{F(LeadShare(r => r.WarnLead, 3))},,,,,");
+    Console.WriteLine($"pulse_warn_pooled_share,%,{F(warnPooled)},,,,,");
     Console.WriteLine(emptyAtDeath.Csv("empty_cells_at_death", "шт"));
     Console.WriteLine(rescues.Csv("tray_rescues", "шт"));
     Console.WriteLine($"lost_at_refill,%,{F(100f * lostAtRefill / games)},,,,,");
@@ -211,6 +232,12 @@ Console.WriteLine(emptyAtDeath.Row("вільних клітинок у смер�
 Console.WriteLine(rescues.Row("рятувань мішка", "шт"));
 Console.WriteLine();
 Console.WriteLine("пульсація «мало місця» (§11): попередження / сильна");
+Console.WriteLine($"  попередження горить без перерви до програшу: ≥2 ходи — {LeadShare(r => r.WarnLead, 2):0.#} % програшів, ≥3 — {LeadShare(r => r.WarnLead, 3):0.#} %, 0 — {100f - LeadShare(r => r.WarnLead, 1):0.#} %");
+Console.WriteLine(warnFinalLead.Row("  ходів попередження перед програшем", "шт"));
+Console.WriteLine($"  сильна горить до програшу: ≥2 ходи — {LeadShare(r => r.StrongLead, 2):0.#} %, ≥1 — {LeadShare(r => r.StrongLead, 1):0.#} %");
+Console.WriteLine(strongFinalLead.Row("  ходів сильної перед програшем", "шт"));
+Console.WriteLine($"  частка ходів із пульсацією (усі забіги разом): попередження {warnPooled:0.#} %, сильна {strongPooled:0.#} %");
+Console.WriteLine(warnOnsets.Row("  вмикань попередження за забіг", "шт"));
 Console.WriteLine(warnShare.Row("  ходів із попередженням", "%"));
 Console.WriteLine(strongShare.Row("  ходів із сильною", "%"));
 Console.WriteLine(warnShareOfRun.Row("  перше попередження (% партії)", "%"));
@@ -257,8 +284,9 @@ static string FindPictures()
 }
 
 static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLibrary library, uint runSeed, float noise,
-    BotWeights weights, HashSet<string>? collection, PictureTiming timing)
+    BotWeights weights, HashSet<string>? collection, PictureTiming timing, List<string>? dangerRows = null, int gameIndex = 0)
 {
+    var trace = dangerRows is null ? null : new List<(int move, string row)>(96);
     Func<string, bool>? isCollected = collection is null ? null : id => collection.Contains(id);
     var session = new RunSession(balance, catalog, new XorShiftRandom(runSeed), library, isCollected);
     var bot = new RunBot(weights, new XorShiftRandom(unchecked(runSeed ^ 0x9E3779B9u)), noise);
@@ -268,6 +296,9 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
     var firstStrongAt = -1;
     var warnMoves = 0;
     var strongMoves = 0;
+    var warnStreak = 0;
+    var strongStreak = 0;
+    var warnOnsets = 0;
     var lostAtRefill = false;
     var firstPictureAt = -1;
     var pictureStartedAt = 0; // розміщення, на якому почалась поточна картинка
@@ -309,6 +340,26 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
         if (pressureAt < 0 && !session.IsOver && session.AnyPieceStuck())
             pressureAt = session.PlacementCount;
 
+        // Сирі дані для калібрування: скільки вільних клітинок, скільки форм каталогу вже нікуди
+        // не влазить (усього / малих ≤ 3 / великих ≥ 4), стан руки й рівень за чинним правилом.
+        if (trace != null && !session.IsOver)
+        {
+            var blocked = 0; var blockedSmall = 0; var blockedBig = 0;
+            for (var c = 0; c < catalog.Count; c++)
+            {
+                if (PlacementRules.AnyFit(session.Board, catalog[c]))
+                    continue;
+                blocked++;
+                if (catalog[c].Size <= 3) blockedSmall++; else blockedBig++;
+            }
+            var d = session.Danger;
+            var f = DangerStudy.Features(session.Board, catalog, session.TrayPieces);
+            trace.Add((session.PlacementCount, string.Join(",",
+                session.Board.CountEmpty(), blocked, blockedSmall, blockedBig,
+                d.Pieces, d.Stuck, d.Placeable, d.BestFits, (int)d.Level,
+                f.CatalogMinFits, f.CatalogFitsSum, f.BigMinFits, f.Squares3, f.Fragmentation, f.HandMinFits, f.HandWays, f.HandSolvable ? 1 : 0, f.Tight1, f.Tight3, f.Tight6, (int)(f.LogSum * 10))));
+        }
+
         // Пульсація «мало місця» (§11): рівень після кожного ходу — те, що бачив би гравець.
         if (!session.IsOver)
         {
@@ -316,18 +367,29 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
             if (danger != DangerLevel.None)
             {
                 warnMoves++;
+                if (warnStreak == 0) warnOnsets++;
+                warnStreak++;
                 if (firstWarnAt < 0) firstWarnAt = session.PlacementCount;
             }
+            else
+                warnStreak = 0;
             if (danger == DangerLevel.Strong)
             {
                 strongMoves++;
+                strongStreak++;
                 if (firstStrongAt < 0) firstStrongAt = session.PlacementCount;
             }
+            else
+                strongStreak = 0;
         }
 
         if (session.IsOver)
             lostAtRefill = result.Has(GameEventType.TrayRefilled);
     }
+
+    if (trace != null && dangerRows != null)
+        foreach (var (move, row) in trace)
+            dangerRows.Add($"{gameIndex},{move},{session.PlacementCount - move},{(session.IsOver ? 1 : 0)},{row}");
 
     var unfair = false;
     if (lostAtRefill)
@@ -339,5 +401,6 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
         session.PureLinesCleared, session.BestChain, session.PixelsFilled, session.PixelsWasted, pressureAt,
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
         session.PicturesCompleted, session.Picture.FilledFraction, firstPictureAt,
-        done, seen, firstWarnAt, firstStrongAt, warnMoves, strongMoves);
+        done, seen, firstWarnAt, firstStrongAt, warnMoves, strongMoves,
+        session.IsOver ? warnStreak : 0, session.IsOver ? strongStreak : 0, warnOnsets);
 }

@@ -7,8 +7,8 @@ using UnityEngine;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Знімки екрана забігу з редактора (без Play Mode): чотири роздільності × десять станів —
-    /// порожнє поле, середина гри, майже повне поле з пульсацією, рахунок 1 234 567 і
+    /// Знімки екрана забігу з редактора (без Play Mode): чотири роздільності × одинадцять станів —
+    /// порожнє поле, середина гри, попередження й сильна пульсація «мало місця», рахунок 1 234 567 і
     /// 987 654 321, готова картинка, екран кінця забігу, після рестарту, після відновлення
     /// зліпка, після зміни пристрою. Меню: Ink Flow → Debug → Capture Run Screenshots.
     /// Пише PNG у docs/screenshots/ — для порівняння з еталонами docs/StyleRef/.
@@ -25,7 +25,7 @@ namespace InkFlow.Editor
         /// <summary>Стани в порядку знімання; назви — суфікси файлів.</summary>
         public static readonly string[] States =
         {
-            "empty", "mid", "danger", "score-1234567", "score-987654321", "completed", "over",
+            "empty", "mid", "danger-warn", "danger", "score-1234567", "score-987654321", "completed", "over",
             "restart", "restored", "device-change"
         };
 
@@ -109,6 +109,13 @@ namespace InkFlow.Editor
                     if (session.Danger.Level == DangerLevel.None)
                         Debug.LogWarning("[InkFlow] Знімки: бот не дійшов до сильної пульсації — стан «danger» показує рівень з кнопки.");
                     rig.Screen.PreviewPulse(DangerLevel.Strong);
+                    break;
+                }
+                case "danger-warn":
+                {
+                    var session = rig.NewSession(10_000, stopWhen: s => s.Danger.Level != DangerLevel.None);
+                    rig.Show(session);
+                    rig.Screen.PreviewPulse(DangerLevel.Warn);
                     break;
                 }
                 case "score-1234567":

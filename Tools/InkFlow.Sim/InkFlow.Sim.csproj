@@ -18,6 +18,7 @@
          не залежить від UnityEngine, тож компілюється звичайним dotnet без заглушок. -->
     <Compile Include="../../Assets/_Scripts/Core/**/*.cs" />
     <Compile Include="Metrics.cs" />
+    <Compile Include="DangerStudy.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 
