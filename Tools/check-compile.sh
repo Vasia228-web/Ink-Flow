@@ -41,6 +41,7 @@ ASSEMBLY_DIRS=(
   "InkFlow.Editor:Assets/_Scripts/Editor"
   "InkFlow.Core.Tests:Assets/Tests/EditMode"
   "InkFlow.Meta.Tests:Assets/Tests/EditMode/Meta"
+  "InkFlow.UI.Tests:Assets/Tests/EditMode/UI:InkFlow.Core.Tests"
 )
 
 rm -rf "$OUT"; mkdir -p "$OUT"

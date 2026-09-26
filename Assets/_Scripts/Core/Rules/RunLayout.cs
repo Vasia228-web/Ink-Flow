@@ -11,6 +11,10 @@ namespace InkFlow.Core
     /// Усі числа — в px макета (390 завширшки); в'ю множить на свій коефіцієнт.
     /// Панель картинки 216×186 — трохи більша за попередню редакцію (196×172); на короткому
     /// екрані вона стискається першою, поле й лоток — ніколи.
+    ///
+    /// Бічне поле панелі поля й лотка (<see cref="BoardMargin"/>) — токен дизайн-системи
+    /// (за замовчуванням <see cref="BoardGeometry.DefaultSideMargin"/>); шапка й колонка
+    /// рахунку тримають своє поле <see cref="SideMargin"/>.
     /// </summary>
     public readonly struct RunLayout
     {
@@ -28,10 +32,11 @@ namespace InkFlow.Core
         public const float StatsMaxWidth = 92f;
         public const float StatsGap = 4f;
 
-        private RunLayout(float width, float height, float pictureScale, float boardTop, float boardSide, float trayTop)
+        private RunLayout(float width, float height, float boardMargin, float pictureScale, float boardTop, float boardSide, float trayTop)
         {
             Width = width;
             Height = height;
+            BoardMargin = boardMargin;
             PictureScale = pictureScale;
             BoardTop = boardTop;
             BoardSide = boardSide;
@@ -40,6 +45,9 @@ namespace InkFlow.Core
 
         public float Width { get; }
         public float Height { get; }
+
+        /// <summary>Бічне поле панелі поля й лотка від краю екрана.</summary>
+        public float BoardMargin { get; }
 
         /// <summary>Ширина блоку картинки по центру і колонки рахунку праворуч — так, щоб не перекривались.</summary>
         public float StatsWidth => Math.Max(StatsMinWidth, Math.Min(StatsMaxWidth, (Width - PictureMaxWidth) * 0.5f - SideMargin - StatsGap));
@@ -60,15 +68,20 @@ namespace InkFlow.Core
 
         /// <summary>Чи все вміщається: поле не заходить під лоток, лоток не вилазить за низ.</summary>
         public bool Fits => BoardTop + BoardSide + TrayGap <= TrayTop + 0.01f && TrayBottom <= Height + 0.01f
-                            && BoardSide <= Width - SideMargin * 2f + 0.01f
+                            && BoardSide <= Width - BoardMargin * 2f + 0.01f
                             && Width * 0.5f + PictureWidth * 0.5f <= Width - SideMargin - StatsWidth - StatsGap + 0.01f;
 
-        public static RunLayout For(float width, float height)
+        public static RunLayout For(float width, float height) => For(width, height, BoardGeometry.DefaultSideMargin);
+
+        /// <summary>Розкладка з бічним полем панелі поля з дизайн-системи (px макета).</summary>
+        public static RunLayout For(float width, float height, float boardMargin)
         {
             if (width <= 0f || height <= 0f)
                 throw new ArgumentOutOfRangeException(nameof(width));
+            if (boardMargin < 0f)
+                boardMargin = 0f;
 
-            var maxSide = width - SideMargin * 2f;
+            var maxSide = width - boardMargin * 2f;
             var trayTop = height - TrayHeight;
             var pictureHeight = PictureHeight;
 
@@ -87,7 +100,7 @@ namespace InkFlow.Core
 
             side = Math.Max(side, Math.Min(BoardMinSide, maxSide));
             var boardTop = HeaderHeight + PictureGapTop + pictureHeight + BoardGapTop;
-            return new RunLayout(width, height, pictureHeight / PictureHeight, boardTop, side, trayTop);
+            return new RunLayout(width, height, boardMargin, pictureHeight / PictureHeight, boardTop, side, trayTop);
         }
     }
 }

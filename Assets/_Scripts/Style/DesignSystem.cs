@@ -611,6 +611,13 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float blockHighlightAlpha = 1f;
         [Tooltip("Фігури в лотку — зменшені блоки: крок клітинки як частка кроку поля, коли вміщається.")]
         [SerializeField, Range(0.3f, 1f)] private float trayPieceScale = 0.62f;
+        [Tooltip("Бічне поле панелі поля й лотка від краю екрана, px макета (шапка й рахунок тримають своє поле 16).")]
+        [SerializeField, Range(0f, 24f)] private float boardSideMargin = BoardGeometry.DefaultSideMargin;
+        [Tooltip("Відступ від краю панелі до крайніх лунок, px макета: в еталоні K1 ≈45 % кроку сітки (18 із 40) — " +
+                 "у кілька разів більше за проміжок, і кутова лунка не тисне на заокруглений кут.")]
+        [SerializeField, Range(0f, 40f)] private float boardPadding = BoardGeometry.DefaultPadding;
+        [Tooltip("Проміжок між лунками, px макета (еталон K1: 4 при кроці 40).")]
+        [SerializeField, Range(0f, 12f)] private float boardGap = BoardGeometry.DefaultGap;
 
         [Header("P2Watercolor: панель картинки (docs/StyleRef/P2Watercolor/)")]
         [Tooltip("Назва картинки над полотном: #c9cbe8, великими, з розрядкою.")]
@@ -1006,6 +1013,13 @@ namespace InkFlow.Style
         public float BlockGlowScale => blockGlowScale;
         public float BlockHighlightAlpha => blockHighlightAlpha;
         public float TrayPieceScale => trayPieceScale;
+        public float BoardSideMargin => boardSideMargin;
+        public float BoardPadding => boardPadding;
+        public float BoardGap => boardGap;
+
+        /// <summary>Геометрія поля під токени відступів (px макета) — єдине місце, де вони зустрічаються з Core.</summary>
+        public BoardGeometry BoardGeometryFor(int width, int height) =>
+            BoardGeometry.For(width, height, boardSideMargin, boardPadding, boardGap);
 
         /// <summary>Тонування білого спрайта блоку: основний тон родини лягає на середину блоку (K1Candy).</summary>
         public Color BlockTint(Color baseColor) => new Color(

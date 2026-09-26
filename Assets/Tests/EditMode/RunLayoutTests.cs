@@ -33,7 +33,7 @@ namespace InkFlow.Core.Tests
                 Assert.GreaterOrEqual(layout.PictureScale, RunLayout.PictureMinHeight / RunLayout.PictureHeight - 1e-4f, name);
                 Assert.LessOrEqual(layout.PictureScale, 1f, name);
                 Assert.GreaterOrEqual(layout.BoardSide, RunLayout.BoardMinSide, $"{name}: поле замале");
-                Assert.LessOrEqual(layout.BoardSide, w - RunLayout.SideMargin * 2f + 0.01f, $"{name}: поле ширше за екран");
+                Assert.LessOrEqual(layout.BoardSide, w - layout.BoardMargin * 2f + 0.01f, $"{name}: поле ширше за екран");
                 Assert.GreaterOrEqual(layout.PictureWidth, 150f, $"{name}: картинка завузька");
                 Assert.GreaterOrEqual(layout.StatsWidth, RunLayout.StatsMinWidth, name);
             }
@@ -43,8 +43,33 @@ namespace InkFlow.Core.Tests
         public void TallPhone_GetsTheFullBoardAndFullPicture()
         {
             var layout = RunLayout.For(390f, 800f);
-            Assert.AreEqual(358f, layout.BoardSide, 0.01f);
+            Assert.AreEqual(374f, layout.BoardSide, 0.01f, "панель на всю ширину мінус бічне поле 8");
             Assert.AreEqual(1f, layout.PictureScale, 1e-4f);
+        }
+
+        [Test]
+        public void BoardMargin_IsAToken_AndTheBoardFollowsIt()
+        {
+            foreach (var margin in new[] { 0f, 8f, 16f, 24f })
+                foreach (var (name, w, h) in Devices)
+                {
+                    var layout = RunLayout.For(w, h, margin);
+                    Assert.AreEqual(margin, layout.BoardMargin, 1e-4f);
+                    Assert.IsTrue(layout.Fits, $"{name}, поле {margin}: не вміщається");
+                    Assert.LessOrEqual(layout.BoardSide, w - margin * 2f + 0.01f, $"{name}, поле {margin}");
+                }
+            Assert.AreEqual(390f, RunLayout.For(390f, 800f, 0f).BoardSide, 0.01f);
+            Assert.AreEqual(0f, RunLayout.For(390f, 800f, -3f).BoardMargin, 1e-4f, "від'ємне поле — нуль");
+        }
+
+        [Test]
+        public void IphoneSe_KeepsTheFullBoard_AndShrinksThePicture()
+        {
+            // 750×1334 із safe area 40 згори: поле → лоток → картинка (пріоритет промту).
+            var layout = RunLayout.For(390f, 390f * (1334f - 40f) / 750f);
+            Assert.AreEqual(374f, layout.BoardSide, 0.01f, "поле повне");
+            Assert.Less(layout.PictureScale, 1f, "картинка стискається");
+            Assert.GreaterOrEqual(layout.PictureShownHeight, RunLayout.PictureMinHeight - 0.01f);
         }
 
         [Test]

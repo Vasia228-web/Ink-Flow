@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Optimize>true</Optimize>
+    <NoWarn>CS8618;CS8625</NoWarn>
+    <AssemblyName>InkFlow.Sim</AssemblyName>
+    <RootNamespace>InkFlow.Sim</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Прогонник ганяє СПРАВЖНІЙ Core, а не копію правил. Core за визначенням
+         не залежить від UnityEngine, тож компілюється звичайним dotnet без заглушок. -->
+    <Compile Include="../../Assets/_Scripts/Core/**/*.cs" />
+    <Compile Include="Metrics.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+</Project>

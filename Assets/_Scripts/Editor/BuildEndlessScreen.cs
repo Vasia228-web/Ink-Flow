@@ -125,7 +125,7 @@ namespace InkFlow.Editor
             // праворуч угорі без фону, лоток при низу, поле — що лишилось. Тут — початкові
             // позиції для сцени-майстерні (полотно 1080×1920 = 390×693 px макета); у грі
             // EndlessScreen.Layout() перераховує їх під фактичний екран.
-            var layout = RunLayout.For(390f, 1920f / K);
+            var layout = RunLayout.For(390f, 1920f / K, design!.BoardSideMargin);
             var headerHeight = M(RunLayout.HeaderHeight);
             var blockTop = M(layout.PictureTop);
             var blockHeight = M(RunLayout.PictureHeight);
@@ -471,8 +471,16 @@ namespace InkFlow.Editor
             plate.color = Color.white;
             plate.raycastTarget = false;
 
+            // Вузол тряски: розтягнутий на панель, півот ТОЙ САМИЙ, що в панелі, — тож його спокій
+            // (0, 0) за побудовою, і BoardView.EndShake повертає його туди, як би тряску не обірвали.
+            var shakeGo = Child(go, "Shake");
+            Stretch(shakeGo);
+            var shakeRect = shakeGo.GetComponent<RectTransform>();
+            shakeRect.pivot = rect.pivot;
+
             // Полотно з півотом у ЛІВОМУ ВЕРХНЬОМУ куті: BoardGeometry рахує центри клітинок звідти.
-            var canvasGo = Child(go, "Canvas");
+            // Його localPosition НЕ нуль (−пів панелі, 0) — тому в нього ніхто нічого не пише.
+            var canvasGo = Child(shakeGo, "Canvas");
             var canvasRect = canvasGo.GetComponent<RectTransform>();
             canvasRect.anchorMin = Vector2.zero;
             canvasRect.anchorMax = Vector2.one;
@@ -480,7 +488,7 @@ namespace InkFlow.Editor
             canvasRect.offsetMin = Vector2.zero;
             canvasRect.offsetMax = Vector2.zero;
 
-            var geometry = BoardGeometry.For(8, 8);
+            var geometry = design.BoardGeometryFor(8, 8);
             var count = geometry.Width * geometry.Height;
             var sockets = Layer(canvasGo, "Sockets", "Socket", count, K1Sprites.Socket, Color.white, active: true);
             var glows = Layer(canvasGo, "Glows", "Glow", count, K1Sprites.Glow, Color.white, active: false);
@@ -523,7 +531,7 @@ namespace InkFlow.Editor
             Wire(feedback, ("source", audio));
 
             var board = go.AddComponent<BoardView>();
-            Wire(board, ("design", design), ("canvasRect", canvasRect), ("feedback", feedback), ("ghostGroup", ghostGroup));
+            Wire(board, ("design", design), ("canvasRect", canvasRect), ("shakeRect", shakeRect), ("feedback", feedback), ("ghostGroup", ghostGroup));
             WireArray(board, "sockets", sockets);
             WireArray(board, "glows", glows);
             WireArray(board, "blocks", blocks);
@@ -560,18 +568,19 @@ namespace InkFlow.Editor
         // ── Лоток K1Candy: три слоти зі спрайта, у кожному до п'яти зменшених блоків ──
         private static TrayView BuildTray(GameObject parent, DesignSystem design, float height)
         {
-            // Лоток притиснутий до низу safe area (§11) — на будь-якому екрані.
+            // Лоток притиснутий до низу safe area (§11) — на будь-якому екрані; бічне поле — як у панелі поля.
+            var margin = M(design.BoardSideMargin);
             var go = Child(parent, "Tray");
             var rect = go.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(0f, 0f);
             rect.anchorMax = new Vector2(1f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
-            rect.offsetMin = new Vector2(SideMargin, 0f);
-            rect.offsetMax = new Vector2(-SideMargin, height);
+            rect.offsetMin = new Vector2(margin, 0f);
+            rect.offsetMax = new Vector2(-margin, height);
 
             const int slotCount = 3;
             var gap = M(9f);
-            var slotWidth = (M(390f) - SideMargin * 2f - gap * (slotCount - 1)) / slotCount;
+            var slotWidth = (M(390f) - margin * 2f - gap * (slotCount - 1)) / slotCount;
             var slots = new PieceView[slotCount];
 
             for (var i = 0; i < slotCount; i++)
@@ -611,7 +620,7 @@ namespace InkFlow.Editor
                 WireArray(piece, "blocks", blocks);
                 WireArray(piece, "overlays", overlays);
                 var so = new SerializedObject(piece);
-                so.FindProperty("cellStep").floatValue = M(BoardGeometry.For(8, 8).Step * design.TrayPieceScale);
+                so.FindProperty("cellStep").floatValue = M(design.BoardGeometryFor(8, 8).Step * design.TrayPieceScale);
                 so.ApplyModifiedPropertiesWithoutUndo();
                 slots[i] = piece;
             }

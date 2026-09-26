@@ -1,0 +1,32 @@
+{
+    "name": "InkFlow.UI.Tests",
+    "rootNamespace": "InkFlow.UI.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "InkFlow.Core",
+        "InkFlow.Meta",
+        "InkFlow.Style",
+        "InkFlow.Platform",
+        "InkFlow.Gameplay",
+        "InkFlow.UI",
+        "InkFlow.Editor",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

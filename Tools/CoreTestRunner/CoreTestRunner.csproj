@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <NoWarn>CS8618;CS8625</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Увесь Core: він за визначенням не має залежностей від UnityEngine (§18 інваріант 1),
+         тож компілюється звичайним dotnet без жодних заглушок. -->
+    <Compile Include="../../Assets/_Scripts/Core/**/*.cs" />
+    <!-- Meta без JsonSaveStorage: сховище тягне UnityEngine (persistentDataPath, JsonUtility),
+         а економіка й міграції — чистий C# і мають ганятись headless. -->
+    <Compile Include="../../Assets/_Scripts/Meta/**/*.cs"
+             Exclude="../../Assets/_Scripts/Meta/Save/JsonSaveStorage.cs" />
+    <!-- Ті самі Edit Mode тести, що ганяє Unity Test Runner — крім UI-тестів, які
+         піднімають префаб екрана й потребують живого UnityEngine (Assets/Tests/EditMode/UI). -->
+    <Compile Include="../../Assets/Tests/EditMode/**/*.cs"
+             Exclude="../../Assets/Tests/EditMode/UI/**/*.cs" />
+    <Compile Include="NUnitShim.cs" />
+    <Compile Include="Program.cs" />
+  </ItemGroup>
+
+</Project>

@@ -120,6 +120,10 @@ InitTestScene*.unity*
 # Headless core-test runner build artifacts
 /Tools/**/bin/
 /Tools/**/obj/
+# Проєкти інструментів (headless-тести, прогонник бота) пишуться руками, а не Unity:
+# без них bash Tools/run-core-tests.sh і Tools/InkFlow.Sim не збираються на свіжому клоні.
+!/Tools/CoreTestRunner/CoreTestRunner.csproj
+!/Tools/InkFlow.Sim/InkFlow.Sim.csproj
 
 # Звіти симуляторів (генеруються локально)
 /Tools/economy-report.csv

@@ -766,7 +766,8 @@ namespace InkFlow.UI
             var rect = ((RectTransform)transform).rect;
             if (rect.width < 1f || rect.height < 1f)
                 return;
-            var layout = RunLayout.For(rect.width / K, rect.height / K);
+            var boardMargin = design != null ? design.BoardSideMargin : BoardGeometry.DefaultSideMargin;
+            var layout = RunLayout.For(rect.width / K, rect.height / K, boardMargin);
 
             if (pictureRoot != null)
             {
@@ -798,8 +799,8 @@ namespace InkFlow.UI
                 trayRoot.anchorMin = new Vector2(0f, 0f);
                 trayRoot.anchorMax = new Vector2(1f, 0f);
                 trayRoot.pivot = new Vector2(0.5f, 0f);
-                trayRoot.offsetMin = new Vector2(M(RunLayout.SideMargin), 0f);
-                trayRoot.offsetMax = new Vector2(-M(RunLayout.SideMargin), M(RunLayout.TrayHeight));
+                trayRoot.offsetMin = new Vector2(M(layout.BoardMargin), 0f);
+                trayRoot.offsetMax = new Vector2(-M(layout.BoardMargin), M(RunLayout.TrayHeight));
             }
 
             tray?.Layout();

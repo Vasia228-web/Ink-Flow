@@ -20,11 +20,19 @@ namespace InkFlow.UI
     /// його у спрайти. Щокадрово (LateUpdate) пишемо тільки localScale і CanvasRenderer; кольори,
     /// позиції й активність — на подію. Шари не перемішані (усі гало, потім усі блоки, потім
     /// блиски), щоб канвас батчив кожен шар одним викликом.
+    ///
+    /// Тряска на важкому ланцюгу рухає окремий вузол <c>Shake</c> між панеллю й полотном.
+    /// Його півот збігається з півотом панелі, тож спокій — це (0, 0) за побудовою, і повернення
+    /// в спокій не залежить від того, де саме тряску обірвали. Саме тут жив баг «поле вилізло
+    /// за екран»: спокій писався нулем у полотно з півотом у лівому верхньому куті, чий
+    /// спокій — (−пів панелі, 0), і після рестарту вся сітка стояла на пів панелі правіше.
     /// </summary>
     public sealed class BoardView : MonoBehaviour
     {
         [SerializeField] private DesignSystem design;
         [SerializeField] private RectTransform canvasRect;
+        [Tooltip("Вузол тряски між панеллю й полотном; півот — як у панелі, спокій — (0, 0).")]
+        [SerializeField] private RectTransform shakeRect;
         [SerializeField] private Image[] sockets = System.Array.Empty<Image>();
         [SerializeField] private Image[] glows = System.Array.Empty<Image>();
         [SerializeField] private Image[] blocks = System.Array.Empty<Image>();
@@ -44,6 +52,8 @@ namespace InkFlow.UI
         private long _ghostKey = long.MinValue;
         private int _nextFloat;
         private Coroutine? _shake;
+        private bool _shaking;
+        private Vector3 _shakeOrigin;
         private bool _geometryDirty;
 
         /// <summary>Гравець відпустив фігуру над полем. Валідність вирішує Core.</summary>
@@ -63,7 +73,9 @@ namespace InkFlow.UI
         public void Bind(RunSession session)
         {
             _session = session;
-            _geometry = BoardGeometry.For(session.Board.Width, session.Board.Height);
+            _geometry = design != null
+                ? design.BoardGeometryFor(session.Board.Width, session.Board.Height)
+                : BoardGeometry.For(session.Board.Width, session.Board.Height);
             if (_visual == null || _visual.Width != _geometry.Width || _visual.Height != _geometry.Height)
                 _visual = new BoardVisual(_geometry.Width, _geometry.Height, ghostBlocks.Length);
             HideGhost();
@@ -79,8 +91,9 @@ namespace InkFlow.UI
                 if (canvasRect == null)
                     return _scale;
                 var width = canvasRect.rect.width;
+                var canvas = _geometry.Canvas > 1f ? _geometry.Canvas : BoardGeometry.CanvasFor(BoardGeometry.DefaultSideMargin);
                 if (width > 1f)
-                    _scale = width / BoardGeometry.Canvas;
+                    _scale = width / canvas;
                 return _scale;
             }
         }
@@ -118,7 +131,7 @@ namespace InkFlow.UI
             var x = local.x / scale;
             var y = -local.y / scale;
             var margin = _geometry.Step;
-            if (x < -margin || x > BoardGeometry.Canvas + margin || y < -margin || y > BoardGeometry.Canvas + margin)
+            if (x < -margin || x > _geometry.Canvas + margin || y < -margin || y > _geometry.Canvas + margin)
                 return false;
 
             column = _geometry.ColumnAt(x);
@@ -560,19 +573,28 @@ namespace InkFlow.UI
             label.gameObject.SetActive(false);
         }
 
-        /// <summary>Тряска поля на важкому ланцюгу. Полотно, не окремі клітинки.</summary>
+        /// <summary>Що трясеться: вузол Shake; у старому префабі без нього — саме полотно.</summary>
+        private RectTransform? ShakeTarget => shakeRect != null ? shakeRect : canvasRect;
+
+        /// <summary>Тряска поля на важкому ланцюгу. Уся сітка разом, не окремі клітинки.</summary>
         private void Shake(int strength)
         {
-            if (canvasRect == null || design == null || !isActiveAndEnabled)
+            var target = ShakeTarget;
+            if (target == null || design == null || !isActiveAndEnabled)
                 return;
             if (_shake != null)
                 StopCoroutine(_shake);
-            _shake = StartCoroutine(ShakeRoutine(strength));
+            // Спокій запам'ятовуємо лише на початку першої тряски: повторна посеред попередньої
+            // інакше взяла б за спокій уже зміщену позицію, і поле з кожним ланцюгом їхало б убік.
+            if (!_shaking)
+                _shakeOrigin = target.localPosition;
+            _shaking = true;
+            _shake = StartCoroutine(ShakeRoutine(target, strength));
         }
 
-        private IEnumerator ShakeRoutine(int strength)
+        private IEnumerator ShakeRoutine(RectTransform target, int strength)
         {
-            var origin = canvasRect!.localPosition;
+            var origin = _shakeOrigin;
             var amplitude = design.BoardShakeAmplitude * Mathf.Min(strength, 3);
             var duration = design.BoardShakeDuration;
 
@@ -580,21 +602,36 @@ namespace InkFlow.UI
             {
                 var decay = 1f - t / duration;
                 var offset = Mathf.Sin(t / duration * Mathf.PI * 7f) * amplitude * decay;
-                canvasRect.localPosition = origin + new Vector3(offset, offset * 0.4f, 0f);
+                target.localPosition = origin + new Vector3(offset, offset * 0.4f, 0f);
                 yield return null;
             }
 
-            canvasRect.localPosition = origin;
+            EndShake();
+        }
+
+        /// <summary>
+        /// Повертає сітку в спокій, як би тряску не обірвали (кінець, рестарт, вимкнення екрана).
+        /// Вузол Shake стає в (0, 0) — це його спокій за побудовою; полотно без такого вузла —
+        /// у позицію, запам'ятовану на початку тряски. Нуль у полотно писати НЕ МОЖНА.
+        /// </summary>
+        private void EndShake()
+        {
+            if (shakeRect != null)
+                shakeRect.localPosition = Vector3.zero;
+            else if (_shaking && canvasRect != null)
+                canvasRect.localPosition = _shakeOrigin;
+            _shaking = false;
             _shake = null;
         }
+
+        // Вимкнення екрана вбиває корутини мовчки — тряска не має лишити сітку зміщеною.
+        private void OnDisable() => EndShake();
 
         /// <summary>Скасовує все, що ще грається — рестарт або вихід з екрана.</summary>
         public void StopAll()
         {
             StopAllCoroutines();
-            _shake = null;
-            if (canvasRect != null)
-                canvasRect.localPosition = Vector3.zero;
+            EndShake();
             foreach (var label in floats)
                 if (label != null && label.gameObject.activeSelf)
                     label.gameObject.SetActive(false);
@@ -602,5 +639,75 @@ namespace InkFlow.UI
             if (_session != null)
                 Repaint();
         }
+
+        // ── Самоперевірка розкладки (знімки екрана, EditMode-тест) ──
+
+        /// <summary>
+        /// Чи сітка стоїть там, де має: полотно збігається з панеллю, кожна лунка лежить
+        /// усередині панелі, а панель — усередині <paramref name="container"/> (safe area).
+        /// Повертає опис першої знайденої вади або null. Рахує у світових координатах, тож
+        /// ловить будь-який зсув — якорями, півотом чи localPosition, — а не лише відомий.
+        /// </summary>
+        public string? FindLayoutFault(RectTransform container)
+        {
+            if (canvasRect == null)
+                return "полотно поля не прив'язане";
+            var panel = (RectTransform)transform;
+            var panelCorners = new Vector3[4];
+            var otherCorners = new Vector3[4];
+            panel.GetWorldCorners(panelCorners);
+            var panelRect = Bounds(panelCorners);
+
+            // Пів відсотка панелі — округлення, не зсув. ДВА допуски: кути порівнюються у світових
+            // одиницях (на канвасі Screen Space – Camera вони в сотні разів дрібніші за локальні),
+            // позиція вузла тряски — у локальних. Один спільний допуск робив перевірку сліпою.
+            var tolerance = Mathf.Max(panelRect.width, 1e-4f) * 0.005f;
+            var localTolerance = Mathf.Max(panel.rect.width, 1f) * 0.005f;
+
+            if (container != null)
+            {
+                container.GetWorldCorners(otherCorners);
+                var safe = Bounds(otherCorners);
+                if (!Inside(panelRect, safe, tolerance))
+                    return $"панель поля виходить за межі контейнера: панель {Describe(panelRect)}, контейнер {Describe(safe)}";
+            }
+
+            canvasRect.GetWorldCorners(otherCorners);
+            var canvas = Bounds(otherCorners);
+            if (Vector2.Distance(canvas.min, panelRect.min) > tolerance || Vector2.Distance(canvas.max, panelRect.max) > tolerance)
+                return $"полотно зсунуте відносно панелі: полотно {Describe(canvas)}, панель {Describe(panelRect)}";
+
+            if (shakeRect != null && shakeRect.localPosition.sqrMagnitude > localTolerance * localTolerance)
+                return $"вузол тряски не в спокої: {shakeRect.localPosition}";
+
+            for (var i = 0; i < sockets.Length; i++)
+            {
+                if (sockets[i] == null)
+                    continue;
+                ((RectTransform)sockets[i].transform).GetWorldCorners(otherCorners);
+                var cell = Bounds(otherCorners);
+                if (!Inside(cell, panelRect, tolerance))
+                    return $"лунка {i} ({i % Mathf.Max(_geometry.Width, 1)}, {i / Mathf.Max(_geometry.Width, 1)}) поза панеллю: {Describe(cell)} проти {Describe(panelRect)}";
+            }
+            return null;
+        }
+
+        private static Rect Bounds(Vector3[] corners)
+        {
+            var min = new Vector2(float.MaxValue, float.MaxValue);
+            var max = new Vector2(float.MinValue, float.MinValue);
+            foreach (var c in corners)
+            {
+                min = Vector2.Min(min, c);
+                max = Vector2.Max(max, c);
+            }
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
+
+        private static bool Inside(Rect inner, Rect outer, float tolerance) =>
+            inner.xMin >= outer.xMin - tolerance && inner.yMin >= outer.yMin - tolerance &&
+            inner.xMax <= outer.xMax + tolerance && inner.yMax <= outer.yMax + tolerance;
+
+        private static string Describe(Rect r) => $"[{r.xMin:0.#}..{r.xMax:0.#} × {r.yMin:0.#}..{r.yMax:0.#}]";
     }
 }
