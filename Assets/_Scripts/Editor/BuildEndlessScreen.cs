@@ -315,6 +315,11 @@ namespace InkFlow.Editor
                 design.FontSizeStatLabel, design.TextDim, TextAlignmentOptions.Right);
             Place(label, Vector2.zero, new Vector2(width, M(11f)),
                 new Vector2(1f, 1f), new Vector2(1f, 1f));
+            // Підпис теж не має права лізти на панель картинки: на полотні 353 колонка вужча за «РАХУНОК».
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMax = design.FontSizeStatLabel;
+            label.fontSizeMin = design.FontSizeStatLabel * 0.5f;
 
             // Розмір шрифту й формат числа рахує ScoreFormat у рантаймі (§11): повний запис,
             // менший шрифт, далі компактний — цифри табличні, ширина не стрибає.
@@ -781,8 +786,12 @@ namespace InkFlow.Editor
                 new Vector2(0f, M(120f)), new Vector2(M(244f), chipH), out doubleLabel);
             finishButton = OverChip(panelGo, "FinishPicture", design, font, rounded, outline, "Домалювати одразу · 40 нафти",
                 new Vector2(0f, M(168f)), new Vector2(M(244f), chipH), out finishLabel);
+            // В один рядок на будь-якому екрані: на 750×1334 картка меншає, і напис стискається шрифтом, а не крапками.
             finishLabel.textWrappingMode = TextWrappingModes.NoWrap;
-            finishLabel.overflowMode = TextOverflowModes.Ellipsis;
+            finishLabel.overflowMode = TextOverflowModes.Overflow;
+            finishLabel.enableAutoSizing = true;
+            finishLabel.fontSizeMax = design.FontSizeOverSecondary;
+            finishLabel.fontSizeMin = design.FontSizeOverSecondary * 0.6f;
 
             var againGo = Child(panelGo, "Again");
             againFill = againGo.AddComponent<GradientImage>();

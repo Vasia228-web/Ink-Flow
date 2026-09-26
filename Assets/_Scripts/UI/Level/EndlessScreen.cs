@@ -726,11 +726,11 @@ namespace InkFlow.UI
 
             ApplyFont(scoreLabel, design.FontSizeStatLabel, design.TextDim,
                 FontStyles.Bold, design.LetterSpacingWide);
-            if (scoreLabel != null) scoreLabel.text = "РАХУНОК";
+            if (scoreLabel != null) { scoreLabel.text = "РАХУНОК"; scoreLabel.fontSizeMax = design.FontSizeStatLabel; }
 
             ApplyFont(recordLabel, design.FontSizeStatLabel, design.TextDim,
                 FontStyles.Bold, design.LetterSpacingWide);
-            if (recordLabel != null) recordLabel.text = "РЕКОРД";
+            if (recordLabel != null) { recordLabel.text = "РЕКОРД"; recordLabel.fontSizeMax = design.FontSizeStatLabel; }
 
             // K1Candy: панель поля — спрайт із запеченим градієнтом і обвідкою; під нею — тінь.
             if (boardPlate != null) boardPlate.color = Color.white;
@@ -1135,6 +1135,7 @@ namespace InkFlow.UI
             if (overFinishPicture != null)
                 overFinishPicture.interactable = affordable;
             ApplyFont(overFinishPictureLabel, design.FontSizeOverSecondary, affordable ? design.AccentGold : design.TextDim, FontStyles.Bold, 0f);
+            if (overFinishPictureLabel != null) overFinishPictureLabel.fontSizeMax = design.FontSizeOverSecondary;
             if (overFinishPictureLabel != null)
                 overFinishPictureLabel.text = affordable
                     ? $"Домалювати одразу · {Format(cost)} нафти"

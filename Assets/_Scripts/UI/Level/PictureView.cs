@@ -268,7 +268,7 @@ namespace InkFlow.UI
                 if (_texture != null) Release(_texture);
                 if (_mask != null) Release(_mask);
                 _texture = NewTexture(picture, "Picture art");
-                _mask = NewTexture(picture, "Picture mask");
+                _mask = NewTexture(picture, "Picture mask", linear: true);
                 _art = new Color32[picture.Width * picture.Height];
                 _maskPixels = new Color32[picture.Width * picture.Height];
                 _reveal = new float[picture.Width * picture.Height];
@@ -291,8 +291,13 @@ namespace InkFlow.UI
                 plateStroke.color = design.RarityColor(picture.Rarity);
         }
 
-        private static Texture2D NewTexture(PixelPicture picture, string name) =>
-            new Texture2D(picture.Width, picture.Height, TextureFormat.RGBA32, false)
+        /// <summary>
+        /// Арт — кольори, тож sRGB; маска — ДАНІ (зафарбованість у R, код родини в G), тож
+        /// linear: у лінійному просторі sRGB-текстура з кодом 1/255 декодується в ~0.0003, і
+        /// шейдер не бачив жодної родини — на першому знімку акварель не з'явилась узагалі.
+        /// </summary>
+        private static Texture2D NewTexture(PixelPicture picture, string name, bool linear = false) =>
+            new Texture2D(picture.Width, picture.Height, TextureFormat.RGBA32, false, linear)
             {
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp,

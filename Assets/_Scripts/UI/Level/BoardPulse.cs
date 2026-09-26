@@ -33,11 +33,7 @@ namespace InkFlow.UI
         }
 
         /// <summary>Новий рівень: пульсація плавно з'являється або зникає.</summary>
-        public void SetLevel(DangerLevel level)
-        {
-            _level = level;
-            enabled = true;
-        }
+        public void SetLevel(DangerLevel level) => _level = level;
 
         /// <summary>Миттєво (рестарт, екран програшу, знімок екрана).</summary>
         public void SetLevelImmediate(DangerLevel level)
@@ -45,7 +41,6 @@ namespace InkFlow.UI
             _level = level;
             _intensity = level == DangerLevel.None ? 0f : 1f;
             _phase = 0f;
-            enabled = true;
             Write(true);
         }
 
@@ -66,9 +61,9 @@ namespace InkFlow.UI
             var fade = design != null ? Mathf.Max(design.PulseFadeDuration, 0.05f) : 0.35f;
             _intensity = Mathf.MoveTowards(_intensity, target, Time.deltaTime / fade);
             _phase += Time.deltaTime;
+            // Пишемо щокадру навіть у спокої: CanvasRenderer.SetAlpha живе лише до наступної
+            // перебудови графіки, і вимкнений компонент лишив би червону рамку після перерозкладки.
             Write(false);
-            if (_intensity <= 0f && target <= 0f)
-                enabled = false; // спокій: жодної роботи щокадру
         }
 
         private void Write(bool peak)

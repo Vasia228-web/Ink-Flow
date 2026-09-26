@@ -636,8 +636,8 @@ namespace InkFlow.Style
         [Header("Пульсація «мало місця» (§11)")]
         [Tooltip("Теплий червоний (токен red), лише по контуру панелі поля.")]
         [SerializeField] private Color pulseColor = Hex("#FF4D5E");
-        [SerializeField, Range(0f, 1f)] private float pulseWarnAlpha = 0.45f;
-        [SerializeField, Range(0f, 1f)] private float pulseStrongAlpha = 0.85f;
+        [SerializeField, Range(0f, 1f)] private float pulseWarnAlpha = 0.6f;
+        [SerializeField, Range(0f, 1f)] private float pulseStrongAlpha = 1f;
         [Tooltip("Цикл: попередження ~1.4 с, сильна ~1 с; поява й згасання — за стільки секунд.")]
         [SerializeField, Min(0.2f)] private float pulseWarnPeriod = 1.4f;
         [SerializeField, Min(0.2f)] private float pulseStrongPeriod = 1f;
