@@ -31,7 +31,7 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 19;
+        public const int CurrentTokenVersion = 20;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
@@ -584,31 +584,72 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float linePreviewPureAlpha = 0.34f;
         [SerializeField, Range(0f, 1f)] private float linePreviewMixedAlpha = 0.12f;
 
-        [Tooltip("Блок поля: глянець зверху, радіус — частка сторони блока.")]
-        [SerializeField, Range(0f, 1f)] private float blockGlossAlpha = 0.45f;
-        [SerializeField, Range(0f, 0.5f)] private float blockRadiusFraction = 0.32f;
-
-        [Tooltip("Полотно поля: заливка й обведення під сіткою.")]
+        [Tooltip("Полотно поля: заливка й обведення під сіткою (застаріле — панель тепер K1Candy зі спрайта).")]
         [SerializeField] private Color boardPlateFill = new Color(1f, 1f, 1f, 0.04f);
         [SerializeField] private Color boardPlateStroke = new Color(1f, 1f, 1f, 0.1f);
 
-        [Tooltip("Лоток: прозорість фігури, поки її тягнуть (плиток під фігурами немає — §11).")]
+        [Tooltip("Лоток: прозорість фігури, поки її тягнуть.")]
         [SerializeField, Range(0f, 1f)] private float trayDraggingAlpha = 0.3f;
 
-        [Header("Фігура-крапля (docs/design/V2InkBlob.html)")]
-        [Tooltip("Світлий і темний відтінки виводяться з базового кольору: до білого / до чорного на цю частку.")]
-        [SerializeField, Range(0f, 1f)] private float pieceLightMix = 0.5f;
-        [SerializeField, Range(0f, 1f)] private float pieceDarkMix = 0.5f;
-        [Tooltip("Еталон: клітинка — коло радіусом 0.425 кроку, місток 0.45 кроку, згладжування — частка радіуса.")]
-        [SerializeField, Range(0.2f, 0.6f)] private float pieceRadiusFraction = 0.425f;
-        [SerializeField, Range(0.1f, 0.9f)] private float pieceBridgeFraction = 0.45f;
-        [SerializeField, Range(0f, 1f)] private float pieceSmoothFraction = 0.35f;
-        [Tooltip("Світіння в колір фігури: прозорість і ширина (частка радіуса).")]
-        [SerializeField, Range(0f, 1f)] private float pieceGlowAlpha = 0.5f;
-        [SerializeField, Range(0f, 2f)] private float pieceGlowFraction = 0.7f;
-        [Tooltip("Відблиски: еліпса вгорі-ліворуч і цятка внизу-праворуч.")]
-        [SerializeField, Range(0f, 1f)] private float pieceHighlightAlpha = 0.75f;
-        [SerializeField, Range(0f, 1f)] private float pieceDotAlpha = 0.45f;
+        [Header("K1Candy: панель, лунки, блоки, лоток (docs/StyleRef/K1Candy/)")]
+        [Tooltip("Кут панелі поля й картинки: 28 px макета; слота лотка — 20.")]
+        [SerializeField] private float boardPanelRadius = 78f;
+        [SerializeField] private float traySlotRadius = 55f;
+        [Tooltip("Тінь під панеллю: чорна ~60 %, зсув униз 10 px макета, розмиття 12.")]
+        [SerializeField] private Color panelShadow = new Color(0f, 0f, 0f, 0.6f);
+        [SerializeField] private float panelShadowOffset = 28f;
+        [SerializeField] private float panelShadowBlur = 33f;
+        [Tooltip("Сторона блоку — частка кроку сітки (решта — проміжок).")]
+        [SerializeField, Range(0.6f, 1f)] private float blockFraction = 0.88f;
+        [Tooltip("Спрайт блоку в центрі має яскравість ~0.83 від білого: тонуємо кольором родини, " +
+                 "помноженим на це число, щоб основний тон лягав рівно на середину блоку.")]
+        [SerializeField, Range(1f, 1.4f)] private float blockTintBoost = 1.2f;
+        [Tooltip("Світіння блоку — спрайт-гало під блоком (НЕ Bloom): прозорість і розмір відносно блоку.")]
+        [SerializeField, Range(0f, 1f)] private float blockGlowAlpha = 0.55f;
+        [SerializeField, Range(1f, 2f)] private float blockGlowScale = 1.5f;
+        [Tooltip("Смуга блиску й іскра — нетонований спрайт поверх блоку.")]
+        [SerializeField, Range(0f, 1f)] private float blockHighlightAlpha = 1f;
+        [Tooltip("Фігури в лотку — зменшені блоки: крок клітинки як частка кроку поля, коли вміщається.")]
+        [SerializeField, Range(0.3f, 1f)] private float trayPieceScale = 0.62f;
+
+        [Header("P2Watercolor: панель картинки (docs/StyleRef/P2Watercolor/)")]
+        [Tooltip("Назва картинки над полотном: #c9cbe8, великими, з розрядкою.")]
+        [SerializeField] private Color pictureTitleColor = Hex("#C9CBE8");
+        [Tooltip("Папір #ece2cc із зерном; кути полотна 14 px макета; темніший внутрішній край.")]
+        [SerializeField] private Color paperColor = Hex("#ECE2CC");
+        [SerializeField, Range(0f, 1f)] private float paperGrain = 0.6f;
+        [SerializeField] private float pictureCanvasRadius = 39f;
+        [SerializeField, Range(0f, 1f)] private float pictureVignette = 0.22f;
+        [SerializeField] private float pictureVignetteWidth = 10f;
+        [Tooltip("Олівець ескізу незафарбованої частини: колір і непрозорість (~35 %).")]
+        [SerializeField] private Color pencilColor = Hex("#5D5670");
+        [SerializeField, Range(0f, 1f)] private float pencilAlpha = 0.35f;
+        [SerializeField] private float pencilWidth = 1.2f;
+        [Tooltip("Акварель: непрозорість ~82 %, темніший край, зсув країв — частка пікселя картинки.")]
+        [SerializeField, Range(0f, 1f)] private float paintAlpha = 0.82f;
+        [SerializeField, Range(0f, 1f)] private float paintEdgeDark = 0.45f;
+        [SerializeField] private float paintEdgeWidth = 1.5f;
+        [SerializeField, Range(0f, 1f)] private float paintDisplace = 0.33f;
+        [Tooltip("Крок проявляється плавно 0 → 1 за стільки секунд.")]
+        [SerializeField, Min(0.05f)] private float pictureRevealDuration = 0.45f;
+
+        [Header("Пульсація «мало місця» (§11)")]
+        [Tooltip("Теплий червоний (токен red), лише по контуру панелі поля.")]
+        [SerializeField] private Color pulseColor = Hex("#FF4D5E");
+        [SerializeField, Range(0f, 1f)] private float pulseWarnAlpha = 0.45f;
+        [SerializeField, Range(0f, 1f)] private float pulseStrongAlpha = 0.85f;
+        [Tooltip("Цикл: попередження ~1.4 с, сильна ~1 с; поява й згасання — за стільки секунд.")]
+        [SerializeField, Min(0.2f)] private float pulseWarnPeriod = 1.4f;
+        [SerializeField, Min(0.2f)] private float pulseStrongPeriod = 1f;
+        [SerializeField, Min(0.05f)] private float pulseFadeDuration = 0.35f;
+        [Tooltip("Ширина світіння за краєм панелі, reference-одиниці.")]
+        [SerializeField] private float pulseWidth = 40f;
+
+        [Header("Рахунок і рекорд (§11)")]
+        [Tooltip("Число спершу меншає до цієї частки розміру, і лише потім переходить у компактний формат.")]
+        [SerializeField, Range(0.3f, 1f)] private float scoreMinFontScale = 0.55f;
+        [Tooltip("Ширина табличної цифри в em — цифри набираються моноширинно, щоб ширина не стрибала.")]
+        [SerializeField, Range(0.4f, 0.8f)] private float scoreDigitEm = 0.62f;
 
         [Header("Краплі в картинку (§5)")]
         [Tooltip("Політ краплі з клітинки в піксель: тривалість, пауза між краплями, висота дуги, розмір.")]
@@ -691,9 +732,6 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float pictureGlowAlpha = 0.55f;
         [SerializeField] private float fontSizePictureName = 27f;
         [SerializeField] private float fontSizePictureCaption = 24f;
-
-        [Tooltip("Незаповнений піксель заливки: ледь помітний силует, щоб форму було видно до першої краплі.")]
-        [SerializeField] private Color pictureUnfilledTint = new Color(1f, 1f, 1f, 0.07f);
 
         [Tooltip("Рідкість (§6): колір рамки, назви й чипа — звичайна / незвичайна / рідкісна / епічна / легендарна / космічна.")]
         [SerializeField] private Color rarityCommon = Hex("#B8BCC8");
@@ -953,28 +991,51 @@ namespace InkFlow.Style
         public Color GhostInvalidTint => ghostInvalidTint;
         public float LinePreviewPureAlpha => linePreviewPureAlpha;
         public float LinePreviewMixedAlpha => linePreviewMixedAlpha;
-        public float BlockGlossAlpha => blockGlossAlpha;
-        public float BlockRadiusFraction => blockRadiusFraction;
         public Color BoardPlateFill => boardPlateFill;
         public Color BoardPlateStroke => boardPlateStroke;
         public float TrayDraggingAlpha => trayDraggingAlpha;
 
-        public float PieceLightMix => pieceLightMix;
-        public float PieceDarkMix => pieceDarkMix;
-        public float PieceRadiusFraction => pieceRadiusFraction;
-        public float PieceBridgeFraction => pieceBridgeFraction;
-        public float PieceSmoothFraction => pieceSmoothFraction;
-        public float PieceGlowAlpha => pieceGlowAlpha;
-        public float PieceGlowFraction => pieceGlowFraction;
-        public float PieceHighlightAlpha => pieceHighlightAlpha;
-        public float PieceDotAlpha => pieceDotAlpha;
+        public float BoardPanelRadius => boardPanelRadius;
+        public float TraySlotRadius => traySlotRadius;
+        public Color PanelShadow => panelShadow;
+        public float PanelShadowOffset => panelShadowOffset;
+        public float PanelShadowBlur => panelShadowBlur;
+        public float BlockFraction => blockFraction;
+        public float BlockTintBoost => blockTintBoost;
+        public float BlockGlowAlpha => blockGlowAlpha;
+        public float BlockGlowScale => blockGlowScale;
+        public float BlockHighlightAlpha => blockHighlightAlpha;
+        public float TrayPieceScale => trayPieceScale;
 
-        /// <summary>Світлий відтінок фігури — з базового за одним правилом на всю гру.</summary>
-        public Color PieceLight(Color baseColor) => new Color(
-            Mathf.Lerp(baseColor.r, 1f, pieceLightMix), Mathf.Lerp(baseColor.g, 1f, pieceLightMix), Mathf.Lerp(baseColor.b, 1f, pieceLightMix), 1f);
+        /// <summary>Тонування білого спрайта блоку: основний тон родини лягає на середину блоку (K1Candy).</summary>
+        public Color BlockTint(Color baseColor) => new Color(
+            Mathf.Min(1f, baseColor.r * blockTintBoost), Mathf.Min(1f, baseColor.g * blockTintBoost), Mathf.Min(1f, baseColor.b * blockTintBoost), 1f);
 
-        public Color PieceDark(Color baseColor) => new Color(
-            baseColor.r * (1f - pieceDarkMix), baseColor.g * (1f - pieceDarkMix), baseColor.b * (1f - pieceDarkMix), 1f);
+        public Color PictureTitleColor => pictureTitleColor;
+        public Color PaperColor => paperColor;
+        public float PaperGrain => paperGrain;
+        public float PictureCanvasRadius => pictureCanvasRadius;
+        public float PictureVignette => pictureVignette;
+        public float PictureVignetteWidth => pictureVignetteWidth;
+        public Color PencilColor => pencilColor;
+        public float PencilAlpha => pencilAlpha;
+        public float PencilWidth => pencilWidth;
+        public float PaintAlpha => paintAlpha;
+        public float PaintEdgeDark => paintEdgeDark;
+        public float PaintEdgeWidth => paintEdgeWidth;
+        public float PaintDisplace => paintDisplace;
+        public float PictureRevealDuration => pictureRevealDuration;
+
+        public Color PulseColor => pulseColor;
+        public float PulseWarnAlpha => pulseWarnAlpha;
+        public float PulseStrongAlpha => pulseStrongAlpha;
+        public float PulseWarnPeriod => pulseWarnPeriod;
+        public float PulseStrongPeriod => pulseStrongPeriod;
+        public float PulseFadeDuration => pulseFadeDuration;
+        public float PulseWidth => pulseWidth;
+
+        public float ScoreMinFontScale => scoreMinFontScale;
+        public float ScoreDigitEm => scoreDigitEm;
 
         public float DropFlightDuration => dropFlightDuration;
         public float DropStagger => dropStagger;
@@ -1019,7 +1080,6 @@ namespace InkFlow.Style
         public float HintShowDuration => hintShowDuration;
         public Color PicturePlateFill => picturePlateFill;
         public Color PicturePlateStroke => picturePlateStroke;
-        public Color PictureUnfilledTint => pictureUnfilledTint;
         public float PictureCompleteDuration => pictureCompleteDuration;
         public float PictureCompletePop => pictureCompletePop;
         public float PictureGlowAlpha => pictureGlowAlpha;

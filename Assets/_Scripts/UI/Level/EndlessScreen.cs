@@ -59,11 +59,12 @@ namespace InkFlow.UI
         [SerializeField] private DropFlock drops;
         [SerializeField] private CompletionCard completion;
 
-        [Header("Поле і лоток")]
+        [Header("Поле і лоток (K1Candy)")]
         [SerializeField] private BoardView board;
         [SerializeField] private TrayView tray;
         [SerializeField] private Image boardPlate;
         [SerializeField] private Image boardPlateStroke;
+        [SerializeField] private BoardPulse pulse;
         [SerializeField] private TMP_Text comboPop;
 
         [Header("Кінець партії")]
@@ -284,6 +285,7 @@ namespace InkFlow.UI
             drops?.Clear();
             completion?.Hide();
             HideOver();
+            pulse?.SetLevelImmediate(_session.IsOver ? DangerLevel.None : _session.Danger.Level);
             ShowIntro();
             if (_session.IsOver)
                 OnLost();
@@ -489,9 +491,14 @@ namespace InkFlow.UI
 
             if (_session != null && _session.IsOver)
             {
+                pulse?.SetLevel(DangerLevel.None);
                 GameEvents.RaiseSessionEnded(_session.State);
                 OnLost();
+                return;
             }
+            // §11: пульсація «мало місця» — рівень рахує Core за полем і лотком після ходу.
+            if (_session != null)
+                pulse?.SetLevel(_session.Danger.Level);
         }
 
         /// <summary>§9: зліпок забігу — у стан гравця. Програний чи завершений забіг не пишеться.</summary>
@@ -725,8 +732,10 @@ namespace InkFlow.UI
                 FontStyles.Bold, design.LetterSpacingWide);
             if (recordLabel != null) recordLabel.text = "РЕКОРД";
 
-            if (boardPlate != null) boardPlate.color = design.BoardPlateFill;
-            if (boardPlateStroke != null) boardPlateStroke.color = design.BoardPlateStroke;
+            // K1Candy: панель поля — спрайт із запеченим градієнтом і обвідкою; під нею — тінь.
+            if (boardPlate != null) boardPlate.color = Color.white;
+            if (boardPlateStroke != null) boardPlateStroke.color = design.PanelShadow;
+            pulse?.Apply();
 
             if (comboPop != null) comboPop.gameObject.SetActive(false);
 
@@ -807,21 +816,60 @@ namespace InkFlow.UI
 
             var score = _session?.Score ?? 0;
 
-            ApplyFont(scoreNumber, design.FontSizeScoreNumber, design.TextPrimary, FontStyles.Bold, 0f);
-            if (scoreNumber != null) scoreNumber.text = Format(score);
-
             // Момент перетину рахує LiveRecord — і показане число, і спалах
             // беруться з одного джерела, тож розійтись вони не можуть.
             var crossed = _record.Observe(score);
 
-            ApplyFont(recordNumber, design.FontSizeScoreNumber, design.AccentGold, FontStyles.Bold, 0f);
-            if (recordNumber != null) recordNumber.text = Format(_record.Shown);
+            ShowStat(scoreNumber, score, design.TextPrimary);
+            ShowStat(recordNumber, _record.Shown, design.AccentGold);
 
             if (crossed && isActiveAndEnabled)
             {
                 if (_flash != null) StopCoroutine(_flash);
                 _flash = StartCoroutine(RecordFlashRoutine());
             }
+        }
+
+        /// <summary>
+        /// §11: число вміщається в колонку для будь-якого значення до 999 999 999 — правило
+        /// <see cref="ScoreFormat"/>: повний запис, менший шрифт, далі компактний; цифри табличні.
+        /// </summary>
+        private void ShowStat(TMP_Text? label, long value, Color color)
+        {
+            if (label == null || design == null)
+                return;
+            var column = statsRoot != null && statsRoot.rect.width > 1f
+                ? statsRoot.rect.width
+                : M(RunLayout.StatsMinWidth);
+            var max = design.FontSizeScoreNumber;
+            var text = ScoreFormat.Fit(value, column, max, max * design.ScoreMinFontScale, out var size);
+            label.enableAutoSizing = false;
+            ApplyFont(label, size, color, FontStyles.Bold, 0f);
+            label.text = Tabular(text);
+        }
+
+        /// <summary>
+        /// Цифри однакової ширини (табличні), щоб ширина не стрибала під час нарахування; вузький
+        /// пробіл між розрядами — тег TMP, а не гліф: у шрифт нічого не треба допікати.
+        /// </summary>
+        private string Tabular(string text)
+        {
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            var em = (design != null ? design.ScoreDigitEm : ScoreFormat.DigitEm).ToString("0.00", culture);
+            var thin = ScoreFormat.ThinSpaceEm.ToString("0.00", culture);
+            var sb = new System.Text.StringBuilder(text.Length + 48);
+            var inDigits = false;
+            foreach (var c in text)
+            {
+                var digit = c >= '0' && c <= '9';
+                if (digit && !inDigits) sb.Append("<mspace=").Append(em).Append("em>");
+                if (!digit && inDigits) sb.Append("</mspace>");
+                if (c == ScoreFormat.ThinSpace) sb.Append("<space=").Append(thin).Append("em>");
+                else sb.Append(c);
+                inDigits = digit;
+            }
+            if (inDigits) sb.Append("</mspace>");
+            return sb.ToString();
         }
 
         // ── Анімації ──
@@ -926,6 +974,7 @@ namespace InkFlow.UI
                 HideOver();
                 board?.Bind(_session);
                 tray?.Show(_session.Tray);
+                pulse?.SetLevelImmediate(_session.Danger.Level);
                 if (board != null)
                     board.Router.Locked = false;
                 _idleSince = Time.time;
@@ -1001,6 +1050,7 @@ namespace InkFlow.UI
                 return;
 
             StopAllRoutines();
+            pulse?.SetLevelImmediate(DangerLevel.None);
             overCard.gameObject.SetActive(true);
             FitOverCard();
 
@@ -1241,11 +1291,68 @@ namespace InkFlow.UI
                     piece.gameObject.SetActive(false);
         }
 
+#if UNITY_EDITOR
+        // ── Знімки з редактора (Ink Flow → Debug → Capture Run Screenshots): стани без корутин ──
+
+        /// <summary>Підставляє готову сесію (поле, лоток, картинка) і показує її як є — без картки перед забігом.</summary>
+        public void PreviewSession(RunSession session, PlayerState? state)
+        {
+            if (state != null)
+                BindState(state);
+            _session = session;
+            _balance = session.Balance;
+            _record = new LiveRecord(state?.Progress.EndlessRecord ?? 0);
+            _finalised = false;
+            _resumed = false;
+            Apply();
+            if (board != null)
+            {
+                board.Router.Locked = true;
+                board.Bind(session);
+            }
+            tray?.Show(session.Tray);
+            picture?.Show(session.Picture);
+            drops?.Clear();
+            completion?.Hide();
+            HideOver();
+            if (introCard != null) introCard.gameObject.SetActive(false);
+            pulse?.SetLevelImmediate(session.IsOver ? DangerLevel.None : session.Danger.Level);
+            ApplyStats();
+        }
+
+        /// <summary>Рахунок і рекорд довільної довжини — перевірка, що число не налазить на сусідів.</summary>
+        public void PreviewStats(long score, long record)
+        {
+            if (design == null)
+                return;
+            ShowStat(scoreNumber, score, design.TextPrimary);
+            ShowStat(recordNumber, record, design.AccentGold);
+        }
+
+        public void PreviewPulse(DangerLevel level) => pulse?.SetLevelImmediate(level);
+
+        /// <summary>Картка завершеної картинки без знімка-фону (фон — сам екран).</summary>
+        public void PreviewCompletion()
+        {
+            if (_session == null || completion == null)
+                return;
+            completion.Show(_session.Picture.Picture, null);
+        }
+
+        /// <summary>Екран кінця забігу як фінал: нагороди, «Домалювати одразу», галерея.</summary>
+        public void PreviewOver()
+        {
+            if (_session == null)
+                return;
+            _finalised = false;
+            FinishRun();
+        }
+#endif
+
         // ── Дрібне ──
 
-        /// <summary>Тисячі відділяємо вузьким пробілом, як у макеті: «8 420».</summary>
-        private static string Format(long value) => value.ToString("N0")
-            .Replace(",", " ").Replace(" ", " ");
+        /// <summary>Тисячі відділяємо вузьким пробілом (§11), цифри табличні: «8 420».</summary>
+        private string Format(long value) => Tabular(ScoreFormat.Full(value));
 
         private static void Toggle(Component? target, bool on)
         {

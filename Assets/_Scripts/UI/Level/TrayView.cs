@@ -7,9 +7,9 @@ using UnityEngine.EventSystems;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Рука гравця: три фігури в повітрі (документ §2, §11 — без плиток-підкладок).
-    /// Показує рівно те, що лежить у <see cref="RunSession.Tray"/>, — окремого списку
-    /// не тримає, інакше показане й поставлене розійшлися б.
+    /// Рука гравця: три слоти K1Candy (кути 20, білий 3.5 % / обвідка 10 %) з фігурами
+    /// (документ §2, §11). Показує рівно те, що лежить у <see cref="RunSession.Tray"/>, —
+    /// окремого списку не тримає, інакше показане й поставлене розійшлися б.
     /// </summary>
     public sealed class TrayView : MonoBehaviour
     {
@@ -45,10 +45,12 @@ namespace InkFlow.UI
         public void Apply()
         {
             _ = design;
+            foreach (var slot in slots)
+                slot?.Apply();
         }
 
         /// <summary>
-        /// Три комірки порівну по фактичній ширині лотка (§11, будь-який екран). Виклик — на
+        /// Три слоти порівну по фактичній ширині лотка (§11, будь-який екран). Виклик — на
         /// подію розкладки, не щокадру; після нього фігури треба показати знову.
         /// </summary>
         public void Layout()
@@ -56,7 +58,7 @@ namespace InkFlow.UI
             var rect = ((RectTransform)transform).rect;
             if (rect.width < 1f || slots.Length == 0)
                 return;
-            var gap = rect.width * 0.02f;
+            var gap = rect.width * 0.025f;
             var slotWidth = (rect.width - gap * (slots.Length - 1)) / slots.Length;
             for (var i = 0; i < slots.Length; i++)
             {

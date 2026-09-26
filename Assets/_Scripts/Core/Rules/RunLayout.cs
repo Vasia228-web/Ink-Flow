@@ -9,19 +9,21 @@ namespace InkFlow.Core
     /// не виходить за екран — це тримає тест на розмірах реальних пристроїв, а не око.
     ///
     /// Усі числа — в px макета (390 завширшки); в'ю множить на свій коефіцієнт.
+    /// Панель картинки 216×186 — трохи більша за попередню редакцію (196×172); на короткому
+    /// екрані вона стискається першою, поле й лоток — ніколи.
     /// </summary>
     public readonly struct RunLayout
     {
         public const float SideMargin = 16f;
         public const float HeaderHeight = 40f;
         public const float PictureGapTop = 10f;
-        public const float PictureHeight = 172f;
+        public const float PictureHeight = 186f;
         public const float PictureMinHeight = 108f;
         public const float BoardGapTop = 8f;
         public const float TrayGap = 10f;
         public const float TrayHeight = 86f;
         public const float BoardMinSide = 200f;
-        public const float PictureMaxWidth = 196f;
+        public const float PictureMaxWidth = 216f;
         public const float StatsMinWidth = 56f;
         public const float StatsMaxWidth = 92f;
         public const float StatsGap = 4f;

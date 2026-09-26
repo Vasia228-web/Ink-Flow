@@ -14,9 +14,9 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Збирає екран забігу: шапка, піксельна картинка, капсули рахунку й рекорду,
-    /// поле 8×8 із блоків і привидів, лоток на три фігури, картка перед забігом і картка фіналу.
-    /// Меню: Ink Flow → Setup → Build Endless Screen.
+    /// Збирає екран забігу: шапка, панель картинки P2Watercolor, рахунок і рекорд,
+    /// поле 8×8 K1Candy (лунки, гало, блоки, блиски), лоток на три фігури, картка перед
+    /// забігом і картка фіналу. Меню: Ink Flow → Setup → Build Endless Screen.
     ///
     /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Геометрію поля й лотка дає
     /// <see cref="BoardGeometry"/>: індекс блока = y × 8 + x, і саме так їх читає
@@ -29,8 +29,6 @@ namespace InkFlow.Editor
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
-        private const string BlobShaderPath = "Assets/_Shaders/InkFlowInkBlob.shader";
-        private const string BoardShaderPath = "Assets/_Shaders/InkFlowInkBoard.shader";
 
         private const float K = 1080f / 390f;
 
@@ -77,9 +75,9 @@ namespace InkFlow.Editor
             var glow = LoadSprite("glow");
             var retry = LoadSprite("icon-retry");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
-            var blobShader = AssetDatabase.LoadAssetAtPath<Shader>(BlobShaderPath);
-            var boardShader = AssetDatabase.LoadAssetAtPath<Shader>(BoardShaderPath);
-            var quad = LoadSprite("white-quad");
+            var cardGlow = LoadSprite("card-glow");
+            var watercolor = AssetDatabase.LoadAssetAtPath<Shader>(PictureViewBuilder.WatercolorShaderPath);
+            var paper = AssetDatabase.LoadAssetAtPath<Texture2D>(PictureViewBuilder.PaperPath);
 
             var missing = new List<string>();
             if (design == null) missing.Add(DesignSystemPath);
@@ -87,13 +85,13 @@ namespace InkFlow.Editor
             {
                 (rounded, "rounded-rect"), (outline, "rounded-rect-outline"),
                 (circle, "circle-soft"), (circleOutline, "circle-outline"),
-                (nebula, "nebula"), (glow, "glow"), (retry, "icon-retry")
+                (nebula, "nebula"), (glow, "glow"), (retry, "icon-retry"), (cardGlow, "card-glow")
             })
                 if (sprite == null) missing.Add($"{SpriteFolder}/{name}.png");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
-            if (blobShader == null) missing.Add(BlobShaderPath);
-            if (boardShader == null) missing.Add(BoardShaderPath);
-            if (quad == null) missing.Add($"{SpriteFolder}/white-quad.png");
+            if (watercolor == null) missing.Add(PictureViewBuilder.WatercolorShaderPath);
+            if (paper == null) missing.Add(PictureViewBuilder.PaperPath);
+            K1Sprites.AllPresent(missing);
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Нескінченний НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -147,10 +145,10 @@ namespace InkFlow.Editor
             var statsRoot = BuildStats(screenGo, design!, font, blockTop + M(4f), statsWidth, statsHeight,
                 out var scoreLabel, out var scoreNumber, out var recordLabel, out var recordNumber);
 
-            var board = BuildBoard(screenGo, design!, font, rounded!, outline!, quad!, boardShader!, boardTop, boardSide,
-                out var boardPlate, out var boardPlateStroke);
+            var board = BuildBoard(screenGo, design!, font, rounded!, cardGlow!, boardTop, boardSide,
+                out var boardPlate, out var boardPlateStroke, out var pulse);
 
-            var tray = BuildTray(screenGo, design!, quad!, blobShader!, trayHeight);
+            var tray = BuildTray(screenGo, design!, trayHeight);
 
             // Краплі летять поверх поля й картинки, під картками.
             var dropsGo = Child(screenGo, "Drops");
@@ -189,7 +187,7 @@ namespace InkFlow.Editor
                 ("boardRoot", board.GetComponent<RectTransform>()), ("trayRoot", tray.GetComponent<RectTransform>()),
                 ("board", board), ("tray", tray), ("picture", picture),
                 ("drops", drops), ("completion", completion),
-                ("boardPlate", boardPlate), ("boardPlateStroke", boardPlateStroke),
+                ("boardPlate", boardPlate), ("boardPlateStroke", boardPlateStroke), ("pulse", pulse),
                 ("comboPop", comboPop),
                 ("overCard", overCard), ("overScrim", overScrim), ("overPanel", overPanel),
                 ("overPanelStroke", overPanelStroke),
@@ -318,14 +316,14 @@ namespace InkFlow.Editor
             Place(label, Vector2.zero, new Vector2(width, M(11f)),
                 new Vector2(1f, 1f), new Vector2(1f, 1f));
 
-            // Число стискається під ширину колонки: на вузькому полотні «12 340» не має лізти на картинку.
+            // Розмір шрифту й формат числа рахує ScoreFormat у рантаймі (§11): повний запис,
+            // менший шрифт, далі компактний — цифри табличні, ширина не стрибає.
             number = Label(go, "Number", value, design, font,
                 design.FontSizeScoreNumber, valueColor, TextAlignmentOptions.Right);
             Place(number, Vector2.zero, new Vector2(width, M(22f)),
                 new Vector2(1f, 0f), new Vector2(1f, 0f));
-            number.enableAutoSizing = true;
-            number.fontSizeMax = design.FontSizeScoreNumber;
-            number.fontSizeMin = design.FontSizeScoreNumber * 0.55f;
+            number.textWrappingMode = TextWrappingModes.NoWrap;
+            number.overflowMode = TextOverflowModes.Overflow;
         }
 
         /// <summary>Прямокутник від лівого верхнього кута екрана (з бічним полем) у px макета × K.</summary>
@@ -339,7 +337,7 @@ namespace InkFlow.Editor
             return rect;
         }
 
-        // ── Картинка по центру: плитка 196×150 із пікселями + назва, лічильник пікселів, «СПРОБ · N» ──
+        // ── Панель картинки по центру (P2Watercolor): плитка 164 із назвою й папером 132, під нею лічильник кроків ──
         private static PictureView BuildPicture(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             Sprite rounded, Sprite outline, Sprite nebula, Sprite circle, float top, float width, float height)
         {
@@ -350,7 +348,7 @@ namespace InkFlow.Editor
             rect.anchoredPosition = new Vector2(0f, -top);
             rect.sizeDelta = new Vector2(width, height);
             return PictureViewBuilder.MakePictureView(go, design, font, rounded, outline, nebula,
-                width, M(150f), M(118f), withTitle: true, captionHeight: M(22f), particle: circle);
+                width, M(164f), M(132f), withTitle: true, captionHeight: M(22f), particle: circle);
         }
 
         // ── Картка перед забігом: «цього забігу — така картинка» ──
@@ -422,10 +420,10 @@ namespace InkFlow.Editor
             go.SetActive(false);
         }
 
-        // ── Поле: полотно 358 px макета, 64 блоки + 64 привиди ──
+        // ── Поле K1Candy: панель зі спрайта + тінь, 64 лунки, на кожну клітинку гало / блок / блиск, підсвітки, привид ──
         private static BoardView BuildBoard(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite quad, Shader boardShader, float top, float side,
-            out Image plate, out Image plateStroke)
+            Sprite rounded, Sprite cardGlow, float top, float side,
+            out Image plate, out Image plateStroke, out BoardPulse pulse)
         {
             var go = Child(parent, "Board");
             var rect = go.GetComponent<RectTransform>();
@@ -434,27 +432,41 @@ namespace InkFlow.Editor
             rect.anchoredPosition = new Vector2(0f, -top);
             rect.sizeDelta = new Vector2(side, side);
 
+            var radius = design.BoardPanelRadius;
+
+            // Тінь під панеллю: чорна ~60 %, зсув униз, розмиття (K1).
+            var shadowGo = Child(go, "Shadow");
+            Stretch(shadowGo, -design.PanelShadowBlur);
+            shadowGo.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -design.PanelShadowOffset);
+            plateStroke = shadowGo.AddComponent<Image>();
+            plateStroke.sprite = cardGlow;
+            plateStroke.type = Image.Type.Sliced;
+            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius + design.PanelShadowBlur);
+            plateStroke.color = design.PanelShadow;
+            plateStroke.raycastTarget = false;
+
+            // Пульсація «мало місця» (§11): світіння по контуру панелі, червоне, альфою керує BoardPulse.
+            var pulseGo = Child(go, "Pulse");
+            Stretch(pulseGo, -design.PulseWidth);
+            var pulseImage = pulseGo.AddComponent<Image>();
+            pulseImage.sprite = cardGlow;
+            pulseImage.type = Image.Type.Sliced;
+            pulseImage.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius + design.PulseWidth);
+            pulseImage.color = design.PulseColor;
+            pulseImage.raycastTarget = false;
+            pulse = go.AddComponent<BoardPulse>();
+            Wire(pulse, ("design", design), ("glow", pulseImage));
+
             var plateGo = Child(go, "Plate");
             Stretch(plateGo);
             plate = plateGo.AddComponent<Image>();
-            plate.sprite = rounded;
+            plate.sprite = K1Sprites.Panel != null ? K1Sprites.Panel : rounded;
             plate.type = Image.Type.Sliced;
-            plate.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(20f));
-            plate.color = design.BoardPlateFill;
+            plate.pixelsPerUnitMultiplier = K1Sprites.Panel != null ? K1Sprites.PanelMultiplier(radius) : GlassPanel.PixelsPerUnitFor(radius);
+            plate.color = Color.white;
             plate.raycastTarget = false;
 
-            var plateStrokeGo = Child(plateGo, "Stroke");
-            Stretch(plateStrokeGo);
-            plateStroke = plateStrokeGo.AddComponent<Image>();
-            plateStroke.sprite = outline;
-            plateStroke.type = Image.Type.Sliced;
-            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(20f));
-            plateStroke.color = design.BoardPlateStroke;
-            plateStroke.raycastTarget = false;
-
-            // Полотно з півотом у ЛІВОМУ ВЕРХНЬОМУ куті: BoardGeometry рахує центри
-            // клітинок саме звідти, і BoardView.CellToLocal теж. Розтягнуте по кореню поля,
-            // бо розмір поля залежить від екрана (RunLayout).
+            // Полотно з півотом у ЛІВОМУ ВЕРХНЬОМУ куті: BoardGeometry рахує центри клітинок звідти.
             var canvasGo = Child(go, "Canvas");
             var canvasRect = canvasGo.GetComponent<RectTransform>();
             canvasRect.anchorMin = Vector2.zero;
@@ -464,44 +476,27 @@ namespace InkFlow.Editor
             canvasRect.offsetMax = Vector2.zero;
 
             var geometry = BoardGeometry.For(8, 8);
-            var ghostSize = M(geometry.Box);
+            var count = geometry.Width * geometry.Height;
+            var sockets = Layer(canvasGo, "Sockets", "Socket", count, K1Sprites.Socket, Color.white, active: true);
+            var glows = Layer(canvasGo, "Glows", "Glow", count, K1Sprites.Glow, Color.white, active: false);
+            var blocks = Layer(canvasGo, "Blocks", "Block", count, K1Sprites.Block, Color.white, active: false);
+            var overlays = Layer(canvasGo, "Highlights", "Shine", count, K1Sprites.Highlight, Color.white, active: false);
+            var highlights = Layer(canvasGo, "LineHighlights", "Line", count, rounded, Color.clear, active: false);
+            foreach (var h in highlights)
+            {
+                h.type = Image.Type.Sliced;
+                h.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(geometry.Box * 0.22f));
+            }
 
-            // Усі клітинки — один квад із шейдером краплі; під ним нічого, над ним — привид і підсвітки.
-            var blobsGo = Child(canvasGo, "Blobs");
-            Stretch(blobsGo);
-            var blobs = blobsGo.AddComponent<Image>();
-            blobs.sprite = quad;
-            blobs.type = Image.Type.Simple;
-            blobs.color = Color.white;
-            blobs.raycastTarget = false;
-
+            // Привид: до п'яти блоків із блиском під спільним CanvasGroup (альфа — валідно / ні).
             var ghostGo = Child(canvasGo, "Ghost");
             Stretch(ghostGo);
-            var ghostBlob = ghostGo.AddComponent<Image>();
-            ghostBlob.sprite = quad;
-            ghostBlob.type = Image.Type.Simple;
-            ghostBlob.color = Color.white;
-            ghostBlob.raycastTarget = false;
+            var ghostGroup = ghostGo.AddComponent<CanvasGroup>();
+            ghostGroup.blocksRaycasts = false;
+            ghostGroup.interactable = false;
+            var ghostBlocks = Layer(ghostGo, "Blocks", "Block", 5, K1Sprites.Block, Color.white, active: false);
+            var ghostOverlays = Layer(ghostGo, "Shines", "Shine", 5, K1Sprites.Highlight, Color.white, active: false);
             ghostGo.SetActive(false);
-
-            // Підсвітка ліній, що зірвуться, — плоскі квадрати; кольору їм дає BoardView.
-            var highlightsGo = Child(canvasGo, "Highlights");
-            Stretch(highlightsGo);
-            var highlights = new Image[geometry.Width * geometry.Height];
-            for (var y = 0; y < geometry.Height; y++)
-                for (var x = 0; x < geometry.Width; x++)
-                {
-                    var cellGo = Child(highlightsGo, $"Highlight_{x}_{y}");
-                    var cell = cellGo.AddComponent<Image>();
-                    cell.sprite = rounded;
-                    cell.type = Image.Type.Sliced;
-                    cell.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(geometry.Box * 0.3f));
-                    cell.color = Color.clear;
-                    cell.raycastTarget = false;
-                    Place(cell, new Vector2(M(geometry.CenterX(x)), -M(geometry.CenterY(y))),
-                        new Vector2(ghostSize, ghostSize), new Vector2(0f, 1f), new Vector2(0.5f, 0.5f));
-                    highlights[y * geometry.Width + x] = cell;
-                }
 
             var floatsGo = Child(canvasGo, "Floats");
             Stretch(floatsGo);
@@ -523,16 +518,42 @@ namespace InkFlow.Editor
             Wire(feedback, ("source", audio));
 
             var board = go.AddComponent<BoardView>();
-            Wire(board, ("design", design), ("canvasRect", canvasRect), ("feedback", feedback),
-                ("blobs", blobs), ("ghostBlob", ghostBlob), ("boardShader", boardShader));
+            Wire(board, ("design", design), ("canvasRect", canvasRect), ("feedback", feedback), ("ghostGroup", ghostGroup));
+            WireArray(board, "sockets", sockets);
+            WireArray(board, "glows", glows);
+            WireArray(board, "blocks", blocks);
+            WireArray(board, "overlays", overlays);
             WireArray(board, "highlights", highlights);
+            WireArray(board, "ghostBlocks", ghostBlocks);
+            WireArray(board, "ghostOverlays", ghostOverlays);
             WireArray(board, "floats", floats);
+            board.ApplyGeometry();
             return board;
         }
 
-        // ── Лоток: три фігури в повітрі (§11), кожна — один квад із шейдером краплі ──
-        private static TrayView BuildTray(GameObject parent, DesignSystem design, Sprite quad, Shader blobShader,
-            float height)
+        /// <summary>Шар однакових спрайтів: один контейнер на шар, щоб канвас батчив його одним викликом.</summary>
+        private static Image[] Layer(GameObject parent, string name, string prefix, int count, Sprite? sprite, Color color, bool active)
+        {
+            var root = Child(parent, name);
+            Stretch(root);
+            var images = new Image[count];
+            for (var i = 0; i < count; i++)
+            {
+                var cellGo = Child(root, $"{prefix}{i}");
+                var image = cellGo.AddComponent<Image>();
+                image.sprite = sprite;
+                image.type = Image.Type.Simple;
+                image.color = color;
+                image.raycastTarget = false;
+                Place(image, Vector2.zero, new Vector2(M(38f), M(38f)), new Vector2(0f, 1f), new Vector2(0.5f, 0.5f));
+                cellGo.SetActive(active);
+                images[i] = image;
+            }
+            return images;
+        }
+
+        // ── Лоток K1Candy: три слоти зі спрайта, у кожному до п'яти зменшених блоків ──
+        private static TrayView BuildTray(GameObject parent, DesignSystem design, float height)
         {
             // Лоток притиснутий до низу safe area (§11) — на будь-якому екрані.
             var go = Child(parent, "Tray");
@@ -544,7 +565,7 @@ namespace InkFlow.Editor
             rect.offsetMax = new Vector2(-SideMargin, height);
 
             const int slotCount = 3;
-            var gap = M(8f);
+            var gap = M(9f);
             var slotWidth = (M(390f) - SideMargin * 2f - gap * (slotCount - 1)) / slotCount;
             var slots = new PieceView[slotCount];
 
@@ -558,20 +579,34 @@ namespace InkFlow.Editor
                 slotRect.sizeDelta = new Vector2(slotWidth, height);
                 var group = slotGo.AddComponent<CanvasGroup>();
 
-                // Квад фігури — і графіка, і зона жесту: без підкладки більше нема чому ловити палець.
-                var blobGo = Child(slotGo, "Blob");
-                Stretch(blobGo);
-                var blob = blobGo.AddComponent<Image>();
-                blob.sprite = quad;
-                blob.type = Image.Type.Simple;
-                blob.color = Color.white;
-                blob.raycastTarget = true;
-                blobGo.SetActive(false); // PieceView вмикає, коли є що показати
+                // Спрайт слота — і фон, і зона жесту.
+                var slotImage = slotGo.AddComponent<Image>();
+                slotImage.sprite = K1Sprites.TraySlot;
+                slotImage.type = Image.Type.Sliced;
+                slotImage.pixelsPerUnitMultiplier = K1Sprites.SlotMultiplier(design.TraySlotRadius);
+                slotImage.color = Color.white;
+                slotImage.raycastTarget = true;
+
+                var cellsGo = Child(slotGo, "Cells");
+                Stretch(cellsGo);
+                var cellsRoot = cellsGo.GetComponent<RectTransform>();
+                var glows = Layer(cellsGo, "Glows", "Glow", 5, K1Sprites.Glow, Color.white, active: false);
+                var blocks = Layer(cellsGo, "Blocks", "Block", 5, K1Sprites.Block, Color.white, active: false);
+                var overlays = Layer(cellsGo, "Shines", "Shine", 5, K1Sprites.Highlight, Color.white, active: false);
+                foreach (var layer in new[] { glows, blocks, overlays })
+                    foreach (var image in layer)
+                    {
+                        var r = (RectTransform)image.transform;
+                        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f); // центри клітинок — від центру слота
+                    }
 
                 var piece = slotGo.AddComponent<PieceView>();
-                Wire(piece, ("design", design), ("blob", blob), ("blobShader", blobShader), ("group", group));
+                Wire(piece, ("design", design), ("slot", slotImage), ("cellsRoot", cellsRoot), ("group", group));
+                WireArray(piece, "glows", glows);
+                WireArray(piece, "blocks", blocks);
+                WireArray(piece, "overlays", overlays);
                 var so = new SerializedObject(piece);
-                so.FindProperty("cellStep").floatValue = M(BoardGeometry.TrayStep);
+                so.FindProperty("cellStep").floatValue = M(BoardGeometry.For(8, 8).Step * design.TrayPieceScale);
                 so.ApplyModifiedPropertiesWithoutUndo();
                 slots[i] = piece;
             }

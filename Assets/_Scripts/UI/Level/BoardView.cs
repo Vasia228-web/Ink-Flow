@@ -10,70 +10,41 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Ігрове поле 8×8: єдиний, хто перетворює стрічку подій Core у видовище.
+    /// Ігрове поле 8×8 у стилі K1Candy (документ §2): 64 лунки, а над ними на кожну клітинку —
+    /// гало, тонований блок і нетонований блиск. Кожен блок — окремий квадрат, без злиття.
+    /// Єдиний, хто перетворює стрічку подій Core у видовище: модель на момент виклику вже
+    /// у ФІНАЛЬНОМУ стані, дошка відтворює шлях до нього подія за подією, а наприкінці робить
+    /// синхронізуючий Repaint.
     ///
-    /// Модель на момент виклику вже у ФІНАЛЬНОМУ стані — дошка лише відтворює шлях
-    /// до нього подія за подією, а наприкінці робить синхронізуючий Repaint.
-    ///
-    /// Клітинки — краплі (V2InkBlob): один квад із шейдером <c>InkFlow/InkBoard</c>, який
-    /// читає сітку з текстури 8×8 (rgb — колір, a — масштаб) і зливає сусідні клітинки
-    /// одного кольору в одну краплю. Анімації (приземлення, зрив, хвиля перефарбування)
-    /// пишуть масштаб у ту саму текстуру з одного LateUpdate — жодних 64 об'єктів і
-    /// жодного дотику до графіки канваса щокадру. Привид фігури — другий такий квад.
+    /// Видимий стан живе в чистій моделі <see cref="BoardVisual"/> (Core): в'юха лише дзеркалить
+    /// його у спрайти. Щокадрово (LateUpdate) пишемо тільки localScale і CanvasRenderer; кольори,
+    /// позиції й активність — на подію. Шари не перемішані (усі гало, потім усі блоки, потім
+    /// блиски), щоб канвас батчив кожен шар одним викликом.
     /// </summary>
     public sealed class BoardView : MonoBehaviour
     {
-        private enum AnimKind : byte { None, Land, Clear }
-
-        private struct CellAnim
-        {
-            public AnimKind Kind;
-            public float Time;
-        }
-
         [SerializeField] private DesignSystem design;
         [SerializeField] private RectTransform canvasRect;
-        [SerializeField] private Image blobs;
-        [SerializeField] private Image ghostBlob;
-        [SerializeField] private Shader boardShader;
+        [SerializeField] private Image[] sockets = System.Array.Empty<Image>();
+        [SerializeField] private Image[] glows = System.Array.Empty<Image>();
+        [SerializeField] private Image[] blocks = System.Array.Empty<Image>();
+        [SerializeField] private Image[] overlays = System.Array.Empty<Image>();
         [SerializeField] private Image[] highlights = System.Array.Empty<Image>();
+        [SerializeField] private CanvasGroup ghostGroup;
+        [SerializeField] private Image[] ghostBlocks = System.Array.Empty<Image>();
+        [SerializeField] private Image[] ghostOverlays = System.Array.Empty<Image>();
         [SerializeField] private TMP_Text[] floats = System.Array.Empty<TMP_Text>();
         [SerializeField] private BoardFeedback? feedback;
-
-        private static readonly int CellsId = Shader.PropertyToID("_Cells");
-        private static readonly int GridId = Shader.PropertyToID("_Grid");
-        private static readonly int OriginId = Shader.PropertyToID("_Origin");
-        private static readonly int SizeId = Shader.PropertyToID("_Size");
-        private static readonly int StepId = Shader.PropertyToID("_Step");
-        private static readonly int RadiusId = Shader.PropertyToID("_Radius");
-        private static readonly int BridgeId = Shader.PropertyToID("_Bridge");
-        private static readonly int SmoothId = Shader.PropertyToID("_Smooth");
-        private static readonly int GlowAlphaId = Shader.PropertyToID("_GlowAlpha");
-        private static readonly int GlowWidthId = Shader.PropertyToID("_GlowWidth");
-        private static readonly int HighlightId = Shader.PropertyToID("_HighlightAlpha");
-        private static readonly int DotId = Shader.PropertyToID("_DotAlpha");
-        private static readonly int LightMixId = Shader.PropertyToID("_LightMix");
-        private static readonly int DarkMixId = Shader.PropertyToID("_DarkMix");
-        private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
 
         private readonly List<Line> _previewLines = new List<Line>(16);
         private RunSession? _session;
         private BoardGeometry _geometry;
+        private BoardVisual? _visual;
         private float _scale = 1f;
         private long _ghostKey = long.MinValue;
         private int _nextFloat;
         private Coroutine? _shake;
-
-        private Material? _material;
-        private Material? _ghostMaterial;
-        private Texture2D? _cellsTexture;
-        private Texture2D? _ghostTexture;
-        private Color32[] _cells = System.Array.Empty<Color32>();
-        private Color32[] _ghostCells = System.Array.Empty<Color32>();
-        private CellAnim[] _anims = System.Array.Empty<CellAnim>();
-        private bool _cellsDirty;
         private bool _geometryDirty;
-        private int _animating;
 
         /// <summary>Гравець відпустив фігуру над полем. Валідність вирішує Core.</summary>
         public InputRouter Router { get; } = new InputRouter();
@@ -86,20 +57,21 @@ namespace InkFlow.UI
 
         public RunSession? Session => _session;
 
+        /// <summary>Чиста модель видимого стану — для тестів і знімків екрана.</summary>
+        public BoardVisual? Visual => _visual;
+
         public void Bind(RunSession session)
         {
             _session = session;
             _geometry = BoardGeometry.For(session.Board.Width, session.Board.Height);
-            EnsureBuffers();
+            if (_visual == null || _visual.Width != _geometry.Width || _visual.Height != _geometry.Height)
+                _visual = new BoardVisual(_geometry.Width, _geometry.Height, ghostBlocks.Length);
             HideGhost();
             ApplyGeometry();
             Repaint();
         }
 
-        /// <summary>
-        /// Одиниць канваса на px макета. Рахується з фактичної ширини полотна:
-        /// поле — квадрат, вписаний у те, що лишилось на екрані.
-        /// </summary>
+        /// <summary>Одиниць канваса на px макета — з фактичної ширини полотна (поле — квадрат, вписаний у те, що лишилось).</summary>
         private float Scale
         {
             get
@@ -131,10 +103,7 @@ namespace InkFlow.UI
             return canvasRect.TransformPoint(new Vector3(local.x, local.y, 0f));
         }
 
-        /// <summary>
-        /// Екранна точка → клітинка. Точка поза полотном (з запасом у клітинку)
-        /// дає false: привид тоді ховається, а не липне до краю.
-        /// </summary>
+        /// <summary>Екранна точка → клітинка. Точка поза полотном (з запасом у клітинку) дає false.</summary>
         public bool TryCellAt(PointerEventData eventData, out int column, out int row)
         {
             column = 0;
@@ -157,168 +126,65 @@ namespace InkFlow.UI
             return true;
         }
 
-        // ── Геометрія: розмір поля може змінитись (інший екран) — уніформи й підсвітки за ним ──
+        // ── Геометрія: розмір поля залежить від екрана — позиції всіх спрайтів за ним ──
 
         private void OnRectTransformDimensionsChange() => _geometryDirty = true;
 
-        /// <summary>Уніформи шейдерів і позиції підсвіток — від фактичного розміру полотна.</summary>
+        /// <summary>Позиції й розміри лунок, блоків, підсвіток — від фактичного розміру полотна.</summary>
         public void ApplyGeometry()
         {
             _geometryDirty = false;
             if (design == null || canvasRect == null || _geometry.Width == 0)
                 return;
             var scale = Scale;
-            var size = canvasRect.rect.size;
             var step = _geometry.Step * scale;
-            var radius = step * design.PieceRadiusFraction;
-            // Центр клітинки (0,0) у px від лівого нижнього кута: BoardGeometry рахує від верхнього.
-            var origin = new Vector4(
-                _geometry.CenterX(0) * scale,
-                (BoardGeometry.Canvas - _geometry.CenterY(0)) * scale, 0f, 0f);
-
-            // Матеріали — лише в Play Mode: у редакторі збирач кличе Apply() перед збереженням
-            // префаба, і посилання на незбережений Material лягло б у файл порожнім.
-            var materials = Application.isPlaying ? new[] { Material, GhostMaterial } : System.Array.Empty<Material?>();
-            foreach (var material in materials)
-            {
-                if (material == null)
-                    continue;
-                material.SetVector(GridId, new Vector4(_geometry.Width, _geometry.Height, 0f, 0f));
-                material.SetVector(OriginId, origin);
-                material.SetVector(SizeId, new Vector4(size.x, size.y, 0f, 0f));
-                material.SetFloat(StepId, step);
-                material.SetFloat(RadiusId, radius);
-                material.SetFloat(BridgeId, step * design.PieceBridgeFraction);
-                material.SetFloat(SmoothId, radius * design.PieceSmoothFraction);
-                material.SetFloat(GlowAlphaId, design.PieceGlowAlpha);
-                material.SetFloat(GlowWidthId, radius * design.PieceGlowFraction);
-                material.SetFloat(HighlightId, design.PieceHighlightAlpha);
-                material.SetFloat(DotId, design.PieceDotAlpha);
-                material.SetFloat(LightMixId, design.PieceLightMix);
-                material.SetFloat(DarkMixId, design.PieceDarkMix);
-            }
-            if (Application.isPlaying)
-                Material?.SetFloat(OpacityId, 1f);
-
-            var box = _geometry.Box * scale;
+            var side = step * design.BlockFraction;
+            var glowSide = side * design.BlockGlowScale;
             for (var y = 0; y < _geometry.Height; y++)
                 for (var x = 0; x < _geometry.Width; x++)
                 {
                     var i = y * _geometry.Width + x;
-                    if (i >= highlights.Length || highlights[i] == null)
-                        continue;
-                    var rect = (RectTransform)highlights[i].transform;
-                    rect.anchoredPosition = CellToLocal(new GridPos(x, y));
-                    rect.sizeDelta = new Vector2(box, box);
+                    var centre = CellToLocal(new GridPos(x, y));
+                    Place(sockets, i, centre, side);
+                    Place(glows, i, centre, glowSide);
+                    Place(blocks, i, centre, side);
+                    Place(overlays, i, centre, side);
+                    Place(highlights, i, centre, side);
                 }
-        }
-
-        private Material? Material
-        {
-            get
+            for (var k = 0; k < ghostBlocks.Length; k++)
             {
-                if (_material != null)
-                    return _material;
-                if (blobs == null || boardShader == null)
-                    return null;
-                _material = new Material(boardShader) { name = "InkBoard (instance)" };
-                blobs.material = _material;
-                if (_cellsTexture != null)
-                    _material.SetTexture(CellsId, _cellsTexture);
-                return _material;
+                if (ghostBlocks[k] != null) ((RectTransform)ghostBlocks[k].transform).sizeDelta = new Vector2(side, side);
+                if (k < ghostOverlays.Length && ghostOverlays[k] != null) ((RectTransform)ghostOverlays[k].transform).sizeDelta = new Vector2(side, side);
             }
         }
 
-        private Material? GhostMaterial
+        private static void Place(Image[] layer, int i, Vector2 centre, float side)
         {
-            get
-            {
-                if (_ghostMaterial != null)
-                    return _ghostMaterial;
-                if (ghostBlob == null || boardShader == null)
-                    return null;
-                _ghostMaterial = new Material(boardShader) { name = "InkBoard ghost (instance)" };
-                ghostBlob.material = _ghostMaterial;
-                if (_ghostTexture != null)
-                    _ghostMaterial.SetTexture(CellsId, _ghostTexture);
-                return _ghostMaterial;
-            }
-        }
-
-        private void EnsureBuffers()
-        {
-            var count = _geometry.Width * _geometry.Height;
-            if (_cells.Length == count && _cellsTexture != null)
+            if (i >= layer.Length || layer[i] == null)
                 return;
-            _cells = new Color32[count];
-            _ghostCells = new Color32[count];
-            _anims = new CellAnim[count];
-            _cellsTexture = MakeTexture("Board cells");
-            _ghostTexture = MakeTexture("Board ghost");
-            Material?.SetTexture(CellsId, _cellsTexture);
-            GhostMaterial?.SetTexture(CellsId, _ghostTexture);
+            var rect = (RectTransform)layer[i].transform;
+            rect.anchoredPosition = centre;
+            rect.sizeDelta = new Vector2(side, side);
         }
 
-        private Texture2D MakeTexture(string name)
-        {
-            var texture = new Texture2D(_geometry.Width, _geometry.Height, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp,
-                name = name
-            };
-            return texture;
-        }
-
-        private void OnDestroy()
-        {
-            if (_material != null) Destroy(_material);
-            if (_ghostMaterial != null) Destroy(_ghostMaterial);
-            if (_cellsTexture != null) Destroy(_cellsTexture);
-            if (_ghostTexture != null) Destroy(_ghostTexture);
-        }
-
-        // ── Малювання ──
-
-        private static Color32 CellColor(byte color, float scale)
-        {
-            var c = DesignSystem.PaletteColor(color);
-            return new Color32((byte)(c.r * 255f), (byte)(c.g * 255f), (byte)(c.b * 255f), (byte)Mathf.Clamp(scale * 255f, 0f, 255f));
-        }
-
-        private void UploadCells()
-        {
-            if (_cellsTexture == null)
-                return;
-            _cellsTexture.SetPixels32(_cells);
-            _cellsTexture.Apply(false, false);
-            _cellsDirty = false;
-        }
+        // ── Малювання: дзеркало BoardVisual у спрайти ──
 
         /// <summary>Повна синхронізація дошки зі станом моделі. Анімації, що ще йдуть, скасовуються.</summary>
         public void Repaint()
         {
-            if (_session == null || design == null)
+            if (_session == null || _visual == null)
                 return;
-            EnsureBuffers();
-
-            var board = _session.Board;
-            for (var y = 0; y < board.Height; y++)
-                for (var x = 0; x < board.Width; x++)
-                {
-                    var i = y * board.Width + x;
-                    var color = board[x, y];
-                    _cells[i] = color == Board.Empty ? new Color32(0, 0, 0, 0) : CellColor(color, 1f);
-                    _anims[i].Kind = AnimKind.None;
-                }
-            _animating = 0;
-            UploadCells();
+            _visual.Sync(_session.Board);
+            for (var i = 0; i < _visual.CellCount; i++)
+                MirrorCell(i);
         }
 
         /// <summary>Модель уже в нових кольорах; показуємо старі там, де перефарбування ще не зіграло (§8).</summary>
         private void RepaintBeforeRecolor(MoveResult result)
         {
             Repaint();
+            if (_visual == null)
+                return;
             for (var i = 0; i < result.Events.Count; i++)
             {
                 var e = result.Events[i];
@@ -327,82 +193,80 @@ namespace InkFlow.UI
                 for (var c = 0; c < e.CellCount; c++)
                 {
                     var index = IndexOf(result.Cell(e, c));
-                    if (index >= 0 && index < _cells.Length)
-                        _cells[index] = CellColor((byte)e.Value, 1f);
+                    _visual.Override(index, (byte)e.Value);
+                    MirrorCell(index);
                 }
             }
-            UploadCells();
         }
 
-        private void StartAnim(int index, AnimKind kind)
+        /// <summary>Колір, активність і масштаб клітинки — зі стану моделі в три спрайти.</summary>
+        private void MirrorCell(int i)
         {
-            if (index < 0 || index >= _anims.Length)
+            if (_visual == null || design == null)
                 return;
-            if (_anims[index].Kind == AnimKind.None)
-                _animating++;
-            _anims[index].Kind = kind;
-            _anims[index].Time = 0f;
+            var cell = _visual[i];
+            SetLayerActive(glows, i, cell.Active);
+            SetLayerActive(blocks, i, cell.Active);
+            SetLayerActive(overlays, i, cell.Active);
+            if (cell.Active)
+            {
+                var tint = DesignSystem.PaletteColor(cell.Color);
+                if (i < blocks.Length && blocks[i] != null) blocks[i].color = design.BlockTint(tint);
+                if (i < glows.Length && glows[i] != null) glows[i].color = DesignSystem.WithAlpha(tint, design.BlockGlowAlpha);
+                if (i < overlays.Length && overlays[i] != null) overlays[i].color = new Color(1f, 1f, 1f, design.BlockHighlightAlpha);
+            }
+            WriteScale(i, cell.Scale);
         }
 
-        // Одна петля на всі клітинки: масштаби пишуться в текстуру, а не в 64 трансформи.
+        private static void SetLayerActive(Image[] layer, int i, bool active)
+        {
+            if (i < layer.Length && layer[i] != null && layer[i].gameObject.activeSelf != active)
+                layer[i].gameObject.SetActive(active);
+        }
+
+        private void WriteScale(int i, float scale)
+        {
+            var s = new Vector3(scale, scale, 1f);
+            if (i < blocks.Length && blocks[i] != null) blocks[i].transform.localScale = s;
+            if (i < overlays.Length && overlays[i] != null) overlays[i].transform.localScale = s;
+            if (i < glows.Length && glows[i] != null) glows[i].transform.localScale = s;
+        }
+
+        // Одна петля на всі клітинки: масштаби — у трансформи, більше нічого.
         private void LateUpdate()
         {
             if (_geometryDirty)
                 ApplyGeometry();
-            if (design == null || _animating == 0)
-            {
-                if (_cellsDirty)
-                    UploadCells();
+            if (design == null || _visual == null || _visual.Animating == 0)
                 return;
-            }
 
-            var dt = Time.deltaTime;
-            var landDuration = Mathf.Max(design.BoardPlaceDuration, 0.01f);
-            var clearDuration = Mathf.Max(design.LineClearDuration, 0.01f);
             var landCurve = design.CurveLand;
-            for (var i = 0; i < _anims.Length; i++)
+            _visual.Advance(Time.deltaTime, design.BoardPlaceDuration, design.LineClearDuration, landCurve.Evaluate);
+            for (var i = 0; i < _visual.CellCount; i++)
             {
-                if (_anims[i].Kind == AnimKind.None)
+                var cell = _visual[i];
+                if (!cell.Active && i < blocks.Length && blocks[i] != null && blocks[i].gameObject.activeSelf)
+                {
+                    // Зрив дограв: клітинка порожня — блок гасне, у порожній клітинці нічого не лишається.
+                    SetLayerActive(glows, i, false);
+                    SetLayerActive(blocks, i, false);
+                    SetLayerActive(overlays, i, false);
                     continue;
-                _anims[i].Time += dt;
-                float scale;
-                if (_anims[i].Kind == AnimKind.Land)
-                {
-                    var k = Mathf.Clamp01(_anims[i].Time / landDuration);
-                    scale = Mathf.Lerp(0.6f, 1f, landCurve.Evaluate(k));
-                    if (k >= 1f)
-                    {
-                        _anims[i].Kind = AnimKind.None;
-                        _animating--;
-                        scale = 1f;
-                    }
                 }
-                else
-                {
-                    // Зрив: коротке розширення, потім схлопування в нуль.
-                    var k = Mathf.Clamp01(_anims[i].Time / clearDuration);
-                    scale = k < 0.25f ? 1f + k * 0.8f : Mathf.Lerp(1.2f, 0f, (k - 0.25f) / 0.75f);
-                    if (k >= 1f)
-                    {
-                        _anims[i].Kind = AnimKind.None;
-                        _animating--;
-                        scale = 0f;
-                    }
-                }
-                _cells[i].a = (byte)Mathf.Clamp(scale * 255f, 0f, 255f);
+                if (cell.Anim != BoardVisual.Anim.None || cell.Active)
+                    WriteScale(i, cell.Scale);
             }
-            UploadCells();
         }
 
         // ── Привид ──
 
         /// <summary>
-        /// Привид фігури під пальцем (крапля тієї самої форми) і підсвітка ліній, які зірвуться.
+        /// Привид фігури під пальцем (ті самі блоки, напівпрозорі) і підсвітка ліній, які зірвуться.
         /// Перемальовується лише коли якір або форма змінились — раз на клітинку, не раз на кадр.
         /// </summary>
         public void ShowGhost(PieceShape shape, byte color, GridPos anchor, bool valid)
         {
-            if (_session == null || design == null)
+            if (_session == null || design == null || _visual == null)
                 return;
 
             var key = ((long)shape.GetHashCode() << 32) ^ (anchor.X << 16) ^ (anchor.Y << 4) ^ (valid ? 1 : 0)
@@ -410,9 +274,9 @@ namespace InkFlow.UI
             if (key == _ghostKey)
                 return;
             _ghostKey = key;
-            EnsureBuffers();
 
-            ClearHighlights();
+            _visual.ClearHighlights();
+            ClearHighlightImages();
             var board = _session.Board;
             var tint = DesignSystem.PaletteColor(color);
 
@@ -426,27 +290,43 @@ namespace InkFlow.UI
                     var pure = IsPurePreview(board, line, shape, anchor, color);
                     var alpha = pure ? design.LinePreviewPureAlpha : design.LinePreviewMixedAlpha;
                     for (var c = 0; c < length; c++)
-                        SetHighlight(IndexOf(LineResolver.CellAt(line, c)), DesignSystem.WithAlpha(tint, alpha));
+                    {
+                        var index = IndexOf(LineResolver.CellAt(line, c));
+                        _visual.SetHighlight(index, color, alpha);
+                        SetHighlight(index, DesignSystem.WithAlpha(tint, alpha));
+                    }
                 }
             }
 
-            var ghostColor = valid ? tint : design.GhostInvalidTint;
-            var cell = new Color32((byte)(ghostColor.r * 255f), (byte)(ghostColor.g * 255f), (byte)(ghostColor.b * 255f), 255);
-            System.Array.Clear(_ghostCells, 0, _ghostCells.Length);
-            for (var i = 0; i < shape.Cells.Length; i++)
+            _visual.ShowGhost(shape, anchor, color, valid);
+            var ghostTint = valid ? design.BlockTint(tint) : design.GhostInvalidTint;
+            for (var k = 0; k < ghostBlocks.Length; k++)
             {
-                var p = new GridPos(anchor.X + shape.Cells[i].X, anchor.Y + shape.Cells[i].Y);
-                if (board.Contains(p))
-                    _ghostCells[IndexOf(p)] = cell;
+                var show = k < _visual.GhostCount;
+                if (ghostBlocks[k] == null)
+                    continue;
+                if (ghostBlocks[k].gameObject.activeSelf != show)
+                    ghostBlocks[k].gameObject.SetActive(show);
+                if (k < ghostOverlays.Length && ghostOverlays[k] != null && ghostOverlays[k].gameObject.activeSelf != show)
+                    ghostOverlays[k].gameObject.SetActive(show);
+                if (!show)
+                    continue;
+                var cell = _visual.GhostCell(k);
+                var centre = CellToLocal(new GridPos(cell % _geometry.Width, cell / _geometry.Width));
+                ((RectTransform)ghostBlocks[k].transform).anchoredPosition = centre;
+                ghostBlocks[k].color = ghostTint;
+                if (k < ghostOverlays.Length && ghostOverlays[k] != null)
+                {
+                    ((RectTransform)ghostOverlays[k].transform).anchoredPosition = centre;
+                    ghostOverlays[k].color = new Color(1f, 1f, 1f, valid ? design.BlockHighlightAlpha : 0.5f);
+                }
             }
-            if (_ghostTexture != null)
+            if (ghostGroup != null)
             {
-                _ghostTexture.SetPixels32(_ghostCells);
-                _ghostTexture.Apply(false, false);
+                ghostGroup.alpha = valid ? design.GhostValidAlpha : design.GhostInvalidAlpha;
+                if (!ghostGroup.gameObject.activeSelf)
+                    ghostGroup.gameObject.SetActive(true);
             }
-            GhostMaterial?.SetFloat(OpacityId, valid ? design.GhostValidAlpha : design.GhostInvalidAlpha);
-            if (ghostBlob != null && !ghostBlob.gameObject.activeSelf)
-                ghostBlob.gameObject.SetActive(true);
         }
 
         public void HideGhost()
@@ -454,22 +334,26 @@ namespace InkFlow.UI
             if (_ghostKey == long.MinValue)
                 return;
             _ghostKey = long.MinValue;
-            ClearHighlights();
-            if (ghostBlob != null && ghostBlob.gameObject.activeSelf)
-                ghostBlob.gameObject.SetActive(false);
+            _visual?.HideGhost();
+            ClearHighlightImages();
+            if (ghostGroup != null && ghostGroup.gameObject.activeSelf)
+                ghostGroup.gameObject.SetActive(false);
         }
 
-        private void ClearHighlights()
+        private void ClearHighlightImages()
         {
             for (var i = 0; i < highlights.Length; i++)
-                if (highlights[i] != null && highlights[i].color != Color.clear)
-                    highlights[i].color = Color.clear;
+                if (highlights[i] != null && highlights[i].gameObject.activeSelf)
+                    highlights[i].gameObject.SetActive(false);
         }
 
         private void SetHighlight(int index, Color color)
         {
-            if (index >= 0 && index < highlights.Length && highlights[index] != null)
-                highlights[index].color = color;
+            if (index < 0 || index >= highlights.Length || highlights[index] == null)
+                return;
+            highlights[index].color = color;
+            if (!highlights[index].gameObject.activeSelf)
+                highlights[index].gameObject.SetActive(true);
         }
 
         /// <summary>Чи буде лінія чистою, якщо покласти сюди фігуру цього кольору.</summary>
@@ -482,26 +366,22 @@ namespace InkFlow.UI
                 var current = board[cell];
                 if (current == Board.Empty)
                 {
-                    // Порожня клітинка лінії — це клітинка фігури (інакше лінія не була б повною).
                     if (color == Board.Empty)
                         return false;
                     continue;
                 }
-
                 if (current != color)
                     return false;
             }
-
             return true;
         }
 
         // ── Програвання ходу ──
 
         /// <summary>
-        /// Програє стрічку подій із таймінгами. Швидкість — з дизайн-системи,
-        /// тож нульові тривалості дають миттєвий режим (рестарт &lt; 300 мс).
-        /// <paramref name="deferRecolor"/> — перефарбування під нову картинку не грати зараз:
-        /// воно піде після картки завершення (§8), і до того поле лишається в старих кольорах.
+        /// Програє стрічку подій із таймінгами. Швидкість — з дизайн-системи, тож нульові
+        /// тривалості дають миттєвий режим. <paramref name="deferRecolor"/> — перефарбування
+        /// під нову картинку не грати зараз: воно піде після картки завершення (§8).
         /// </summary>
         public IEnumerator PlayEvents(MoveResult result, bool deferRecolor = false)
         {
@@ -567,33 +447,25 @@ namespace InkFlow.UI
 
         private void ShowPlaced(MoveResult result, in GameEvent e)
         {
-            if (design == null)
+            if (_visual == null)
                 return;
             for (var c = 0; c < e.CellCount; c++)
             {
                 var i = IndexOf(result.Cell(e, c));
-                if (i < 0 || i >= _cells.Length)
-                    continue;
-                _cells[i] = CellColor(e.Color, 0.6f);
-                StartAnim(i, AnimKind.Land);
+                _visual.Place(i, e.Color);
+                MirrorCell(i);
             }
-            _cellsDirty = true;
             feedback?.PlayPlace();
         }
 
         private IEnumerator PlayLineCleared(MoveResult result, GameEvent e, int lineIndex)
         {
-            if (design == null)
+            if (design == null || _visual == null)
                 yield break;
 
             feedback?.PlayLineClear(lineIndex, e.IsPure);
-
             for (var c = 0; c < e.CellCount; c++)
-            {
-                var i = IndexOf(result.Cell(e, c));
-                if (i >= 0 && i < _cells.Length && _cells[i].a > 0)
-                    StartAnim(i, AnimKind.Clear);
-            }
+                _visual.Clear(IndexOf(result.Cell(e, c)));
 
             var middle = result.Cell(e, e.CellCount / 2);
             PrepareFloat(e.Value, e.IsPure, e.Color, middle);
@@ -604,10 +476,7 @@ namespace InkFlow.UI
                 yield return new WaitForSeconds(design.LineClearStagger);
         }
 
-        /// <summary>
-        /// Хвиля (§5): клітинки міняють колір по черзі знизу вгору, кожна з пружним попом.
-        /// Клітинки події вже йдуть у порядку сканування поля — сортувати нічого.
-        /// </summary>
+        /// <summary>Хвиля (§5): клітинки міняють колір по черзі знизу вгору, кожна з пружним попом.</summary>
         private IEnumerator PlayRecolorWave(MoveResult result, GameEvent e)
         {
             if (design == null || e.CellCount == 0)
@@ -617,13 +486,7 @@ namespace InkFlow.UI
             var elapsed = 0f;
             for (var c = 0; c < e.CellCount; c++)
             {
-                var index = IndexOf(result.Cell(e, c));
-                if (index >= 0 && index < _cells.Length)
-                {
-                    _cells[index] = CellColor(color, 0.6f);
-                    StartAnim(index, AnimKind.Land);
-                    _cellsDirty = true;
-                }
+                RecolorCell(IndexOf(result.Cell(e, c)), color);
                 if (stagger <= 0f)
                     continue;
                 elapsed += stagger;
@@ -637,6 +500,15 @@ namespace InkFlow.UI
                 yield return new WaitForSeconds(design.BoardPlaceDuration);
         }
 
+        /// <summary>Колір клітинки ставиться тут, поза тілом корутини: усередині IEnumerator графіку чіпати не можна.</summary>
+        private void RecolorCell(int index, byte color)
+        {
+            if (_visual == null)
+                return;
+            _visual.Recolor(index, color);
+            MirrorCell(index);
+        }
+
         private void PlayCombo(int lines)
         {
             feedback?.PlayCombo(lines);
@@ -645,10 +517,7 @@ namespace InkFlow.UI
                 Shake(lines - design.BoardShakeFromLines + 1);
         }
 
-        /// <summary>
-        /// Число «+пікселі» над лінією. Текст і колір ставляться ТУТ, до старту корутини:
-        /// усередині IEnumerator графіку чіпати не можна.
-        /// </summary>
+        /// <summary>Число «+кроки» над лінією. Текст і колір ставляться ТУТ, до старту корутини.</summary>
         private void PrepareFloat(int amount, bool pure, byte color, GridPos at)
         {
             if (floats.Length == 0 || design == null)
