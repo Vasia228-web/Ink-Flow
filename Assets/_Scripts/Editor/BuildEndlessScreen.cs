@@ -36,6 +36,9 @@ namespace InkFlow.Editor
 
         private static readonly float SideMargin = M(16f);
 
+        /// <summary>Блок картинки над полем, px макета: полотно плюс запас під найширше гало рідкості з кожного боку.</summary>
+        internal static float RunPictureBlock(DesignSystem design) => design.RunPictureSide + design.RarityHaloReserve * 2f;
+
         /// <summary>Скільки крапельок летить за новий рекорд.</summary>
         private const int ConfettiPieces = 18;
 
@@ -124,10 +127,10 @@ namespace InkFlow.Editor
             // праворуч угорі без фону, лоток при низу, поле — що лишилось. Тут — початкові
             // позиції для сцени-майстерні (полотно 1080×1920 = 390×693 px макета); у грі
             // EndlessScreen.Layout() перераховує їх під фактичний екран.
-            var layout = RunLayout.For(390f, 1920f / K, design!.BoardSideMargin);
+            var layout = RunLayout.For(390f, 1920f / K, design!.BoardSideMargin, RunPictureBlock(design!));
             var headerHeight = M(RunLayout.HeaderHeight);
             var blockTop = M(layout.PictureTop);
-            var blockHeight = M(RunLayout.PictureHeight);
+            var blockHeight = M(layout.PictureBlock);
             var pictureWidth = M(layout.PictureWidth);
             var statsWidth = M(layout.StatsWidth);
             var statsHeight = M(36f);
@@ -138,8 +141,7 @@ namespace InkFlow.Editor
             BuildHeader(screenGo, design!, font, circle!, circleOutline!, retry!,
                 headerHeight, out var backButton, out var title, out var restartButton);
 
-            var picture = BuildPicture(screenGo, design!, font, rounded!, outline!, nebula!, circle!,
-                blockTop, pictureWidth, blockHeight);
+            var picture = BuildPicture(screenGo, design!, blockTop, pictureWidth, blockHeight);
 
             var statsRoot = BuildStats(screenGo, design!, font, blockTop + M(4f), statsWidth, statsHeight,
                 out var scoreLabel, out var scoreNumber, out var recordLabel, out var recordNumber);
@@ -341,9 +343,8 @@ namespace InkFlow.Editor
             return rect;
         }
 
-        // ── Панель картинки по центру: плитка 164 із назвою й полотном 132, під нею лічильник кроків ──
-        private static PictureView BuildPicture(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite nebula, Sprite circle, float top, float width, float height)
+        // ── Картинка по центру: лише полотно (без рамки, лічильника й назви), рідкість — гало з-під нього ──
+        private static PictureView BuildPicture(GameObject parent, DesignSystem design, float top, float width, float height)
         {
             var go = Child(parent, "Picture");
             var rect = go.GetComponent<RectTransform>();
@@ -351,8 +352,7 @@ namespace InkFlow.Editor
             rect.pivot = new Vector2(0.5f, 1f);
             rect.anchoredPosition = new Vector2(0f, -top);
             rect.sizeDelta = new Vector2(width, height);
-            return PictureViewBuilder.MakePictureView(go, design, font, rounded, outline, nebula,
-                width, M(164f), M(132f), withTitle: true, captionHeight: M(22f), particle: circle);
+            return PictureViewBuilder.MakeRunPicture(go, design, M(design.RunPictureSide));
         }
 
         // ── Картка перед забігом: «цього забігу — така картинка» ──

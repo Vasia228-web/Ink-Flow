@@ -151,6 +151,69 @@ namespace InkFlow.Editor
             view.Apply();
             return view;
         }
+
+        /// <summary>
+        /// Картинка над полем (§11): лише полотно W4DarkCanvas — без панелі, рамки, назви й лічильника
+        /// (рішення автора; назва лишається на картках і в колекції). Рідкість — гало з-під полотна
+        /// (<see cref="RarityHalo"/>, два шари для плавної зміни кольору з хвилею перефарбування).
+        /// Корінь — блок розкладки (<see cref="RunLayout"/>), усередині по центру «Plate» зі стороною
+        /// полотна: його масштабує спалах завершення. Сторону полотна виставляє розкладка екрана.
+        /// </summary>
+        internal static PictureView MakeRunPicture(GameObject go, DesignSystem design, float canvasSide)
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(DarkCanvasShaderPath);
+            if (shader == null) Debug.LogError($"[InkFlow] Немає {DarkCanvasShaderPath}");
+            var cardGlow = LoadSprite("card-glow");
+
+            var plateGo = Child(go, "Plate");
+            var plate = plateGo.GetComponent<RectTransform>();
+            plate.anchorMin = plate.anchorMax = new Vector2(0.5f, 0.5f);
+            plate.pivot = new Vector2(0.5f, 0.5f);
+            plate.anchoredPosition = Vector2.zero;
+            plate.sizeDelta = new Vector2(canvasSide, canvasSide);
+
+            // Два шари гало під полотном: поточне й наступне (перехід кольору з хвилею).
+            Image HaloLayer(string name)
+            {
+                var layerGo = Child(plateGo, name);
+                var image = layerGo.AddComponent<Image>();
+                image.sprite = cardGlow;
+                image.type = Image.Type.Sliced;
+                image.raycastTarget = false;
+                image.color = Color.clear;
+                return image;
+            }
+            var haloBack = HaloLayer("HaloBack");
+            var haloFront = HaloLayer("HaloFront");
+
+            var canvasGo = Child(plateGo, "Canvas");
+            var canvas = canvasGo.GetComponent<RectTransform>();
+            canvas.anchorMin = canvas.anchorMax = new Vector2(0.5f, 0.5f);
+            canvas.pivot = new Vector2(0.5f, 0.5f);
+            canvas.anchoredPosition = Vector2.zero;
+            canvas.sizeDelta = new Vector2(canvasSide, canvasSide);
+
+            var pixelsGo = Child(canvasGo, "Pixels");
+            var pixels = pixelsGo.AddComponent<RawImage>();
+            pixels.raycastTarget = false;
+            pixels.color = Color.white;
+            Place(pixels, Vector2.zero, new Vector2(canvasSide, canvasSide),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var halo = plateGo.AddComponent<RarityHalo>();
+            // Гало обгортає САМУ картинку (RawImage, вписаний у квадрат за пропорціями), а не квадрат:
+            // інакше в невисокої чи невузької картинки відкривається яскрава серцевина гало суцільною смугою.
+            Wire(halo, ("design", design), ("canvas", pixels.rectTransform), ("front", haloFront), ("back", haloBack));
+            var so = new SerializedObject(halo);
+            so.FindProperty("spriteFalloffPx").floatValue = GenerateUISprites.GlowFalloff;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            var view = go.AddComponent<PictureView>();
+            Wire(view, ("design", design), ("plate", plate), ("canvas", canvas), ("pixels", pixels), ("halo", halo));
+            if (shader != null) Wire(view, ("darkCanvasShader", shader));
+            view.Apply();
+            return view;
+        }
     }
 
     /// <summary>

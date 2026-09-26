@@ -651,6 +651,16 @@ namespace InkFlow.Style
         [SerializeField, Min(0.05f)] private float pictureRevealDuration = 0.2f;
         [SerializeField, Range(0f, 0.5f)] private float pictureRevealPop = 0.15f;
 
+        [Header("Картинка над полем: без рамки, лічильника й назви; рідкість — гало з-під неї")]
+        [Tooltip("Сторона полотна над полем, px макета (було 132 у панелі з назвою). Блок над полем = полотно + " +
+                 "запас під найширше гало з кожного боку; на короткому екрані блок стискається першим (поле → лоток → картинка).")]
+        [SerializeField, Range(110f, 210f)] private float runPictureSide = 154f;
+        [Tooltip("Гало рідкості з-під картинки: ширина за краєм полотна, px макета, — від звичайної до космічної. " +
+                 "Чим вища рідкість, тим ширше; найширше задає запас блоку, тож гало не лізе на поле й рахунок.")]
+        [SerializeField] private float[] rarityHaloWidths = { 6f, 8f, 10f, 12f, 14f, 16f };
+        [Tooltip("Сила гало рідкості (альфа кольору рідкості) — від звичайної до космічної. На краю полотна видно ~половину.")]
+        [SerializeField] private float[] rarityHaloAlphas = { 0.35f, 0.45f, 0.55f, 0.65f, 0.8f, 0.9f };
+
         [Header("Тривога поля «мало місця» (§11): A1Breathe, docs/StyleRef/A1Breathe/")]
         [Tooltip("Дихання сяйва: a = мін + (макс − мін)·(0.5 − 0.5·cos(2π·t / період)). Кольори й товщини запечені в спрайтах.")]
         [SerializeField, Range(0f, 1f)] private float pulseAlphaMin = 0.25f;
@@ -1054,6 +1064,31 @@ namespace InkFlow.Style
         public float PictureBorderWidth => pictureBorderWidth;
         public float PictureRevealDuration => pictureRevealDuration;
         public float PictureRevealPop => pictureRevealPop;
+        public float RunPictureSide => runPictureSide;
+
+        /// <summary>Ширина гало рідкості за краєм полотна, px макета.</summary>
+        public float RarityHaloWidth(Rarity rarity) => Pick(rarityHaloWidths, rarity, 6f + 2f * (int)rarity);
+
+        /// <summary>Сила гало рідкості (0..1).</summary>
+        public float RarityHaloAlpha(Rarity rarity) => Mathf.Clamp01(Pick(rarityHaloAlphas, rarity, 0.35f + 0.1f * (int)rarity));
+
+        /// <summary>Запас блоку картинки під найширше гало, px макета.</summary>
+        public float RarityHaloReserve
+        {
+            get
+            {
+                var max = 0f;
+                for (var i = 0; i < Rarities.Count; i++)
+                    max = Mathf.Max(max, RarityHaloWidth((Rarity)i));
+                return max;
+            }
+        }
+
+        private static float Pick(float[]? values, Rarity rarity, float fallback)
+        {
+            var i = (int)rarity;
+            return values != null && i >= 0 && i < values.Length ? Mathf.Max(values[i], 0f) : fallback;
+        }
 
         public float PulseAlphaMin => pulseAlphaMin;
         public float PulseAlphaMax => pulseAlphaMax;

@@ -7,10 +7,10 @@ using UnityEngine;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Знімки екрана забігу з редактора (без Play Mode): чотири роздільності × одинадцять станів —
+    /// Знімки екрана забігу з редактора (без Play Mode): чотири роздільності × сімнадцять станів —
     /// порожнє поле, середина гри, тривога поля «мало місця» й «останній хід», рахунок 1 234 567 і
     /// 987 654 321, готова картинка, екран кінця забігу, після рестарту, після відновлення
-    /// зліпка, після зміни пристрою. Меню: Ink Flow → Debug → Capture Run Screenshots.
+    /// зліпка, після зміни пристрою, по одному на кожну з шести рідкостей. Меню: Ink Flow → Debug → Capture Run Screenshots.
     /// Пише PNG у docs/screenshots/ — для порівняння з еталонами docs/StyleRef/.
     ///
     /// Кожен стан проходить самоперевірку поля (<see cref="RunScreenRig.LayoutFault"/>): полотно
@@ -26,7 +26,8 @@ namespace InkFlow.Editor
         public static readonly string[] States =
         {
             "empty", "mid", "danger-warn", "danger", "score-1234567", "score-987654321", "completed", "over",
-            "restart", "restored", "device-change"
+            "restart", "restored", "device-change",
+            "rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic", "rarity-legendary", "rarity-cosmic"
         };
 
         /// <summary>
@@ -148,6 +149,12 @@ namespace InkFlow.Editor
                     rig.Show(rig.NewSession(25));
                     rig.Render();
                     rig.SetDevice(device);
+                    break;
+                case var rarityState when rarityState.StartsWith("rarity-"):
+                    // Гало рідкості з-під картинки: та сама середина гри, картинка потрібної рідкості.
+                    if (!Rarities.TryParse(rarityState.Substring("rarity-".Length), out var rarity))
+                        throw new System.ArgumentOutOfRangeException(nameof(state), state, "невідома рідкість");
+                    rig.Show(rig.SessionWithRarity(rarity, 25));
                     break;
                 default:
                     throw new System.ArgumentOutOfRangeException(nameof(state), state, "невідомий стан знімка");

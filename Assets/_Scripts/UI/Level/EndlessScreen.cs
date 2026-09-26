@@ -472,7 +472,7 @@ namespace InkFlow.UI
         {
             if (_session == null)
                 yield break;
-            picture?.Show(_session.Picture);
+            picture?.Show(_session.Picture, recolor: true); // гало рідкості міняє колір разом із хвилею
             if (board != null && _pendingResult != null)
                 yield return board.PlayRecolor(_pendingResult);
             _pendingResult = null;
@@ -823,15 +823,21 @@ namespace InkFlow.UI
             if (rect.width < 1f || rect.height < 1f)
                 return;
             var boardMargin = design != null ? design.BoardSideMargin : BoardGeometry.DefaultSideMargin;
-            var layout = RunLayout.For(rect.width / K, rect.height / K, boardMargin);
+            // Блок картинки = полотно (токен) + запас під найширше гало рідкості з кожного боку.
+            var haloReserve = design != null ? design.RarityHaloReserve : 16f;
+            var pictureSide = design != null ? design.RunPictureSide : RunLayout.PictureHeight - haloReserve * 2f;
+            var layout = RunLayout.For(rect.width / K, rect.height / K, boardMargin, pictureSide + haloReserve * 2f);
 
             if (pictureRoot != null)
             {
                 pictureRoot.anchorMin = pictureRoot.anchorMax = new Vector2(0.5f, 1f);
                 pictureRoot.pivot = new Vector2(0.5f, 1f);
                 pictureRoot.anchoredPosition = new Vector2(0f, -M(layout.PictureTop));
-                pictureRoot.sizeDelta = new Vector2(M(layout.PictureWidth), M(RunLayout.PictureHeight));
+                pictureRoot.sizeDelta = new Vector2(M(layout.PictureWidth), M(layout.PictureBlock));
                 pictureRoot.localScale = new Vector3(layout.PictureScale, layout.PictureScale, 1f);
+                // Полотно не ширше за блок мінус гало: світіння не лізе на колонку рахунку.
+                var side = Mathf.Min(pictureSide, layout.PictureBlock - haloReserve * 2f, layout.PictureWidth - haloReserve * 2f);
+                picture?.SetCanvasSide(M(side));
             }
 
             if (statsRoot != null)

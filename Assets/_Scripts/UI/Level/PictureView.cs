@@ -28,6 +28,8 @@ namespace InkFlow.UI
         [SerializeField] private Image plateStroke;
         [SerializeField] private Image glow;
         [SerializeField] private RarityFrame frame;
+        [Tooltip("Над полем: гало рідкості з-під картинки замість рамки (решта місць — рамка).")]
+        [SerializeField] private RarityHalo halo;
         [SerializeField] private RectTransform canvas;
         [SerializeField] private RawImage pixels;
         [SerializeField] private Shader darkCanvasShader;
@@ -58,6 +60,7 @@ namespace InkFlow.UI
         private Texture2D? _halo;
         private Material? _material;
         private int _margin = -1;
+        private bool _recolor;
         private float[] _coverage = System.Array.Empty<float>();
         private float[] _coverageScratch = System.Array.Empty<float>();
         private float[] _haloValues = System.Array.Empty<float>();
@@ -95,11 +98,17 @@ namespace InkFlow.UI
             ApplyMaterial();
         }
 
-        /// <summary>Показує стан картинки як є: контур, зафарбовані кроки, решта — ескіз.</summary>
-        public void Show(PictureProgress progress)
+        /// <summary>
+        /// Показує стан картинки як є: зафарбовані кроки, решта — світлі контури.
+        /// <paramref name="recolor"/> — нова картинка прийшла з хвилею перефарбування (§8): гало рідкості
+        /// міняє колір плавно разом із хвилею, а не стрибком.
+        /// </summary>
+        public void Show(PictureProgress progress, bool recolor = false)
         {
             _progress = progress;
+            _recolor = recolor;
             Bind(progress.Picture);
+            _recolor = false;
             for (var i = 0; i < _reveal.Length; i++)
                 _reveal[i] = progress.IsPixelFilled(i) ? 1f : 0f;
             WriteMaskImmediately();
@@ -307,6 +316,7 @@ namespace InkFlow.UI
                 frame.Bind(picture.Rarity);
             else if (plateStroke != null && design != null)
                 plateStroke.color = design.RarityColor(picture.Rarity);
+            halo?.Show(picture.Rarity, _recolor);
         }
 
         /// <summary>
@@ -431,6 +441,21 @@ namespace InkFlow.UI
             _material.SetFloat(CornerId, design.PictureCornerRadius);
             _material.SetVector(BorderId, new Vector4(design.PictureBorderAlpha, design.PictureBorderWidth, 1f, 0f));
             _material.SetFloat(PopId, design.PictureRevealPop);
+        }
+
+        /// <summary>
+        /// Над полем розмір полотна задає розкладка (токен <see cref="DesignSystem.RunPictureSide"/>, обмежений
+        /// блоком): полотно й панель-контейнер — квадрат цієї сторони, гало — за ним. На подію, не щокадру.
+        /// </summary>
+        public void SetCanvasSide(float side)
+        {
+            if (canvas == null || side <= 1f)
+                return;
+            canvas.sizeDelta = new Vector2(side, side);
+            if (plate != null)
+                plate.sizeDelta = new Vector2(side, side);
+            FitAspect();
+            halo?.Relayout();
         }
 
         /// <summary>Картинка не мусить бути квадратною — вписуємо її в квадрат полотна, зберігаючи пропорції.</summary>

@@ -174,9 +174,10 @@ namespace InkFlow.Editor
         }
 
         /// <summary>Сесія після стількох ходів бота; <paramref name="stopWhen"/> зупиняє раніше.</summary>
-        public RunSession NewSession(int botMoves, uint seed = 4242u, System.Func<RunSession, bool>? stopWhen = null)
+        public RunSession NewSession(int botMoves, uint seed = 4242u, System.Func<RunSession, bool>? stopWhen = null,
+            PictureLibrary? library = null)
         {
-            var session = new RunSession(Balance, PieceCatalogData.Default, new XorShiftRandom(seed), Library);
+            var session = new RunSession(Balance, PieceCatalogData.Default, new XorShiftRandom(seed), library ?? Library);
             var bot = new RunBot();
             for (var i = 0; i < botMoves && !session.IsOver && bot.TryChooseMove(session, out var index, out var anchor); i++)
             {
@@ -185,6 +186,15 @@ namespace InkFlow.Editor
                 session.TryPlace(index, anchor);
             }
             return session;
+        }
+
+        /// <summary>Сесія, чия картинка — перша з бібліотеки потрібної рідкості (знімки й тести гало рідкості).</summary>
+        public RunSession SessionWithRarity(Rarity rarity, int botMoves)
+        {
+            foreach (var picture in Library.Pictures)
+                if (picture.Rarity == rarity)
+                    return NewSession(botMoves, library: new PictureLibrary(new[] { picture }));
+            throw new System.InvalidOperationException($"У бібліотеці немає картинки рідкості {rarity}.");
         }
 
         /// <summary>Та сама партія, відновлена зі зліпка (§9) — як після закриття застосунку.</summary>

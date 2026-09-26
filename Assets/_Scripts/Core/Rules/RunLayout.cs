@@ -32,11 +32,12 @@ namespace InkFlow.Core
         public const float StatsMaxWidth = 92f;
         public const float StatsGap = 4f;
 
-        private RunLayout(float width, float height, float boardMargin, float pictureScale, float boardTop, float boardSide, float trayTop)
+        private RunLayout(float width, float height, float boardMargin, float pictureBlock, float pictureScale, float boardTop, float boardSide, float trayTop)
         {
             Width = width;
             Height = height;
             BoardMargin = boardMargin;
+            PictureBlock = pictureBlock;
             PictureScale = pictureScale;
             BoardTop = boardTop;
             BoardSide = boardSide;
@@ -49,14 +50,17 @@ namespace InkFlow.Core
         /// <summary>Бічне поле панелі поля й лотка від краю екрана.</summary>
         public float BoardMargin { get; }
 
+        /// <summary>Повна висота блоку картинки (токен; за замовчуванням <see cref="PictureHeight"/>).</summary>
+        public float PictureBlock { get; }
+
         /// <summary>Ширина блоку картинки по центру і колонки рахунку праворуч — так, щоб не перекривались.</summary>
         public float StatsWidth => Math.Max(StatsMinWidth, Math.Min(StatsMaxWidth, (Width - PictureMaxWidth) * 0.5f - SideMargin - StatsGap));
         public float PictureWidth => Math.Min(PictureMaxWidth, Width - 2f * (SideMargin + StatsWidth + StatsGap));
 
-        /// <summary>Масштаб блоку картинки (1 — повний); висота блоку = PictureHeight × масштаб.</summary>
+        /// <summary>Масштаб блоку картинки (1 — повний); висота блоку = PictureBlock × масштаб.</summary>
         public float PictureScale { get; }
         public float PictureTop => HeaderHeight + PictureGapTop;
-        public float PictureShownHeight => PictureHeight * PictureScale;
+        public float PictureShownHeight => PictureBlock * PictureScale;
 
         /// <summary>Верх поля від верху екрана й сторона квадрата.</summary>
         public float BoardTop { get; }
@@ -73,17 +77,24 @@ namespace InkFlow.Core
 
         public static RunLayout For(float width, float height) => For(width, height, BoardGeometry.DefaultSideMargin);
 
-        /// <summary>Розкладка з бічним полем панелі поля з дизайн-системи (px макета).</summary>
-        public static RunLayout For(float width, float height, float boardMargin)
+        public static RunLayout For(float width, float height, float boardMargin) => For(width, height, boardMargin, PictureHeight);
+
+        /// <summary>
+        /// Розкладка з бічним полем панелі поля й висотою блоку картинки з дизайн-системи (px макета).
+        /// Блок картинки стискається першим, але не нижче <see cref="PictureMinHeight"/>.
+        /// </summary>
+        public static RunLayout For(float width, float height, float boardMargin, float pictureBlock)
         {
             if (width <= 0f || height <= 0f)
                 throw new ArgumentOutOfRangeException(nameof(width));
             if (boardMargin < 0f)
                 boardMargin = 0f;
+            if (pictureBlock < PictureMinHeight)
+                pictureBlock = PictureMinHeight;
 
             var maxSide = width - boardMargin * 2f;
             var trayTop = height - TrayHeight;
-            var pictureHeight = PictureHeight;
+            var pictureHeight = pictureBlock;
 
             // Скільки лишається полю при повній картинці.
             var available = trayTop - TrayGap - (HeaderHeight + PictureGapTop + pictureHeight + BoardGapTop);
@@ -100,7 +111,7 @@ namespace InkFlow.Core
 
             side = Math.Max(side, Math.Min(BoardMinSide, maxSide));
             var boardTop = HeaderHeight + PictureGapTop + pictureHeight + BoardGapTop;
-            return new RunLayout(width, height, boardMargin, pictureHeight / PictureHeight, boardTop, side, trayTop);
+            return new RunLayout(width, height, boardMargin, pictureBlock, pictureHeight / pictureBlock, boardTop, side, trayTop);
         }
     }
 }
