@@ -38,8 +38,7 @@ namespace InkFlow.Editor
             foreach (var path in new[]
             {
                 "Assets/_Sprites/K1Candy/panel.png", "Assets/_Sprites/K1Candy/tray-slot.png", "Assets/_Sprites/K1Candy/socket.png",
-                "Assets/_Sprites/K1Candy/block-base.png", "Assets/_Sprites/K1Candy/block-highlight.png", "Assets/_Sprites/K1Candy/glow.png",
-                PictureViewBuilder.PaperPath
+                "Assets/_Sprites/K1Candy/block-base.png", "Assets/_Sprites/K1Candy/block-highlight.png", "Assets/_Sprites/K1Candy/glow.png"
             })
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
             foreach (var name in A1Sprites.Names)

@@ -4,8 +4,8 @@ using UnityEngine;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Налаштування імпорту еталонних спрайтів K1Candy, тривоги поля A1Breathe і паперу P2Watercolor
-    /// (`Assets/_Sprites/K1Candy`, `Assets/_Sprites/A1Breathe`, `Assets/_Sprites/P2Watercolor`). Файли скопійовано з
+    /// Налаштування імпорту еталонних спрайтів K1Candy і тривоги поля A1Breathe
+    /// (`Assets/_Sprites/K1Candy`, `Assets/_Sprites/A1Breathe`). Файли скопійовано з
     /// `docs/StyleRef/` як є — тому імпорт задається постпроцесором, а не руками в інспекторі:
     /// 9-slice-межі панелі й слота лотка інакше довелося б виставляти після кожного оновлення еталонів.
     ///
@@ -15,7 +15,6 @@ namespace InkFlow.Editor
     {
         public const string K1Folder = "Assets/_Sprites/K1Candy";
         public const string A1Folder = "Assets/_Sprites/A1Breathe";
-        public const string P2Folder = "Assets/_Sprites/P2Watercolor";
 
         /// <summary>PPU для всіх спрайтів стилю: як у UI-спрайтів, радіуси керуються pixelsPerUnitMultiplier.</summary>
         public const int PixelsPerUnit = 100;
@@ -27,8 +26,6 @@ namespace InkFlow.Editor
         {
             if (assetPath.StartsWith(K1Folder) || assetPath.StartsWith(A1Folder))
                 ConfigureK1((TextureImporter)assetImporter);
-            else if (assetPath.StartsWith(P2Folder))
-                ConfigurePaper((TextureImporter)assetImporter);
         }
 
         private void ConfigureK1(TextureImporter importer)
@@ -45,17 +42,6 @@ namespace InkFlow.Editor
             var name = System.IO.Path.GetFileNameWithoutExtension(assetPath);
             var border = name == "panel" ? PanelBorder : name == "tray-slot" ? SlotBorder : 0;
             importer.spriteBorder = new Vector4(border, border, border, border);
-        }
-
-        private void ConfigurePaper(TextureImporter importer)
-        {
-            importer.textureType = TextureImporterType.Default;
-            importer.sRGBTexture = true;
-            importer.alphaSource = TextureImporterAlphaSource.None;
-            importer.mipmapEnabled = true;
-            importer.filterMode = FilterMode.Bilinear;
-            importer.wrapMode = TextureWrapMode.Repeat; // безшовний папір тайлиться під будь-яке полотно
-            importer.textureCompression = TextureImporterCompression.Compressed;
         }
     }
 }

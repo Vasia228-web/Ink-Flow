@@ -9,17 +9,16 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Панель картинки P2Watercolor — одна збірка на всі місця: над полем, у картці перед
-    /// забігом, у картці завершення, у галереї фіналу, у шухляді колекції й на планеті.
-    /// Панель — той самий матеріал, що поле K1Candy (спрайт із градієнтом і обвідкою, тінь
-    /// під нею), рамка рідкості поверх, полотно — RawImage із шейдером акварелі (матеріал
-    /// створює PictureView у Play Mode). Розійшлися б на першій правці.
+    /// Панель картинки — одна збірка на всі місця: над полем, у картці перед забігом, у картці
+    /// завершення, у галереї фіналу, у шухляді колекції й на планеті. Панель — той самий матеріал,
+    /// що поле K1Candy (спрайт із градієнтом і обвідкою, тінь під нею), рамка рідкості поверх,
+    /// полотно — RawImage із шейдером W4DarkCanvas `InkFlow/DarkCanvas` (матеріал створює
+    /// PictureView у Play Mode). Розійшлися б на першій правці.
     /// </summary>
     internal static class PictureViewBuilder
     {
         private const float K = 1080f / 390f;
-        internal const string WatercolorShaderPath = "Assets/_Shaders/InkFlowWatercolor.shader";
-        internal const string PaperPath = "Assets/_Sprites/P2Watercolor/paper.png";
+        internal const string DarkCanvasShaderPath = "Assets/_Shaders/InkFlowDarkCanvas.shader";
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 
@@ -30,10 +29,8 @@ namespace InkFlow.Editor
         {
             var panel = K1Sprites.Panel;
             var shadow = LoadSprite("card-glow");
-            var shader = AssetDatabase.LoadAssetAtPath<Shader>(WatercolorShaderPath);
-            var paper = AssetDatabase.LoadAssetAtPath<Texture2D>(PaperPath);
-            if (shader == null) Debug.LogError($"[InkFlow] Немає {WatercolorShaderPath}");
-            if (paper == null) Debug.LogError($"[InkFlow] Немає {PaperPath}");
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(DarkCanvasShaderPath);
+            if (shader == null) Debug.LogError($"[InkFlow] Немає {DarkCanvasShaderPath}");
 
             var plateGo = Child(go, "Plate");
             var plate = plateGo.GetComponent<RectTransform>();
@@ -112,7 +109,7 @@ namespace InkFlow.Editor
                     new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
             }
 
-            // Полотно (папір) — знизу панелі; без назви — по центру.
+            // Полотно — знизу панелі; без назви — по центру.
             var canvasGo = Child(plateGo, "Canvas");
             var canvas = canvasGo.GetComponent<RectTransform>();
             if (withTitle)
@@ -129,7 +126,7 @@ namespace InkFlow.Editor
             }
             canvas.sizeDelta = new Vector2(canvasSide, canvasSide);
 
-            var pixelsGo = Child(canvasGo, "Paper");
+            var pixelsGo = Child(canvasGo, "Pixels");
             var pixels = pixelsGo.AddComponent<RawImage>();
             pixels.raycastTarget = false;
             pixels.color = Color.white;
@@ -148,8 +145,7 @@ namespace InkFlow.Editor
             var view = go.AddComponent<PictureView>();
             Wire(view, ("design", design), ("plate", plate), ("plateFill", plateFill),
                 ("plateStroke", plateStroke), ("glow", glow), ("frame", frame), ("canvas", canvas), ("pixels", pixels));
-            if (shader != null) Wire(view, ("watercolorShader", shader));
-            if (paper != null) Wire(view, ("paper", paper));
+            if (shader != null) Wire(view, ("darkCanvasShader", shader));
             if (title != null) Wire(view, ("title", title));
             if (caption != null) Wire(view, ("caption", caption));
             view.Apply();

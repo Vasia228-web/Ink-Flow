@@ -14,7 +14,7 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Збирає екран забігу: шапка, панель картинки P2Watercolor, рахунок і рекорд,
+    /// Збирає екран забігу: шапка, картинка W4DarkCanvas, рахунок і рекорд,
     /// поле 8×8 K1Candy (лунки, гало, блоки, блиски), лоток на три фігури, картка перед
     /// забігом і картка фіналу. Меню: Ink Flow → Setup → Build Endless Screen.
     ///
@@ -76,8 +76,7 @@ namespace InkFlow.Editor
             var retry = LoadSprite("icon-retry");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var cardGlow = LoadSprite("card-glow");
-            var watercolor = AssetDatabase.LoadAssetAtPath<Shader>(PictureViewBuilder.WatercolorShaderPath);
-            var paper = AssetDatabase.LoadAssetAtPath<Texture2D>(PictureViewBuilder.PaperPath);
+            var darkCanvas = AssetDatabase.LoadAssetAtPath<Shader>(PictureViewBuilder.DarkCanvasShaderPath);
 
             var missing = new List<string>();
             if (design == null) missing.Add(DesignSystemPath);
@@ -89,8 +88,7 @@ namespace InkFlow.Editor
             })
                 if (sprite == null) missing.Add($"{SpriteFolder}/{name}.png");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
-            if (watercolor == null) missing.Add(PictureViewBuilder.WatercolorShaderPath);
-            if (paper == null) missing.Add(PictureViewBuilder.PaperPath);
+            if (darkCanvas == null) missing.Add(PictureViewBuilder.DarkCanvasShaderPath);
             K1Sprites.AllPresent(missing);
             A1Sprites.AllPresent(missing);
             if (missing.Count > 0)
@@ -343,7 +341,7 @@ namespace InkFlow.Editor
             return rect;
         }
 
-        // ── Панель картинки по центру (P2Watercolor): плитка 164 із назвою й папером 132, під нею лічильник кроків ──
+        // ── Панель картинки по центру: плитка 164 із назвою й полотном 132, під нею лічильник кроків ──
         private static PictureView BuildPicture(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             Sprite rounded, Sprite outline, Sprite nebula, Sprite circle, float top, float width, float height)
         {

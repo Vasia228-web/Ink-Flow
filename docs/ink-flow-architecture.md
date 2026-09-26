@@ -106,8 +106,8 @@ Assets/
                      InkFlowBootstrap, EconomySimulator
   _Pictures/         <тема>/<id>.txt — картинки (формат docs/pictures-format.md), 117 штук
   _ScriptableObjects/ Balance/ (BalanceConfig, EconomyConfig)  Style/ (DesignSystem)  Pictures/ (PictureLibrary)
-  _Sprites/          UI/ (згенеровані спрайти)  K1Candy/ і P2Watercolor/ (копії еталонів docs/StyleRef)
-  _Shaders/          InkFlowPlanet, InkFlowZone, InkFlowWatercolor
+  _Sprites/          UI/ (згенеровані спрайти)  K1Candy/ і A1Breathe/ (копії еталонів docs/StyleRef)
+  _Shaders/          InkFlowPlanet, InkFlowZone, InkFlowDarkCanvas
   _Prefabs/          UI/ (атоми)  Screens/ (корені екранів — з них складається Main.unity)
   Scenes/            Main.unity (єдина в Build Settings) + сцени-майстерні кожного екрана
   Tests/EditMode/    Core-тести в корені, Meta/ окремо
@@ -377,7 +377,7 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 **Бюджет:** 60 fps на iPhone SE 2 / Snapdragon 6-серії; ≤35 draw calls на екран; ≤150 МБ RAM; холодний старт ≤3 с; **нуль GC-алокацій під час ходу**.
 
 - Core працює з масивами й структурами; `MoveResult` — переиспользуемий буфер зі спільним списком клітинок, не новий список щоходу; бот і сесія не алокують у циклі ходу.
-- Поле (K1Candy) — на клітинку чотири спрайти в чотирьох окремих шарах (лунка, гало, блок, блиск), порожня клітинка — вимкнені об'єкти; видимий стан — чиста модель `BoardVisual` (Core). Картинка — один `RawImage` із шейдером `InkFlow/Watercolor` (арт + маска 32×32, папір 512²), маска анімується `SetPixels32/Apply` з одного `LateUpdate`.
+- Поле (K1Candy) — на клітинку чотири спрайти в чотирьох окремих шарах (лунка, гало, блок, блиск), порожня клітинка — вимкнені об'єкти; видимий стан — чиста модель `BoardVisual` (Core). Картинка — один `RawImage` із шейдером `InkFlow/DarkCanvas` (арт і маска розміру арту, гало на сітці полотна; покриття й гало рахує Core `PictureCanvas`), маска й гало оновлюються `SetPixels32/Apply` з одного `LateUpdate`.
 - Планети — шейдер `InkFlow/Planet` (дві октави шуму, обертання через `_Time`), зони планети — `InkFlow/Zone`; накладки картинок проєктуються стадією, як зони.
 - Один атлас UI-спрайтів, один шрифт (Nunito з кирилицею; піктограми — спрайти, не гліфи).
 - **Ніякого post-process Bloom.** ASTC для обох платформ. `targetFrameRate = 60`.

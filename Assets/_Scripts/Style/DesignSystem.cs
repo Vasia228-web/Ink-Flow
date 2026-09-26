@@ -619,26 +619,37 @@ namespace InkFlow.Style
         [Tooltip("Проміжок між лунками, px макета (еталон K1: 4 при кроці 40).")]
         [SerializeField, Range(0f, 12f)] private float boardGap = BoardGeometry.DefaultGap;
 
-        [Header("P2Watercolor: панель картинки (docs/StyleRef/P2Watercolor/)")]
-        [Tooltip("Назва картинки над полотном: #c9cbe8, великими, з розрядкою.")]
+        [Header("W4DarkCanvas: картинка на темному полотні (docs/StyleRef/W4DarkCanvas/)")]
+        [Tooltip("Назва картинки над полотном (картки, колекція): #c9cbe8, великими, з розрядкою.")]
         [SerializeField] private Color pictureTitleColor = Hex("#C9CBE8");
-        [Tooltip("Папір #ece2cc із зерном; кути полотна 14 px макета; темніший внутрішній край.")]
-        [SerializeField] private Color paperColor = Hex("#ECE2CC");
-        [SerializeField, Range(0f, 1f)] private float paperGrain = 0.6f;
-        [SerializeField] private float pictureCanvasRadius = 39f;
-        [SerializeField, Range(0f, 1f)] private float pictureVignette = 0.22f;
-        [SerializeField] private float pictureVignetteWidth = 10f;
-        [Tooltip("Олівець ескізу незафарбованої частини: колір і непрозорість (~35 %).")]
-        [SerializeField] private Color pencilColor = Hex("#5D5670");
-        [SerializeField, Range(0f, 1f)] private float pencilAlpha = 0.35f;
-        [SerializeField] private float pencilWidth = 1.2f;
-        [Tooltip("Акварель: непрозорість ~82 %, темніший край, зсув країв — частка пікселя картинки.")]
-        [SerializeField, Range(0f, 1f)] private float paintAlpha = 0.82f;
-        [SerializeField, Range(0f, 1f)] private float paintEdgeDark = 0.45f;
-        [SerializeField] private float paintEdgeWidth = 1.5f;
-        [SerializeField, Range(0f, 1f)] private float paintDisplace = 0.33f;
-        [Tooltip("Крок проявляється плавно 0 → 1 за стільки секунд.")]
-        [SerializeField, Min(0.05f)] private float pictureRevealDuration = 0.45f;
+        [Tooltip("Полотно #403c78 і порожнє поле навколо арту, пікселі арту.")]
+        [SerializeField] private Color pictureCanvasColor = Hex("#403C78");
+        [SerializeField, Range(0, 6)] private int pictureMargin = 2;
+        [Tooltip("Плетіння: клітинка (пікселі арту), сила на полотні, частка сили крізь фарбу.")]
+        [SerializeField, Range(0.05f, 2f)] private float pictureWeavePitch = 0.25f;
+        [SerializeField, Range(0f, 0.2f)] private float pictureWeaveAlpha = 0.045f;
+        [SerializeField, Range(0f, 1f)] private float pictureWeaveOnPaint = 0.6f;
+        [Tooltip("Світло зверху й тінь знизу на фарбі (частка білого / чорного на краю арту).")]
+        [SerializeField, Range(0f, 0.5f)] private float pictureLightTop = 0.16f;
+        [SerializeField, Range(0f, 0.5f)] private float pictureShadeBottom = 0.16f;
+        [Tooltip("Гало фарби (НЕ Bloom): розмиття в пікселях арту, найбільша альфа, підсилення розмитого покриття.")]
+        [SerializeField, Range(0f, 4f)] private float pictureHaloSigma = 1.4f;
+        [SerializeField, Range(0f, 1f)] private float pictureHaloAlpha = 0.45f;
+        [SerializeField, Range(0.5f, 4f)] private float pictureHaloGain = 1.6f;
+        [Tooltip("Контури незафарбованого: колір, альфа, товщина (пікселі арту, не тонше пікселя екрана).")]
+        [SerializeField] private Color pictureSketchColor = Hex("#DFE0F5");
+        [SerializeField, Range(0f, 1f)] private float pictureSketchAlpha = 0.35f;
+        [SerializeField, Range(0.02f, 0.3f)] private float pictureSketchWidth = 0.07f;
+        [Tooltip("Контури між УСІМА тонами, а не лише між родинами й по силуету (за замовчуванням вимкнено: " +
+                 "у картинці 10–16 тонів, і лінії між світлом і тінню однієї родини шуміли б).")]
+        [SerializeField] private bool pictureSketchAllTones;
+        [Tooltip("Кут полотна (пікселі арту) і тонка темна рамка: альфа, товщина (пікселі арту).")]
+        [SerializeField, Range(0f, 4f)] private float pictureCornerRadius = 1f;
+        [SerializeField, Range(0f, 1f)] private float pictureBorderAlpha = 0.35f;
+        [SerializeField, Range(0f, 0.5f)] private float pictureBorderWidth = 0.08f;
+        [Tooltip("Проявлення кроку: 0 → 1 за стільки секунд (еталон 0.15–0.25), піксель росте з центру з легким «попом».")]
+        [SerializeField, Min(0.05f)] private float pictureRevealDuration = 0.2f;
+        [SerializeField, Range(0f, 0.5f)] private float pictureRevealPop = 0.15f;
 
         [Header("Тривога поля «мало місця» (§11): A1Breathe, docs/StyleRef/A1Breathe/")]
         [Tooltip("Дихання сяйва: a = мін + (макс − мін)·(0.5 − 0.5·cos(2π·t / період)). Кольори й товщини запечені в спрайтах.")]
@@ -1024,19 +1035,25 @@ namespace InkFlow.Style
             Mathf.Min(1f, baseColor.r * blockTintBoost), Mathf.Min(1f, baseColor.g * blockTintBoost), Mathf.Min(1f, baseColor.b * blockTintBoost), 1f);
 
         public Color PictureTitleColor => pictureTitleColor;
-        public Color PaperColor => paperColor;
-        public float PaperGrain => paperGrain;
-        public float PictureCanvasRadius => pictureCanvasRadius;
-        public float PictureVignette => pictureVignette;
-        public float PictureVignetteWidth => pictureVignetteWidth;
-        public Color PencilColor => pencilColor;
-        public float PencilAlpha => pencilAlpha;
-        public float PencilWidth => pencilWidth;
-        public float PaintAlpha => paintAlpha;
-        public float PaintEdgeDark => paintEdgeDark;
-        public float PaintEdgeWidth => paintEdgeWidth;
-        public float PaintDisplace => paintDisplace;
+        public Color PictureCanvasColor => pictureCanvasColor;
+        public int PictureMargin => pictureMargin;
+        public float PictureWeavePitch => pictureWeavePitch;
+        public float PictureWeaveAlpha => pictureWeaveAlpha;
+        public float PictureWeaveOnPaint => pictureWeaveOnPaint;
+        public float PictureLightTop => pictureLightTop;
+        public float PictureShadeBottom => pictureShadeBottom;
+        public float PictureHaloSigma => pictureHaloSigma;
+        public float PictureHaloAlpha => pictureHaloAlpha;
+        public float PictureHaloGain => pictureHaloGain;
+        public Color PictureSketchColor => pictureSketchColor;
+        public float PictureSketchAlpha => pictureSketchAlpha;
+        public float PictureSketchWidth => pictureSketchWidth;
+        public bool PictureSketchAllTones => pictureSketchAllTones;
+        public float PictureCornerRadius => pictureCornerRadius;
+        public float PictureBorderAlpha => pictureBorderAlpha;
+        public float PictureBorderWidth => pictureBorderWidth;
         public float PictureRevealDuration => pictureRevealDuration;
+        public float PictureRevealPop => pictureRevealPop;
 
         public float PulseAlphaMin => pulseAlphaMin;
         public float PulseAlphaMax => pulseAlphaMax;
