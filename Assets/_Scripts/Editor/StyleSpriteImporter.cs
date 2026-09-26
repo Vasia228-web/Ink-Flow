@@ -4,8 +4,8 @@ using UnityEngine;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Налаштування імпорту еталонних спрайтів K1Candy і паперу P2Watercolor
-    /// (`Assets/_Sprites/K1Candy`, `Assets/_Sprites/P2Watercolor`). Файли скопійовано з
+    /// Налаштування імпорту еталонних спрайтів K1Candy, тривоги поля A1Breathe і паперу P2Watercolor
+    /// (`Assets/_Sprites/K1Candy`, `Assets/_Sprites/A1Breathe`, `Assets/_Sprites/P2Watercolor`). Файли скопійовано з
     /// `docs/StyleRef/` як є — тому імпорт задається постпроцесором, а не руками в інспекторі:
     /// 9-slice-межі панелі й слота лотка інакше довелося б виставляти після кожного оновлення еталонів.
     ///
@@ -14,6 +14,7 @@ namespace InkFlow.Editor
     public sealed class StyleSpriteImporter : AssetPostprocessor
     {
         public const string K1Folder = "Assets/_Sprites/K1Candy";
+        public const string A1Folder = "Assets/_Sprites/A1Breathe";
         public const string P2Folder = "Assets/_Sprites/P2Watercolor";
 
         /// <summary>PPU для всіх спрайтів стилю: як у UI-спрайтів, радіуси керуються pixelsPerUnitMultiplier.</summary>
@@ -24,7 +25,7 @@ namespace InkFlow.Editor
 
         private void OnPreprocessTexture()
         {
-            if (assetPath.StartsWith(K1Folder))
+            if (assetPath.StartsWith(K1Folder) || assetPath.StartsWith(A1Folder))
                 ConfigureK1((TextureImporter)assetImporter);
             else if (assetPath.StartsWith(P2Folder))
                 ConfigurePaper((TextureImporter)assetImporter);

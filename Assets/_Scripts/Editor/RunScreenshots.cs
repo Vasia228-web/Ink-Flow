@@ -8,7 +8,7 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Знімки екрана забігу з редактора (без Play Mode): чотири роздільності × одинадцять станів —
-    /// порожнє поле, середина гри, попередження й сильна пульсація «мало місця», рахунок 1 234 567 і
+    /// порожнє поле, середина гри, тривога поля «мало місця» й «останній хід», рахунок 1 234 567 і
     /// 987 654 321, готова картинка, екран кінця забігу, після рестарту, після відновлення
     /// зліпка, після зміни пристрою. Меню: Ink Flow → Debug → Capture Run Screenshots.
     /// Пише PNG у docs/screenshots/ — для порівняння з еталонами docs/StyleRef/.
@@ -42,6 +42,8 @@ namespace InkFlow.Editor
                 PictureViewBuilder.PaperPath
             })
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            foreach (var name in A1Sprites.Names)
+                AssetDatabase.ImportAsset(A1Sprites.PathOf(name), ImportAssetOptions.ForceUpdate);
             RefreshPictureLibrary.Refresh();
             BuildEndlessScreen.Build();
             CaptureAll();

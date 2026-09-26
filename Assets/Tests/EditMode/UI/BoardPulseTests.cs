@@ -7,16 +7,16 @@ using UnityEngine.UI;
 namespace InkFlow.UI.Tests
 {
     /// <summary>
-    /// Пульсація «мало місця» (§11) справді ВИДНА: рендер поля без пульсації й з нею на кожному
-    /// пристрої, різниця червоного каналу біля краю панелі. Перша редакція проходила б будь-яку
-    /// логічну перевірку (рівень рахувався, альфа писалась), але яскрава частина світіння лежала під
-    /// непрозорою панеллю, і на екрані червоний піднімався на ~30 зі 255 — гравець не бачив нічого.
+    /// Тривога поля «мало місця» (§11, стиль A1Breathe) справді ВИДНА: рендер поля без тривоги й
+    /// з нею на кожному пристрої, приріст червоного каналу біля краю панелі. Перша редакція проходила б
+    /// будь-яку логічну перевірку (рівень рахувався, альфа писалась), але яскрава частина світіння
+    /// лежала під непрозорою панеллю — на екрані червоний піднімався на ~30 зі 255.
     /// </summary>
     public sealed class BoardPulseTests
     {
-        /// <summary>Мінімальний приріст червоного на краю панелі на піку, з 255.</summary>
-        private const float MinStrongRise = 90f;
-        private const float MinWarnRise = 60f;
+        /// <summary>Мінімальний приріст червоного біля краю панелі на піку дихання, з 255.</summary>
+        private const float MinCriticalRise = 70f;
+        private const float MinCalmRise = 50f;
 
         [SetUp]
         public void RequireBuiltScreen()
@@ -26,7 +26,7 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
-        public void Pulse_IsClearlyVisibleAtThePanelEdge_OnEveryDevice()
+        public void Alarm_IsClearlyVisibleAtThePanelEdge_OnEveryDevice()
         {
             foreach (var device in RunScreenRig.Devices)
             {
@@ -48,9 +48,9 @@ namespace InkFlow.UI.Tests
                         var baseRed = calm.GetPixel(x, y).r * 255f;
                         var strongRise = strong.GetPixel(x, y).r * 255f - baseRed;
                         var warnRise = warn.GetPixel(x, y).r * 255f - baseRed;
-                        Debug.Log($"[InkFlow] Пульсація {device.Name} / {name}: червоний {baseRed:0} → Warn +{warnRise:0}, Strong +{strongRise:0}");
-                        Assert.GreaterOrEqual(strongRise, MinStrongRise, $"{device.Name}, {name}: сильна пульсація не видна");
-                        Assert.GreaterOrEqual(warnRise, MinWarnRise, $"{device.Name}, {name}: попередження не видно");
+                        Debug.Log($"[InkFlow] Тривога {device.Name} / {name}: червоний {baseRed:0} → мало місця +{warnRise:0}, останній хід +{strongRise:0}");
+                        Assert.GreaterOrEqual(strongRise, MinCriticalRise, $"{device.Name}, {name}: «останній хід» не видно");
+                        Assert.GreaterOrEqual(warnRise, MinCalmRise, $"{device.Name}, {name}: «мало місця» не видно");
                     }
                 }
                 finally
@@ -63,39 +63,40 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
-        public void PulseLayer_SitsAboveThePlate_AndInsideTheScreen()
+        public void AlarmLayers_FollowTheReferenceOrder()
         {
-            foreach (var device in RunScreenRig.Devices)
+            // A1Breathe: зовнішнє сяйво під панеллю → поле → внутрішнє сяйво → рамка над усім.
+            using var rig = RunScreenRig.Create(RunScreenRig.Devices[0]);
+            rig.Show(rig.NewSession(25));
+            var board = rig.Board.transform;
+            int Index(string name)
             {
-                using var rig = RunScreenRig.Create(device);
-                rig.Show(rig.NewSession(25));
-                var board = rig.Board.transform;
-                var pulse = board.Find("Pulse");
-                var plate = board.Find("Plate");
-                var shake = board.Find("Shake");
-                Assert.IsNotNull(pulse, "шар Pulse");
-                Assert.IsNotNull(plate, "шар Plate");
-                Assert.Greater(pulse!.GetSiblingIndex(), plate!.GetSiblingIndex(), "рант над панеллю, а не під нею");
-                if (shake != null)
-                    Assert.Less(pulse.GetSiblingIndex(), shake.GetSiblingIndex(), "рант під лунками й блоками");
-
-                var image = pulse.GetComponent<Image>();
-                Assert.IsNotNull(image.sprite, "спрайт ранту побудовано");
-                Assert.IsTrue(image.enabled && pulse.gameObject.activeInHierarchy, "рант увімкнений");
-
-                // Увесь рант — на екрані: зовнішнє згасання не ширше за бічне поле панелі.
-                var corners = new Vector3[4];
-                ((RectTransform)pulse).GetWorldCorners(corners);
-                foreach (var c in corners)
-                {
-                    var p = rig.ToPixel(c);
-                    Assert.GreaterOrEqual(p.x, -0.5f, $"{device.Name}: рант за лівим краєм екрана");
-                    Assert.LessOrEqual(p.x, device.Width + 0.5f, $"{device.Name}: рант за правим краєм екрана");
-                }
+                var child = board.Find(name);
+                Assert.IsNotNull(child, $"шар {name}");
+                Assert.IsNotNull(child!.GetComponent<Image>().sprite, $"спрайт шару {name}");
+                return child.GetSiblingIndex();
             }
+            var plate = Index("Plate");
+            var grid = board.Find("Shake")!.GetSiblingIndex();
+            Assert.Less(Index("PulseOuterCalm"), plate, "зовнішнє сяйво під панеллю");
+            Assert.Less(Index("PulseOuterCritical"), plate);
+            Assert.Greater(Index("PulseInnerCalm"), grid, "внутрішнє сяйво над лунками й блоками");
+            Assert.Greater(Index("PulseInnerCritical"), grid);
+            Assert.Greater(Index("PulseFrame"), Index("PulseInnerCritical"), "рамка над усім");
         }
 
-        /// <summary>Точки трохи всередині краю панелі посередині кожної сторони — там рант має пік.</summary>
+        [Test]
+        public void NoAlarm_LeavesNoGlow()
+        {
+            // Без тривоги жоден шар не світить: знімок «None» не відрізняється від знімка до будь-якої тривоги.
+            using var rig = RunScreenRig.Create(RunScreenRig.Devices[0]);
+            rig.Show(rig.NewSession(25));
+            rig.Screen.PreviewPulse(DangerLevel.None);
+            foreach (var name in new[] { "PulseOuterCalm", "PulseOuterCritical", "PulseInnerCalm", "PulseInnerCritical", "PulseFrame" })
+                Assert.AreEqual(0f, rig.Board.transform.Find(name)!.GetComponent<Image>().canvasRenderer.GetAlpha(), 1e-4, name);
+        }
+
+        /// <summary>Точки трохи всередині краю панелі посередині кожної сторони — там сяйво й рамка.</summary>
         private static (string, Vector2)[] EdgePoints(RunScreenRig rig)
         {
             var corners = new Vector3[4];

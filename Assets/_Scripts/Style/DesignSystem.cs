@@ -640,21 +640,15 @@ namespace InkFlow.Style
         [Tooltip("Крок проявляється плавно 0 → 1 за стільки секунд.")]
         [SerializeField, Min(0.05f)] private float pictureRevealDuration = 0.45f;
 
-        [Header("Пульсація «мало місця» (§11)")]
-        [Tooltip("Теплий червоний (токен red), лише по контуру панелі поля.")]
-        [SerializeField] private Color pulseColor = Hex("#FF4D5E");
-        [SerializeField, Range(0f, 1f)] private float pulseWarnAlpha = 0.75f;
-        [SerializeField, Range(0f, 1f)] private float pulseStrongAlpha = 1f;
-        [Tooltip("Нижня точка дихання як частка піку: рамка не гасне до нуля між ударами.")]
-        [SerializeField, Range(0f, 1f)] private float pulseBreathFloor = 0.45f;
-        [Tooltip("Цикл: попередження ~1.4 с, сильна ~1 с; поява й згасання — за стільки секунд.")]
-        [SerializeField, Min(0.2f)] private float pulseWarnPeriod = 1.4f;
-        [SerializeField, Min(0.2f)] private float pulseStrongPeriod = 1f;
-        [SerializeField, Min(0.05f)] private float pulseFadeDuration = 0.35f;
-        [Tooltip("Рант пульсації: пік рівно на краю панелі. Усередину — у відступ до лунок (reference-одиниці; " +
-                 "відступ поля 19 px макета ≈ 53), назовні — не ширше за бічне поле поля (8 px макета ≈ 22), інакше край з'їсть екран.")]
-        [SerializeField, Range(0f, 120f)] private float pulseInnerWidth = 48f;
-        [SerializeField, Range(0f, 60f)] private float pulseOuterWidth = 18f;
+        [Header("Тривога поля «мало місця» (§11): A1Breathe, docs/StyleRef/A1Breathe/")]
+        [Tooltip("Дихання сяйва: a = мін + (макс − мін)·(0.5 − 0.5·cos(2π·t / період)). Кольори й товщини запечені в спрайтах.")]
+        [SerializeField, Range(0f, 1f)] private float pulseAlphaMin = 0.25f;
+        [SerializeField, Range(0f, 1f)] private float pulseAlphaMax = 1f;
+        [Tooltip("Період дихання: «мало місця» 1.8 с, «останній хід» 0.9 с.")]
+        [SerializeField, Min(0.2f)] private float pulseCalmPeriod = 1.8f;
+        [SerializeField, Min(0.2f)] private float pulseCriticalPeriod = 0.9f;
+        [Tooltip("Перехід між рівнями й згасання тривоги — за стільки секунд, без стрибка.")]
+        [SerializeField, Min(0.05f)] private float pulseFadeDuration = 0.3f;
 
         [Header("Рахунок і рекорд (§11)")]
         [Tooltip("Число спершу меншає до цієї частки розміру, і лише потім переходить у компактний формат.")]
@@ -1044,15 +1038,11 @@ namespace InkFlow.Style
         public float PaintDisplace => paintDisplace;
         public float PictureRevealDuration => pictureRevealDuration;
 
-        public Color PulseColor => pulseColor;
-        public float PulseWarnAlpha => pulseWarnAlpha;
-        public float PulseStrongAlpha => pulseStrongAlpha;
-        public float PulseWarnPeriod => pulseWarnPeriod;
-        public float PulseStrongPeriod => pulseStrongPeriod;
+        public float PulseAlphaMin => pulseAlphaMin;
+        public float PulseAlphaMax => pulseAlphaMax;
+        public float PulseCalmPeriod => pulseCalmPeriod;
+        public float PulseCriticalPeriod => pulseCriticalPeriod;
         public float PulseFadeDuration => pulseFadeDuration;
-        public float PulseBreathFloor => pulseBreathFloor;
-        public float PulseInnerWidth => pulseInnerWidth;
-        public float PulseOuterWidth => pulseOuterWidth;
 
         public float ScoreMinFontScale => scoreMinFontScale;
         public float ScoreDigitEm => scoreDigitEm;

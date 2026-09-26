@@ -92,6 +92,7 @@ namespace InkFlow.Editor
             if (watercolor == null) missing.Add(PictureViewBuilder.WatercolorShaderPath);
             if (paper == null) missing.Add(PictureViewBuilder.PaperPath);
             K1Sprites.AllPresent(missing);
+            A1Sprites.AllPresent(missing);
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Нескінченний НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -450,6 +451,10 @@ namespace InkFlow.Editor
             plateStroke.color = design.PanelShadow;
             plateStroke.raycastTarget = false;
 
+            // Тривога поля A1Breathe (§11), шар 1: зовнішнє сяйво ПІД панеллю (панель ховає його серцевину).
+            var outerCalm = A1Sprites.Layer(go, "PulseOuterCalm", "glow_outer_calm");
+            var outerCritical = A1Sprites.Layer(go, "PulseOuterCritical", "glow_outer_critical");
+
             var plateGo = Child(go, "Plate");
             Stretch(plateGo);
             plate = plateGo.AddComponent<Image>();
@@ -459,17 +464,6 @@ namespace InkFlow.Editor
             plate.color = Color.white;
             plate.raycastTarget = false;
 
-            // Пульсація «мало місця» (§11): червоний рант із піком на краю панелі — НАД панеллю й під
-            // лунками, усередину у відступ, назовні не ширше за бічне поле. Спрайт ранту BoardPulse
-            // будує з токенів сам (Apply); тут — лише шар і прив'язки.
-            var pulseGo = Child(go, "Pulse");
-            Stretch(pulseGo, -design.PulseOuterWidth);
-            var pulseImage = pulseGo.AddComponent<Image>();
-            pulseImage.type = Image.Type.Sliced;
-            pulseImage.color = design.PulseColor;
-            pulseImage.raycastTarget = false;
-            pulse = go.AddComponent<BoardPulse>();
-            Wire(pulse, ("design", design), ("glow", pulseImage));
 
             // Вузол тряски: розтягнутий на панель, півот ТОЙ САМИЙ, що в панелі, — тож його спокій
             // (0, 0) за побудовою, і BoardView.EndShake повертає його туди, як би тряску не обірвали.
@@ -523,6 +517,16 @@ namespace InkFlow.Editor
                 label.gameObject.SetActive(false);
                 floats[i] = label;
             }
+
+            // Тривога поля A1Breathe, шари 3–4: внутрішнє сяйво в межах поля над лунками й блоками,
+            // тонка рамка над усім. Альфою всіх п'яти керує BoardPulse.
+            var innerCalm = A1Sprites.Layer(go, "PulseInnerCalm", "glow_inner_calm");
+            var innerCritical = A1Sprites.Layer(go, "PulseInnerCritical", "glow_inner_critical");
+            var frameLine = A1Sprites.Layer(go, "PulseFrame", "frame_line");
+            pulse = go.AddComponent<BoardPulse>();
+            Wire(pulse, ("design", design), ("outerCalm", outerCalm), ("outerCritical", outerCritical),
+                ("innerCalm", innerCalm), ("innerCritical", innerCritical), ("frame", frameLine));
+            pulse.Apply();
 
             var audioGo = Child(go, "Feedback");
             var audio = audioGo.AddComponent<AudioSource>();

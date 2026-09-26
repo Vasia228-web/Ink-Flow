@@ -158,6 +158,59 @@ namespace InkFlow.Editor
     }
 
     /// <summary>
+    /// Еталонні спрайти тривоги поля A1Breathe (`Assets/_Sprites/A1Breathe`, скопійовані з
+    /// docs/StyleRef/A1Breathe/sprites). Усі 864×864; поле в них — 704×704 з відступом 80 px.
+    /// Шар кладеться на панель тим самим центром і тягнеться разом із нею: якорі виходять за
+    /// панель на 80/704 з кожного боку, тож масштаб спрайта завжди дорівнює масштабу поля.
+    /// </summary>
+    internal static class A1Sprites
+    {
+        private const string Folder = "Assets/_Sprites/A1Breathe";
+        internal const float SpritePx = 864f;
+        internal const float BoardPx = 704f;
+        internal const float MarginPx = 80f;
+
+        internal static readonly string[] Names =
+            { "glow_outer_calm", "glow_outer_critical", "glow_inner_calm", "glow_inner_critical", "frame_line" };
+
+        internal static Sprite? Load(string name) => AssetDatabase.LoadAssetAtPath<Sprite>($"{Folder}/{name}.png");
+
+        internal static string PathOf(string name) => $"{Folder}/{name}.png";
+
+        /// <summary>Шар сяйва на всю панель із запасом під спрайт; альфа 0 до першої тривоги.</summary>
+        internal static Image Layer(GameObject panel, string name, string sprite)
+        {
+            var go = UiBuilder.Child(panel, name);
+            var rect = go.GetComponent<RectTransform>();
+            var margin = MarginPx / BoardPx;
+            rect.anchorMin = new Vector2(-margin, -margin);
+            rect.anchorMax = new Vector2(1f + margin, 1f + margin);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var image = go.AddComponent<Image>();
+            image.sprite = Load(sprite);
+            image.type = Image.Type.Simple;
+            image.color = Color.white;
+            image.raycastTarget = false;
+            if (image.sprite == null)
+                Debug.LogError($"[InkFlow] Немає {PathOf(sprite)} — дай редактору імпортувати Assets/_Sprites/A1Breathe.");
+            return image;
+        }
+
+        internal static bool AllPresent(System.Collections.Generic.List<string> missing)
+        {
+            var ok = true;
+            foreach (var name in Names)
+                if (Load(name) == null)
+                {
+                    missing.Add($"{PathOf(name)} (спрайт A1Breathe; скопійовано з docs/StyleRef — дай редактору імпортувати)");
+                    ok = false;
+                }
+            return ok;
+        }
+    }
+
+    /// <summary>
     /// Еталонні спрайти K1Candy (`Assets/_Sprites/K1Candy`, скопійовані з docs/StyleRef/) і
     /// їхня геометрія в пікселях: радіус кута панелі й слота потрібен, щоб перерахувати
     /// потрібний радіус із DesignSystem у pixelsPerUnitMultiplier 9-slice.
