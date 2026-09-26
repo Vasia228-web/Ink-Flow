@@ -121,18 +121,34 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void Migration_V4_AndV5_DropTheOldUnfinishedAndAddTheRun()
+        public void Migration_V4_ToV7_DropTheOldUnfinishedAndAddTheRun()
         {
             var save = new SaveFile { Version = 4, Run = null! };
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 2, FirstUtc = Now.ToString("o") });
             save.Profile.AvatarId = 7;
             var migrated = SaveMigrations.Migrate(save);
-            Assert.AreEqual(6, migrated.Version);
+            Assert.AreEqual(7, migrated.Version);
             Assert.IsNotNull(migrated.Run);
             Assert.IsTrue(migrated.Run.IsEmpty, "зліпка забігу в старому файлі не було");
             Assert.AreEqual(1, migrated.Collection.Pictures.Count, "колекція — лише назви, лишається");
             Assert.AreEqual(0, migrated.Profile.AvatarId);
             Assert.AreEqual(string.Empty, migrated.Profile.ShowcasePictureId);
+        }
+
+        [Test]
+        public void Migration_V6_DropsThePixelSnapshotButKeepsTheCollection()
+        {
+            // v6 тримав індекси пікселів, v7 — кроків: продовжити старий зліпок означало б
+            // заповнити випадкові кроки, тому він скидається; колекція — лише назви — лишається.
+            var save = new SaveFile { Version = 6 };
+            save.Run.PictureId = "whale";
+            save.Run.Cells = new int[64];
+            save.Run.Width = save.Run.Height = 8;
+            save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 1, FirstUtc = Now.ToString("o") });
+            var migrated = SaveMigrations.Migrate(save);
+            Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version);
+            Assert.IsTrue(migrated.Run.IsEmpty, "зліпок v6 не читається як кроки");
+            Assert.AreEqual(1, migrated.Collection.Pictures.Count);
         }
 
         [Test]

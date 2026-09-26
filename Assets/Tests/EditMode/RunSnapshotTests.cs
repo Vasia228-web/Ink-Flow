@@ -19,7 +19,7 @@ namespace InkFlow.Core.Tests
             original.Capture(snapshot);
             Assert.IsFalse(snapshot.IsEmpty);
             Assert.AreEqual(original.Picture.Picture.Id, snapshot.PictureId);
-            Assert.AreEqual(original.Picture.FilledCount, snapshot.FilledPixels.Length);
+            Assert.AreEqual(original.Picture.FilledCount, snapshot.FilledSteps.Length);
             Assert.AreEqual(64, snapshot.Cells.Length);
 
             Assert.IsTrue(RunSession.CanRestore(snapshot, TestBoard.RealLibrary, PieceCatalogData.Default, BalanceData.Default));

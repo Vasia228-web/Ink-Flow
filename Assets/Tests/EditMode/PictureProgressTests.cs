@@ -25,12 +25,14 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(0f, progress.FilledFraction, 1e-6);
 
             var first = progress.FillOne(TestBoard.Blue);
-            Assert.AreEqual(picture.RevealOrder[0], first, "перший синій — перший у порядку проявлення");
+            Assert.AreEqual(0, first, "перший синій — перший крок у порядку проявлення");
+            Assert.AreEqual(picture.RevealOrder[0], picture.StepPixel(first, 0));
             Assert.IsTrue(progress.IsFilled(first));
+            Assert.IsTrue(progress.IsPixelFilled(picture.RevealOrder[0]));
             Assert.AreEqual(3, progress.Remaining(TestBoard.Blue));
 
             var red = progress.FillOne(TestBoard.Red);
-            Assert.AreEqual(TestBoard.Red, picture.Pixels[red], "червоний іде лише в червоний піксель");
+            Assert.AreEqual(TestBoard.Red, picture.StepColor(red), "червоний іде лише в червоний крок");
             Assert.AreEqual(2, progress.FilledCount);
             Assert.AreEqual(2f / 6f, progress.FilledFraction, 1e-6);
         }
@@ -113,9 +115,9 @@ namespace InkFlow.Core.Tests
         public void Restore_IgnoresGarbage()
         {
             var progress = new PictureProgress(TwoColors(), 0);
-            progress.Restore(new List<int> { -1, 999, 0, 0, 5, 5 }); // 0 — контур, 5 — червоний (рядок 1, x=1)
-            Assert.AreEqual(1, progress.FilledCount, "контур, дублікати й сміття пропущено");
-            Assert.AreEqual(1, progress.Remaining(TestBoard.Red));
+            progress.Restore(new List<int> { -1, 999, 0, 0, 5, 5 }); // кроків 6: 0..5; сміття й дублікати — геть
+            Assert.AreEqual(2, progress.FilledCount, "дублікати й сміття пропущено");
+            Assert.AreEqual(6 - 2, progress.Remaining(TestBoard.Blue) + progress.Remaining(TestBoard.Red));
         }
     }
 }

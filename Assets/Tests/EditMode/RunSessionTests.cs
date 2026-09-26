@@ -126,9 +126,14 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(TestBoard.Blue, pixel.Color);
             Assert.IsTrue(pixel.IsPure);
             var firstBlue = -1;
+            for (var s = 0; s < session.Picture.Picture.FillCount; s++)
+                if (session.Picture.Picture.StepColor(s) == TestBoard.Blue) { firstBlue = s; break; }
+            Assert.AreEqual(firstBlue, pixel.Value, "Value — індекс першого синього кроку в порядку проявлення");
+            var firstBluePixel = -1;
             foreach (var i in session.Picture.Picture.RevealOrder)
-                if (session.Picture.Picture.Pixels[i] == TestBoard.Blue) { firstBlue = i; break; }
-            Assert.AreEqual(firstBlue, pixel.Value, "Value — індекс першого синього пікселя в порядку проявлення");
+                if (session.Picture.Picture.FamilyAt(i) == TestBoard.Blue) { firstBluePixel = i; break; }
+            Assert.AreEqual(firstBluePixel, session.Picture.Picture.StepPixel(pixel.Value, 0),
+                "перший синій крок починається з першого синього пікселя в порядку проявлення");
             Assert.AreEqual(1, pixel.CellCount);
             Assert.AreEqual(new GridPos(0, 0), result.Cell(pixel, 0), "клітинка-джерело першої краплі — перша клітинка лінії");
             Assert.AreEqual(new GridPos(1, 0), result.Cell(result.Events[5], 0), "четверта крапля — з другої клітинки");

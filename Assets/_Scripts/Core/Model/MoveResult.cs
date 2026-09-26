@@ -21,10 +21,10 @@ namespace InkFlow.Core
         public int LinesCleared { get; private set; }
         public int PureLinesCleared { get; private set; }
 
-        /// <summary>Пікселів картинки заповнено цього ходу.</summary>
+        /// <summary>Кроків картинки заповнено цього ходу.</summary>
         public int PixelsFilled { get; private set; }
 
-        /// <summary>Пікселів згоріло: колір уже не потрібен картинці (§5).</summary>
+        /// <summary>Кроків згоріло: родина вже не потрібна картинці (§5).</summary>
         public int PixelsWasted { get; private set; }
 
         public int ScoreGained { get; private set; }

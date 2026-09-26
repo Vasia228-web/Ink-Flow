@@ -42,7 +42,14 @@ namespace InkFlow.Core
             int[]? rarityGridSizes = null,
             int[]? rarityMinColors = null,
             int[]? rarityMaxColors = null,
-            int continuesPerRun = 1)
+            int continuesPerRun = 1,
+            int[]? rarityStepTargets = null,
+            float stepTolerance = 0.35f,
+            int minFamilies = 4,
+            int maxFamilies = 6,
+            int dangerStuckPieces = 1,
+            int dangerFewFits = 2,
+            int dangerLastPlaceable = 1)
         {
             if (gridWidth < 2 || gridHeight < 2)
                 throw new ArgumentOutOfRangeException(nameof(gridWidth), "Поле мінімум 2×2.");
@@ -58,13 +65,27 @@ namespace InkFlow.Core
                 throw new ArgumentOutOfRangeException(nameof(continuesPerRun));
 
             _rarityWeights = Six(rarityWeights, new[] { 45, 25, 15, 9, 5, 1 }, nameof(rarityWeights));
-            _rarityGridSizes = Six(rarityGridSizes, new[] { 14, 14, 16, 18, 20, 22 }, nameof(rarityGridSizes));
-            _rarityMinColors = Six(rarityMinColors, new[] { 2, 3, 3, 4, 5, 6 }, nameof(rarityMinColors));
-            _rarityMaxColors = Six(rarityMaxColors, new[] { 3, 3, 4, 5, 6, 8 }, nameof(rarityMaxColors));
+            _rarityGridSizes = Six(rarityGridSizes, new[] { 34, 34, 34, 34, 42, 42 }, nameof(rarityGridSizes));
+            _rarityMinColors = Six(rarityMinColors, new[] { 10, 10, 11, 12, 13, 14 }, nameof(rarityMinColors));
+            _rarityMaxColors = Six(rarityMaxColors, new[] { 16, 16, 16, 16, 18, 18 }, nameof(rarityMaxColors));
+            _rarityStepTargets = Six(rarityStepTargets, new[] { 60, 70, 85, 110, 150, 240 }, nameof(rarityStepTargets));
+            if (stepTolerance < 0f || stepTolerance >= 1f)
+                throw new ArgumentOutOfRangeException(nameof(stepTolerance));
+            if (minFamilies < 1 || maxFamilies < minFamilies)
+                throw new ArgumentOutOfRangeException(nameof(minFamilies));
+            if (dangerStuckPieces < 1 || dangerFewFits < 0 || dangerLastPlaceable < 1)
+                throw new ArgumentOutOfRangeException(nameof(dangerStuckPieces));
+            StepTolerance = stepTolerance;
+            MinFamilies = minFamilies;
+            MaxFamilies = maxFamilies;
+            DangerStuckPieces = dangerStuckPieces;
+            DangerFewFits = dangerFewFits;
+            DangerLastPlaceable = dangerLastPlaceable;
             RarityWeightTotal = 0;
             for (var i = 0; i < Rarities.Count; i++)
             {
-                if (_rarityWeights[i] < 0 || _rarityGridSizes[i] < 1 || _rarityMinColors[i] < 1 || _rarityMaxColors[i] < _rarityMinColors[i])
+                if (_rarityWeights[i] < 0 || _rarityGridSizes[i] < 1 || _rarityMinColors[i] < 1 || _rarityMaxColors[i] < _rarityMinColors[i]
+                    || _rarityStepTargets[i] < 1)
                     throw new ArgumentOutOfRangeException(nameof(rarityWeights), "Таблиця рідкості зламана.");
                 RarityWeightTotal += _rarityWeights[i];
             }
@@ -163,16 +184,39 @@ namespace InkFlow.Core
         private readonly int[] _rarityGridSizes;
         private readonly int[] _rarityMinColors;
         private readonly int[] _rarityMaxColors;
+        private readonly int[] _rarityStepTargets;
 
         /// <summary>Шанси у ваговій формі: 45 / 25 / 15 / 9 / 5 / 1. Індекс — (int)<see cref="Rarity"/>.</summary>
         public IReadOnlyList<int> RarityWeights => _rarityWeights;
         public int RarityWeightTotal { get; }
 
-        /// <summary>Найбільша сітка картинки цієї рідкості (§6).</summary>
+        /// <summary>Найбільша сітка файлу картинки цієї рідкості (§4: ~32 px + контурне кільце; легендарна й космічна — до 40).</summary>
         public int GridSizeFor(Rarity rarity) => _rarityGridSizes[(int)rarity];
 
+        /// <summary>Скільки тонів має картинка (§4: 10–16; рідкісніша — детальніша).</summary>
         public int MinColorsFor(Rarity rarity) => _rarityMinColors[(int)rarity];
         public int MaxColorsFor(Rarity rarity) => _rarityMaxColors[(int)rarity];
+
+        /// <summary>Ціль кроків до завершення (§6, §19) — стільки, скільки було пікселів у попередній редакції.</summary>
+        public int StepTargetFor(Rarity rarity) => _rarityStepTargets[(int)rarity];
+
+        /// <summary>Допуск на ціль кроків: картинка з (1 ± допуск) × ціль — у нормі.</summary>
+        public float StepTolerance { get; }
+
+        /// <summary>Родин (ігрових кольорів) на картинку (§3): 4–6.</summary>
+        public int MinFamilies { get; }
+        public int MaxFamilies { get; }
+
+        // ── Пульсація «мало місця» (§11) ──
+
+        /// <summary>Попередження: стільки фігур із руки вже нікуди поставити.</summary>
+        public int DangerStuckPieces { get; }
+
+        /// <summary>Попередження: навіть найзручнішій фігурі лишилось не більше стількох позицій (0 — вимкнено).</summary>
+        public int DangerFewFits { get; }
+
+        /// <summary>Сильна: лишилось не більше стількох фігур, які ще влазять, а інша застрягла.</summary>
+        public int DangerLastPlaceable { get; }
 
         /// <summary>Рідкість за кидком у [0, RarityWeightTotal).</summary>
         public Rarity RarityFor(int roll)

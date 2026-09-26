@@ -59,17 +59,21 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(Rarity.Cosmic, balance.RarityFor(99));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => balance.RarityFor(100));
 
-            // §6: файл картинки = сітка рідкості + контурне кільце по одному пікселю з кожного боку.
-            Assert.AreEqual(14, balance.GridSizeFor(Rarity.Common));
-            Assert.AreEqual(14, balance.GridSizeFor(Rarity.Uncommon));
-            Assert.AreEqual(16, balance.GridSizeFor(Rarity.Rare));
-            Assert.AreEqual(18, balance.GridSizeFor(Rarity.Epic));
-            Assert.AreEqual(20, balance.GridSizeFor(Rarity.Legendary));
-            Assert.AreEqual(22, balance.GridSizeFor(Rarity.Cosmic));
-            Assert.AreEqual(2, balance.MinColorsFor(Rarity.Common));
-            Assert.AreEqual(3, balance.MaxColorsFor(Rarity.Common));
-            Assert.AreEqual(6, balance.MinColorsFor(Rarity.Cosmic));
-            Assert.AreEqual(8, balance.MaxColorsFor(Rarity.Cosmic));
+            // §4, §6: файл картинки = ~32 px + контурне кільце; легендарна й космічна — до 40.
+            Assert.AreEqual(34, balance.GridSizeFor(Rarity.Common));
+            Assert.AreEqual(34, balance.GridSizeFor(Rarity.Uncommon));
+            Assert.AreEqual(34, balance.GridSizeFor(Rarity.Rare));
+            Assert.AreEqual(34, balance.GridSizeFor(Rarity.Epic));
+            Assert.AreEqual(42, balance.GridSizeFor(Rarity.Legendary));
+            Assert.AreEqual(60, balance.StepTargetFor(Rarity.Common), "§6: кроків стільки, скільки було пікселів");
+            Assert.AreEqual(240, balance.StepTargetFor(Rarity.Cosmic));
+            Assert.AreEqual(4, balance.MinFamilies);
+            Assert.AreEqual(6, balance.MaxFamilies);
+            Assert.AreEqual(42, balance.GridSizeFor(Rarity.Cosmic));
+            Assert.AreEqual(10, balance.MinColorsFor(Rarity.Common), "§4: 10–16 тонів");
+            Assert.AreEqual(16, balance.MaxColorsFor(Rarity.Common));
+            Assert.AreEqual(14, balance.MinColorsFor(Rarity.Cosmic));
+            Assert.AreEqual(18, balance.MaxColorsFor(Rarity.Cosmic));
             for (var r = 1; r < Rarities.Count; r++)
                 Assert.GreaterOrEqual(balance.GridSizeFor((Rarity)r), balance.GridSizeFor((Rarity)(r - 1)), "сітка не меншає з рідкістю");
         }
@@ -84,7 +88,9 @@ namespace InkFlow.Core.Tests
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(continuesPerRun: -1));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityWeights: new[] { 1, 2 }), "шість значень");
             Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityWeights: new[] { 0, 0, 0, 0, 0, 0 }));
-            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityMinColors: new[] { 4, 3, 3, 4, 5, 6 }), "мінімум більший за максимум");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityMinColors: new[] { 40, 3, 3, 4, 5, 6 }), "мінімум більший за максимум");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(rarityStepTargets: new[] { 0, 1, 1, 1, 1, 1 }), "ціль кроків від 1");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new BalanceData(minFamilies: 7, maxFamilies: 6));
         }
     }
 }

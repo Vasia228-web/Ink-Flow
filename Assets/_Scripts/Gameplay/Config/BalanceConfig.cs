@@ -58,10 +58,25 @@ namespace InkFlow.Gameplay
         [Header("Рідкість (§6, §19): шість значень — звичайна, незвичайна, рідкісна, епічна, легендарна, космічна")]
         [Tooltip("Ваги випадіння. Документ: 45 / 25 / 15 / 9 / 5 / 1.")]
         [SerializeField] private int[] rarityWeights = { 45, 25, 15, 9, 5, 1 };
-        [Tooltip("Найбільша сітка файлу картинки (з контурним кільцем по одному пікселю з кожного боку).")]
-        [SerializeField] private int[] rarityGridSizes = { 14, 14, 16, 18, 20, 22 };
-        [SerializeField] private int[] rarityMinColors = { 2, 3, 3, 4, 5, 6 };
-        [SerializeField] private int[] rarityMaxColors = { 3, 3, 4, 5, 6, 8 };
+        [Tooltip("Найбільша сітка файлу картинки (~32 px + контурне кільце; легендарна й космічна — до 40).")]
+        [SerializeField] private int[] rarityGridSizes = { 34, 34, 34, 34, 42, 42 };
+        [Tooltip("Тонів на картинку (§4: 10–16; рідкісніша — детальніша).")]
+        [SerializeField] private int[] rarityMinColors = { 10, 10, 11, 12, 13, 14 };
+        [SerializeField] private int[] rarityMaxColors = { 16, 16, 16, 16, 18, 18 };
+        [Tooltip("Ціль кроків до завершення (§6): стільки, скільки було пікселів у попередній редакції.")]
+        [SerializeField] private int[] rarityStepTargets = { 60, 70, 85, 110, 150, 240 };
+        [SerializeField, Range(0f, 0.9f)] private float stepTolerance = 0.35f;
+        [Tooltip("Родин (ігрових кольорів) на картинку (§3).")]
+        [SerializeField, Range(1, 8)] private int minFamilies = 4;
+        [SerializeField, Range(1, 8)] private int maxFamilies = 6;
+
+        [Header("Пульсація «мало місця» (§11)")]
+        [Tooltip("Попередження: стільки фігур із руки вже нікуди поставити.")]
+        [SerializeField, Min(1)] private int dangerStuckPieces = 1;
+        [Tooltip("Попередження: навіть найзручнішій фігурі лишилось не більше стількох позицій (0 — вимкнено).")]
+        [SerializeField, Min(0)] private int dangerFewFits = 2;
+        [Tooltip("Сильна пульсація: лишилось не більше стількох фігур, які ще влазять, а інша застрягла.")]
+        [SerializeField, Min(1)] private int dangerLastPlaceable = 1;
 
         [Header("Продовження після програшу (§10)")]
         [Tooltip("Скільки разів за забіг можна продовжити після програшу.")]
@@ -80,7 +95,9 @@ namespace InkFlow.Gameplay
             scorePerPlacedCell, scorePerLine, pureLineScoreBonus,
             hintIdleSeconds,
             rarityWeights, rarityGridSizes, rarityMinColors, rarityMaxColors,
-            continuesPerRun);
+            continuesPerRun,
+            rarityStepTargets, stepTolerance, minFamilies, maxFamilies,
+            dangerStuckPieces, dangerFewFits, dangerLastPlaceable);
 
         private void OnValidate()
         {
@@ -89,6 +106,8 @@ namespace InkFlow.Gameplay
                 maxPieceSize = minPieceSize;
             if (trayShrinkAfterAttempts > maxTrayAttempts)
                 trayShrinkAfterAttempts = maxTrayAttempts;
+            if (maxFamilies < minFamilies)
+                maxFamilies = minFamilies;
         }
     }
 }

@@ -27,7 +27,7 @@ namespace InkFlow.Core
         /// <summary>Очки за хід: Value = скільки додано, Extra = разом.</summary>
         ScoreGained = 6,
 
-        /// <summary>Піксель картинки заповнено: Value = індекс пікселя, Color, IsPure = з чистої лінії, клітинка-джерело — у буфері (одна).</summary>
+        /// <summary>Крок картинки заповнено (§4): Value = індекс кроку, Color = родина, IsPure = з чистої лінії, клітинка-джерело — у буфері (одна).</summary>
         PixelFilled = 7,
 
         /// <summary>Клітинки поля перефарбовано: Value = старий колір, Extra = новий, клітинки — у буфері.</summary>

@@ -126,6 +126,13 @@ var noPicture = results.Count(r => r.Pictures == 0);
 var firstPicture = new Distribution(results.Where(r => r.PlacementsToFirstPicture >= 0).Select(r => (float)r.PlacementsToFirstPicture).ToArray());
 var minutesPerRun = placements.Scaled(secondsPerMove / 60f);
 var pressure = new Distribution(results.Where(r => r.PressureAt >= 0).Select(r => (float)r.PressureAt).ToArray());
+var warnShare = new Distribution(results.Select(r => r.Placements == 0 ? 0f : 100f * r.WarnMoves / r.Placements).ToArray());
+var strongShare = new Distribution(results.Select(r => r.Placements == 0 ? 0f : 100f * r.StrongMoves / r.Placements).ToArray());
+var warnLead = new Distribution(results.Where(r => r.FirstWarnAt >= 0).Select(r => (float)(r.Placements - r.FirstWarnAt)).ToArray());
+var strongLead = new Distribution(results.Where(r => r.FirstStrongAt >= 0).Select(r => (float)(r.Placements - r.FirstStrongAt)).ToArray());
+var warnShareOfRun = new Distribution(results.Where(r => r.FirstWarnAt >= 0).Select(r => 100f * r.FirstWarnAt / Math.Max(1, r.Placements)).ToArray());
+var neverWarned = results.Count(r => r.FirstWarnAt < 0);
+var neverStrong = results.Count(r => r.FirstStrongAt < 0);
 var pressureShare = new Distribution(results.Where(r => r.PressureAt >= 0)
     .Select(r => 100f * r.PressureAt / Math.Max(1, r.Placements)).ToArray());
 var emptyAtDeath = new Distribution(results.Select(r => (float)r.EmptyAtDeath).ToArray());
@@ -171,6 +178,11 @@ if (csv)
     }
     Console.WriteLine(pressure.Csv("pressure_onset_placement", "шт"));
     Console.WriteLine(pressureShare.Csv("pressure_onset_share", "% партії"));
+    Console.WriteLine(warnShare.Csv("pulse_warn_moves_share", "%"));
+    Console.WriteLine(strongShare.Csv("pulse_strong_moves_share", "%"));
+    Console.WriteLine(warnLead.Csv("pulse_warn_moves_before_death", "шт"));
+    Console.WriteLine(strongLead.Csv("pulse_strong_moves_before_death", "шт"));
+    Console.WriteLine($"pulse_never_warned,%,{F(100f * neverWarned / games)},,,,,");
     Console.WriteLine(emptyAtDeath.Csv("empty_cells_at_death", "шт"));
     Console.WriteLine(rescues.Csv("tray_rescues", "шт"));
     Console.WriteLine($"lost_at_refill,%,{F(100f * lostAtRefill / games)},,,,,");
@@ -197,6 +209,14 @@ Console.WriteLine(pressure.Row("початок тиску (розміщ.)", "ш�
 Console.WriteLine(pressureShare.Row("початок тиску (% партії)", "%"));
 Console.WriteLine(emptyAtDeath.Row("вільних клітинок у смерть", "шт"));
 Console.WriteLine(rescues.Row("рятувань мішка", "шт"));
+Console.WriteLine();
+Console.WriteLine("пульсація «мало місця» (§11): попередження / сильна");
+Console.WriteLine(warnShare.Row("  ходів із попередженням", "%"));
+Console.WriteLine(strongShare.Row("  ходів із сильною", "%"));
+Console.WriteLine(warnShareOfRun.Row("  перше попередження (% партії)", "%"));
+Console.WriteLine(warnLead.Row("  ходів від першого поперед. до смерті", "шт"));
+Console.WriteLine(strongLead.Row("  ходів від першої сильної до смерті", "шт"));
+Console.WriteLine($"  без попередження взагалі: {neverWarned} з {games} ({100f * neverWarned / games:0.#} %), без сильної: {neverStrong} ({100f * neverStrong / games:0.#} %)");
 Console.WriteLine();
 Console.WriteLine("хвилин на картинку за рідкістю (§19: звичайна 1.5–2 хв, легендарна 5+):");
 for (var k = 0; k < Rarities.Count; k++)
@@ -244,6 +264,10 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
     var bot = new RunBot(weights, new XorShiftRandom(unchecked(runSeed ^ 0x9E3779B9u)), noise);
 
     var pressureAt = -1;
+    var firstWarnAt = -1;
+    var firstStrongAt = -1;
+    var warnMoves = 0;
+    var strongMoves = 0;
     var lostAtRefill = false;
     var firstPictureAt = -1;
     var pictureStartedAt = 0; // розміщення, на якому почалась поточна картинка
@@ -285,6 +309,22 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
         if (pressureAt < 0 && !session.IsOver && session.AnyPieceStuck())
             pressureAt = session.PlacementCount;
 
+        // Пульсація «мало місця» (§11): рівень після кожного ходу — те, що бачив би гравець.
+        if (!session.IsOver)
+        {
+            var danger = session.Danger.Level;
+            if (danger != DangerLevel.None)
+            {
+                warnMoves++;
+                if (firstWarnAt < 0) firstWarnAt = session.PlacementCount;
+            }
+            if (danger == DangerLevel.Strong)
+            {
+                strongMoves++;
+                if (firstStrongAt < 0) firstStrongAt = session.PlacementCount;
+            }
+        }
+
         if (session.IsOver)
             lostAtRefill = result.Has(GameEventType.TrayRefilled);
     }
@@ -299,5 +339,5 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
         session.PureLinesCleared, session.BestChain, session.PixelsFilled, session.PixelsWasted, pressureAt,
         session.TrayRescues, lostAtRefill, unfair, session.Board.CountEmpty(),
         session.PicturesCompleted, session.Picture.FilledFraction, firstPictureAt,
-        done, seen);
+        done, seen, firstWarnAt, firstStrongAt, warnMoves, strongMoves);
 }

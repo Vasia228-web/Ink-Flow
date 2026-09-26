@@ -13,7 +13,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 6;
+        public const int CurrentVersion = 7;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();

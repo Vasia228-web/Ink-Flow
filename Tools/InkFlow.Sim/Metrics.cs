@@ -10,8 +10,12 @@ namespace InkFlow.Sim
         public RunStats(int placements, int rounds, int score, int lines, int pureLines, int bestChain,
             int pixelsFilled, int pixelsWasted, int pressureAt, int rescues, bool lostAtRefill, bool unfair,
             int emptyAtDeath, int pictures, float pictureFillAtDeath, int placementsToFirstPicture,
-            int[] doneByRarity, int[] seenByRarity)
+            int[] doneByRarity, int[] seenByRarity, int firstWarnAt = -1, int firstStrongAt = -1, int warnMoves = 0, int strongMoves = 0)
         {
+            FirstWarnAt = firstWarnAt;
+            FirstStrongAt = firstStrongAt;
+            WarnMoves = warnMoves;
+            StrongMoves = strongMoves;
             Placements = placements;
             Rounds = rounds;
             Score = score;
@@ -64,6 +68,12 @@ namespace InkFlow.Sim
         /// <summary>За рідкістю: закінчено й побачено (нові витяги, без перенесеної).</summary>
         public int[] DoneByRarity { get; }
         public int[] SeenByRarity { get; }
+
+        /// <summary>Пульсація «мало місця» (§11): хід першого попередження / сильної (−1 — не було) і скільки ходів із ними.</summary>
+        public int FirstWarnAt { get; }
+        public int FirstStrongAt { get; }
+        public int WarnMoves { get; }
+        public int StrongMoves { get; }
     }
 
     /// <summary>Скільки розміщень пішло на одну закінчену картинку — окремо за рідкістю; це і є «хвилини на картинку».</summary>

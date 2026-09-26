@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 """
-Контактний аркуш бібліотеки картинок: усі Assets/_Pictures/**/*.txt однією PNG-сіткою
-з рамками рідкості, для перегляду оком. Чистий Python (zlib), без залежностей.
-Вихід: docs/pictures-contact-sheet.png
+Контактний аркуш бібліотеки картинок: усі Assets/_Pictures/**/*.txt однією PNG-сіткою,
+кожна картинка двічі — готова й у стані «24 з 36» (дві третини кроків, як бачить її
+гравець посеред забігу: контур і намальовані кроки, решта — ескіз). Рамка — колір рідкості.
+Чистий Python (zlib), без залежностей. Вихід: docs/pictures-contact-sheet.png
 """
 import os
-import struct
-import zlib
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+from pngio import write_png  # noqa: E402
+from raster import HEX, count_steps  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "Assets", "_Pictures")
 OUT = os.path.join(ROOT, "docs", "pictures-contact-sheet.png")
 
-PALETTE = {
-    0: (0, 0, 0, 0), 1: "#1B1730", 2: "#3A2C2C", 3: "#26305A", 4: "#FFFFFF", 5: "#F3ECDD", 6: "#C8CCD8",
-    7: "#8E93A8", 8: "#FF5E6E", 9: "#FF8A3D", 10: "#FFC145", 11: "#FFEE7A", 12: "#B6E24F", 13: "#4ED37A",
-    14: "#2EC4A6", 15: "#5FE1E8", 16: "#5AA7FF", 17: "#7D7CFF", 18: "#AE7BFF", 19: "#F075E6", 20: "#FF9FCB",
-    21: "#FFB98B", 22: "#DDA25F", 23: "#B07A4E", 24: "#E8D7B0", 25: "#9FDBFF", 26: "#C3F7D6", 27: "#FFC8D8",
-    28: "#B8B534", 29: "#E2308F", 30: "#79E8A8",
-}
 FRAME = {"common": "#B8BCC8", "uncommon": "#4ED37A", "rare": "#5AA7FF", "epic": "#AE7BFF", "legendary": "#FFC145", "cosmic": "#F075E6"}
 ORDER = ["common", "uncommon", "rare", "epic", "legendary", "cosmic"]
 BG = (20, 17, 42, 255)
+PAPER = (236, 226, 204, 255)
+SKETCH = (93, 86, 112, 255)
 
 
 def hex_rgb(h):
@@ -29,6 +28,10 @@ def hex_rgb(h):
         return h
     h = h.lstrip("#")
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255)
+
+
+def blend(a, b, t):
+    return tuple(int(round(a[i] * (1 - t) + b[i] * t)) for i in range(3)) + (255,)
 
 
 def parse(path):
@@ -52,21 +55,82 @@ def parse(path):
     colors = {}
     for pair in meta.get("colors", "").split():
         colors[pair[0]] = int(pair[2:])
-    return meta, colors, rows
+    fam_of = {}
+    for pair in meta.get("families", "").split():
+        head, members = pair.split("=")
+        for ch in members:
+            fam_of[ch] = colors[head]
+    for ch in colors:
+        fam_of.setdefault(ch, colors[ch])
+    return meta, colors, fam_of, rows
 
 
-def write_png(path, width, height, pixels):
-    raw = bytearray()
-    for y in range(height):
-        raw.append(0)
-        for x in range(width):
-            raw.extend(pixels[y * width + x])
-    def chunk(tag, data):
-        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
-    png += chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b"")
-    with open(path, "wb") as f:
-        f.write(png)
+def steps_order(rows, fam_of, outline, step):
+    """Порядок кроків (список списків пікселів) — дзеркало PixelPicture.BuildSteps."""
+    from collections import deque
+    h, w = len(rows), len(rows[0])
+    fam = [[0] * w for _ in range(h)]
+    for y in range(h):
+        for x in range(w):
+            ch = rows[y][x]
+            if ch != "." and ch != outline:
+                fam[y][x] = fam_of[ch]
+    fill = [(x, y) for y in range(h) for x in range(w) if fam[y][x]]
+
+    def neighbours(x, y):
+        for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1)):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < w and 0 <= ny < h and fam[ny][nx]:
+                yield nx, ny
+
+    visited, order = set(), []
+    center = (w - 1) / 2
+    seed = min(fill, key=lambda p: (h - 1 - p[1]) * 1000 + int(abs(p[0] - center) * 10)) if fill else None
+    while fill and len(order) < len(fill):
+        if order:
+            best, bd = None, 10 ** 9
+            for p in fill:
+                if p in visited:
+                    continue
+                for q in order:
+                    d = abs(p[0] - q[0]) + abs(p[1] - q[1])
+                    if d < bd:
+                        bd, best = d, p
+            seed = best
+        visited.add(seed)
+        dq = deque([seed])
+        while dq:
+            p = dq.popleft()
+            order.append(p)
+            for q in neighbours(*p):
+                if q not in visited:
+                    visited.add(q)
+                    dq.append(q)
+    region, rid = {}, 0
+    for p in fill:
+        if p in region:
+            continue
+        region[p] = rid
+        dq = deque([p])
+        while dq:
+            c = dq.popleft()
+            for q in neighbours(*c):
+                if q not in region:
+                    region[q] = rid
+                    dq.append(q)
+        rid += 1
+    steps, open_, last = [], {}, -1
+    for p in order:
+        if region[p] != last:
+            open_, last = {}, region[p]
+        f = fam[p[1]][p[0]]
+        if f not in open_:
+            open_[f] = len(steps)
+            steps.append([])
+        steps[open_[f]].append(p)
+        if len(steps[open_[f]]) >= step:
+            del open_[f]
+    return steps
 
 
 def main():
@@ -78,12 +142,12 @@ def main():
     pics = [parse(f) for f in files]
     pics.sort(key=lambda p: (ORDER.index(p[0].get("rarity", "common")), p[0].get("theme", ""), p[0].get("id", "")))
 
-    cell = 24          # px на піксель картинки на аркуші
-    tile = 22 * cell   # плитка: до 22×22 пікселів
-    pad = 12
-    cols = 8
-    rows_n = (len(pics) + cols - 1) // cols
+    cell = 6           # px на піксель картинки на аркуші
+    tile = 42 * cell   # плитка: до 42×42 пікселів
+    pad = 10
+    cols = 6           # три картинки в ряд, кожна — готова + 24/36
     width = cols * (tile + pad) + pad
+    rows_n = (len(pics) * 2 + cols - 1) // cols
     height = rows_n * (tile + pad) + pad
     pixels = [BG] * (width * height)
 
@@ -91,31 +155,61 @@ def main():
         if 0 <= x < width and 0 <= y < height:
             pixels[y * width + x] = c
 
-    for i, (meta, colors, rows) in enumerate(pics):
-        cx = pad + (i % cols) * (tile + pad)
-        cy = pad + (i // cols) * (tile + pad)
+    def draw(slot, meta, colors, fam_of, rows, painted):
+        cx = pad + (slot % cols) * (tile + pad)
+        cy = pad + (slot // cols) * (tile + pad)
         frame = hex_rgb(FRAME.get(meta.get("rarity", "common"), "#FFFFFF"))
         for x in range(tile):
             for t in range(3):
-                put(cx + x, cy + t, frame); put(cx + x, cy + tile - 1 - t, frame)
+                put(cx + x, cy + t, frame)
+                put(cx + x, cy + tile - 1 - t, frame)
         for y in range(tile):
             for t in range(3):
-                put(cx + t, cy + y, frame); put(cx + tile - 1 - t, cy + y, frame)
+                put(cx + t, cy + y, frame)
+                put(cx + tile - 1 - t, cy + y, frame)
+        for y in range(4, tile - 4):
+            for x in range(4, tile - 4):
+                put(cx + x, cy + y, PAPER)
         h, w = len(rows), max(len(r) for r in rows)
         scale = max(1, min(cell, (tile - 12) // max(w, h)))
         ox = cx + (tile - w * scale) // 2
         oy = cy + (tile - h * scale) // 2
+        outline = meta["outline"]
         for y, r in enumerate(rows):
             for x, ch in enumerate(r):
                 if ch == ".":
                     continue
-                c = hex_rgb(PALETTE[colors[ch]])
+                is_outline = ch == outline
+                if is_outline or painted is None or (x, y) in painted:
+                    c = hex_rgb(HEX[colors[ch]])
+                    c = blend(PAPER, c, 0.86)
+                else:
+                    # незафарбовано: олівцевий ескіз — лише межі родин і силуету (тони однієї родини не ріжуть)
+                    fam = fam_of.get(ch, 0)
+                    edge = False
+                    for dx, dy in ((1, 0), (0, 1), (-1, 0), (0, -1)):
+                        nx, ny = x + dx, y + dy
+                        other = rows[ny][nx] if (0 <= ny < h and 0 <= nx < w) else "."
+                        other_fam = 0 if other == "." or other == outline else fam_of.get(other, 0)
+                        if other_fam != fam:
+                            edge = True
+                            break
+                    c = blend(PAPER, SKETCH, 0.4) if edge else PAPER
                 for dy in range(scale):
                     for dx in range(scale):
                         put(ox + x * scale + dx, oy + y * scale + dy, c)
 
-    write_png(OUT, width, height, pixels)
-    print(f"{len(pics)} картинок → {OUT} ({width}×{height})")
+    for i, (meta, colors, fam_of, rows) in enumerate(pics):
+        draw(i * 2, meta, colors, fam_of, rows, None)
+        step = int(meta.get("step", "1"))
+        steps = steps_order(rows, fam_of, meta["outline"], step)
+        painted = set()
+        for s in steps[: (len(steps) * 2) // 3]:
+            painted.update(s)
+        draw(i * 2 + 1, meta, colors, fam_of, rows, painted)
+
+    write_png(OUT, width, height, [bytes(v for px in pixels[y * width:(y + 1) * width] for v in px) for y in range(height)])
+    print(f"{len(pics)} картинок × 2 → {OUT} ({width}×{height})")
 
 
 if __name__ == "__main__":

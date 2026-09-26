@@ -6,7 +6,7 @@ namespace InkFlow.Core
     /// <summary>
     /// Забіг «Нескінченного» (документ §1–5, §10): порожнє поле 8×8, три одноколірні
     /// фігури в кольорах поточної картинки, зрив рядків і стовпців — і кожна клітинка
-    /// зірваної лінії заповнює один піксель картинки свого кольору.
+    /// зірваної лінії заповнює один крок картинки своєї родини (§4–5).
     ///
     /// Core не анімує: <see cref="TryPlace"/> мутує модель і повертає стрічку подій.
     /// Порядок кроків ходу — це порядок подій, і в'ю відтворює його один до одного:
@@ -87,7 +87,7 @@ namespace InkFlow.Core
 
             var index = Library.IndexOf(snapshot.PictureId);
             Picture = new PictureProgress(Library[index], index);
-            Picture.Restore(snapshot.FilledPixels);
+            Picture.Restore(snapshot.FilledSteps);
 
             Score = snapshot.Score;
             BestChain = snapshot.BestChain;
@@ -153,7 +153,7 @@ namespace InkFlow.Core
             }
             into.PictureId = Picture.Picture.Id;
             Picture.FilledIndices(_pixelBuffer);
-            into.FilledPixels = _pixelBuffer.ToArray();
+            into.FilledSteps = _pixelBuffer.ToArray();
             into.Score = Score;
             into.BestChain = BestChain;
             into.PlacementCount = PlacementCount;
@@ -208,10 +208,10 @@ namespace InkFlow.Core
         public int LinesCleared { get; private set; }
         public int PureLinesCleared { get; private set; }
 
-        /// <summary>Пікселів заповнено за партію.</summary>
+        /// <summary>Кроків картинок заповнено за партію.</summary>
         public int PixelsFilled { get; private set; }
 
-        /// <summary>Пікселів згоріло за партію — колір уже не був потрібен.</summary>
+        /// <summary>Кроків згоріло за партію — родина вже не була потрібна.</summary>
         public int PixelsWasted { get; private set; }
 
         public int PicturesCompleted { get; private set; }
@@ -225,6 +225,9 @@ namespace InkFlow.Core
 
         public int ContinuesUsed { get; private set; }
         public bool CanContinue => IsOver && ContinuesUsed < Balance.ContinuesPerRun;
+
+        /// <summary>Небезпека «мало місця» (§11) за поточним полем і лотком — чистий підрахунок, без стану.</summary>
+        public BoardDanger Danger => BoardDanger.Evaluate(Board, TrayPieces, Balance);
 
         /// <summary>Чи є в руці фігура, якій уже немає місця на полі — «тиск» для прогонів.</summary>
         public bool AnyPieceStuck()
@@ -345,8 +348,8 @@ namespace InkFlow.Core
             Picture.FillAll(_pixelBuffer);
             for (var i = 0; i < _pixelBuffer.Count; i++)
             {
-                var index = _pixelBuffer[i];
-                _result.AddPixelFilled(index, Picture.Picture.Pixels[index], false, -1);
+                var step = _pixelBuffer[i];
+                _result.AddPixelFilled(step, Picture.Picture.StepColor(step), false, -1);
                 PixelsFilled++;
             }
             CompletePicture();

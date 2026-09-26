@@ -27,8 +27,12 @@ namespace InkFlow.Core
 
     /// <summary>
     /// Майстер-палітра (документ §3): одна на всю гру, 30 кольорів у стилі піксель-арту —
-    /// яскраві, але м'які. Усі картинки беруть кольори лише звідси, тож гармонують між
-    /// собою. Індекс 0 — порожньо. Порядок ЗАФІКСОВАНО: номери живуть у файлах картинок.
+    /// яскраві, але м'які — плюс світлий і тіньовий тон кожного ігрового кольору (31+).
+    /// Усі картинки беруть кольори лише звідси, тож гармонують між собою. Індекс 0 —
+    /// порожньо. Порядок ЗАФІКСОВАНО: номери живуть у файлах картинок.
+    ///
+    /// Ігровий колір — той, у який фарбуються фігури (основний тон родини, §3); тони
+    /// лише малюють картинку.
     ///
     /// Кожен ігровий колір мусить читатись як фігура на темному полі: тест міряє
     /// контраст до <see cref="BoardBackground"/> за формулою WCAG, а не око.
@@ -77,8 +81,79 @@ namespace InkFlow.Core
             new PaletteEntry(27, "рум'янець", "#FFC8D8", true),
             new PaletteEntry(28, "олива", "#B8B534", true),
             new PaletteEntry(29, "малина", "#E2308F", true),
-            new PaletteEntry(30, "морська піна", "#79E8A8", true)
+            new PaletteEntry(30, "морська піна", "#79E8A8", true),
+            // Тони (§3): світлий і тіньовий відтінок кожного ігрового кольору. Ними малюють
+            // картинки, фігури в них не фарбуються — тому не ігрові. Пари йдуть у порядку
+            // ігрових кольорів 4..30: тон 31 + 2·(i − 4) — світло, +1 — тінь.
+            new PaletteEntry(31, "білий · світло", "#FFFFFF", false),
+            new PaletteEntry(32, "білий · тінь", "#C9CCD8", false),
+            new PaletteEntry(33, "вершки · світло", "#FFFBF4", false),
+            new PaletteEntry(34, "вершки · тінь", "#C7BFA6", false),
+            new PaletteEntry(35, "срібло · світло", "#E7E9EF", false),
+            new PaletteEntry(36, "срібло · тінь", "#8A8DA0", false),
+            new PaletteEntry(37, "сланець · світло", "#B4B8C6", false),
+            new PaletteEntry(38, "сланець · тінь", "#55576F", false),
+            new PaletteEntry(39, "корал · світло", "#FFB2B9", false),
+            new PaletteEntry(40, "корал · тінь", "#A8273C", false),
+            new PaletteEntry(41, "апельсин · світло", "#FFC7A2", false),
+            new PaletteEntry(42, "апельсин · тінь", "#B4601A", false),
+            new PaletteEntry(43, "бурштин · світло", "#FFE1A6", false),
+            new PaletteEntry(44, "бурштин · тінь", "#B98A18", false),
+            new PaletteEntry(45, "лимон · світло", "#FFF7BF", false),
+            new PaletteEntry(46, "лимон · тінь", "#BDB244", false),
+            new PaletteEntry(47, "лайм · світло", "#E2FAAC", false),
+            new PaletteEntry(48, "лайм · тінь", "#6F9C24", false),
+            new PaletteEntry(49, "зелень · світло", "#A3EABB", false),
+            new PaletteEntry(50, "зелень · тінь", "#268F55", false),
+            new PaletteEntry(51, "бірюза · світло", "#8ADACA", false),
+            new PaletteEntry(52, "бірюза · тінь", "#12857B", false),
+            new PaletteEntry(53, "ціан · світло", "#B7FBFF", false),
+            new PaletteEntry(54, "ціан · тінь", "#2F8C9E", false),
+            new PaletteEntry(55, "небо · світло", "#B0D5FF", false),
+            new PaletteEntry(56, "небо · тінь", "#2A5AB0", false),
+            new PaletteEntry(57, "барвінок · світло", "#C1C0FF", false),
+            new PaletteEntry(58, "барвінок · тінь", "#4F42B0", false),
+            new PaletteEntry(59, "фіалка · світло", "#D8C0FF", false),
+            new PaletteEntry(60, "фіалка · тінь", "#6742B0", false),
+            new PaletteEntry(61, "маджента · світло", "#FFC0FA", false),
+            new PaletteEntry(62, "маджента · тінь", "#A33EA1", false),
+            new PaletteEntry(63, "рожевий · світло", "#FFD1E6", false),
+            new PaletteEntry(64, "рожевий · тінь", "#B05C88", false),
+            new PaletteEntry(65, "персик · світло", "#FFDDC7", false),
+            new PaletteEntry(66, "персик · тінь", "#B47F4E", false),
+            new PaletteEntry(67, "карамель · світло", "#F4D5B2", false),
+            new PaletteEntry(68, "карамель · тінь", "#997232", false),
+            new PaletteEntry(69, "кора · світло", "#C5A890", false),
+            new PaletteEntry(70, "кора · тінь", "#74522A", false),
+            new PaletteEntry(71, "пісок · світло", "#FFF6E1", false),
+            new PaletteEntry(72, "пісок · тінь", "#A5996F", false),
+            new PaletteEntry(73, "крига · світло", "#D1EEFF", false),
+            new PaletteEntry(74, "крига · тінь", "#5C86AE", false),
+            new PaletteEntry(75, "м'ята · світло", "#E5FFEF", false),
+            new PaletteEntry(76, "м'ята · тінь", "#79A991", false),
+            new PaletteEntry(77, "рум'янець · світло", "#FFE5EC", false),
+            new PaletteEntry(78, "рум'янець · тінь", "#B07C8E", false),
+            new PaletteEntry(79, "олива · світло", "#CDCC87", false),
+            new PaletteEntry(80, "олива · тінь", "#767D18", false),
+            new PaletteEntry(81, "малина · світло", "#FA9BCE", false),
+            new PaletteEntry(82, "малина · тінь", "#9C1262", false),
+            new PaletteEntry(83, "морська піна · світло", "#C4FFDD", false),
+            new PaletteEntry(84, "морська піна · тінь", "#449F75", false)
         };
+
+        /// <summary>Перший індекс тонів: 1–3 контурні, 4–30 ігрові, далі — світло/тінь.</summary>
+        public const byte FirstTone = 31;
+        public const byte FirstFill = 4;
+        public const byte LastFill = 30;
+
+        /// <summary>Чи це тон (світло або тінь ігрового кольору), а не основний колір і не контур.</summary>
+        public static bool IsTone(byte index) => index >= FirstTone && index < Entries.Length;
+
+        /// <summary>Світлий тон ігрового кольору; для не-ігрових — сам колір.</summary>
+        public static byte LightOf(byte fill) => fill >= FirstFill && fill <= LastFill ? (byte)(FirstTone + 2 * (fill - FirstFill)) : fill;
+
+        /// <summary>Тіньовий тон ігрового кольору; для не-ігрових — сам колір.</summary>
+        public static byte ShadowOf(byte fill) => fill >= FirstFill && fill <= LastFill ? (byte)(FirstTone + 2 * (fill - FirstFill) + 1) : fill;
 
         public static int Count => Entries.Length;
 

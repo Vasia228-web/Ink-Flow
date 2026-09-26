@@ -4,17 +4,37 @@ using NUnit.Framework;
 
 namespace InkFlow.Core.Tests
 {
-    /// <summary>Документ §3: 30 кольорів, індекси 1–30, 0 — порожньо; кожен ігровий колір читається на полі.</summary>
+    /// <summary>Документ §3: 30 кольорів (1–30) плюс світлий і тіньовий тон кожного ігрового (31+), 0 — порожньо; кожен ігровий колір читається на полі.</summary>
     public sealed class MasterPaletteTests
     {
         [Test]
-        public void Palette_HasThirtyColorsWithSequentialIndices()
+        public void Palette_HasThirtyColorsPlusTonesWithSequentialIndices()
         {
-            Assert.AreEqual(31, MasterPalette.Count, "0 — порожньо, 1..30 — кольори");
+            Assert.AreEqual(85, MasterPalette.Count, "0 — порожньо, 1..30 — кольори, 31..84 — тони 27 ігрових");
             for (var i = 0; i < MasterPalette.Count; i++)
                 Assert.AreEqual(i, MasterPalette.Entries[i].Index, $"запис {i} має індекс {MasterPalette.Entries[i].Index}");
             Assert.IsFalse(MasterPalette.IsFill(MasterPalette.Empty));
-            Assert.IsFalse(MasterPalette.IsValid(31));
+            Assert.IsFalse(MasterPalette.IsValid(85));
+            Assert.AreEqual(31, MasterPalette.FirstTone);
+        }
+
+        [Test]
+        public void Tones_AreLighterAndDarkerThanTheirColorAndNeverFills()
+        {
+            foreach (var fill in MasterPalette.FillIndices)
+            {
+                var light = MasterPalette.LightOf(fill);
+                var shadow = MasterPalette.ShadowOf(fill);
+                Assert.IsTrue(MasterPalette.IsTone(light), $"{MasterPalette.NameOf(fill)}: світло {light} — не тон");
+                Assert.IsTrue(MasterPalette.IsTone(shadow), $"{MasterPalette.NameOf(fill)}: тінь {shadow} — не тон");
+                Assert.IsFalse(MasterPalette.IsFill(light) || MasterPalette.IsFill(shadow), "тонами не фарбуються фігури");
+                var l = MasterPalette.RelativeLuminance(MasterPalette.ColorOf(fill));
+                Assert.GreaterOrEqual(MasterPalette.RelativeLuminance(MasterPalette.ColorOf(light)), l - 1e-4f, $"{MasterPalette.NameOf(light)} темніше за основний");
+                Assert.Less(MasterPalette.RelativeLuminance(MasterPalette.ColorOf(shadow)), l, $"{MasterPalette.NameOf(shadow)} не темніше за основний");
+                Assert.IsTrue(MasterPalette.NameOf(light).StartsWith(MasterPalette.NameOf(fill)), "назва тону — від назви кольору");
+            }
+            Assert.AreEqual(1, MasterPalette.LightOf(1), "контур тонів не має");
+            Assert.IsFalse(MasterPalette.IsTone(30));
         }
 
         [Test]
@@ -40,7 +60,7 @@ namespace InkFlow.Core.Tests
             {
                 if (!MasterPalette.IsFill(i))
                 {
-                    Assert.LessOrEqual(i, 3, $"колір {i} не ігровий, а контурні — лише 1–3");
+                    Assert.IsTrue(i <= 3 || MasterPalette.IsTone(i), $"колір {i} не ігровий, а контурні — лише 1–3, тони — з 31");
                     continue;
                 }
                 fills++;

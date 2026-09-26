@@ -4,7 +4,7 @@ namespace InkFlow.Core
 {
     /// <summary>
     /// Зліпок забігу (документ §9): усе, що треба, щоб після згортання чи закриття
-    /// застосунку продовжити з того самого місця — поле, лоток, картинка з пікселями,
+    /// застосунку продовжити з того самого місця — поле, лоток, картинка з кроками,
     /// лічильники й стан генератора випадковості. Програш і переривання — різне: картинку
     /// можна втратити лише програвши.
     ///
@@ -20,7 +20,7 @@ namespace InkFlow.Core
         public string[] TrayShapes = Array.Empty<string>();
         public int[] TrayColors = Array.Empty<int>();
         public string PictureId = string.Empty;
-        public int[] FilledPixels = Array.Empty<int>();
+        public int[] FilledSteps = Array.Empty<int>();
         public int Score;
         public int BestChain;
         public int PlacementCount;
@@ -46,7 +46,7 @@ namespace InkFlow.Core
             TrayShapes = Array.Empty<string>();
             TrayColors = Array.Empty<int>();
             PictureId = string.Empty;
-            FilledPixels = Array.Empty<int>();
+            FilledSteps = Array.Empty<int>();
             Score = BestChain = PlacementCount = LinesCleared = PureLinesCleared = 0;
             PixelsFilled = PixelsWasted = PicturesCompleted = ContinuesUsed = TraysIssued = RescuesUsed = 0;
             Collected = Array.Empty<string>();

@@ -4,24 +4,24 @@ using System.Collections.Generic;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Картинка в забігу (документ §4–5): які пікселі заливки вже намальовано. Картинка й
-    /// є прогрес-бар: скільки заповнено, стільки й пройдено.
+    /// Картинка в забігу (документ §4–5): які кроки вже намальовано. Картинка й є
+    /// прогрес-бар: скільки кроків заповнено, стільки й пройдено.
     ///
-    /// Заповнення йде в порядку <see cref="PixelPicture.RevealOrder"/> — сусід за сусідом,
-    /// щоб форма виростала. Піксель кольору X заповнюється лише пікселем кольору X;
-    /// лишок понад потребу згорає.
+    /// Крок — кілька сусідніх пікселів однієї родини (<see cref="PixelPicture.Step"/>);
+    /// кроки йдуть у порядку проявлення, тож форма виростає. Крок родини X заповнюється
+    /// лише клітинкою родини X; лишок понад потребу згорає.
     /// </summary>
     public sealed class PictureProgress
     {
         private readonly bool[] _filled;
         private readonly int[] _remaining;
-        private readonly int[] _cursor; // на кожен колір — з якого місця RevealOrder шукати далі
+        private readonly int[] _cursor; // на кожну родину — з якого кроку шукати далі
 
         public PictureProgress(PixelPicture picture, int libraryIndex)
         {
             Picture = picture ?? throw new ArgumentNullException(nameof(picture));
             LibraryIndex = libraryIndex;
-            _filled = new bool[picture.Width * picture.Height];
+            _filled = new bool[picture.FillCount];
             _remaining = new int[MasterPalette.Count];
             _cursor = new int[MasterPalette.Count];
             for (var i = 0; i < picture.FillColors.Count; i++)
@@ -31,18 +31,25 @@ namespace InkFlow.Core
         public PixelPicture Picture { get; }
         public int LibraryIndex { get; }
 
+        /// <summary>Кроків усього.</summary>
         public int Total => Picture.FillCount;
         public int FilledCount { get; private set; }
-        public bool IsFilled(int pixelIndex) => pixelIndex >= 0 && pixelIndex < _filled.Length && _filled[pixelIndex];
+
+        /// <summary>Чи крок уже намальовано.</summary>
+        public bool IsFilled(int step) => step >= 0 && step < _filled.Length && _filled[step];
+
+        /// <summary>Чи піксель (індекс сітки) уже намальовано — для в'ю.</summary>
+        public bool IsPixelFilled(int pixelIndex) => IsFilled(Picture.StepOf(pixelIndex));
+
         public bool IsComplete => FilledCount >= Total;
 
-        /// <summary>Частка картинки в цілому — те, що бачить гравець і що зберігається для незавершеної (§9).</summary>
+        /// <summary>Частка картинки в цілому — те, що бачить гравець і від чого рахується ціна «домалювати» (§13).</summary>
         public float FilledFraction => Total == 0 ? 1f : (float)FilledCount / Total;
 
-        /// <summary>Скільки пікселів цього кольору ще лишилось.</summary>
+        /// <summary>Скільки кроків цієї родини ще лишилось.</summary>
         public int Remaining(byte color) => color < _remaining.Length ? _remaining[color] : 0;
 
-        /// <summary>Кольори, які ще потрібні, з їхніми залишками — це і є кольори лотка (§5).</summary>
+        /// <summary>Родини, які ще потрібні, з їхніми залишками — це і є кольори лотка (§5).</summary>
         public void RemainingColors(List<byte> colors, List<int> weights)
         {
             colors.Clear();
@@ -58,7 +65,7 @@ namespace InkFlow.Core
             }
         }
 
-        /// <summary>Колір, якого лишилось найбільше, — туди перефарбовуються вичерпані (§5); 0 — нічого не лишилось.</summary>
+        /// <summary>Родина, якої лишилось найбільше, — туди перефарбовуються вичерпані (§5); 0 — нічого не лишилось.</summary>
         public byte MostNeededColor()
         {
             byte best = MasterPalette.Empty;
@@ -76,67 +83,63 @@ namespace InkFlow.Core
         }
 
         /// <summary>
-        /// Заповнює один піксель цього кольору — наступний у порядку проявлення.
-        /// Повертає індекс пікселя або −1, якщо цей колір уже не потрібен.
+        /// Заповнює один крок цієї родини — наступний у порядку проявлення.
+        /// Повертає індекс кроку або −1, якщо ця родина вже не потрібна.
         /// </summary>
         public int FillOne(byte color)
         {
             if (color >= _remaining.Length || _remaining[color] <= 0)
                 return -1;
 
-            var order = Picture.RevealOrder;
-            for (var k = _cursor[color]; k < order.Count; k++)
+            for (var s = _cursor[color]; s < _filled.Length; s++)
             {
-                var index = order[k];
-                if (_filled[index] || Picture.Pixels[index] != color)
+                if (_filled[s] || Picture.StepColor(s) != color)
                     continue;
-                _filled[index] = true;
+                _filled[s] = true;
                 _remaining[color]--;
                 FilledCount++;
-                _cursor[color] = k + 1;
-                return index;
+                _cursor[color] = s + 1;
+                return s;
             }
 
             return -1;
         }
 
-        /// <summary>Заповнити все — донат «домалювати одразу». Повертає індекси в порядку проявлення.</summary>
+        /// <summary>Заповнити все — «домалювати одразу». Повертає індекси кроків у порядку проявлення.</summary>
         public void FillAll(List<int> filledNow)
         {
-            var order = Picture.RevealOrder;
-            for (var k = 0; k < order.Count; k++)
+            for (var s = 0; s < _filled.Length; s++)
             {
-                var index = order[k];
-                if (_filled[index])
+                if (_filled[s])
                     continue;
-                _filled[index] = true;
-                _remaining[Picture.Pixels[index]]--;
+                _filled[s] = true;
+                _remaining[Picture.StepColor(s)]--;
                 FilledCount++;
-                filledNow.Add(index);
+                filledNow.Add(s);
             }
         }
 
-        /// <summary>Індекси заповнених пікселів — для збереження незавершеної.</summary>
+        /// <summary>Індекси заповнених кроків — для зліпка забігу (§9).</summary>
         public void FilledIndices(List<int> into)
         {
             into.Clear();
-            for (var i = 0; i < _filled.Length; i++)
-                if (_filled[i])
-                    into.Add(i);
+            for (var s = 0; s < _filled.Length; s++)
+                if (_filled[s])
+                    into.Add(s);
         }
 
-        /// <summary>Відновлення зі збереження (§9): невалідні індекси й не-заливка тихо пропускаються.</summary>
-        public void Restore(IReadOnlyList<int> filledIndices)
+        /// <summary>Відновлення зі зліпка (§9): невалідні індекси тихо пропускаються.</summary>
+        public void Restore(IReadOnlyList<int> filledSteps)
         {
-            if (filledIndices is null) throw new ArgumentNullException(nameof(filledIndices));
+            if (filledSteps is null) throw new ArgumentNullException(nameof(filledSteps));
             Reset();
-            for (var i = 0; i < filledIndices.Count; i++)
+            for (var i = 0; i < filledSteps.Count; i++)
             {
-                var index = filledIndices[i];
-                if (!Picture.IsFillPixel(index) || _filled[index])
+                var s = filledSteps[i];
+                if (s < 0 || s >= _filled.Length || _filled[s])
                     continue;
-                _filled[index] = true;
-                _remaining[Picture.Pixels[index]]--;
+                _filled[s] = true;
+                _remaining[Picture.StepColor(s)]--;
                 FilledCount++;
             }
         }

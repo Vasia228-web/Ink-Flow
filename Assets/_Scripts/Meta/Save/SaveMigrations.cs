@@ -68,6 +68,16 @@ namespace InkFlow.Meta
                     save.Run = new RunSnapshot();
                     save.Version = 6;
                     return save;
+                },
+
+                // v6 → v7: картинки стали ~32 px із кроками (§4): зліпок v6 тримав індекси
+                // пікселів, а не кроків, і продовжити його означало б заповнити випадкові
+                // кроки — тому він скидається. Колекція лишається: там лише назви.
+                [6] = save =>
+                {
+                    save.Run = new RunSnapshot();
+                    save.Version = 7;
+                    return save;
                 }
             };
 
