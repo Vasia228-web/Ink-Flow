@@ -92,42 +92,33 @@ namespace InkFlow.Meta
     }
 
     /// <summary>
-    /// Профіль гравця: візитка, драбина звань, статистика, палітра, вітрина
-    /// й досягнення.
-    ///
-    /// Запас фарб бере готовий <see cref="PaintStock"/> — той самий, що на екрані
-    /// фарбування. Другого джерела літрів у грі бути не може.
+    /// Профіль гравця: візитка, драбина звань, статистика, вітрина й досягнення.
+    /// Драбина, статистика, вітрина й бейджі зникнуть у Фазі 6 (майстер-док §14) — лишаться
+    /// аватар, нік і вітринна картинка.
     /// </summary>
     public sealed class PlayerProfile
     {
-        public PlayerProfile(string nick, string rankTitle, long oil, PaintStock paints,
+        public PlayerProfile(string nick, string rankTitle, long oil,
             IReadOnlyList<RankStep> ladder, IReadOnlyList<ProfileStat> stats,
-            IReadOnlyList<ShowcasePlanet> showcase, IReadOnlyList<Achievement> achievements,
-            float litersSpent)
+            IReadOnlyList<ShowcasePlanet> showcase, IReadOnlyList<Achievement> achievements)
         {
             Nick = nick;
             RankTitle = rankTitle;
             Oil = oil;
-            Paints = paints;
             Ladder = ladder;
             Stats = stats;
             Showcase = showcase;
             Achievements = achievements;
-            LitersSpent = litersSpent;
             FavouriteIndex = 0;
         }
 
         public string Nick { get; }
         public string RankTitle { get; }
         public long Oil { get; }
-        public PaintStock Paints { get; }
         public IReadOnlyList<RankStep> Ladder { get; }
         public IReadOnlyList<ProfileStat> Stats { get; }
         public IReadOnlyList<ShowcasePlanet> Showcase { get; }
         public IReadOnlyList<Achievement> Achievements { get; }
-
-        /// <summary>Скільки літрів витрачено за весь час.</summary>
-        public float LitersSpent { get; }
 
         /// <summary>Яка планета зараз у вітрині. Міняється тапом по мініатюрі.</summary>
         public int FavouriteIndex { get; set; }
@@ -135,27 +126,19 @@ namespace InkFlow.Meta
         public ShowcasePlanet? Favourite =>
             FavouriteIndex >= 0 && FavouriteIndex < Showcase.Count ? Showcase[FavouriteIndex] : null;
 
-        /// <summary>Порядок фарб у палітрі — той самий, що на екрані фарбування.</summary>
-        public static readonly PaintKind[] PaletteOrder =
-        {
-            PaintKind.Ocean, PaintKind.Teal, PaintKind.Forest, PaintKind.Ice,
-            PaintKind.Sand, PaintKind.Lava, PaintKind.Berry, PaintKind.Violet
-        };
-
         private static Rgb Hex(string hex) => Rgb.FromHex(hex);
 
-        /// <summary>Профіль рівно з еталонних скріншотів.</summary>
         /// <summary>
         /// Профіль із РЕАЛЬНОГО стану гравця.
         ///
         /// Драбина звань, статистика й вітрина рахуються, а не зберігаються:
-        /// це похідні від зон, зірок і рекорду. Окреме поле «звання» у файлі
-        /// рано чи пізно розійшлося б із фактичною кількістю планет.
+        /// це похідні від слотів планет і колекції. Окреме поле «звання» у файлі
+        /// рано чи пізно розійшлося б із фактичною кількістю ожилих планет.
         /// </summary>
         public static PlayerProfile FromState(PlayerState state)
         {
-            var galaxy = GalaxyProgress.FromSave(state.Galaxy);
-            var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, galaxy);
+            var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, state.Layout);
+            var galaxiesDone = GalaxyState.CompletedGalaxies(state.Galaxy, state.Layout);
             var rankIndex = PlayerRanks.IndexFor(planetsDone);
 
             var ladder = new List<RankStep>(PlayerRanks.Ladder.Length);
@@ -175,19 +158,18 @@ namespace InkFlow.Meta
 
             var stats = new List<ProfileStat>
             {
-                new ProfileStat(planetsDone.ToString(), "Планет розфарбовано", Hex("#00D9C0")),
-                new ProfileStat(galaxy.DoneCount >= galaxy.Planets.Count ? "1" : "0",
-                    "Галактик завершено", Hex("#9D4DFF")),
+                new ProfileStat(planetsDone.ToString(), "Планет ожило", Hex("#00D9C0")),
+                new ProfileStat(galaxiesDone.ToString(), "Галактик завершено", Hex("#9D4DFF")),
                 new ProfileStat(state.Progress.EndlessRecord.ToString("N0"),
                     "Рекорд · Нескінченний", Hex("#FFB300")),
-                // §8: головний рекорд нового ядра — картинки в колекції. Зірки рівнів
-                // підуть сюди назад разом із режимом «Рівні».
+                // §8: головний рекорд нового ядра — картинки в колекції.
                 new ProfileStat(state.Collection.Distinct.ToString(),
                     "Картинок у колекції", Hex("#9BE636"), star: true)
             };
 
-            // Вітрина — завершені планети. Порожня, поки жодної не закінчено:
+            // Вітрина — ожилі планети поточної галактики. Порожня, поки жодної не закінчено:
             // показувати там незароблене означало б брехати гравцю про прогрес.
+            var galaxy = GalaxyProgress.FromSave(state.Galaxy, state.Layout);
             var showcase = new List<ShowcasePlanet>();
             for (var i = 0; i < galaxy.Planets.Count && showcase.Count < 3; i++)
             {
@@ -197,45 +179,29 @@ namespace InkFlow.Meta
             }
 
             var achievements = BuildAchievements(state, planetsDone);
-            var litersSpent = SpentLiters(state);
 
             return new PlayerProfile(
                 state.Nick, PlayerRanks.TitleFor(planetsDone), state.Wallet.OilDrops,
-                state.Paints, ladder, stats, showcase, achievements, litersSpent);
-        }
-
-        /// <summary>Скільки літрів витрачено на зони — сума вартостей зафарбованого.</summary>
-        private static float SpentLiters(PlayerState state)
-        {
-            // Вартість зони знає розкладка планети, а у файлі лежить лише факт
-            // фарбування — тому проходимо по розкладці, а не по списку фактів.
-            var spent = 0f;
-            var surface = PlanetSurface.CreateTerra();
-            var planetId = GalaxyState.PlanetId(surface.Type);
-            for (var i = 0; i < surface.Zones.Count; i++)
-                if (GalaxyState.IsPainted(state.Galaxy, planetId, surface.Zones[i].Id))
-                    spent += surface.Zones[i].Cost;
-            return spent;
+                ladder, stats, showcase, achievements);
         }
 
         private static List<Achievement> BuildAchievements(PlayerState state, int planetsDone)
         {
-            var distinct = PaintInventory.DistinctPaints(state.Paints);
-
             return new List<Achievement>
             {
                 new Achievement("a_gal", "Перша планета", Hex("#00D9C0"), planetsDone >= 1,
-                    "Заверши свою першу планету"),
-                new Achievement("a_lit", "10 літрів", Hex("#FFB300"),
-                    PaintInventory.TotalLiters(state.Paints) >= 10f,
-                    "Май десять літрів фарби одночасно"),
-                new Achievement("a_col", "Колекціонер", Hex("#9D4DFF"), distinct >= 6,
-                    "Збери шість різних фарб"),
+                    "Заповни всі слоти своєї першої планети"),
+                new Achievement("a_slot", "Перша вітрина", Hex("#FFB300"),
+                    GalaxyState.TotalFilled(state.Galaxy) >= 1,
+                    "Постав картинку в слот планети"),
+                new Achievement("a_ten", "Колекціонер", Hex("#9D4DFF"), state.Collection.Distinct >= 10,
+                    "Збери десять різних картинок"),
                 new Achievement("a_pic", "Перша картинка", Hex("#9BE636"), state.Collection.Distinct >= 1,
                     "Домалюй першу картинку в забігу")
             };
         }
 
+        /// <summary>Профіль із мокових скріншотів — лише для сцени-майстерні.</summary>
         public static PlayerProfile CreateMock()
         {
             var ladder = new List<RankStep>
@@ -249,10 +215,10 @@ namespace InkFlow.Meta
 
             var stats = new List<ProfileStat>
             {
-                new ProfileStat("23", "Планет розфарбовано", Hex("#00D9C0")),
+                new ProfileStat("23", "Планет ожило", Hex("#00D9C0")),
                 new ProfileStat("2", "Галактик завершено", Hex("#9D4DFF")),
                 new ProfileStat("8 420", "Рекорд · Нескінченний", Hex("#FFB300")),
-                new ProfileStat("127", "Зірок у рівнях", Hex("#9BE636"), star: true)
+                new ProfileStat("127", "Картинок у колекції", Hex("#9BE636"), star: true)
             };
 
             var showcase = new List<ShowcasePlanet>
@@ -266,17 +232,17 @@ namespace InkFlow.Meta
             {
                 new Achievement("a_gal", "Перша галактика", Hex("#00D9C0"), true,
                     "Заверши свою першу галактику"),
-                new Achievement("a_lit", "100 літрів", Hex("#FFB300"), true,
-                    "Витрать 100 літрів фарби"),
-                new Achievement("a_col", "Колекціонер", Hex("#9D4DFF"), true,
-                    "Збери всі базові фарби"),
+                new Achievement("a_slot", "Перша вітрина", Hex("#FFB300"), true,
+                    "Постав картинку в слот планети"),
+                new Achievement("a_ten", "Колекціонер", Hex("#9D4DFF"), true,
+                    "Збери десять різних картинок"),
                 new Achievement("a_top", "Топ-100 тижня", Hex("#3B7BFF"), false,
                     "Увійди в сотню найкращих за тиждень")
             };
 
             return new PlayerProfile(
-                "Нова", "Художниця галактик", 1250, PaintStock.CreateMock(),
-                ladder, stats, showcase, achievements, 340f);
+                "Нова", "Художниця галактик", 1250,
+                ladder, stats, showcase, achievements);
         }
     }
 }

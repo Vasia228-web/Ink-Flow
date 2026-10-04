@@ -1,3 +1,4 @@
+using System;
 using InkFlow.Core;
 using InkFlow.Meta;
 using NUnit.Framework;
@@ -5,144 +6,111 @@ using NUnit.Framework;
 namespace InkFlow.Tests.Meta
 {
     /// <summary>
-    /// Сторожі поверхні планети й запасу фарб. Головне, що тут перевіряється:
-    /// літри не списуються, коли їх не вистачає — інакше гравець піде в мінус
-    /// і побачить це лише на екрані.
+    /// Поверхня планети зі слотами (§12). Головне: слоти стоять детерміновано, не збиваються
+    /// в купу й не ховаються за полюси — інакше картинки «переїжджали» б між запусками, а на
+    /// планеті з дванадцятьма слотами два стояли б один на одному.
     /// </summary>
     public sealed class PlanetSurfaceTests
     {
-        [Test]
-        public void Terra_HasEightZonesAndStartsUnpainted()
-        {
-            var surface = PlanetSurface.CreateTerra();
-
-            Assert.AreEqual(8, surface.Zones.Count, "У макеті TERRA_ZONES — вісім зон.");
-
-            // Розкладка — статичні дані планети. Що залито, вирішує збереження,
-            // тож нова планета сіра цілком; п'ять залитих зон із макета були
-            // ілюстрацією, а не станом гри.
-            Assert.AreEqual(0, surface.PaintedCount);
-            Assert.IsFalse(surface.IsComplete);
-        }
+        private static readonly GalaxyLayout Layout = GalaxyLayout.Default;
 
         [Test]
-        public void Terra_HasAZoneAffordableWithASingleLitre()
+        public void Surface_HasAsManySlotsAsTheLayoutSays()
         {
-            var surface = PlanetSurface.CreateTerra();
-
-            // Ключ до старту без гранту: перший куплений літр мусить щось фарбувати.
-            var cheapest = int.MaxValue;
-            foreach (var zone in surface.Zones)
-                if (zone.Cost < cheapest)
-                    cheapest = zone.Cost;
-
-            Assert.AreEqual(1, cheapest,
-                "на першій планеті має бути зона за один літр — інакше цикл " +
-                "«граю → купую → фарбую» рветься на першій же покупці");
-        }
-
-        [Test]
-        public void Zones_CostWithinMasterDocRange()
-        {
-            var surface = PlanetSurface.CreateTerra();
-
-            foreach (var zone in surface.Zones)
+            foreach (var planet in Layout.Planets)
             {
-                Assert.GreaterOrEqual(zone.Cost, PlanetZone.MinCost, zone.Name);
-                Assert.LessOrEqual(zone.Cost, PlanetZone.MaxCost,
-                    $"{zone.Name}: майстер-док §8 — маленька ~1 л, велика ~3 л");
+                var surface = PlanetSurface.For(planet);
+                Assert.AreEqual(planet.Slots, surface.Slots.Count, planet.Name);
+                Assert.AreEqual(planet.Type, surface.Type);
+                Assert.AreEqual(0, surface.FilledCount, "розкладка приходить порожньою");
+                Assert.IsFalse(surface.IsComplete);
+                for (var i = 0; i < surface.Slots.Count; i++)
+                    Assert.AreEqual(i, surface.Slots[i].Index, "номер слота — його місце у списку");
             }
         }
 
         [Test]
-        public void Zones_HaveSaneCoordinatesAndCost()
+        public void Slots_StayInsideTheLatitudeBand_AndOnTheGlobe()
         {
-            var surface = PlanetSurface.CreateTerra();
+            for (var count = 1; count <= 16; count++)
+                for (var i = 0; i < count; i++)
+                {
+                    SlotLayout.Position(i, count, out var lon, out var lat);
+                    Assert.GreaterOrEqual(lon, 0f, $"{i}/{count}: довгота");
+                    Assert.Less(lon, 360f, $"{i}/{count}: довгота");
+                    Assert.LessOrEqual(Math.Abs(lat), SlotLayout.MaxLatitude + 1e-3f,
+                        $"{i}/{count}: слот біля полюса не видно й не тапнеш");
+                }
+        }
 
-            foreach (var zone in surface.Zones)
+        [Test]
+        public void Slots_AreDeterministic()
+        {
+            SlotLayout.Position(5, 12, out var lon1, out var lat1);
+            SlotLayout.Position(5, 12, out var lon2, out var lat2);
+
+            Assert.AreEqual(lon1, lon2);
+            Assert.AreEqual(lat1, lat2);
+        }
+
+        [Test]
+        public void Slots_KeepTheirDistance_EvenOnThePearl()
+        {
+            // Дванадцять слотів фінальної планети: найближча пара — не ближче, ніж
+            // розмір самого слота на кулі, інакше дві картинки накладуться.
+            foreach (var planet in Layout.Planets)
             {
-                Assert.GreaterOrEqual(zone.Latitude, -90f, $"{zone.Name}: широта поза межами.");
-                Assert.LessOrEqual(zone.Latitude, 90f, $"{zone.Name}: широта поза межами.");
-                Assert.GreaterOrEqual(zone.Longitude, 0f, $"{zone.Name}: довгота поза межами.");
-                Assert.LessOrEqual(zone.Longitude, 360f, $"{zone.Name}: довгота поза межами.");
-                Assert.Greater(zone.Radius, 0f, $"{zone.Name}: нульовий радіус — зона була б невидима.");
-                Assert.Greater(zone.Cost, 0, $"{zone.Name}: безкоштовна зона ламає економіку.");
+                var surface = PlanetSurface.For(planet);
+                var minDistance = float.MaxValue;
+                for (var a = 0; a < surface.Slots.Count; a++)
+                    for (var b = a + 1; b < surface.Slots.Count; b++)
+                    {
+                        var d = SlotLayout.AngularDistance(
+                            surface.Slots[a].Longitude, surface.Slots[a].Latitude,
+                            surface.Slots[b].Longitude, surface.Slots[b].Latitude);
+                        if (d < minDistance)
+                            minDistance = d;
+                    }
+
+                if (surface.Slots.Count > 1)
+                    Assert.GreaterOrEqual(minDistance, 24f,
+                        $"{planet.Name} ({planet.Slots} слотів): найближча пара на {minDistance:0.#}°");
             }
         }
 
         [Test]
-        public void Surface_BecomesCompleteWhenEveryZonePainted()
+        public void Surface_IsCompleteWhenEverySlotIsFilled()
         {
-            var surface = PlanetSurface.CreateTerra();
+            var surface = PlanetSurface.For(Layout, PlanetType.Ocean);
 
-            foreach (var zone in surface.Zones)
-                zone.Painted = PaintKind.Ocean;
+            for (var i = 0; i < surface.Slots.Count; i++)
+            {
+                Assert.IsFalse(surface.IsComplete);
+                surface.Slots[i].PictureId = $"pic{i}";
+            }
 
             Assert.IsTrue(surface.IsComplete);
-            Assert.AreEqual(surface.Zones.Count, surface.PaintedCount);
+            Assert.AreEqual(surface.Slots.Count, surface.FilledCount);
         }
 
         [Test]
-        public void Find_ReturnsNullForUnknownId()
+        public void Find_ReturnsNullOutsideRange()
         {
-            var surface = PlanetSurface.CreateTerra();
+            var surface = PlanetSurface.For(Layout, PlanetType.Ocean);
 
-            Assert.IsNotNull(surface.Find("z1"));
-            Assert.IsNull(surface.Find("нема такої"));
+            Assert.IsNotNull(surface.Find(0));
+            Assert.IsNotNull(surface.Find(surface.Slots.Count - 1));
+            Assert.IsNull(surface.Find(surface.Slots.Count));
+            Assert.IsNull(surface.Find(-1));
         }
 
         [Test]
-        public void Stock_MatchesMockupStartingLiters()
+        public void Surface_ForAPlanetMissingFromTheLayout_Throws()
         {
-            var stock = PaintStock.CreateMock();
+            var small = new GalaxyLayout(
+                new[] { new PlanetLayout(PlanetType.Ocean, "Аквіла", 4) }, new[] { "ТЕСТ" });
 
-            Assert.AreEqual(6f, stock[PaintKind.Ocean]);
-            Assert.AreEqual(4.5f, stock[PaintKind.Teal]);
-            Assert.AreEqual(0.5f, stock[PaintKind.Violet]);
-        }
-
-        [Test]
-        public void Stock_DoesNotSpendWhatItDoesNotHave()
-        {
-            var stock = PaintStock.CreateMock();
-
-            // 0.5 л фіолетової проти зони за 3 л: списання не має відбутись зовсім.
-            Assert.IsFalse(stock.Spend(PaintKind.Violet, 3));
-            Assert.AreEqual(0.5f, stock[PaintKind.Violet], "Невдале списання змінило запас.");
-        }
-
-        [Test]
-        public void Stock_SpendsAndRaisesChanged()
-        {
-            var stock = PaintStock.CreateMock();
-            var raised = 0;
-            stock.Changed += () => raised++;
-
-            Assert.IsTrue(stock.Spend(PaintKind.Ocean, 4));
-            Assert.AreEqual(2f, stock[PaintKind.Ocean]);
-            Assert.AreEqual(1, raised, "Панель фарб оновлюється саме по цій події.");
-        }
-
-        [Test]
-        public void Stock_NeverGoesNegative()
-        {
-            var stock = PaintStock.CreateMock();
-            stock.Set(PaintKind.Lava, -5f);
-
-            Assert.AreEqual(0f, stock[PaintKind.Lava]);
-        }
-
-        [Test]
-        public void CanAfford_IsInclusiveAtExactCost()
-        {
-            var stock = PaintStock.CreateMock();
-            stock.Set(PaintKind.Sand, 3f);
-
-            // Рівно стільки, скільки треба — має вистачати. Інакше остання зона
-            // ніколи не заливається наявним запасом.
-            Assert.IsTrue(stock.CanAfford(PaintKind.Sand, 3));
-            Assert.IsTrue(stock.Spend(PaintKind.Sand, 3));
-            Assert.AreEqual(0f, stock[PaintKind.Sand]);
+            Assert.Throws<ArgumentException>(() => PlanetSurface.For(small, PlanetType.Pearl));
         }
     }
 }

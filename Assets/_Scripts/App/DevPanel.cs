@@ -40,7 +40,6 @@ namespace InkFlow.App
         private float _holdSince = -1f;
         private Vector2 _scroll;
         private string _oilInput = "500";
-        private string _litersInput = "5";
         private string _starsInput = "3";
         private string _nickInput = string.Empty;
         private int _paintIndex;
@@ -201,12 +200,12 @@ namespace InkFlow.App
             GUILayout.Label("── Стан ──");
             GUILayout.Label($"Нік: {state.Nick}");
             GUILayout.Label($"Нафта: {state.Wallet.OilDrops}");
-            GUILayout.Label($"Фарби: {PaintInventory.TotalLiters(state.Paints):0.##} л " +
-                            $"у {PaintInventory.DistinctPaints(state.Paints)} кольорах");
+            GUILayout.Label($"Галактика {state.CurrentGalaxy + 1}: у слотах {GalaxyState.TotalFilled(state.Galaxy)} картинок, " +
+                            $"планет ожило {GalaxyState.CompletedPlanets(state.Galaxy, state.Layout)}, " +
+                            $"галактик завершено {GalaxyState.CompletedGalaxies(state.Galaxy, state.Layout)}");
             GUILayout.Label($"Рівні: пройдено до {LevelProgress.HighestCleared(state.Progress)}, " +
                             $"зірок {LevelProgress.TotalStars(state.Progress)}");
             GUILayout.Label($"Рекорд Нескінченного: {state.Progress.EndlessRecord}");
-            GUILayout.Label($"Зон зафарбовано: {state.Galaxy.PaintedZones.Count}");
             GUILayout.Label($"Денний ліміт: {state.DailyLimit.PlaysToday} партій, " +
                             $"множник ×{state.DailyLimit.RewardMultiplier:0.##}, " +
                             $"доба {state.DailyLimit.CurrentDayUtc:yyyy-MM-dd}");
@@ -228,24 +227,6 @@ namespace InkFlow.App
                 state.Wallet.Add(oil, RewardSource.Debug);
                 state.Persist();
                 Report($"+{oil} нафти");
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            _litersInput = GUILayout.TextField(_litersInput, GUILayout.Width(90f));
-            _paintIndex = Mathf.Clamp(_paintIndex, 0, PaintKinds.Count - 1);
-            if (GUILayout.Button($"◀", GUILayout.Width(28f)))
-                _paintIndex = (_paintIndex + PaintKinds.Count - 1) % PaintKinds.Count;
-            GUILayout.Label(((PaintKind)_paintIndex).ToString(), GUILayout.Width(70f));
-            if (GUILayout.Button($"▶", GUILayout.Width(28f)))
-                _paintIndex = (_paintIndex + 1) % PaintKinds.Count;
-
-            if (GUILayout.Button("Додати літри") && float.TryParse(_litersInput, out var liters))
-            {
-                var kind = (PaintKind)_paintIndex;
-                state.Paints.Set(kind, state.Paints[kind] + liters);
-                state.Persist();
-                Report($"+{liters} л {kind}");
             }
             GUILayout.EndHorizontal();
         }
@@ -297,6 +278,32 @@ namespace InkFlow.App
             {
                 state.ClearRun();
                 Report("перерваного забігу немає — наступний почнеться з нової картинки");
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Заповнити поточну планету"))
+            {
+                // §12: збираємо стільки копій, скільки порожніх слотів, і ставимо їх — планета оживає.
+                var galaxy = state.CurrentGalaxy;
+                var index = GalaxyState.CurrentPlanetIndex(state.Galaxy, galaxy, state.Layout);
+                if (index >= state.Layout.Planets.Count)
+                    Report("усі планети цієї галактики вже ожили");
+                else
+                {
+                    var planet = state.Layout.Planets[index];
+                    var placed = 0;
+                    for (var slot = 0; slot < planet.Slots; slot++)
+                    {
+                        if (GalaxyState.PictureAt(state.Galaxy, galaxy, planet.Id, slot) != null)
+                            continue;
+                        var pick = state.Library[UnityEngine.Random.Range(0, state.Library.Count)];
+                        state.CollectPicture(pick.Id, System.DateTime.UtcNow);
+                        if (state.TryPlaceInSlot(galaxy, planet.Id, slot, pick.Id, System.DateTime.UtcNow))
+                            placed++;
+                    }
+                    Report($"{planet.Name}: поставлено {placed} картинок, планета ожила");
+                }
             }
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();

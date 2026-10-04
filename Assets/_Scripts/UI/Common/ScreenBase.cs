@@ -31,5 +31,20 @@ namespace InkFlow.UI
         public virtual void OnEnter(ScreenArgs args) => gameObject.SetActive(true);
 
         public virtual void OnExit() => gameObject.SetActive(false);
+
+        /// <summary>
+        /// Поки true, екран не запускає корутин входу (наближення, спалахи): стенд знімків і UI-тести
+        /// в Edit Mode не тікають корутини, і кадр застиг би на першому їхньому кроці.
+        /// </summary>
+        public static bool SkipEnterAnimations { get; set; }
+
+        /// <summary>Вхід без анімацій — для стендів у Edit Mode.</summary>
+        public void PreviewEnter(ScreenArgs args)
+        {
+            var was = SkipEnterAnimations;
+            SkipEnterAnimations = true;
+            try { OnEnter(args); }
+            finally { SkipEnterAnimations = was; }
+        }
     }
 }

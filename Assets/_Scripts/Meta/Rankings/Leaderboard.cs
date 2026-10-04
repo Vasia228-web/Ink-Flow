@@ -229,10 +229,12 @@ namespace InkFlow.Meta
         /// А от свої числа гравець мусить бачити справжні: позиція в таблиці
         /// рахується від них, тож і вона стає чесною.
         /// </summary>
-        public static Leaderboard WithRealPlayer(PlayerState state, GalaxyProgress galaxy)
+        public static Leaderboard WithRealPlayer(PlayerState state)
         {
             var source = CreateMock();
-            var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, galaxy);
+            // §12/§16: планети, що ожили, і завершені галактики — з усіх циклів.
+            var planetsDone = GalaxyState.CompletedPlanets(state.Galaxy, state.Layout);
+            var galaxiesDone = GalaxyState.CompletedGalaxies(state.Galaxy, state.Layout);
             // §10: «рекорд колекції → рейтинги». Тижневого зрізу без бекенду немає — той самий лік.
             var record = state.Collection.Distinct;
 
@@ -240,11 +242,11 @@ namespace InkFlow.Meta
             {
                 IsYou = true,
                 IsFriend = true,
-                GalaxiesDone = galaxy.DoneCount >= galaxy.Planets.Count ? 1 : 0,
+                GalaxiesDone = galaxiesDone,
                 PlanetsWeek = planetsDone,
                 PlanetsAll = planetsDone,
-                GalaxiesWeek = 0,
-                GalaxiesAll = galaxy.DoneCount >= galaxy.Planets.Count ? 1 : 0,
+                GalaxiesWeek = galaxiesDone,
+                GalaxiesAll = galaxiesDone,
                 RecordWeek = record,
                 RecordAll = record
             };

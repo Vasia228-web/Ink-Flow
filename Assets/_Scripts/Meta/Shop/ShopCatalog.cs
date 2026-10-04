@@ -203,14 +203,11 @@ namespace InkFlow.Meta
 
         /// <summary>
         /// Купує літри за нафту. Повертає false, якщо не вистачає — і не змінює
-        /// нічого: ані гаманця, ані запасу.
+        /// нічого: ані гаманця, ані картки товару. Запасу фарб у грі більше немає (Фаза 3),
+        /// тож куплений літр нікуди не потрапляє — екран магазину цей шлях не показує;
+        /// увесь каталог фарб зникає у Фазі 4 разом із цим методом.
         /// </summary>
-        /// <summary>
-        /// Покупка. Якщо передано запас палітри — літри лягають і в нього:
-        /// саме так куплена фарба стає доступною для фарбування зон.
-        /// Невдала покупка не змінює НІЧОГО — ані гаманця, ані запасу.
-        /// </summary>
-        public bool Buy(PaintProduct paint, int liters, Wallet wallet, PaintStock? stock = null)
+        public bool Buy(PaintProduct paint, int liters, Wallet wallet)
         {
             if (liters <= 0)
                 return false;
@@ -220,7 +217,6 @@ namespace InkFlow.Meta
                 return false;
 
             paint.OwnedLiters += liters;
-            stock?.Set(paint.Feeds, stock[paint.Feeds] + liters);
             Purchased?.Invoke(paint, liters);
             return true;
         }

@@ -127,7 +127,7 @@ namespace InkFlow.Tests.Meta
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 2, FirstUtc = Now.ToString("o") });
             save.Profile.AvatarId = 7;
             var migrated = SaveMigrations.Migrate(save);
-            Assert.AreEqual(7, migrated.Version);
+            Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version);
             Assert.IsNotNull(migrated.Run);
             Assert.IsTrue(migrated.Run.IsEmpty, "зліпка забігу в старому файлі не було");
             Assert.AreEqual(1, migrated.Collection.Pictures.Count, "колекція — лише назви, лишається");

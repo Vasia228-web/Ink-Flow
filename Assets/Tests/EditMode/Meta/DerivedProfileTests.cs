@@ -1,3 +1,4 @@
+using System;
 using InkFlow.Core;
 using InkFlow.Meta;
 using NUnit.Framework;
@@ -11,15 +12,21 @@ namespace InkFlow.Tests.Meta
     /// </summary>
     public sealed class DerivedProfileTests
     {
+        private static readonly DateTime Today = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+
         private static PlayerState Fresh() => PlayerState.NewPlayer(EconomyData.Default);
 
+        /// <summary>Збирає стільки картинок, скільки слотів, і ставить їх на планету — вона оживає.</summary>
         private static void CompletePlanet(PlayerState state, int index)
         {
-            var galaxy = GalaxyProgress.CreateMock();
-            var planet = galaxy.Planets[index];
-            var id = GalaxyState.PlanetId(planet.Type);
-            for (var i = 0; i < planet.TotalZones; i++)
-                GalaxyState.Paint(state.Galaxy, id, $"z{i}", PaintKind.Ocean);
+            var planet = state.Layout.Planets[index];
+            for (var i = 0; i < planet.Slots; i++)
+            {
+                var id = $"pic-{index}-{i}";
+                state.CollectPicture(id, Today);
+                Assert.IsTrue(state.TryPlaceInSlot(state.CurrentGalaxy, planet.Id, i, id, Today),
+                    $"{planet.Name}, слот {i}: планета мала б бути відкритою");
+            }
         }
 
         // ── Галактика ──
@@ -27,7 +34,7 @@ namespace InkFlow.Tests.Meta
         [Test]
         public void NewGalaxy_OpensExactlyOnePlanet()
         {
-            var galaxy = GalaxyProgress.FromSave(new GalaxyData());
+            var galaxy = GalaxyProgress.FromSave(new GalaxyData(), GalaxyLayout.Default);
 
             Assert.AreEqual(0, galaxy.DoneCount);
             Assert.AreEqual(0, galaxy.CurrentIndex, "перша планета — поточна");
@@ -45,7 +52,7 @@ namespace InkFlow.Tests.Meta
             var state = Fresh();
             CompletePlanet(state, 0);
 
-            var galaxy = GalaxyProgress.FromSave(state.Galaxy);
+            var galaxy = GalaxyProgress.FromSave(state.Galaxy, state.Layout);
 
             Assert.AreEqual(PlanetState.Done, galaxy.Planets[0].State);
             Assert.AreEqual(PlanetState.Current, galaxy.Planets[1].State);
@@ -55,13 +62,33 @@ namespace InkFlow.Tests.Meta
         public void Galaxy_PartialProgressKeepsThePlanetCurrent()
         {
             var state = Fresh();
-            GalaxyState.Paint(state.Galaxy,
-                GalaxyState.PlanetId(GalaxyProgress.CreateMock().Planets[0].Type), "z0", PaintKind.Ice);
+            state.CollectPicture("whale", Today);
+            state.TryPlaceInSlot(0, state.Layout.Planets[0].Id, 0, "whale", Today);
 
-            var galaxy = GalaxyProgress.FromSave(state.Galaxy);
+            var galaxy = GalaxyProgress.FromSave(state.Galaxy, state.Layout);
 
             Assert.AreEqual(PlanetState.Current, galaxy.Planets[0].State);
-            Assert.AreEqual(1, galaxy.Planets[0].PaintedZones);
+            Assert.AreEqual(1, galaxy.Planets[0].FilledSlots);
+        }
+
+        [Test]
+        public void Galaxy_CompletingEveryPlanetOpensTheNextGalaxy()
+        {
+            var state = Fresh();
+            for (var i = 0; i < state.Layout.Planets.Count; i++)
+                CompletePlanet(state, i);
+
+            Assert.AreEqual(1, state.CurrentGalaxy, "усі планети ожили — Галактика II");
+            var galaxy = GalaxyProgress.FromSave(state.Galaxy, state.Layout);
+            Assert.AreEqual(1, galaxy.Index);
+            Assert.AreEqual(0, galaxy.CurrentIndex, "у новій галактиці відкрита перша планета");
+            Assert.IsTrue(state.CanEditPlanet(1, state.Layout.Planets[0].Id));
+            Assert.IsFalse(state.CanEditPlanet(0, state.Layout.Planets[0].Id), "завершену галактику не редагуємо");
+
+            // Нові слоти потребують нових копій — старі всі зайняті.
+            Assert.IsFalse(state.TryPlaceInSlot(1, state.Layout.Planets[0].Id, 0, "pic-0-0", Today));
+            state.CollectPicture("pic-0-0", Today);
+            Assert.IsTrue(state.TryPlaceInSlot(1, state.Layout.Planets[0].Id, 0, "pic-0-0", Today), "друга копія — слот у другій галактиці");
         }
 
         // ── Звання ──
@@ -126,11 +153,12 @@ namespace InkFlow.Tests.Meta
             for (var i = 0; i < 3; i++)
                 CompletePlanet(state, i);
 
-            var planets = GalaxyState.CompletedPlanets(state.Galaxy, GalaxyProgress.CreateMock());
+            var planets = GalaxyState.CompletedPlanets(state.Galaxy, state.Layout);
             var profile = PlayerProfile.FromState(state);
 
             // Одне джерело: якби хаб і профіль рахували звання окремо, вони
             // розійшлися б на першій же зміні порогів.
+            Assert.AreEqual(3, planets);
             Assert.AreEqual(PlayerRanks.TitleFor(planets), profile.RankTitle);
         }
 
@@ -142,8 +170,21 @@ namespace InkFlow.Tests.Meta
 
             var profile = PlayerProfile.FromState(state);
 
-            var first = profile.Achievements[0];
-            Assert.IsTrue(first.Unlocked, "перша завершена планета — це досягнення");
+            Assert.IsTrue(profile.Achievements[0].Unlocked, "перша ожила планета — це досягнення");
+            Assert.IsTrue(profile.Achievements[1].Unlocked, "картинка в слоті — теж");
+        }
+
+        [Test]
+        public void Profile_CountsCompletedGalaxies()
+        {
+            var state = Fresh();
+            for (var i = 0; i < state.Layout.Planets.Count; i++)
+                CompletePlanet(state, i);
+
+            var profile = PlayerProfile.FromState(state);
+
+            Assert.AreEqual("1", profile.Stats[1].Value, "галактик завершено");
+            Assert.AreEqual(state.Layout.Planets.Count.ToString(), profile.Stats[0].Value, "планет ожило");
         }
 
         // ── Карта рівнів ──
@@ -215,15 +256,16 @@ namespace InkFlow.Tests.Meta
         {
             var state = Fresh();
             state.Progress.EndlessRecord = 3400;
-            state.CollectPicture("whale", System.DateTime.UtcNow);
-            state.CollectPicture("comet", System.DateTime.UtcNow);
+            state.CollectPicture("whale", Today);
+            state.CollectPicture("comet", Today);
             CompletePlanet(state, 0);
 
-            var board = Leaderboard.WithRealPlayer(state, GalaxyProgress.FromSave(state.Galaxy));
+            var board = Leaderboard.WithRealPlayer(state);
 
             Assert.AreEqual(state.Nick, board.You.Nick);
-            Assert.AreEqual(2, board.You.RecordAll, "§10: рекорд колекції, а не очок");
+            Assert.AreEqual(2 + state.Layout.Planets[0].Slots, board.You.RecordAll, "§10: рекорд колекції — різні картинки");
             Assert.AreEqual(1, board.You.PlanetsAll);
+            Assert.AreEqual(0, board.You.GalaxiesAll);
             Assert.IsTrue(board.You.IsYou);
         }
     }

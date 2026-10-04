@@ -493,7 +493,7 @@ namespace InkFlow.Style
         [Tooltip("Назва наступної галактики у прев'ю: 16 px макета.")]
         [SerializeField] private float fontSizeNextGalaxy = 44f;
 
-        [Tooltip("Напис на кнопці «Фарбувати»: 18 px макета.")]
+        [Tooltip("Напис на кнопці «Відкрити» в галактиці й «Колекція» на планеті: 18 px макета.")]
         [SerializeField] private float fontSizePaintButton = 50f;
 
         [Tooltip("Розрядка заголовка галактики: .1em макета (проти .14em у хабі).")]
@@ -990,18 +990,17 @@ namespace InkFlow.Style
         [Tooltip("Швидкість автообертання після завершення планети, градусів/с.")]
         [SerializeField] private float paintAutoSpinSpeed = 12f;
 
-        [Tooltip("Скільки триває розтікання фарби по зоні.")]
-        [SerializeField, Min(0.1f)] private float paintFillDuration = 0.6f;
-
-        [Tooltip("На скільки піднімається обраний зразок фарби: 8 px макета.")]
-        [SerializeField] private float paintSwatchLift = 22f;
-
-        [Tooltip("За скільки літрів мензурка повна.")]
-        [SerializeField, Min(1f)] private float paintBeakerFullLiters = 10f;
-
-        [Tooltip("Прозорість фарби, якої не вистачає. НЕ нуль: фарба лишається " +
-                 "клікабельною, просто притлумленою.")]
-        [SerializeField, Range(0.2f, 1f)] private float paintUnaffordableAlpha = 0.45f;
+        [Tooltip("Радіус слота в px макета для планети з найменшою кількістю слотів і з найбільшою; " +
+                 "між ними — лінійно за кількістю. На планеті з 12 слотами вони мусять бути меншими, щоб не накладались.")]
+        [SerializeField, Range(12f, 60f)] private float slotRadiusFewest = 40f;
+        [SerializeField, Range(12f, 60f)] private float slotRadiusMost = 24f;
+        [Tooltip("Кількості слотів, між якими інтерполюється радіус (дефолтна розкладка: 4 … 12).")]
+        [SerializeField, Min(1)] private int slotCountFewest = 4;
+        [SerializeField, Min(1)] private int slotCountMost = 12;
+        [Tooltip("Картинка в слоті відносно діаметра слота.")]
+        [SerializeField, Range(0.4f, 1f)] private float slotPictureScale = 0.82f;
+        [Tooltip("Прозорість порожнього слота (сіра пляма з пунктиром).")]
+        [SerializeField, Range(0.1f, 1f)] private float slotEmptyAlpha = 0.85f;
 
         [SerializeField] private Color paintLowFill = new Color(1f, 0.42f, 0.54f, 0.16f);
         [SerializeField] private Color paintLowStroke = new Color(1f, 0.42f, 0.54f, 0.45f);
@@ -1018,8 +1017,18 @@ namespace InkFlow.Style
         [SerializeField] private float paintConfettiSize = 60f;
         [SerializeField] private float paintConfettiSpread = 160f;
 
-        [Tooltip("Вісім фарб, СТРОГО в порядку PaintKind.")]
-        [SerializeField] private PaintInfo[] paints = DefaultPaints();
+        [Header("Колекція (§12)")]
+        [Tooltip("Колонок у сітці колекції.")]
+        [SerializeField, Range(2, 4)] private int collectionColumns = 3;
+        [Tooltip("Картка колекції: ширина й висота (панель + підпис), px макета 104 × 128.")]
+        [SerializeField] private float collectionCardWidth = 288f;
+        [SerializeField] private float collectionCardHeight = 354f;
+        [Tooltip("Проміжок між картками: 11 px макета.")]
+        [SerializeField] private float collectionGap = 30f;
+        [Tooltip("Прозорість картки, усі копії якої вже стоять у слотах (режим вибору).")]
+        [SerializeField, Range(0.1f, 1f)] private float collectionUsedAlpha = 0.35f;
+        [SerializeField] private float fontSizeCollectionName = 30f;
+        [SerializeField] private float fontSizeCollectionCount = 27f;
 
         public float BoardPlaceDuration => boardPlaceDuration;
         public float LineClearDuration => lineClearDuration;
@@ -1304,10 +1313,25 @@ namespace InkFlow.Style
         public float PaintRotationPerUnit => paintRotationPerUnit;
         public float PaintRotationDamping => paintRotationDamping;
         public float PaintAutoSpinSpeed => paintAutoSpinSpeed;
-        public float PaintFillDuration => paintFillDuration;
-        public float PaintSwatchLift => paintSwatchLift;
-        public float PaintBeakerFullLiters => paintBeakerFullLiters;
-        public float PaintUnaffordableAlpha => paintUnaffordableAlpha;
+        public float SlotPictureScale => slotPictureScale;
+        public float SlotEmptyAlpha => slotEmptyAlpha;
+
+        /// <summary>Радіус слота (px макета) для планети з такою кількістю слотів: лінійно між двома токенами.</summary>
+        public float SlotRadiusFor(int slotCount)
+        {
+            if (slotCountMost <= slotCountFewest)
+                return slotRadiusFewest;
+            var t = Mathf.InverseLerp(slotCountFewest, slotCountMost, slotCount);
+            return Mathf.Lerp(slotRadiusFewest, slotRadiusMost, t);
+        }
+
+        public int CollectionColumns => collectionColumns;
+        public float CollectionCardWidth => collectionCardWidth;
+        public float CollectionCardHeight => collectionCardHeight;
+        public float CollectionGap => collectionGap;
+        public float CollectionUsedAlpha => collectionUsedAlpha;
+        public float FontSizeCollectionName => fontSizeCollectionName;
+        public float FontSizeCollectionCount => fontSizeCollectionCount;
         public Color PaintLowFill => paintLowFill;
         public Color PaintLowStroke => paintLowStroke;
         public Color PaintLowText => paintLowText;
@@ -1318,30 +1342,6 @@ namespace InkFlow.Style
         public int PaintConfettiCount => paintConfettiCount;
         public float PaintConfettiSize => paintConfettiSize;
         public float PaintConfettiSpread => paintConfettiSpread;
-
-        public Color Paint(PaintKind kind) => PaintAt(kind).Color;
-        public string PaintName(PaintKind kind) => PaintAt(kind).Name;
-
-        private PaintInfo PaintAt(PaintKind kind)
-        {
-            var i = (int)kind;
-            if (paints == null || paints.Length == 0)
-                return default;
-            return paints[i >= 0 && i < paints.Length ? i : 0];
-        }
-
-        /// <summary>Вісім фарб рівно з макета (PLANET_PAINTS).</summary>
-        private static PaintInfo[] DefaultPaints() => new[]
-        {
-            new PaintInfo(Hex("#3B7BFF"), "Океан"),
-            new PaintInfo(Hex("#00D9C0"), "Бірюза"),
-            new PaintInfo(Hex("#3FA34D"), "Ліс"),
-            new PaintInfo(Hex("#DFF1FF"), "Крига"),
-            new PaintInfo(Hex("#E0B46A"), "Пісок"),
-            new PaintInfo(Hex("#FF5A3C"), "Лава"),
-            new PaintInfo(Hex("#FF2D8A"), "Малина"),
-            new PaintInfo(Hex("#9D4DFF"), "Фіолет")
-        };
 
         public float FontSizeGalaxyTitle => fontSizeGalaxyTitle;
         public float FontSizeNextGalaxy => fontSizeNextGalaxy;

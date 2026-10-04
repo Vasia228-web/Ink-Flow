@@ -21,6 +21,7 @@ namespace InkFlow.Editor
     {
         private const string BalanceConfigPath = "Assets/_ScriptableObjects/Balance/BalanceConfig.asset";
         private const string EconomyConfigPath = "Assets/_ScriptableObjects/Balance/EconomyConfig.asset";
+        internal const string GalaxyConfigPath = "Assets/_ScriptableObjects/Balance/GalaxyConfig.asset";
 
         [MenuItem("Ink Flow/Setup/Bootstrap Assets")]
         public static void BootstrapAssets()
@@ -124,7 +125,16 @@ namespace InkFlow.Editor
             EnsureFolder("Assets/_ScriptableObjects/Balance");
             EnsureAsset<BalanceConfig>(BalanceConfigPath);
             EnsureAsset<EconomyConfig>(EconomyConfigPath);
+            EnsureAsset<GalaxyConfig>(GalaxyConfigPath);
             RefreshPictureLibrary.Refresh();
+        }
+
+        /// <summary>Розкладка галактики (§12) з дефолтами — створюється, якщо її ще немає, щоб Build Main Scene не вимагав зайвого кроку.</summary>
+        internal static GalaxyConfig EnsureGalaxyConfig()
+        {
+            EnsureFolder("Assets/_ScriptableObjects/Balance");
+            EnsureAsset<GalaxyConfig>(GalaxyConfigPath);
+            return AssetDatabase.LoadAssetAtPath<GalaxyConfig>(GalaxyConfigPath);
         }
 
         private static void EnsureAsset<T>(string path) where T : ScriptableObject

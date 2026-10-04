@@ -19,11 +19,14 @@ namespace InkFlow.Tests.Meta
 
     /// <summary>
     /// Стан гравця: рантайм — джерело правди, файл — його зліпок.
-    /// Тут доводиться, що зліпок роблять у потрібні моменти й нічого не гублять.
+    /// Тут доводиться, що зліпок роблять у потрібні моменти й нічого не гублять,
+    /// а слоти планет (§12) тримають правило «одна зібрана копія — один слот».
     /// </summary>
     public sealed class PlayerStateTests
     {
         private static readonly DateTime Today = new DateTime(2026, 8, 11, 12, 0, 0, DateTimeKind.Utc);
+
+        private static string Planet(int index) => GalaxyLayout.Default.Planets[index].Id;
 
         [Test]
         public void NewPlayer_StartsAtZero()
@@ -31,10 +34,10 @@ namespace InkFlow.Tests.Meta
             var state = PlayerState.NewPlayer(EconomyData.Default);
 
             Assert.AreEqual(0, state.Wallet.OilDrops);
-            Assert.AreEqual(0f, PaintInventory.TotalLiters(state.Paints), 0.001f);
             Assert.AreEqual(0, LevelProgress.TotalStars(state.Progress));
             Assert.AreEqual(0, state.Progress.EndlessRecord);
-            Assert.AreEqual(0, state.Galaxy.PaintedZones.Count);
+            Assert.AreEqual(0, state.Galaxy.Slots.Count);
+            Assert.AreEqual(0, state.CurrentGalaxy);
             Assert.AreEqual(0, state.DailyLimit.PlaysToday);
             Assert.AreEqual(ProfileData.DefaultNick, state.Nick);
         }
@@ -44,11 +47,9 @@ namespace InkFlow.Tests.Meta
         {
             // Грант вимкнено за замовчуванням, але вмикається одним числом
             // у конфізі — перевіряємо, що поле справді працює.
-            var economy = new EconomyData(starterOil: 150, starterPaintLiters: 2f);
-            var state = PlayerState.NewPlayer(economy);
+            var state = PlayerState.NewPlayer(new EconomyData(starterOil: 150));
 
             Assert.AreEqual(150, state.Wallet.OilDrops);
-            Assert.AreEqual(2f, state.Paints[PaintKind.Ocean], 0.001f);
         }
 
         [Test]
@@ -90,39 +91,92 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(0, state.Wallet.OilDrops);
         }
 
+        // ── Слоти планет (§12) ──
+
         [Test]
-        public void PaintZone_SpendsLitresAndRecordsTheFact()
+        public void PlaceInSlot_NeedsAFreeCopy_OneCopyOneSlot()
         {
             var storage = new MemoryStorage();
             var state = PlayerState.NewPlayer(EconomyData.Default, storage);
-            state.Paints.Set(PaintKind.Ice, 3f);
 
-            var surface = PlanetSurface.CreateTerra();
-            var zone = surface.Find("z8")!;
+            Assert.IsFalse(state.TryPlaceInSlot(0, Planet(0), 0, "whale", Today), "незібране ставити нікуди");
 
-            Assert.IsTrue(state.PaintZone(surface, zone, PaintKind.Ice));
-            Assert.AreEqual(3f - zone.Cost, state.Paints[PaintKind.Ice], 0.001f);
-            Assert.AreEqual(PaintKind.Ice, zone.Painted);
-            Assert.IsTrue(GalaxyState.IsPainted(state.Galaxy,
-                GalaxyState.PlanetId(surface.Type), "z8"));
-            Assert.AreEqual(1, storage.Writes);
+            state.CollectPicture("whale", Today);
+            Assert.IsTrue(state.TryPlaceInSlot(0, Planet(0), 0, "whale", Today));
+            Assert.AreEqual(0, state.FreeCopies("whale"));
+            Assert.IsFalse(state.TryPlaceInSlot(0, Planet(0), 1, "whale", Today), "одна копія — один слот");
+
+            state.CollectPicture("whale", Today);
+            Assert.IsTrue(state.TryPlaceInSlot(0, Planet(0), 1, "whale", Today), "друга копія — другий слот");
+            Assert.AreEqual(2, GalaxyState.FilledCount(state.Galaxy, 0, Planet(0)));
+            Assert.AreEqual(4, storage.Writes, "кожне збирання й кожна постановка — у файл одразу");
         }
 
         [Test]
-        public void PaintZone_WithoutEnoughPaintChangesNothing()
+        public void PlaceInSlot_ReplacingFreesTheOldCopy()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            state.CollectPicture("whale", Today);
+            state.CollectPicture("comet", Today);
+            Assert.IsTrue(state.TryPlaceInSlot(0, Planet(0), 0, "whale", Today));
+
+            Assert.IsTrue(state.TryPlaceInSlot(0, Planet(0), 0, "comet", Today), "зайнятий слот — заміна");
+
+            Assert.AreEqual("comet", GalaxyState.PictureAt(state.Galaxy, 0, Planet(0), 0));
+            Assert.AreEqual(1, state.FreeCopies("whale"), "кит повернувся в колекцію");
+            Assert.IsTrue(state.TryPlaceInSlot(0, Planet(0), 0, "comet", Today), "те саме в тому самому слоті — нічого не міняє");
+        }
+
+        [Test]
+        public void PlaceInSlot_OnlyOnOpenPlanets()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            state.CollectPicture("whale", Today);
+
+            Assert.IsFalse(state.CanEditPlanet(0, Planet(1)), "друга планета замкнена, поки перша не ожила");
+            Assert.IsFalse(state.TryPlaceInSlot(0, Planet(1), 0, "whale", Today));
+            Assert.AreEqual(1, state.FreeCopies("whale"), "невдала постановка копію не займає");
+
+            var first = state.Layout.Planets[0];
+            for (var i = 0; i < first.Slots; i++)
+            {
+                state.CollectPicture($"p{i}", Today);
+                Assert.IsTrue(state.TryPlaceInSlot(0, first.Id, i, $"p{i}", Today));
+            }
+
+            Assert.IsTrue(state.CanEditPlanet(0, Planet(1)), "усі слоти першої зайняті — друга відкрилась");
+            Assert.IsTrue(state.TryPlaceInSlot(0, Planet(1), 0, "whale", Today));
+            Assert.IsFalse(state.CanEditPlanet(0, Planet(2)));
+        }
+
+        [Test]
+        public void PlaceInSlot_OnlyInTheCurrentGalaxy_AndOnlyRealSlots()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            state.CollectPicture("whale", Today);
+
+            Assert.IsFalse(state.TryPlaceInSlot(1, Planet(0), 0, "whale", Today), "Галактика II ще не відкрита");
+            Assert.IsFalse(state.TryPlaceInSlot(0, Planet(0), 99, "whale", Today), "такого слота немає");
+            Assert.IsFalse(state.TryPlaceInSlot(0, "Mars", 0, "whale", Today), "такої планети немає");
+            Assert.AreEqual(0, state.Galaxy.Slots.Count);
+        }
+
+        [Test]
+        public void ClearSlot_ReturnsTheCopyToTheCollection()
         {
             var storage = new MemoryStorage();
             var state = PlayerState.NewPlayer(EconomyData.Default, storage);
-            state.Paints.Set(PaintKind.Ocean, 0.5f);
+            state.CollectPicture("whale", Today);
+            state.TryPlaceInSlot(0, Planet(0), 0, "whale", Today);
+            var writes = storage.Writes;
 
-            var surface = PlanetSurface.CreateTerra();
-            var zone = surface.Find("z3")!;
+            Assert.IsTrue(state.ClearSlot(0, Planet(0), 0));
 
-            Assert.IsFalse(state.PaintZone(surface, zone, PaintKind.Ocean));
-            Assert.AreEqual(0.5f, state.Paints[PaintKind.Ocean], 0.001f, "літри не мали списатись");
-            Assert.IsNull(zone.Painted);
-            Assert.AreEqual(0, state.Galaxy.PaintedZones.Count);
-            Assert.AreEqual(0, storage.Writes, "невдала дія не пише файл");
+            Assert.AreEqual(1, state.FreeCopies("whale"));
+            Assert.IsNull(GalaxyState.PictureAt(state.Galaxy, 0, Planet(0), 0));
+            Assert.AreEqual(writes + 1, storage.Writes);
+            Assert.IsFalse(state.ClearSlot(0, Planet(0), 0), "порожній слот");
+            Assert.AreEqual(writes + 1, storage.Writes, "невдала дія не пише файл");
         }
 
         [Test]
@@ -132,14 +186,11 @@ namespace InkFlow.Tests.Meta
             var state = PlayerState.NewPlayer(EconomyData.Default, storage);
 
             state.Wallet.Add(500, RewardSource.Debug);
-            state.Paints.Set(PaintKind.Lava, 4f);
             state.Nick = "Нова";
             state.Persist();
 
             var file = storage.Written!;
             Assert.AreEqual(500, file.Wallet.OilDrops);
-            Assert.AreEqual(1, file.Paints.Stacks.Count);
-            Assert.AreEqual("Lava", file.Paints.Stacks[0].PaintId);
             Assert.AreEqual("Нова", file.Profile.Nick);
         }
 
@@ -149,14 +200,16 @@ namespace InkFlow.Tests.Meta
             var storage = new MemoryStorage();
             var before = PlayerState.NewPlayer(EconomyData.Default, storage);
             before.Wallet.Add(120, RewardSource.Debug);
-            before.Paints.Set(PaintKind.Berry, 2.5f);
+            before.CollectPicture("whale", Today);
+            before.TryPlaceInSlot(0, Planet(0), 3, "whale", Today);
             LevelProgress.Record(before.Progress, 3, 2);
             before.Persist();
 
             var after = new PlayerState(storage.Written!, EconomyData.Default, storage);
 
             Assert.AreEqual(120, after.Wallet.OilDrops);
-            Assert.AreEqual(2.5f, after.Paints[PaintKind.Berry], 0.001f);
+            Assert.AreEqual("whale", GalaxyState.PictureAt(after.Galaxy, 0, Planet(0), 3));
+            Assert.AreEqual(0, after.FreeCopies("whale"));
             Assert.AreEqual(2, LevelProgress.StarsFor(after.Progress, 3));
         }
 
@@ -204,7 +257,7 @@ namespace InkFlow.Tests.Meta
         {
             var tracker = new DailyLimitTracker();
 
-            tracker.Restore(10, DateTime.UtcNow.Date.AddDays(-3).ToString("yyyy-MM-dd"));
+            tracker.Restore(10, DateTime.UtcNow.Date.AddDays(-3).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
 
             Assert.AreEqual(0, tracker.PlaysToday, "учорашні партії не рахуються сьогодні");
         }

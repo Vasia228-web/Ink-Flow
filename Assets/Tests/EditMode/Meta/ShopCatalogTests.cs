@@ -143,34 +143,6 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void Buy_AddsLitresToThePaletteStock()
-        {
-            var catalog = ShopCatalog.CreateMock();
-            var wallet = new Wallet(1000);
-            var stock = new PaintStock();
-            var paint = catalog.Find("b_b")!;
-
-            Assert.IsTrue(catalog.Buy(paint, 2, wallet, stock));
-
-            Assert.AreEqual(2f, stock[paint.Feeds], 0.001f,
-                "куплені літри мусять лягти саме в тон, який товар поповнює");
-        }
-
-        [Test]
-        public void Buy_FailingLeavesTheStockUntouched()
-        {
-            var catalog = ShopCatalog.CreateMock();
-            var wallet = new Wallet(1);
-            var stock = new PaintStock();
-            var paint = catalog.Find("b_b")!;
-
-            Assert.IsFalse(catalog.Buy(paint, 5, wallet, stock));
-
-            Assert.AreEqual(0f, stock[paint.Feeds], 0.001f);
-            Assert.AreEqual(1, wallet.OilDrops);
-        }
-
-        [Test]
         public void BeakerCapacity_IsPositive()
         {
             // Нуль тут дав би ділення на нуль у розрахунку рівня мензурки.

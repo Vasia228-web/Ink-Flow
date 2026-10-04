@@ -25,8 +25,8 @@ namespace InkFlow.Editor
         private const int LevelsPerDay = 8;         // скільки рівнів проходить за сесію
         private const int AverageStars = 2;         // типовий результат казуального гравця
         private const int BossEveryNLevels = 10;
-        private const float PaintLitersPerZone = 2f;
-        private const long PaintCostPerLiter = 40;  // базовий тір
+        /// <summary>Гравець витрачає нафту на «домалювати одразу» звичайну картинку (§13); Фаза 4 переведе симулятор на забіги.</summary>
+        private const long SpendPerAction = 40;
 
         [MenuItem("Ink Flow/Simulate/Economy (30 days)")]
         public static void Simulate()
@@ -36,7 +36,7 @@ namespace InkFlow.Editor
             var rewards = new RewardCalculator();
 
             var csv = new StringBuilder();
-            csv.AppendLine("day,earned,spent,balance,zones_painted,plays");
+            csv.AppendLine("day,earned,spent,balance,pictures_finished,plays");
 
             var day = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
             var levelId = 1;
@@ -59,12 +59,11 @@ namespace InkFlow.Editor
                     levelId++;
                 }
 
-                // Гравець витрачає все, на що вистачає: фарбує зони планет.
+                // Гравець витрачає все, на що вистачає: домальовує картинки за нафту.
                 var spentToday = 0L;
-                var zoneCost = (long)(PaintLitersPerZone * PaintCostPerLiter);
-                while (wallet.TrySpend(zoneCost))
+                while (wallet.TrySpend(SpendPerAction))
                 {
-                    spentToday += zoneCost;
+                    spentToday += SpendPerAction;
                     totalZones++;
                 }
 
@@ -75,7 +74,7 @@ namespace InkFlow.Editor
             System.IO.File.WriteAllText(System.IO.Path.GetFullPath(OutputPath), csv.ToString());
             AssetDatabase.Refresh();
 
-            Debug.Log($"[InkFlow] Економіка за {DaysToSimulate} днів: пофарбовано {totalZones} зон, " +
+            Debug.Log($"[InkFlow] Економіка за {DaysToSimulate} днів: домальовано {totalZones} картинок, " +
                       $"залишок {wallet.OilDrops} крапель. Звіт: Tools/economy-report.csv");
         }
     }

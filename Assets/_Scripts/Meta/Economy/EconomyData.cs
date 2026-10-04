@@ -13,7 +13,6 @@ namespace InkFlow.Meta
     {
         public EconomyData(
             long starterOil = 0,
-            float starterPaintLiters = 0f,
             long baseLevelReward = 20,
             int bossMultiplier = 3,
             int fullRewardPlays = 10,
@@ -24,8 +23,12 @@ namespace InkFlow.Meta
             int interstitialEveryRuns = 4,
             int rewardAdMultiplier = 2,
             long[]? finishPictureCosts = null,
-            float finishPictureMinShare = 0.25f)
+            float finishPictureMinShare = 0.25f,
+            long paintRefundOilPerLiter = 12)
         {
+            if (paintRefundOilPerLiter < 0)
+                throw new ArgumentOutOfRangeException(nameof(paintRefundOilPerLiter));
+            PaintRefundOilPerLiter = paintRefundOilPerLiter;
             FinishPictureCosts = finishPictureCosts ?? DefaultFinishPictureCosts();
             if (FinishPictureCosts.Length != Core.Rarities.Count)
                 throw new ArgumentOutOfRangeException(nameof(finishPictureCosts), "Шість цін: звичайна … космічна.");
@@ -45,7 +48,6 @@ namespace InkFlow.Meta
             if (PictureRewards.Length != Core.Rarities.Count)
                 throw new ArgumentOutOfRangeException(nameof(pictureRewards), "Шість виплат: звичайна … космічна.");
             StarterOil = starterOil;
-            StarterPaintLiters = starterPaintLiters;
             BaseLevelReward = baseLevelReward;
             BossMultiplier = bossMultiplier;
             FullRewardPlays = fullRewardPlays;
@@ -54,15 +56,16 @@ namespace InkFlow.Meta
         }
 
         /// <summary>
-        /// Скільки нафти має новий гравець. НУЛЬ свідомо: перший пройдений рівень
-        /// дає 20, найдешевша фарба коштує 12 за літр, найдешевша зона — 1 літр.
-        /// Тобто цикл «граю → купую → фарбую» замикається за одну партію, і гравець
-        /// бачить зв'язок між ними. Стартовий грант цей момент прибрав би.
+        /// Скільки нафти має новий гравець. НУЛЬ свідомо: нафту заробляють забігом,
+        /// і гравець бачить зв'язок «граю → заробляю → витрачаю». Стартовий грант цей момент прибрав би.
         /// </summary>
         public long StarterOil { get; }
 
-        /// <summary>Скільки літрів базової фарби має новий гравець. Теж нуль — з тієї ж причини.</summary>
-        public float StarterPaintLiters { get; }
+        /// <summary>
+        /// Міграція v8 (Фаза 3): літри фарби повертаються нафтою за цим курсом — стільки коштувала
+        /// найдешевша фарба за літр, тож ніхто не втрачає вкладене. Після міграції не використовується.
+        /// </summary>
+        public long PaintRefundOilPerLiter { get; }
 
         /// <summary>База нагороди за рівень: множиться на зірки й денний коефіцієнт.</summary>
         public long BaseLevelReward { get; }

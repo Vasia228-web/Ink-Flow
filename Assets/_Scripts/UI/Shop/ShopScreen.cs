@@ -126,29 +126,12 @@ namespace InkFlow.UI
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            _oilTab = (args as ShopArgs)?.OilTab ?? false;
+            // Фаза 3: економіки фарби більше немає, тож вкладка «Фарби» схована, і магазин
+            // відкривається одразу на нафті. Фаза 4 перебудує екран цілком (§13).
+            _oilTab = true;
             _catalog = ShopCatalog.CreateMock();
             _wallet = State?.Wallet ?? new Wallet(mockOil);
-            SyncOwnedFromState();
             Apply();
-        }
-
-        /// <summary>
-        /// Переносить залишки палітри у картки товарів. Мензурка на картці
-        /// показує запас ТОНУ, який ця фарба поповнює: у гравця в палітрі
-        /// вісім кольорів, а товарів дев'ятнадцять.
-        /// </summary>
-        private void SyncOwnedFromState()
-        {
-            if (State == null || _catalog == null)
-                return;
-
-            for (var s = 0; s < _catalog.Sections.Count; s++)
-            {
-                var items = _catalog.Sections[s].Items;
-                for (var i = 0; i < items.Count; i++)
-                    items[i].OwnedLiters = State.Paints[items[i].Feeds];
-            }
         }
 
         public void Apply()
@@ -199,8 +182,11 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            Toggle(paintTabRoot, !_oilTab);
-            Toggle(oilTabRoot, _oilTab);
+            // Вкладки фарб немає (Фаза 3): її кнопка схована, вміст — ніколи не показується.
+            _oilTab = true;
+            Toggle(paintTabButton, false);
+            Toggle(paintTabRoot, false);
+            Toggle(oilTabRoot, true);
 
             // Активна капсула — градієнт маджента → фіолет, неактивна прозора.
             if (paintTabFill != null)
@@ -414,7 +400,7 @@ namespace InkFlow.UI
                 return;
 
             var liters = ShopCatalog.Quantities[_quantityIndex].Liters;
-            if (!_catalog.Buy(_buying, liters, _wallet, State?.Paints))
+            if (!_catalog.Buy(_buying, liters, _wallet))
             {
                 // Не вистачило — ведемо в «Нафту», а не мовчимо.
                 CloseSheet();

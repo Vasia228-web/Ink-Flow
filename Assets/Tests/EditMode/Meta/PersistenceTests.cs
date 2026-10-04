@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using InkFlow.Core;
 using InkFlow.Meta;
 using NUnit.Framework;
@@ -6,153 +8,184 @@ namespace InkFlow.Tests.Meta
 {
     /// <summary>
     /// Перенесення стану гравця у файл і назад. Головне, що тут доводиться:
-    /// зіпсований або старий файл не має ронити гру, а нульові залишки не мають
-    /// його роздувати.
+    /// слоти планет (§12) читаються й пишуться без втрат, старий файл з фарбою й
+    /// розміщеннями відкривається, а гравець не губить ані картинок, ані нафти.
     /// </summary>
     public sealed class PersistenceTests
     {
-        // ── Фарби ──
+        private static readonly DateTime Now = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        private static readonly GalaxyLayout Layout = GalaxyLayout.Default;
 
-        [Test]
-        public void Paints_SurviveARoundTrip()
+        private static string Planet(int index) => Layout.Planets[index].Id;
+
+        private static void FillPlanet(GalaxyData data, int galaxy, int planetIndex)
         {
-            var stock = new PaintStock();
-            stock.Set(PaintKind.Ocean, 6f);
-            stock.Set(PaintKind.Violet, 0.5f);
-
-            var data = new PaintsData();
-            PaintInventory.Save(stock, data);
-            var restored = PaintInventory.Load(data);
-
-            Assert.AreEqual(6f, restored[PaintKind.Ocean], 0.001f);
-            Assert.AreEqual(0.5f, restored[PaintKind.Violet], 0.001f);
-            Assert.AreEqual(0f, restored[PaintKind.Lava], 0.001f);
+            var planet = Layout.Planets[planetIndex];
+            for (var i = 0; i < planet.Slots; i++)
+                GalaxyState.Set(data, galaxy, planet.Id, i, $"pic-{galaxy}-{planetIndex}-{i}", Now);
         }
 
-        [Test]
-        public void Paints_DoNotStoreEmptyStacks()
-        {
-            var stock = new PaintStock();
-            stock.Set(PaintKind.Ice, 2f);
-
-            var data = new PaintsData();
-            PaintInventory.Save(stock, data);
-
-            // Вісім записів на кожного гравця, з яких сім порожні, — саме те,
-            // від чого файл росте без причини.
-            Assert.AreEqual(1, data.Stacks.Count);
-            Assert.AreEqual("Ice", data.Stacks[0].PaintId);
-        }
+        // ── Слоти ──
 
         [Test]
-        public void Paints_IgnoreUnknownIdsInsteadOfThrowing()
-        {
-            var data = new PaintsData();
-            data.Stacks.Add(new PaintStack { PaintId = "Плазма", Liters = 5f });
-            data.Stacks.Add(new PaintStack { PaintId = "Ocean", Liters = 3f });
-            data.Stacks.Add(new PaintStack { PaintId = "", Liters = 9f });
-
-            var stock = PaintInventory.Load(data);
-
-            Assert.AreEqual(3f, stock[PaintKind.Ocean], 0.001f);
-            Assert.AreEqual(3f, PaintInventory.TotalLiters(stock), 0.001f);
-        }
-
-        [Test]
-        public void Paints_IdIsNameNotIndex()
-        {
-            // Числовий ідентифікатор поїхав би при вставці фарби в середину
-            // переліку — у гравця мовчки змінився б колір палітри.
-            Assert.AreEqual("Ocean", PaintInventory.IdOf(PaintKind.Ocean));
-            Assert.AreEqual("Violet", PaintInventory.IdOf(PaintKind.Violet));
-        }
-
-        [Test]
-        public void Paints_CountDistinct()
-        {
-            var stock = new PaintStock();
-            Assert.AreEqual(0, PaintInventory.DistinctPaints(stock));
-
-            stock.Set(PaintKind.Sand, 1f);
-            stock.Set(PaintKind.Berry, 0.5f);
-            Assert.AreEqual(2, PaintInventory.DistinctPaints(stock));
-        }
-
-        // ── Зони галактики ──
-
-        [Test]
-        public void Galaxy_RecordsAndReadsPaintedZone()
+        public void Slots_SetReadsBackAndReplaces()
         {
             var data = new GalaxyData();
-            var planet = GalaxyState.PlanetId(PlanetType.Earth);
 
-            Assert.IsTrue(GalaxyState.Paint(data, planet, "z8", PaintKind.Ice));
-            Assert.IsTrue(GalaxyState.IsPainted(data, planet, "z8"));
-            Assert.IsFalse(GalaxyState.IsPainted(data, planet, "z1"));
+            Assert.IsTrue(GalaxyState.Set(data, 0, Planet(0), 0, "whale", Now), "перший запис у порожній слот");
+            Assert.AreEqual("whale", GalaxyState.PictureAt(data, 0, Planet(0), 0));
+            Assert.IsNull(GalaxyState.PictureAt(data, 0, Planet(0), 1));
+
+            Assert.IsFalse(GalaxyState.Set(data, 0, Planet(0), 0, "comet", Now), "заміна — не нова постановка");
+            Assert.AreEqual("comet", GalaxyState.PictureAt(data, 0, Planet(0), 0));
+            Assert.AreEqual(1, data.Slots.Count, "заміна перезаписує запис, а не додає другий");
         }
 
         [Test]
-        public void Galaxy_RepaintReplacesInsteadOfAppending()
+        public void Slots_ClearFreesTheSlot()
         {
             var data = new GalaxyData();
-            var planet = GalaxyState.PlanetId(PlanetType.Earth);
+            GalaxyState.Set(data, 0, Planet(0), 2, "whale", Now);
 
-            GalaxyState.Paint(data, planet, "z3", PaintKind.Ocean);
-            var addedAgain = GalaxyState.Paint(data, planet, "z3", PaintKind.Lava);
-
-            Assert.IsFalse(addedAgain, "друге фарбування тієї самої зони — не нова зона");
-            Assert.AreEqual(1, data.PaintedZones.Count);
-            Assert.AreEqual("Lava", data.PaintedZones[0].PaintId);
+            Assert.IsTrue(GalaxyState.Clear(data, 0, Planet(0), 2));
+            Assert.IsNull(GalaxyState.PictureAt(data, 0, Planet(0), 2));
+            Assert.IsFalse(GalaxyState.Clear(data, 0, Planet(0), 2), "порожній слот знімати нічого");
         }
 
         [Test]
-        public void Galaxy_ApplyPutsSavedPaintOntoAFreshSurface()
+        public void Slots_CountCopiesAcrossGalaxies()
         {
             var data = new GalaxyData();
-            var planet = GalaxyState.PlanetId(PlanetType.Earth);
-            GalaxyState.Paint(data, planet, "z1", PaintKind.Ice);
-            GalaxyState.Paint(data, planet, "z8", PaintKind.Forest);
+            GalaxyState.Set(data, 0, Planet(0), 0, "whale", Now);
+            GalaxyState.Set(data, 0, Planet(1), 0, "whale", Now);
+            GalaxyState.Set(data, 1, Planet(0), 0, "whale", Now);
+            GalaxyState.Set(data, 0, Planet(0), 1, "comet", Now);
 
-            var surface = PlanetSurface.CreateTerra();
-            Assert.AreEqual(0, surface.PaintedCount, "розкладка приходить сірою");
-
-            GalaxyState.Apply(surface, data);
-
-            Assert.AreEqual(2, surface.PaintedCount);
-            Assert.AreEqual(PaintKind.Ice, surface.Find("z1")!.Painted);
-            Assert.AreEqual(PaintKind.Forest, surface.Find("z8")!.Painted);
+            Assert.AreEqual(3, GalaxyState.PlacedCopies(data, "whale"), "копії рахуються в усіх галактиках");
+            Assert.AreEqual(1, GalaxyState.PlacedCopies(data, "comet"));
+            Assert.AreEqual(0, GalaxyState.PlacedCopies(data, "owl"));
+            Assert.AreEqual(4, GalaxyState.TotalFilled(data));
+            Assert.AreEqual(2, GalaxyState.FilledCount(data, 0, Planet(0)));
+            Assert.AreEqual(1, GalaxyState.MaxGalaxy(data));
         }
 
         [Test]
-        public void Galaxy_ApplyClearsStalePaintFromAReusedSurface()
-        {
-            var surface = PlanetSurface.CreateTerra();
-            GalaxyState.Apply(surface, null);
-            surface.Find("z1")!.Painted = PaintKind.Lava;
-
-            // Та сама розкладка переиспользується між заходами на екран —
-            // якби Apply не чистив, чужа фарба лишалась би на ній назавжди.
-            GalaxyState.Apply(surface, new GalaxyData());
-
-            Assert.AreEqual(0, surface.PaintedCount);
-        }
-
-        [Test]
-        public void Galaxy_CountsCompletedPlanets()
+        public void Slots_ApplyPutsSavedPicturesOntoAFreshSurface()
         {
             var data = new GalaxyData();
-            var galaxy = GalaxyProgress.CreateMock();
-            Assert.AreEqual(0, GalaxyState.CompletedPlanets(data, galaxy));
+            GalaxyState.Set(data, 0, Planet(0), 2, "whale", Now);
 
-            var first = galaxy.Planets[0];
-            var id = GalaxyState.PlanetId(first.Type);
-            for (var i = 0; i < first.TotalZones; i++)
-                GalaxyState.Paint(data, id, $"z{i}", PaintKind.Ocean);
+            var surface = PlanetSurface.For(Layout, PlanetType.Ocean);
+            Assert.AreEqual(0, surface.FilledCount, "розкладка приходить порожньою");
 
-            Assert.AreEqual(1, GalaxyState.CompletedPlanets(data, galaxy));
+            GalaxyState.Apply(surface, data, 0);
+            Assert.AreEqual("whale", surface.Find(2)!.PictureId);
+            Assert.AreEqual(1, surface.FilledCount);
+
+            // Та сама поверхня переиспользується між заходами на екран — Apply чистить чуже.
+            GalaxyState.Apply(surface, new GalaxyData(), 0);
+            Assert.AreEqual(0, surface.FilledCount);
         }
 
-        // ── Міграції ──
+        [Test]
+        public void Slots_PlanetCompletesWhenEverySlotIsFilled()
+        {
+            var data = new GalaxyData();
+            Assert.AreEqual(0, GalaxyState.CurrentPlanetIndex(data, 0, Layout));
+
+            FillPlanet(data, 0, 0);
+
+            Assert.IsTrue(GalaxyState.IsPlanetComplete(data, 0, Layout.Planets[0]));
+            Assert.AreEqual(1, GalaxyState.CurrentPlanetIndex(data, 0, Layout), "наступна планета відкрилась");
+            Assert.AreEqual(1, GalaxyState.CompletedPlanets(data, Layout));
+            Assert.AreEqual(0, GalaxyState.CompletedGalaxies(data, Layout));
+        }
+
+        [Test]
+        public void Slots_GalaxyCompletesAndTheNextOneOpens()
+        {
+            var data = new GalaxyData();
+            for (var p = 0; p < Layout.Planets.Count; p++)
+                FillPlanet(data, 0, p);
+
+            Assert.IsTrue(GalaxyState.IsGalaxyComplete(data, 0, Layout));
+            Assert.AreEqual(1, GalaxyState.CompletedGalaxies(data, Layout));
+            Assert.AreEqual(1, GalaxyState.CurrentGalaxy(data, Layout), "Галактика II — поточна");
+            Assert.AreEqual(Layout.Planets.Count, GalaxyState.CompletedPlanets(data, Layout));
+            Assert.AreEqual(0, GalaxyState.CurrentPlanetIndex(data, 1, Layout), "у новій галактиці все з нуля");
+            Assert.AreEqual(Layout.SlotsPerGalaxy, GalaxyState.TotalFilled(data));
+        }
+
+        [Test]
+        public void Slots_RememberWhenInIsoUtc()
+        {
+            var data = new GalaxyData();
+            GalaxyState.Set(data, 0, Planet(0), 0, "whale", Now);
+
+            var parsed = DateTime.Parse(data.Slots[0].FilledUtc, CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+
+            Assert.AreEqual(Now, parsed, "час постановки — для тижневого рейтингу (§16)");
+        }
+
+        // ── Міграція v7 → v8 ──
+
+        [Test]
+        public void Migration_V7_TurnsPlacementsIntoSlotsInOrder()
+        {
+            var save = new SaveFile { Version = 7 };
+            var earth = GalaxyState.PlanetId(PlanetType.Earth);
+            var earthSlots = Layout.Find(earth)!.Slots;
+            // Більше розміщень, ніж слотів, плюс планета, якої в розкладці немає.
+            for (var i = 0; i < earthSlots + 2; i++)
+                save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = $"pic{i}", Longitude = i, Latitude = -i });
+            save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = "Mars", PictureId = "whale" });
+
+            var migrated = SaveMigrations.Migrate(save);
+
+            Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version);
+            Assert.AreEqual(earthSlots, GalaxyState.FilledCount(migrated.Galaxy, 0, earth), "зайві розміщення не влазять — вони лишаються в колекції");
+            Assert.AreEqual("pic0", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, 0), "порядок додавання збережено");
+            Assert.AreEqual($"pic{earthSlots - 1}", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, earthSlots - 1));
+            Assert.AreEqual(0, migrated.Galaxy.Placements.Count, "старий список спорожнено");
+            Assert.AreEqual(string.Empty, migrated.Galaxy.Slots[0].FilledUtc, "час постановки невідомий — не «зараз»");
+            Assert.AreEqual(0, GalaxyState.FilledCount(migrated.Galaxy, 0, "Mars"), "невідома планета пропускається, а не ламає міграцію");
+        }
+
+        [Test]
+        public void Migration_V7_RefundsLitresAsOil()
+        {
+            var save = new SaveFile { Version = 7 };
+            save.Wallet.OilDrops = 100;
+            save.Paints.Stacks.Add(new PaintStack { PaintId = "Ocean", Liters = 2.5f });
+            save.Paints.Stacks.Add(new PaintStack { PaintId = "Ice", Liters = 1f });
+
+            var migrated = SaveMigrations.Migrate(save);
+
+            Assert.AreEqual(100 + 42, migrated.Wallet.OilDrops, "3.5 л × 12 нафти за літр, униз");
+            Assert.AreEqual(0, migrated.Paints.Stacks.Count);
+
+            var custom = new SaveFile { Version = 7 };
+            custom.Paints.Stacks.Add(new PaintStack { PaintId = "Ocean", Liters = 2f });
+            var context = new MigrationContext(economy: new EconomyData(paintRefundOilPerLiter: 20));
+            Assert.AreEqual(40, SaveMigrations.Migrate(custom, context).Wallet.OilDrops, "курс — з конфігу");
+        }
+
+        [Test]
+        public void Migration_V7_DropsPaintedZonesButKeepsTheCollection()
+        {
+            var save = new SaveFile { Version = 7 };
+            save.Galaxy.PaintedZones.Add(new PaintedZone { PlanetId = "Earth", ZoneId = "z1", PaintId = "Ocean" });
+            save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 2, FirstUtc = Now.ToString("o") });
+            save.Progress.EndlessRecord = 4321;
+
+            var migrated = SaveMigrations.Migrate(save);
+
+            Assert.AreEqual(0, migrated.Galaxy.PaintedZones.Count, "ожилою планету робить лише заповнена вітрина");
+            Assert.AreEqual(1, migrated.Collection.Pictures.Count);
+            Assert.AreEqual(2, migrated.Collection.Pictures[0].Count);
+            Assert.AreEqual(4321, migrated.Progress.EndlessRecord);
+        }
 
         [Test]
         public void Migration_FromV2_AddsDefaultNick()
@@ -185,8 +218,7 @@ namespace InkFlow.Tests.Meta
 
             Assert.AreEqual(SaveFile.CurrentVersion, save.Version);
             Assert.AreEqual(0, save.Wallet.OilDrops);
-            Assert.AreEqual(0, save.Paints.Stacks.Count);
-            Assert.AreEqual(0, save.Galaxy.PaintedZones.Count);
+            Assert.AreEqual(0, save.Galaxy.Slots.Count);
             Assert.AreEqual(0, save.Progress.Levels.Count);
             Assert.AreEqual(0, save.Progress.EndlessRecord);
             Assert.AreEqual(ProfileData.DefaultNick, save.Profile.Nick);
@@ -197,37 +229,21 @@ namespace InkFlow.Tests.Meta
         [Test]
         public void Economy_StartsEmptyByDesign()
         {
-            var economy = EconomyData.Default;
-
-            Assert.AreEqual(0, economy.StarterOil);
-            Assert.AreEqual(0f, economy.StarterPaintLiters);
+            Assert.AreEqual(0, EconomyData.Default.StarterOil);
         }
 
         [Test]
-        public void Economy_FirstLevelPaysForTheFirstLitreAndZone()
+        public void Economy_RefundCoversTheCheapestPaint()
         {
-            var economy = EconomyData.Default;
-            var rewards = new RewardCalculator(economy);
             var catalog = ShopCatalog.CreateMock();
-
-            var oneStar = rewards.ForLevel(new GameResult(1, won: true, stars: 1), 1f);
-
-            var cheapestPaint = int.MaxValue;
+            var cheapest = int.MaxValue;
             foreach (var section in catalog.Sections)
                 foreach (var item in section.Items)
-                    if (item.PricePerLiter < cheapestPaint)
-                        cheapestPaint = item.PricePerLiter;
+                    if (item.PricePerLiter < cheapest)
+                        cheapest = item.PricePerLiter;
 
-            var cheapestZone = int.MaxValue;
-            foreach (var zone in PlanetSurface.CreateTerra().Zones)
-                if (zone.Cost < cheapestZone)
-                    cheapestZone = zone.Cost;
-
-            // Це і є обґрунтування StarterOil = 0: одна партія на одну зірку
-            // покриває літр фарби, а літра вистачає на найдешевшу зону.
-            Assert.GreaterOrEqual(oneStar, cheapestPaint * cheapestZone,
-                $"рівень дає {oneStar}, а {cheapestZone} л по {cheapestPaint} коштують " +
-                $"{cheapestPaint * cheapestZone} — новачок застряг би без гранту");
+            // Хто купував фарбу за нафту, отримує назад щонайменше те, що заплатив за найдешевшу.
+            Assert.GreaterOrEqual(EconomyData.Default.PaintRefundOilPerLiter, cheapest);
         }
     }
 }

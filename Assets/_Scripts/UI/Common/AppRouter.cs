@@ -27,7 +27,8 @@ namespace InkFlow.UI
         [SerializeField] private ComingSoonScreen comingSoon;
         [SerializeField] private EndlessScreen endless;
         [SerializeField] private GalaxyScreen galaxy;
-        [SerializeField] private PaintScreen paint;
+        [SerializeField] private PlanetScreen planet;
+        [SerializeField] private CollectionScreen collection;
         [SerializeField] private ShopScreen shop;
         [SerializeField] private RankingsScreen rankings;
         [SerializeField] private ProfileScreen profile;
@@ -57,7 +58,8 @@ namespace InkFlow.UI
             hub?.BindState(state);
             levelMap?.BindState(state);
             galaxy?.BindState(state);
-            paint?.BindState(state);
+            planet?.BindState(state);
+            collection?.BindState(state);
             shop?.BindState(state);
             rankings?.BindState(state);
             profile?.BindState(state);
@@ -104,7 +106,7 @@ namespace InkFlow.UI
 
         private ScreenBase?[] AllScreens() => new ScreenBase?[]
         {
-            hub, levelMap, comingSoon, endless, galaxy, paint, shop, rankings, profile
+            hub, levelMap, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile
         };
 
         private void WireGraph()
@@ -138,20 +140,32 @@ namespace InkFlow.UI
             if (endless != null)
                 endless.BackRequested += Pop;
 
-            // ── Галактика й фарбування ──
+            // ── Галактика, планета-вітрина й колекція (§12) ──
             if (galaxy != null)
             {
                 galaxy.BackRequested += Pop;
-                galaxy.PaintRequested += index => Push(paint, new PaintArgs(index));
+                galaxy.OpenRequested += (galaxyIndex, planetIndex) => Push(planet, new PlanetArgs(galaxyIndex, planetIndex));
             }
 
-            if (paint != null)
+            if (planet != null)
             {
-                paint.BackRequested += Pop;
-                // «+ Магазин» і «Мало фарби» ведуть в один бік — на вкладку фарб.
-                // Повернення саме на фарбування, бо магазин ліг ПОВЕРХ нього.
-                paint.ShopRequested += () => Push(shop, new ShopArgs(oilTab: false));
-                paint.NextPlanetRequested += Pop;
+                planet.BackRequested += Pop;
+                // Колекція лягає ПОВЕРХ планети: вибрав картинку — Pop повертає на ту саму планету,
+                // і вона перечитує слоти зі збереження в OnEnter.
+                planet.CollectionRequested += args => Push(collection, args);
+                planet.NextPlanetRequested += Pop;
+            }
+
+            if (collection != null)
+            {
+                collection.BackRequested += Pop;
+                collection.PicturePicked += (args, pictureId) =>
+                {
+                    // Постановка — одна дія стану: перевірка копій, запис і збереження разом.
+                    if (_state != null && args.PlanetId != null)
+                        _state.TryPlaceInSlot(args.Galaxy, args.PlanetId, args.Slot, pictureId, System.DateTime.UtcNow);
+                    Pop();
+                };
             }
 
             // ── Решта вкладок ──
@@ -169,7 +183,6 @@ namespace InkFlow.UI
             if (profile != null)
             {
                 profile.BackRequested += Pop;
-                profile.ShopRequested += () => Push(shop, new ShopArgs(oilTab: false));
                 profile.SettingsRequested += () =>
                     Debug.Log("[InkFlow] Налаштування ще не зроблені — екрана немає.");
                 profile.NickEditRequested += OpenNickPrompt;

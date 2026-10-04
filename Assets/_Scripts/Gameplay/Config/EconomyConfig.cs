@@ -7,20 +7,19 @@ namespace InkFlow.Gameplay
     /// EconomyConfig.asset — усі числа економіки живуть тут, не в коді.
     /// Той самий принцип, що й у <see cref="BalanceConfig"/>: правка = зміна асета.
     ///
-    /// Стартовий стан навмисно нульовий, і це рішення, а не заглушка. Перший
-    /// пройдений рівень дає 20 нафти, найдешевша фарба коштує 12 за літр,
-    /// найдешевша зона — 1 літр: повний цикл «граю → купую → фарбую» замикається
-    /// за одну партію. Грант розірвав би цей зв'язок на самому початку.
+    /// Стартовий стан навмисно нульовий, і це рішення, а не заглушка: нафту заробляють
+    /// забігом, і гравець бачить зв'язок «граю → заробляю → витрачаю». Грант розірвав би його.
     /// </summary>
     [CreateAssetMenu(fileName = "EconomyConfig", menuName = "Ink Flow/Economy Config")]
     public sealed class EconomyConfig : ScriptableObject
     {
         [Header("Стартовий стан нового гравця")]
-        [Tooltip("Нафта на старті. 0 — гравець заробляє її першим же рівнем.")]
+        [Tooltip("Нафта на старті. 0 — гравець заробляє її першим же забігом.")]
         [SerializeField, Min(0)] private long starterOil;
 
-        [Tooltip("Літрів базової фарби на старті. 0 — купується за зароблене.")]
-        [SerializeField, Min(0f)] private float starterPaintLiters;
+        [Header("Міграція v8 (Фаза 3): літри фарби → нафта")]
+        [Tooltip("Скільки нафти повернути за кожен літр фарби зі старого збереження. 12 — ціна найдешевшої фарби за літр.")]
+        [SerializeField, Min(0)] private long paintRefundOilPerLiter = 12;
 
         [Header("Нагорода за рівень")]
         [Tooltip("База; підсумок = база × зірки × денний множник.")]
@@ -59,7 +58,6 @@ namespace InkFlow.Gameplay
 
         public EconomyData ToEconomyData() => new EconomyData(
             starterOil,
-            starterPaintLiters,
             baseLevelReward,
             bossMultiplier,
             fullRewardPlays,
@@ -70,6 +68,7 @@ namespace InkFlow.Gameplay
             interstitialEveryRuns,
             rewardAdMultiplier,
             finishPictureCosts,
-            finishPictureMinShare);
+            finishPictureMinShare,
+            paintRefundOilPerLiter);
     }
 }

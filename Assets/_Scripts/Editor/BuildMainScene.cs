@@ -44,7 +44,7 @@ namespace InkFlow.Editor
         private static readonly string[] ScreenNames =
         {
             "HubScreen", "LevelMapScreen", "ComingSoonScreen", "EndlessScreen",
-            "GalaxyScreen", "PaintScreen", "ShopScreen", "RankingsScreen", "ProfileScreen"
+            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen"
         };
 
         [MenuItem("Ink Flow/Setup/Build Main Scene")]
@@ -65,6 +65,9 @@ namespace InkFlow.Editor
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
             var balance = AssetDatabase.LoadAssetAtPath<BalanceConfig>(BalancePath);
             var economy = AssetDatabase.LoadAssetAtPath<EconomyConfig>(EconomyPath);
+            // Розкладка галактики з дефолтами створюється тут же: вимагати окремого кроку заради асета,
+            // який і так дорівнює коду, означало б ще одну причину «не зібралось».
+            var galaxyConfig = InkFlowBootstrap.EnsureGalaxyConfig();
             var pictures = AssetDatabase.LoadAssetAtPath<PictureLibraryAsset>(PicturesPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
 
@@ -152,7 +155,8 @@ namespace InkFlow.Editor
                 ("comingSoon", screens["ComingSoonScreen"]),
                 ("endless", screens["EndlessScreen"]),
                 ("galaxy", screens["GalaxyScreen"]),
-                ("paint", screens["PaintScreen"]),
+                ("planet", screens["PlanetScreen"]),
+                ("collection", screens["CollectionScreen"]),
                 ("shop", screens["ShopScreen"]),
                 ("rankings", screens["RankingsScreen"]),
                 ("profile", screens["ProfileScreen"]),
@@ -166,6 +170,7 @@ namespace InkFlow.Editor
             Wire(bootstrap,
                 ("balanceConfig", balance!),
                 ("economyConfig", economy!),
+                ("galaxyConfig", galaxyConfig),
                 ("pictureLibrary", pictures!),
                 ("router", router),
                 ("endlessScreen", screens["EndlessScreen"]),

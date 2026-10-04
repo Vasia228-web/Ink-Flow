@@ -30,7 +30,7 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            var capacity = capacityOverride > 0.01f ? capacityOverride : design.PaintBeakerFullLiters;
+            var capacity = capacityOverride > 0.01f ? capacityOverride : InkFlow.Meta.ShopCatalog.BeakerCapacity;
             var filled = liters > 0.001f;
 
             if (background != null)

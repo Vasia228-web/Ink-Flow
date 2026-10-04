@@ -16,13 +16,16 @@ namespace InkFlow.Meta
         private readonly string _path;
         private readonly string _tempPath;
         private readonly string _backupPath;
+        private readonly MigrationContext _migrations;
 
-        public JsonSaveStorage(string? directory = null, string fileName = "save.json")
+        /// <param name="migrations">Розкладка галактики й економіка для міграцій; null — дефолти (тести, майстерні).</param>
+        public JsonSaveStorage(string? directory = null, string fileName = "save.json", MigrationContext? migrations = null)
         {
             var root = directory ?? Application.persistentDataPath;
             _path = Path.Combine(root, fileName);
             _tempPath = _path + ".tmp";
             _backupPath = _path + ".bak";
+            _migrations = migrations ?? MigrationContext.Default;
         }
 
         /// <summary>Шлях за замовчуванням — його показує дев-панель.</summary>
@@ -49,7 +52,7 @@ namespace InkFlow.Meta
             {
                 var json = File.ReadAllText(_path);
                 var save = JsonUtility.FromJson<SaveFile>(json) ?? new SaveFile();
-                return SaveMigrations.Migrate(save);
+                return SaveMigrations.Migrate(save, _migrations);
             }
             catch (Exception e)
             {

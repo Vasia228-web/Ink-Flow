@@ -13,11 +13,17 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 7;
+        public const int CurrentVersion = 8;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
         public WalletData Wallet = new WalletData();
+
+        /// <summary>
+        /// ЗАСТАРІЛЕ (v8, Фаза 3): економіки фарби більше немає, літри повернуто нафтою в міграції.
+        /// Поле лишається оголошеним, доки крок v7→v8 має його читати (JsonUtility не читає
+        /// неоголошене); прибрати разом із <see cref="PaintsData"/> у наступній версії формату.
+        /// </summary>
         public PaintsData Paints = new PaintsData();
         public GalaxyData Galaxy = new GalaxyData();
         public ProgressData Progress = new ProgressData();
@@ -85,10 +91,29 @@ namespace InkFlow.Meta
     [Serializable]
     public sealed class GalaxyData
     {
+        /// <summary>ЗАСТАРІЛЕ (v8): фарбування зон прибрано, крок v7→v8 чистить список. Поле — до наступної версії формату.</summary>
         public List<PaintedZone> PaintedZones = new List<PaintedZone>();
 
-        /// <summary>Картинки, поставлені на планети (§10): «планета + картинка + позиція», скільки завгодно на планету.</summary>
+        /// <summary>ЗАСТАРІЛЕ (v8): розміщення за довготою й широтою перетворено на слоти кроком v7→v8. Поле — до наступної версії формату.</summary>
         public List<PicturePlacement> Placements = new List<PicturePlacement>();
+
+        /// <summary>
+        /// Слоти планет (§12): лише зайняті — «галактика + планета + слот + картинка + коли».
+        /// Галактика — індекс циклу (0 — перша), планета — назва типу, картинка — id з бібліотеки.
+        /// </summary>
+        public List<PlanetSlotRecord> Slots = new List<PlanetSlotRecord>();
+    }
+
+    [Serializable]
+    public struct PlanetSlotRecord
+    {
+        public int Galaxy;
+        public string PlanetId;
+        public int Slot;
+        public string PictureId;
+
+        /// <summary>Коли поставлено, ISO «o» в UTC; порожньо — невідомо (перенесене міграцією).</summary>
+        public string FilledUtc;
     }
 
     [Serializable]

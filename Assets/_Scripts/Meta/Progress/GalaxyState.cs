@@ -1,189 +1,214 @@
 using System;
+using System.Collections.Generic;
 using InkFlow.Core;
 
 namespace InkFlow.Meta
 {
     /// <summary>
-    /// Стан галактики у збереженні: які зони яких планет зафарбовано.
+    /// Стан галактики у збереженні (§12): які слоти яких планет зайняті картинками.
     ///
-    /// У файлі лежать ЛИШЕ зафарбовані зони — список фактів, а не таблиця всіх
-    /// зон із прапорцями. Планет і зон стане більше з кожним оновленням, і
-    /// повна таблиця означала б міграцію на кожну нову планету.
+    /// У файлі лежать ЛИШЕ зайняті слоти — список фактів «галактика + планета + слот +
+    /// картинка», а не таблиця всіх слотів із прапорцями. Планет і слотів стане інакше
+    /// з конфігом, галактик нескінченно — повна таблиця означала б міграцію на кожну зміну.
+    /// Планета ідентифікується назвою типу, не індексом у розкладці: порядок планет у конфігу
+    /// можна міняти, а файл гравця — ні.
+    ///
+    /// Усе тут — похідне й детерміноване: яка галактика поточна, яка планета відкрита, скільки
+    /// завершено — рахується зі списку, тож окремих полів «розблоковано» у файлі немає.
     /// </summary>
     public static class GalaxyState
     {
-        /// <summary>Ідентифікатор планети у файлі. Тип, а не індекс — з тієї ж причини, що й у фарб.</summary>
+        /// <summary>Ідентифікатор планети у файлі. Тип, а не індекс — див. вище.</summary>
         public static string PlanetId(PlanetType type) => type.ToString();
 
-        /// <summary>Зона зафарбована?</summary>
-        public static bool IsPainted(GalaxyData? data, string planetId, string zoneId)
+        private static bool Same(in PlanetSlotRecord record, int galaxy, string planetId, int slot) =>
+            record.Galaxy == galaxy && record.Slot == slot &&
+            string.Equals(record.PlanetId, planetId, StringComparison.Ordinal);
+
+        /// <summary>Картинка в слоті; null — порожній.</summary>
+        public static string? PictureAt(GalaxyData? data, int galaxy, string planetId, int slot)
         {
-            if (data?.PaintedZones == null)
-                return false;
+            if (data?.Slots == null)
+                return null;
+            for (var i = 0; i < data.Slots.Count; i++)
+                if (Same(data.Slots[i], galaxy, planetId, slot))
+                    return data.Slots[i].PictureId is { Length: > 0 } id ? id : null;
+            return null;
+        }
 
-            for (var i = 0; i < data.PaintedZones.Count; i++)
+        /// <summary>Скільки слотів цієї планети зайнято.</summary>
+        public static int FilledCount(GalaxyData? data, int galaxy, string planetId)
+        {
+            if (data?.Slots == null)
+                return 0;
+            var n = 0;
+            for (var i = 0; i < data.Slots.Count; i++)
             {
-                var z = data.PaintedZones[i];
-                if (string.Equals(z.PlanetId, planetId, StringComparison.Ordinal) &&
-                    string.Equals(z.ZoneId, zoneId, StringComparison.Ordinal))
-                    return true;
+                var r = data.Slots[i];
+                if (r.Galaxy == galaxy && r.PictureId is { Length: > 0 } &&
+                    string.Equals(r.PlanetId, planetId, StringComparison.Ordinal))
+                    n++;
             }
+            return n;
+        }
 
-            return false;
+        /// <summary>Зайняті слоти цієї планети — у порядку номера слота.</summary>
+        public static void SlotsOf(GalaxyData? data, int galaxy, string planetId, List<PlanetSlotRecord> into)
+        {
+            if (into is null) throw new ArgumentNullException(nameof(into));
+            into.Clear();
+            if (data?.Slots == null)
+                return;
+            for (var i = 0; i < data.Slots.Count; i++)
+            {
+                var r = data.Slots[i];
+                if (r.Galaxy == galaxy && r.PictureId is { Length: > 0 } &&
+                    string.Equals(r.PlanetId, planetId, StringComparison.Ordinal))
+                    into.Add(r);
+            }
+            into.Sort((a, b) => a.Slot.CompareTo(b.Slot));
         }
 
         /// <summary>
-        /// Записує факт фарбування. Повторний запис тієї самої зони перезаписує
-        /// колір, а не додає другий рядок — інакше перефарбування роздувало б файл.
-        /// Повертає true, якщо зона стала зафарбованою вперше.
+        /// Ставить картинку в слот; зайнятий слот перезаписується (§12: «замінити»).
+        /// Повертає true, якщо слот до цього був порожній.
         /// </summary>
-        public static bool Paint(GalaxyData data, string planetId, string zoneId, PaintKind paint)
-        {
-            if (data == null || planetId is null || zoneId is null)
-                return false;
-
-            var record = new PaintedZone
-            {
-                PlanetId = planetId,
-                ZoneId = zoneId,
-                PaintId = PaintInventory.IdOf(paint)
-            };
-
-            for (var i = 0; i < data.PaintedZones.Count; i++)
-            {
-                var z = data.PaintedZones[i];
-                if (!string.Equals(z.PlanetId, planetId, StringComparison.Ordinal) ||
-                    !string.Equals(z.ZoneId, zoneId, StringComparison.Ordinal))
-                    continue;
-
-                data.PaintedZones[i] = record;
-                return false;
-            }
-
-            data.PaintedZones.Add(record);
-            return true;
-        }
-
-        /// <summary>
-        /// Ставить картинку на планету (§10). Кілька на одну планету — норма: гравець
-        /// сам вирішує, куди й скільки. Повертає індекс нового запису.
-        /// </summary>
-        public static int Place(GalaxyData data, string planetId, string pictureId, float longitude, float latitude)
+        public static bool Set(GalaxyData data, int galaxy, string planetId, int slot, string pictureId, DateTime utcNow)
         {
             if (data is null) throw new ArgumentNullException(nameof(data));
             if (planetId is null || planetId.Length == 0) throw new ArgumentException("Порожня планета.", nameof(planetId));
             if (pictureId is null || pictureId.Length == 0) throw new ArgumentException("Порожня картинка.", nameof(pictureId));
+            if (galaxy < 0) throw new ArgumentOutOfRangeException(nameof(galaxy));
+            if (slot < 0) throw new ArgumentOutOfRangeException(nameof(slot));
 
-            data.Placements ??= new System.Collections.Generic.List<PicturePlacement>();
-            data.Placements.Add(new PicturePlacement
+            data.Slots ??= new List<PlanetSlotRecord>();
+            var record = new PlanetSlotRecord
             {
+                Galaxy = galaxy,
                 PlanetId = planetId,
+                Slot = slot,
                 PictureId = pictureId,
-                Longitude = longitude,
-                Latitude = latitude
-            });
-            return data.Placements.Count - 1;
-        }
+                FilledUtc = utcNow.ToUniversalTime().ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+            };
 
-        /// <summary>Розміщення на цій планеті — у порядку додавання.</summary>
-        public static void PlacementsOf(GalaxyData? data, string planetId, System.Collections.Generic.List<PicturePlacement> into)
-        {
-            if (into is null) throw new ArgumentNullException(nameof(into));
-            into.Clear();
-            if (data?.Placements == null)
-                return;
-            for (var i = 0; i < data.Placements.Count; i++)
-                if (string.Equals(data.Placements[i].PlanetId, planetId, StringComparison.Ordinal))
-                    into.Add(data.Placements[i]);
-        }
-
-        /// <summary>Скільки картинок стоїть на планеті.</summary>
-        public static int PlacementCount(GalaxyData? data, string planetId)
-        {
-            if (data?.Placements == null)
-                return 0;
-            var n = 0;
-            for (var i = 0; i < data.Placements.Count; i++)
-                if (string.Equals(data.Placements[i].PlanetId, planetId, StringComparison.Ordinal))
-                    n++;
-            return n;
-        }
-
-        /// <summary>Знімає останню поставлену картинку з планети. Повертає false, якщо нічого знімати.</summary>
-        public static bool RemoveLastPlacement(GalaxyData? data, string planetId)
-        {
-            if (data?.Placements == null)
-                return false;
-            for (var i = data.Placements.Count - 1; i >= 0; i--)
-                if (string.Equals(data.Placements[i].PlanetId, planetId, StringComparison.Ordinal))
+            for (var i = 0; i < data.Slots.Count; i++)
+                if (Same(data.Slots[i], galaxy, planetId, slot))
                 {
-                    data.Placements.RemoveAt(i);
+                    data.Slots[i] = record;
+                    return false;
+                }
+
+            data.Slots.Add(record);
+            return true;
+        }
+
+        /// <summary>Звільняє слот (§12: «повернути в колекцію»). false — слот і так був порожній.</summary>
+        public static bool Clear(GalaxyData? data, int galaxy, string planetId, int slot)
+        {
+            if (data?.Slots == null)
+                return false;
+            for (var i = 0; i < data.Slots.Count; i++)
+                if (Same(data.Slots[i], galaxy, planetId, slot))
+                {
+                    data.Slots.RemoveAt(i);
                     return true;
                 }
             return false;
         }
 
-        /// <summary>Скільки зон цієї планети вже залито.</summary>
-        public static int PaintedCount(GalaxyData? data, string planetId)
+        /// <summary>Скільки копій цієї картинки стоїть у слотах усіх галактик — стільки копій з колекції зайнято.</summary>
+        public static int PlacedCopies(GalaxyData? data, string pictureId)
         {
-            if (data?.PaintedZones == null)
+            if (data?.Slots == null || pictureId is null)
                 return 0;
-
             var n = 0;
-            for (var i = 0; i < data.PaintedZones.Count; i++)
-                if (string.Equals(data.PaintedZones[i].PlanetId, planetId, StringComparison.Ordinal))
+            for (var i = 0; i < data.Slots.Count; i++)
+                if (string.Equals(data.Slots[i].PictureId, pictureId, StringComparison.Ordinal))
                     n++;
             return n;
         }
 
-        /// <summary>
-        /// Накладає збережений стан на розкладку планети. Розкладка приходить
-        /// статичною (усі зони сірі) — фарбу на неї кладе саме цей метод.
-        /// </summary>
-        public static void Apply(PlanetSurface surface, GalaxyData? data)
+        /// <summary>Скільки слотів зайнято взагалі, в усіх галактиках.</summary>
+        public static int TotalFilled(GalaxyData? data)
+        {
+            if (data?.Slots == null)
+                return 0;
+            var n = 0;
+            for (var i = 0; i < data.Slots.Count; i++)
+                if (data.Slots[i].PictureId is { Length: > 0 })
+                    n++;
+            return n;
+        }
+
+        /// <summary>Накладає збережені картинки на порожню поверхню планети.</summary>
+        public static void Apply(PlanetSurface surface, GalaxyData? data, int galaxy)
         {
             if (surface == null)
                 return;
-
             var planetId = PlanetId(surface.Type);
-            for (var i = 0; i < surface.Zones.Count; i++)
-            {
-                var zone = surface.Zones[i];
-                zone.Painted = null;
-
-                if (data?.PaintedZones == null)
-                    continue;
-
-                for (var j = 0; j < data.PaintedZones.Count; j++)
-                {
-                    var saved = data.PaintedZones[j];
-                    if (!string.Equals(saved.PlanetId, planetId, StringComparison.Ordinal) ||
-                        !string.Equals(saved.ZoneId, zone.Id, StringComparison.Ordinal))
-                        continue;
-
-                    if (PaintInventory.TryParse(saved.PaintId, out var kind))
-                        zone.Painted = kind;
-                    break;
-                }
-            }
+            for (var i = 0; i < surface.Slots.Count; i++)
+                surface.Slots[i].PictureId = PictureAt(data, galaxy, planetId, surface.Slots[i].Index);
         }
 
-        /// <summary>Скільки планет завершено повністю — з цього рахується звання.</summary>
-        public static int CompletedPlanets(GalaxyData? data, GalaxyProgress galaxy)
+        /// <summary>Планета ожила: усі її слоти зайняті.</summary>
+        public static bool IsPlanetComplete(GalaxyData? data, int galaxy, PlanetLayout planet) =>
+            planet != null && FilledCount(data, galaxy, planet.Id) >= planet.Slots;
+
+        /// <summary>Галактика завершена: ожила кожна планета розкладки.</summary>
+        public static bool IsGalaxyComplete(GalaxyData? data, int galaxy, GalaxyLayout layout)
         {
-            if (data == null || galaxy == null)
-                return 0;
+            if (layout is null) throw new ArgumentNullException(nameof(layout));
+            for (var i = 0; i < layout.Planets.Count; i++)
+                if (!IsPlanetComplete(data, galaxy, layout.Planets[i]))
+                    return false;
+            return true;
+        }
 
+        /// <summary>Скільки галактик завершено поспіль від першої — метрика «Галактики» (§16).</summary>
+        public static int CompletedGalaxies(GalaxyData? data, GalaxyLayout layout)
+        {
+            var g = 0;
+            while (IsGalaxyComplete(data, g, layout))
+                g++;
+            return g;
+        }
+
+        /// <summary>Поточна галактика — перша незавершена; у ній і лише в ній можна ставити картинки.</summary>
+        public static int CurrentGalaxy(GalaxyData? data, GalaxyLayout layout) => CompletedGalaxies(data, layout);
+
+        /// <summary>Перша незавершена планета галактики; Count — усі ожили.</summary>
+        public static int CurrentPlanetIndex(GalaxyData? data, int galaxy, GalaxyLayout layout)
+        {
+            if (layout is null) throw new ArgumentNullException(nameof(layout));
+            for (var i = 0; i < layout.Planets.Count; i++)
+                if (!IsPlanetComplete(data, galaxy, layout.Planets[i]))
+                    return i;
+            return layout.Planets.Count;
+        }
+
+        /// <summary>Скільки планет ожило в усіх галактиках — метрика «Планети» (§16) і звання.</summary>
+        public static int CompletedPlanets(GalaxyData? data, GalaxyLayout layout)
+        {
+            if (layout is null) throw new ArgumentNullException(nameof(layout));
+            var last = MaxGalaxy(data);
             var done = 0;
-            for (var i = 0; i < galaxy.Planets.Count; i++)
-            {
-                var planet = galaxy.Planets[i];
-                if (planet.TotalZones > 0 &&
-                    PaintedCount(data, PlanetId(planet.Type)) >= planet.TotalZones)
-                    done++;
-            }
-
+            for (var g = 0; g <= last; g++)
+                for (var i = 0; i < layout.Planets.Count; i++)
+                    if (IsPlanetComplete(data, g, layout.Planets[i]))
+                        done++;
             return done;
+        }
+
+        /// <summary>Найбільший індекс галактики, у якій щось стоїть; 0 — порожній файл.</summary>
+        public static int MaxGalaxy(GalaxyData? data)
+        {
+            if (data?.Slots == null)
+                return 0;
+            var max = 0;
+            for (var i = 0; i < data.Slots.Count; i++)
+                if (data.Slots[i].Galaxy > max)
+                    max = data.Slots[i].Galaxy;
+            return max;
         }
     }
 }

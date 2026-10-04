@@ -87,31 +87,6 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void PaletteOrder_CoversEveryPaint()
-        {
-            // Палітра профілю мусить показувати всі фарби, інакше частина запасу
-            // просто зникне з очей гравця.
-            Assert.AreEqual(InkFlow.Core.PaintKinds.Count, PlayerProfile.PaletteOrder.Length);
-
-            var seen = new bool[InkFlow.Core.PaintKinds.Count];
-            foreach (var kind in PlayerProfile.PaletteOrder)
-            {
-                Assert.IsFalse(seen[(int)kind], $"{kind} трапилась двічі.");
-                seen[(int)kind] = true;
-            }
-        }
-
-        [Test]
-        public void Palette_ReadsTheSameStockAsPainting()
-        {
-            var profile = PlayerProfile.CreateMock();
-
-            // Джерело літрів одне на всю гру — той самий PaintStock.
-            Assert.AreEqual(6f, profile.Paints[InkFlow.Core.PaintKind.Ocean]);
-            Assert.AreEqual(4.5f, profile.Paints[InkFlow.Core.PaintKind.Teal]);
-        }
-
-        [Test]
         public void Favourite_DefaultsToFirstAndFollowsIndex()
         {
             var profile = PlayerProfile.CreateMock();

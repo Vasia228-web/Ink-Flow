@@ -43,13 +43,6 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text[] statLabels = System.Array.Empty<TMP_Text>();
         [SerializeField] private Image[] statStars = System.Array.Empty<Image>();
 
-        [Header("Палітра")]
-        [SerializeField] private TMP_Text paletteCaption;
-        [SerializeField] private TMP_Text paletteSpent;
-        [SerializeField] private PaletteSlot[] paletteSlots = System.Array.Empty<PaletteSlot>();
-        [SerializeField] private Button paletteShopButton;
-        [SerializeField] private TMP_Text paletteShopLabel;
-
         [Header("Вітрина")]
         [SerializeField] private TMP_Text showcaseCaption;
         [SerializeField] private Image showcasePlanet;
@@ -85,9 +78,6 @@ namespace InkFlow.UI
         /// <summary>Налаштування — поки заглушка.</summary>
         public System.Action? SettingsRequested;
 
-        /// <summary>Короткий шлях у магазин із палітри.</summary>
-        public System.Action? ShopRequested;
-
         /// <summary>Гравець хоче змінити нік — олівець біля аватара.</summary>
         public System.Action? NickEditRequested;
 
@@ -103,8 +93,6 @@ namespace InkFlow.UI
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
             if (settingsButton != null)
                 settingsButton.onClick.AddListener(() => SettingsRequested?.Invoke());
-            if (paletteShopButton != null)
-                paletteShopButton.onClick.AddListener(() => ShopRequested?.Invoke());
             if (editAvatarButton != null)
                 editAvatarButton.onClick.AddListener(() => NickEditRequested?.Invoke());
 
@@ -147,14 +135,12 @@ namespace InkFlow.UI
             if (title != null) title.text = "ПРОФІЛЬ";
 
             Caption(ladderCaption, "ЗВАННЯ");
-            Caption(paletteCaption, "МОЯ ПАЛІТРА");
             Caption(showcaseCaption, "ВІТРИНА");
             Caption(achievementsCaption, "ДОСЯГНЕННЯ");
 
             ApplyIdentity();
             ApplyLadder();
             ApplyStats();
-            ApplyPalette();
             ApplyShowcase();
             ApplyAchievements();
 
@@ -242,29 +228,6 @@ namespace InkFlow.UI
                 // Зірка перед числом — не символ, а спрайт: ★ у Nunito немає.
                 if (i < statStars.Length && statStars[i] != null && stat.Star)
                     statStars[i].color = stat.Color.ToColor();
-            }
-        }
-
-        private void ApplyPalette()
-        {
-            var profile = _profile!;
-
-            ApplyFont(paletteSpent, design.FontSizeCaption, design.TextFaint, FontStyles.Normal, 0f);
-            if (paletteSpent != null)
-                paletteSpent.text = $"Витрачено всього: {profile.LitersSpent:0.#} л";
-
-            ApplyFont(paletteShopLabel, design.FontSizeSmall, design.TextMuted, FontStyles.Bold, 0f);
-            if (paletteShopLabel != null) paletteShopLabel.text = "Магазин";
-
-            var order = PlayerProfile.PaletteOrder;
-            for (var i = 0; i < paletteSlots.Length; i++)
-            {
-                if (paletteSlots[i] == null)
-                    continue;
-                if (i < order.Length)
-                    paletteSlots[i].Show(order[i], profile.Paints[order[i]]);
-                else
-                    paletteSlots[i].Release();
             }
         }
 

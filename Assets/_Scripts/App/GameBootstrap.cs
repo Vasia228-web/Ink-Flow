@@ -22,6 +22,7 @@ namespace InkFlow.App
         [Header("Конфіги")]
         [SerializeField] private BalanceConfig balanceConfig;
         [SerializeField] private EconomyConfig economyConfig;
+        [SerializeField] private GalaxyConfig galaxyConfig;
         [SerializeField] private PictureLibraryAsset pictureLibrary;
 
         [Header("Сцена")]
@@ -99,15 +100,18 @@ namespace InkFlow.App
         /// </summary>
         private void LoadSave()
         {
-            _storage = new JsonSaveStorage();
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
+            var layout = LoadLayout();
+            // Міграціям потрібні розкладка галактики (скільки слотів у планети) й курс повернення
+            // літрів — обидва з конфігів, тому сховище створюється після них.
+            _storage = new JsonSaveStorage(migrations: new MigrationContext(layout, economy));
 
-            // Бібліотека й баланс — щоб незавершена картинка читалась назвою, а спроби — з конфіга.
+            // Бібліотека й баланс — щоб зліпок забігу читався назвами картинок, а правила — з конфіга.
             var library = LoadLibrary();
             var balance = balanceConfig.ToBalanceData();
             _state = _storage.Exists
-                ? new PlayerState(_storage.Load(), economy, _storage, library, balance)
-                : PlayerState.NewPlayer(economy, _storage, library, balance);
+                ? new PlayerState(_storage.Load(), economy, _storage, library, balance, layout)
+                : PlayerState.NewPlayer(economy, _storage, library, balance, layout);
 
             // Новому гравцю файл треба створити одразу: інакше перший же збій
             // до кінця першої партії виглядав би як «гра не запам'ятала нічого».
@@ -119,6 +123,16 @@ namespace InkFlow.App
             ServiceLocator.Register(_state.DailyLimit);
             ServiceLocator.Register(_state.Rewards);
             ServiceLocator.Register(_storage);
+        }
+
+        /// <summary>Розкладка галактики з асета (§12); без нього — дефолтна, і про це в консоль.</summary>
+        private GalaxyLayout LoadLayout()
+        {
+            if (galaxyConfig != null)
+                return galaxyConfig.ToLayout();
+            Debug.LogError("[InkFlow] GameBootstrap.galaxyConfig не підв'язаний — розкладка галактики за замовчуванням. " +
+                           "Ink Flow → Setup → Bootstrap Assets, потім Build Main Scene.");
+            return GalaxyLayout.Default;
         }
 
         /// <summary>Бібліотека картинок з асета; без нього — запасне серце, і про це голосно в консоль.</summary>
@@ -171,7 +185,7 @@ namespace InkFlow.App
 
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
             var balance = balanceConfig.ToBalanceData();
-            _state = PlayerState.NewPlayer(economy, _storage, LoadLibrary(), balance);
+            _state = PlayerState.NewPlayer(economy, _storage, LoadLibrary(), balance, LoadLayout());
             _state.Persist();
 
             ServiceLocator.Register(_state);

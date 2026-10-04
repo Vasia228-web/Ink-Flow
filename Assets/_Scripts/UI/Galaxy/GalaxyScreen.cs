@@ -50,8 +50,8 @@ namespace InkFlow.UI
         /// <summary>Куди веде «‹». Поки заглушка — зв'яже композиційний корінь.</summary>
         public System.Action? BackRequested;
 
-        /// <summary>Гравець натиснув «Фарбувати» на планеті з цим індексом.</summary>
-        public System.Action<int>? PaintRequested;
+        /// <summary>Гравець натиснув «Відкрити»: індекс галактики (цикл) і планети — екран планети-вітрини (§12).</summary>
+        public System.Action<int, int>? OpenRequested;
 
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
@@ -66,9 +66,9 @@ namespace InkFlow.UI
             var galaxyArgs = args as GalaxyArgs ?? GalaxyArgs.Own;
             _readOnly = galaxyArgs.ReadOnly;
             _galaxy = galaxyArgs.Owner.IsSelf
-                // Своя галактика — з реального збереження; чужа лишається
-                // моковою, бо бекенду немає (Фаза 6).
-                ? (State != null ? GalaxyProgress.FromSave(State.Galaxy) : GalaxyProgress.CreateMock())
+                // Своя галактика — з реального збереження (поточний цикл); чужа лишається
+                // моковою до Фази 7 (вітрина з хмари).
+                ? (State != null ? GalaxyProgress.FromSave(State.Galaxy, State.Layout) : GalaxyProgress.CreateMock())
                 : GalaxyProgress.CreateMockForOther(mockOtherPlanetsDone);
 
             Apply();
@@ -79,7 +79,7 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            _galaxy ??= State != null ? GalaxyProgress.FromSave(State.Galaxy) : GalaxyProgress.CreateMock();
+            _galaxy ??= State != null ? GalaxyProgress.FromSave(State.Galaxy, State.Layout) : GalaxyProgress.CreateMock();
 
             // Розміри з макета: 13 / 11 / 25 / 13 / 18 / 16 / 12 px.
             ApplyFont(galaxyName, design.FontSizeGalaxyTitle, design.TextPrimary,
@@ -91,7 +91,17 @@ namespace InkFlow.UI
             ApplyFont(nextGalaxyName, design.FontSizeNextGalaxy, design.TextDim, FontStyles.Bold, 0f);
             ApplyFont(nextGalaxyHint, design.FontSizeLabel, design.TextFaint, FontStyles.Normal, 0f);
 
-            if (galaxyName != null) galaxyName.text = _galaxy.Name;
+            if (galaxyName != null)
+            {
+                galaxyName.text = _galaxy.Name;
+                // Назва галактики довша за вільний проміжок шапки: не переносимо (перенесений рядок
+                // лягав на «N / M планет»), а стискаємо шрифт до читабельного мінімуму.
+                galaxyName.textWrappingMode = TextWrappingModes.NoWrap;
+                galaxyName.overflowMode = TextOverflowModes.Ellipsis;
+                galaxyName.enableAutoSizing = true;
+                galaxyName.fontSizeMax = design.FontSizeGalaxyTitle;
+                galaxyName.fontSizeMin = design.FontSizeGalaxyTitle * 0.7f;
+            }
             if (galaxyProgress != null)
                 galaxyProgress.text = $"{_galaxy.DoneCount} / {_galaxy.Planets.Count} планет";
             if (nextGalaxyName != null) nextGalaxyName.text = _galaxy.NextName;
@@ -147,10 +157,12 @@ namespace InkFlow.UI
             if (planetZones != null)
                 planetZones.text = planet.State switch
                 {
-                    PlanetState.Done => $"{planet.TotalZones} / {planet.TotalZones} зон",
-                    PlanetState.Current => $"{planet.PaintedZones} / {planet.TotalZones} зон",
+                    PlanetState.Done => $"Усі {planet.TotalSlots} слотів заповнені",
+                    PlanetState.Current => $"{planet.FilledSlots} / {planet.TotalSlots} слотів",
                     _ => "Заверши попередню планету"
                 };
+            if (paintButtonLabel != null)
+                paintButtonLabel.text = "Відкрити";
 
             if (_readOnly || paintButton == null)
                 return;
@@ -178,7 +190,8 @@ namespace InkFlow.UI
 
             paintButton.onClick.RemoveAllListeners();
             var captured = index;
-            paintButton.onClick.AddListener(() => PaintRequested?.Invoke(captured));
+            var galaxyIndex = _galaxy.Index;
+            paintButton.onClick.AddListener(() => OpenRequested?.Invoke(galaxyIndex, captured));
         }
 
         private void ApplyDots(int focus)

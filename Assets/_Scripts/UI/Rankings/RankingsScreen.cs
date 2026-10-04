@@ -153,7 +153,7 @@ namespace InkFlow.UI
         /// </summary>
         private Leaderboard BuildBoard() =>
             State != null
-                ? Leaderboard.WithRealPlayer(State, GalaxyProgress.FromSave(State.Galaxy))
+                ? Leaderboard.WithRealPlayer(State)
                 : Leaderboard.CreateMock();
 
         public void Apply()

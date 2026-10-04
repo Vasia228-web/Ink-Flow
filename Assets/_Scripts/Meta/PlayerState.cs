@@ -7,13 +7,13 @@ namespace InkFlow.Meta
     /// з якими працюють екрани (§10).
     ///
     /// Навіщо окремий тип, а не голий <see cref="SaveFile"/>: у файлі лежать дані,
-    /// а грає гра з поведінкою — гаманець із подією зміни, запас фарб, лічильник
+    /// а грає гра з поведінкою — гаманець із подією зміни, колекція, лічильник
     /// денного ліміту. Тримати і те, і те синхронно вручну в кожному екрані
     /// означало б рано чи пізно записати одне й забути інше.
     ///
     /// Правило: РАНТАЙМ — джерело правди, файл — його зліпок. <see cref="Persist"/>
     /// згортає живі об'єкти назад у файл і пише його, і робиться це в кількох
-    /// чітких точках (кінець партії, покупка, фарбування, згортання застосунку),
+    /// чітких точках (кінець забігу, покупка, слот планети, згортання застосунку),
     /// а не «десь після зміни».
     /// </summary>
     public sealed class PlayerState
@@ -21,26 +21,26 @@ namespace InkFlow.Meta
         private readonly ISaveStorage? _storage;
 
         public PlayerState(SaveFile save, EconomyData economy, ISaveStorage? storage = null,
-            Core.PictureLibrary? library = null, Core.BalanceData? balance = null)
+            Core.PictureLibrary? library = null, Core.BalanceData? balance = null, GalaxyLayout? layout = null)
         {
             File = save ?? throw new ArgumentNullException(nameof(save));
             Economy = economy ?? EconomyData.Default;
             _storage = storage;
             Library = library ?? Core.PictureLibrary.Fallback;
             Balance = balance ?? Core.BalanceData.Default;
+            Layout = layout ?? GalaxyLayout.Default;
 
             File.Profile ??= new ProfileData();
             File.Wallet ??= new WalletData();
             File.Paints ??= new PaintsData();
             File.Galaxy ??= new GalaxyData();
+            File.Galaxy.Slots ??= new System.Collections.Generic.List<PlanetSlotRecord>();
             File.Progress ??= new ProgressData();
             File.Settings ??= new SettingsData();
             File.Collection ??= new CollectionData();
             File.Run ??= new Core.RunSnapshot();
-            File.Galaxy.Placements ??= new System.Collections.Generic.List<PicturePlacement>();
 
             Wallet = new Wallet(File.Wallet.OilDrops);
-            Paints = PaintInventory.Load(File.Paints);
             Collection = PictureCollection.Load(File.Collection);
             Rewards = new RewardCalculator(Economy);
             DailyLimit = new DailyLimitTracker(Economy);
@@ -50,16 +50,18 @@ namespace InkFlow.Meta
         public SaveFile File { get; }
         public EconomyData Economy { get; }
         public Wallet Wallet { get; }
-        public PaintStock Paints { get; }
         public RewardCalculator Rewards { get; }
         public DailyLimitTracker DailyLimit { get; }
 
-        /// <summary>Зібрані картинки (§5, §10). Рекорд колекції = <see cref="PictureCollection.Distinct"/>.</summary>
+        /// <summary>Зібрані картинки (§5, §10): кожна зібрана копія — одна картка, яку можна поставити в слот.</summary>
         public PictureCollection Collection { get; }
 
         /// <summary>Бібліотека й баланс, з якими читається файл: зліпок забігу говорить назвами картинок і форм.</summary>
         public Core.PictureLibrary Library { get; }
         public Core.BalanceData Balance { get; }
+
+        /// <summary>Розкладка галактики (§12): планети й слоти — з конфігу, цикли нескінченні.</summary>
+        public GalaxyLayout Layout { get; }
 
         /// <summary>
         /// Перерваний забіг (§9), якщо його можна продовжити цією грою; null — починати новий.
@@ -83,16 +85,12 @@ namespace InkFlow.Meta
 
         /// <summary>Стан щойно створеного гравця: усе по нулях, крім явно виданого стартового.</summary>
         public static PlayerState NewPlayer(EconomyData economy, ISaveStorage? storage = null,
-            Core.PictureLibrary? library = null, Core.BalanceData? balance = null)
+            Core.PictureLibrary? library = null, Core.BalanceData? balance = null, GalaxyLayout? layout = null)
         {
-            var state = new PlayerState(new SaveFile(), economy, storage, library, balance);
+            var state = new PlayerState(new SaveFile(), economy, storage, library, balance, layout);
 
             if (economy.StarterOil > 0)
                 state.Wallet.Add(economy.StarterOil, RewardSource.Debug);
-
-            // Стартова фарба — базовий океанський тон: він же перший у палітрі.
-            if (economy.StarterPaintLiters > 0f)
-                state.Paints.Set(Core.PaintKind.Ocean, economy.StarterPaintLiters);
 
             return state;
         }
@@ -109,7 +107,6 @@ namespace InkFlow.Meta
             // Інваріантна культура обов'язкова: на телефоні з тайським чи японським календарем «yyyy»
             // дало б 2569, Restore не впізнав би день, і денний ліміт скидався б на кожному запуску.
             File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-            PaintInventory.Save(Paints, File.Paints);
             PictureCollection.Save(Collection, File.Collection);
 
             _storage?.Save(File);
@@ -151,7 +148,7 @@ namespace InkFlow.Meta
         /// <summary>
         /// Підсумок пройденого рівня: зірки в прогрес, нафта в гаманець, запис у файл.
         /// Одна точка входу — інакше «зірки записались, а нафта ні» ставало б
-        /// питанням того, який екран що не забув.
+        /// питанням того, який екран що не забув. Режим «Рівні» — сирота («Скоро»).
         /// </summary>
         public long CompleteLevel(int levelId, int stars, bool isBoss, DateTime utcNow)
         {
@@ -257,38 +254,66 @@ namespace InkFlow.Meta
             Economy.InterstitialEveryRuns > 0 && Progress.RunsPlayed > 0 &&
             Progress.RunsPlayed % Economy.InterstitialEveryRuns == 0;
 
-        /// <summary>Ставить картинку з колекції на планету (§10) і зберігає. Лише зібрані.</summary>
-        public bool PlacePicture(string planetId, string pictureId, float longitude, float latitude)
-        {
-            if (!Collection.Has(pictureId))
-                return false;
-            GalaxyState.Place(Galaxy, planetId, pictureId, longitude, latitude);
-            Persist();
-            return true;
-        }
+        // ── Галактика-вітрина (§12) ──
 
-        /// <summary>Знімає останню поставлену на планету картинку.</summary>
-        public bool RemoveLastPlacement(string planetId)
+        /// <summary>Поточна галактика — перша незавершена. Лише в ній можна ставити й знімати картинки.</summary>
+        public int CurrentGalaxy => GalaxyState.CurrentGalaxy(Galaxy, Layout);
+
+        /// <summary>
+        /// Скільки копій цієї картинки ще вільні: зібрано − стоїть у слотах. Одна зібрана копія —
+        /// один слот: двічі домалював кота — два слоти, один раз — один (відповідь автора, Сесія 1).
+        /// </summary>
+        public int FreeCopies(string pictureId) =>
+            Collection.CountOf(pictureId) - GalaxyState.PlacedCopies(Galaxy, pictureId);
+
+        /// <summary>
+        /// Чи можна редагувати планету: лише в поточній галактиці, і лише відкриту — першу
+        /// неожилу, будь-яку перед нею або будь-яку, де вже стоять картинки.
+        /// </summary>
+        public bool CanEditPlanet(int galaxy, string planetId)
         {
-            if (!GalaxyState.RemoveLastPlacement(Galaxy, planetId))
+            if (galaxy != CurrentGalaxy)
                 return false;
-            Persist();
-            return true;
+            var index = Layout.IndexOf(planetId);
+            if (index < 0)
+                return false;
+            return index <= GalaxyState.CurrentPlanetIndex(Galaxy, galaxy, Layout) ||
+                   GalaxyState.FilledCount(Galaxy, galaxy, planetId) > 0;
         }
 
         /// <summary>
-        /// Фарбування зони: списує літри, записує факт у галактику, зберігає.
-        /// Повертає false і НЕ змінює нічого, якщо фарби не вистачає.
+        /// Ставить картинку з колекції в слот планети (§12) і зберігає. Зайнятий слот — заміна.
+        /// false і нічого не змінює, якщо планета замкнена, слота немає або вільних копій картинки
+        /// не лишилось. Та сама картинка в тому самому слоті — true без запису.
         /// </summary>
-        public bool PaintZone(PlanetSurface surface, PlanetZone zone, Core.PaintKind paint)
+        public bool TryPlaceInSlot(int galaxy, string planetId, int slot, string pictureId, DateTime utcNow)
         {
-            if (surface == null || zone == null)
+            if (pictureId is null || pictureId.Length == 0)
                 return false;
-            if (!Paints.Spend(paint, zone.Cost))
+            var planet = Layout.Find(planetId);
+            if (planet is null || slot < 0 || slot >= planet.Slots)
+                return false;
+            if (!CanEditPlanet(galaxy, planetId))
                 return false;
 
-            zone.Painted = paint;
-            GalaxyState.Paint(Galaxy, GalaxyState.PlanetId(surface.Type), zone.Id, paint);
+            var current = GalaxyState.PictureAt(Galaxy, galaxy, planetId, slot);
+            if (string.Equals(current, pictureId, StringComparison.Ordinal))
+                return true;
+            if (FreeCopies(pictureId) <= 0)
+                return false;
+
+            GalaxyState.Set(Galaxy, galaxy, planetId, slot, pictureId, utcNow);
+            Persist();
+            return true;
+        }
+
+        /// <summary>Повертає картинку зі слота в колекцію (§12) і зберігає. false — слот порожній або планета замкнена.</summary>
+        public bool ClearSlot(int galaxy, string planetId, int slot)
+        {
+            if (!CanEditPlanet(galaxy, planetId))
+                return false;
+            if (!GalaxyState.Clear(Galaxy, galaxy, planetId, slot))
+                return false;
             Persist();
             return true;
         }

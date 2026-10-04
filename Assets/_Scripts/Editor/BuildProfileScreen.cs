@@ -137,10 +137,6 @@ namespace InkFlow.Editor
             BuildStats(content, design!, font, rounded!, outline!, star!, ref y,
                 out var statValues, out var statLabels, out var statStars);
 
-            BuildPalette(content, design!, font, rounded!, outline!, circle!, gloss!, ref y,
-                out var paletteCaption, out var paletteSpent, out var paletteSlots,
-                out var shopButton, out var shopLabel);
-
             BuildShowcaseAndBadges(content, design!, font, rounded!, outline!, circle!, quad!,
                 glow!, planetShader!, ref y,
                 out var showcaseCaption, out var showcasePlanet, out var showcaseName,
@@ -156,8 +152,6 @@ namespace InkFlow.Editor
                 ("nickLabel", nick), ("rankCapsule", rankCapsule), ("rankCapsuleGlow", rankGlow),
                 ("rankLabel", rankLabel), ("oilValue", oilValue), ("oilWord", oilWord),
                 ("ladderCaption", ladderCaption),
-                ("paletteCaption", paletteCaption), ("paletteSpent", paletteSpent),
-                ("paletteShopButton", shopButton), ("paletteShopLabel", shopLabel),
                 ("showcaseCaption", showcaseCaption), ("showcasePlanet", showcasePlanet),
                 ("showcaseName", showcaseName),
                 ("achievementsCaption", achievementsCaption),
@@ -167,7 +161,6 @@ namespace InkFlow.Editor
             WireArray(screen, "statValues", statValues);
             WireArray(screen, "statLabels", statLabels);
             WireArray(screen, "statStars", statStars);
-            WireArray(screen, "paletteSlots", paletteSlots);
             WireArray(screen, "thumbButtons", thumbButtons);
             WireArray(screen, "thumbPlanets", thumbPlanets);
             WireArray(screen, "thumbRings", thumbRings);
@@ -555,179 +548,6 @@ namespace InkFlow.Editor
             }
         }
 
-        // ── Палітра: горизонтальний скрол ──
-        private static void BuildPalette(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle, Sprite gloss, ref float y,
-            out TMP_Text caption, out TMP_Text spent, out PaletteSlot[] slots,
-            out Button shopButton, out TMP_Text shopLabel)
-        {
-            var height = M(158f);
-            var go = Card(parent, "Palette", rounded, outline, design, ref y, height);
-
-            caption = Caption(go, design, font, "МОЯ ПАЛІТРА");
-            spent = Label(go, "Spent", "Витрачено всього: 340 л", design, font,
-                design.FontSizeCaption, design.TextFaint, TextAlignmentOptions.Right);
-            Place(spent, new Vector2(-M(18f), -M(16f)), new Vector2(M(180f), M(16f)),
-                new Vector2(1f, 1f), new Vector2(1f, 1f));
-
-            var rowGo = Child(go, "Row");
-            var rowRect = rowGo.GetComponent<RectTransform>();
-            rowRect.anchorMin = new Vector2(0f, 1f);
-            rowRect.anchorMax = new Vector2(1f, 1f);
-            rowRect.pivot = new Vector2(0.5f, 1f);
-            rowRect.offsetMin = new Vector2(0f, -height + M(12f));
-            rowRect.offsetMax = new Vector2(0f, -M(42f));
-
-            var scroll = rowGo.AddComponent<ScrollRect>();
-            scroll.horizontal = true;
-            scroll.vertical = false;
-            scroll.scrollSensitivity = 0f;
-
-            var catcher = rowGo.AddComponent<Image>();
-            catcher.color = Color.clear;
-
-            var viewportGo = Child(rowGo, "Viewport");
-            Stretch(viewportGo);
-            viewportGo.AddComponent<RectMask2D>();
-
-            var contentGo = Child(viewportGo, "Content");
-            var content = contentGo.GetComponent<RectTransform>();
-            content.anchorMin = new Vector2(0f, 0f);
-            content.anchorMax = new Vector2(0f, 1f);
-            content.pivot = new Vector2(0f, 0.5f);
-            content.anchoredPosition = Vector2.zero;
-            scroll.viewport = viewportGo.GetComponent<RectTransform>();
-            scroll.content = content;
-
-            var order = PlayerProfile.PaletteOrder;
-            var slotWidth = M(52f);
-            var slotGap = M(14f);
-            var x = M(18f);
-
-            slots = new PaletteSlot[order.Length];
-            for (var i = 0; i < order.Length; i++)
-            {
-                slots[i] = BuildPaletteSlot(contentGo, design, font, rounded, outline, circle, gloss,
-                    new Vector2(x + slotWidth * 0.5f, 0f), slotWidth);
-                x += slotWidth + slotGap;
-            }
-
-            // «+ Магазин» у кінці — той самий короткий шлях, що на екрані фарбування.
-            var shopW = M(66f);
-            var shopGo = Child(contentGo, "Shop");
-            var shopFill = shopGo.AddComponent<Image>();
-            shopFill.sprite = rounded;
-            shopFill.type = Image.Type.Sliced;
-            shopFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
-            shopFill.color = new Color(1f, 1f, 1f, 0.05f);
-            Place(shopFill, new Vector2(x + shopW * 0.5f, 0f), new Vector2(shopW, M(96f)),
-                new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var plusGo = Child(shopGo, "Plus");
-            var plus = plusGo.AddComponent<GradientImage>();
-            plus.sprite = circle;
-            plus.SetGradient(design.AccentGold, design.AccentPrimary);
-            plus.raycastTarget = false;
-            Place(plus, new Vector2(0f, M(12f)), new Vector2(M(34f), M(34f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var plusGlyph = Label(plusGo, "Sign", "+", design, font,
-                M(22f), design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(plusGlyph.gameObject);
-
-            shopLabel = Label(shopGo, "Label", "Магазин", design, font,
-                design.FontSizeSmall, design.TextMuted, TextAlignmentOptions.Center);
-            Place(shopLabel, new Vector2(0f, -M(22f)), new Vector2(shopW, M(16f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            shopButton = shopGo.AddComponent<Button>();
-            shopButton.targetGraphic = shopFill;
-
-            content.sizeDelta = new Vector2(x + shopW + M(18f), 0f);
-        }
-
-        private static PaletteSlot BuildPaletteSlot(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite circle, Sprite gloss,
-            Vector2 position, float width)
-        {
-            var go = Child(parent, "PaletteSlot");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(0f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(width, M(96f));
-
-            var dropGo = Child(go, "Drop");
-            var drop = dropGo.AddComponent<GradientImage>();
-            drop.sprite = circle;
-            drop.raycastTarget = false;
-            Place(drop, new Vector2(0f, -M(2f)), new Vector2(M(34f), M(34f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0f));
-
-            var glossGo = Child(dropGo, "Gloss");
-            Stretch(glossGo);
-            var glossImage = glossGo.AddComponent<Image>();
-            glossImage.sprite = gloss;
-            glossImage.raycastTarget = false;
-
-            // Мензурка 22×34 — той самий компонент, що в картці магазину.
-            var tubeGo = Child(go, "Beaker");
-            var tubeBackground = tubeGo.AddComponent<Image>();
-            tubeBackground.sprite = rounded;
-            tubeBackground.type = Image.Type.Sliced;
-            tubeBackground.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(6f));
-            tubeBackground.raycastTarget = false;
-            Place(tubeBackground, new Vector2(0f, -M(42f)), new Vector2(M(22f), M(34f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var tubeStrokeGo = Child(tubeGo, "Stroke");
-            Stretch(tubeStrokeGo);
-            var tubeStroke = tubeStrokeGo.AddComponent<Image>();
-            tubeStroke.sprite = outline;
-            tubeStroke.type = Image.Type.Sliced;
-            tubeStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(6f));
-            tubeStroke.raycastTarget = false;
-
-            var clipGo = Child(tubeGo, "Clip");
-            Stretch(clipGo, design.ShopBeakerInset);
-            clipGo.AddComponent<RectMask2D>();
-
-            var fillGo = Child(clipGo, "Fill");
-            var fillImage = fillGo.AddComponent<Image>();
-            fillImage.sprite = rounded;
-            fillImage.type = Image.Type.Sliced;
-            fillImage.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(5f));
-            fillImage.raycastTarget = false;
-            var fillRect = fillGo.GetComponent<RectTransform>();
-            fillRect.anchorMin = new Vector2(0f, 0f);
-            fillRect.anchorMax = new Vector2(1f, 0f);
-            fillRect.pivot = new Vector2(0.5f, 0f);
-            fillRect.anchoredPosition = Vector2.zero;
-            fillRect.sizeDelta = Vector2.zero;
-
-            var beaker = tubeGo.AddComponent<BeakerGauge>();
-            Wire(beaker,
-                ("design", design), ("background", tubeBackground), ("stroke", tubeStroke),
-                ("fill", fillRect), ("fillImage", fillImage));
-
-            var nameLabel = Label(go, "Name", "Фарба", design, font,
-                design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);
-            Place(nameLabel, new Vector2(0f, -M(80f)), new Vector2(width + M(10f), M(14f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            var liters = Label(go, "Liters", "0 л", design, font,
-                design.FontSizeCaption, design.TextFaint, TextAlignmentOptions.Center);
-            Place(liters, new Vector2(0f, -M(94f)), new Vector2(width, M(14f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            var slot = go.AddComponent<PaletteSlot>();
-            Wire(slot,
-                ("design", design), ("drop", drop), ("gloss", glossImage), ("beaker", beaker),
-                ("nameLabel", nameLabel), ("litersLabel", liters));
-            return slot;
-        }
-
-        // ── Вітрина й досягнення (у макеті це одна картка з роздільником) ──
         private static void BuildShowcaseAndBadges(GameObject parent, DesignSystem design,
             TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite circle, Sprite quad,
             Sprite glowSprite, Shader planetShader, ref float y,

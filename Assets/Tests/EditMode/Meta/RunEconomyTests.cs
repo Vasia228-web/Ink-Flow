@@ -138,34 +138,38 @@ namespace InkFlow.Tests.Meta
             state.CollectPicture("comet", Today);
             state.Progress.EndlessRecord = 99_999;
 
-            var board = Leaderboard.WithRealPlayer(state, GalaxyProgress.FromSave(state.Galaxy));
+            var board = Leaderboard.WithRealPlayer(state);
 
             Assert.AreEqual(2, board.You.Value(RankMetric.Record, RankPeriod.AllTime), "§8: різні картинки, не очки");
             Assert.AreEqual("картинок", Leaderboard.Unit(RankMetric.Record));
         }
 
         [Test]
-        public void Placements_AreStoredPerPlanetAndSurviveAReload()
+        public void Slots_AreStoredPerPlanetAndSurviveAReload()
         {
             var storage = new MemoryStorage();
             var state = PlayerState.NewPlayer(EconomyData.Default, storage);
-            Assert.IsFalse(state.PlacePicture("Earth", "whale", 10f, 20f), "лише зібрані");
+            var first = state.Layout.Planets[0].Id;
+            Assert.IsFalse(state.TryPlaceInSlot(0, first, 0, "whale", Today), "лише зібрані");
 
             state.CollectPicture("whale", Today);
-            Assert.IsTrue(state.PlacePicture("Earth", "whale", 10f, 20f));
-            Assert.IsTrue(state.PlacePicture("Earth", "whale", -40f, 5f), "кілька на планету — норма");
-            Assert.IsTrue(state.PlacePicture("Mars", "whale", 0f, 0f));
+            state.CollectPicture("whale", Today);
+            Assert.IsTrue(state.TryPlaceInSlot(0, first, 0, "whale", Today));
+            Assert.IsTrue(state.TryPlaceInSlot(0, first, 2, "whale", Today), "дві копії — два слоти");
+            Assert.IsFalse(state.TryPlaceInSlot(0, "Mars", 0, "whale", Today), "планети поза розкладкою немає");
 
             var reloaded = new PlayerState(storage.Load(), EconomyData.Default, storage);
-            var onEarth = new List<PicturePlacement>();
-            GalaxyState.PlacementsOf(reloaded.Galaxy, "Earth", onEarth);
-            Assert.AreEqual(2, onEarth.Count);
-            Assert.AreEqual(-40f, onEarth[1].Longitude, 1e-4);
-            Assert.AreEqual(1, GalaxyState.PlacementCount(reloaded.Galaxy, "Mars"));
+            var slots = new List<PlanetSlotRecord>();
+            GalaxyState.SlotsOf(reloaded.Galaxy, 0, first, slots);
+            Assert.AreEqual(2, slots.Count);
+            Assert.AreEqual(0, slots[0].Slot);
+            Assert.AreEqual(2, slots[1].Slot);
+            Assert.AreEqual(0, reloaded.FreeCopies("whale"));
 
-            Assert.IsTrue(reloaded.RemoveLastPlacement("Earth"));
-            Assert.AreEqual(1, GalaxyState.PlacementCount(reloaded.Galaxy, "Earth"));
-            Assert.IsFalse(reloaded.RemoveLastPlacement("Venus"));
+            Assert.IsTrue(reloaded.ClearSlot(0, first, 2));
+            Assert.AreEqual(1, GalaxyState.FilledCount(reloaded.Galaxy, 0, first));
+            Assert.AreEqual(1, reloaded.FreeCopies("whale"));
+            Assert.IsFalse(reloaded.ClearSlot(0, "Venus", 0));
         }
 
         [Test]

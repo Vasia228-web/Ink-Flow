@@ -93,21 +93,24 @@ Assets/
       Galaxy/        PaintKind, PlanetType (дані метагри, що потрібні Core-тестам)
       Rgb            колір у даних без UnityEngine
     Style/           DesignSystem (усі кольори, радіуси, тривалості), PlanetPalette, PaintInfo, RgbExtensions
-    Gameplay/        Config/BalanceConfig, EconomyConfig, PictureLibraryAsset — обгортки для інспектора
-    Meta/            PlayerState, Economy/ Galaxy/ Progress/ Collection/ Profile/ Rankings/ Shop/ Save/ Levels/ (сирота)
+    Gameplay/        Config/BalanceConfig, EconomyConfig, GalaxyConfig, PictureLibraryAsset — обгортки для інспектора
+    Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Shop/ Save/ Levels/ (сирота)
+      Galaxy/        GalaxyLayout (+PlanetLayout), SlotLayout, PlanetSurface (+PlanetSlot), GalaxyProgress, PlayerId
+      Progress/      GalaxyState (слоти), LevelProgress (сирота)
     Platform/        PlatformServices (інтерфейси), Null/ (Null*, Fake*, LogAnalytics)
     UI/
       Level/         EndlessScreen, BoardView, BoardPulse, TrayView, PieceView, BoardFeedback,
                      PictureView, RarityHalo, RarityFrame, RarityNames, DropFlock, CompletionCard, SnapshotBlur
-      Paint/         PaintScreen, PlanetStage, ZoneMarker, PlacementMarker, PaintSwatch
+      Planet/        PlanetScreen (+PlanetArgs), PlanetStage, SlotMarker, SlotAtlas
+      Collection/    CollectionScreen (+CollectionArgs), CollectionCard
       Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NestedScrollForwarder, …
       Hub/ Galaxy/ Shop/ Rankings/ Profile/ Levels/ Atoms/
     App/             GameBootstrap, ServiceLocator, DevPanel
     Editor/          Build*Screen, BuildMainScene, BuildUIKit, GenerateUISprites, GenerateFontAsset, RefreshPictureLibrary,
-                     PictureViewBuilder (+A1Layers, K1Sprites), StyleSpriteImporter, RunScreenRig, RunScreenshots,
-                     UiBuilder, InkFlowBootstrap, DevMenu, EconomySimulator
+                     PictureViewBuilder (+A1Layers, K1Sprites), StyleSpriteImporter, ScreenRigBase → RunScreenRig,
+                     MetaScreenRig<T>, RunScreenshots, MetaScreenshots, UiBuilder, InkFlowBootstrap, DevMenu, EconomySimulator
   _Pictures/         <тема>/<id>.txt — картинки (формат docs/pictures-format.md), 117 штук
-  _ScriptableObjects/ Balance/ (BalanceConfig, EconomyConfig)  Style/ (DesignSystem)  Pictures/ (PictureLibrary)
+  _ScriptableObjects/ Balance/ (BalanceConfig, EconomyConfig, GalaxyConfig)  Style/ (DesignSystem)  Pictures/ (PictureLibrary)
   _Sprites/          UI/ (згенеровані спрайти)  K1Candy/ (копії еталона docs/StyleRef; шари тривоги A1Breathe будує код)
   _Shaders/          InkFlowPlanet, InkFlowZone, InkFlowDarkCanvas
   _Prefabs/          UI/ (атоми)  Screens/ (корені екранів — з них складається Main.unity)
@@ -290,6 +293,9 @@ BalanceConfig.asset   → BalanceData:   поле 8×8, лоток 3, мішок
 EconomyConfig.asset   → EconomyData:   ScorePerOil, PictureRewards[6], FinishPictureCosts[6] + FinishPictureMinShare,
                                         InterstitialEveryRuns, RewardAdMultiplier; поля старого режиму «Рівні» й фарб
                                         (StarterPaintLiters, BaseLevelReward, EndlessMilestones…) — сироти до Фаз 3–4
+GalaxyConfig.asset    → GalaxyLayout:  планети по черзі (тип = ідентифікатор у файлі, назва, слоти 4 … 12, місяці,
+                                        кільце, фінал) та імена циклів галактик; створюється Bootstrap Assets або
+                                        Build Main Scene з дефолтами GalaxyLayout.Default
 DesignSystem.asset    → DesignSystem:  усі кольори, радіуси, тривалості; CurrentTokenVersion (20) піднімається,
                                         коли токени змінились, і Build UI Kit перезаписує асет
 PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/_Pictures/**/*.txt, збирає Refresh Picture Library;
@@ -312,11 +318,13 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 ## 9. Шар UI і навігація
 
-**Одна сцена `Main.unity`**, дев'ять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
+**Одна сцена `Main.unity`**, десять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
 
 Екран забігу (`EndlessScreen`) зверху вниз, px макета (`RunLayout`, Core): шапка 40 → блок 186: по центру лише картинка на полотні W4DarkCanvas (сторона `runPictureSide` 154 + запас під гало рідкості), праворуч колонка РАХУНОК/РЕКОРД 56–92 → поле 374 (панель на всю ширину мінус бічне поле 8; 64 блоки + 64 привиди) → лоток 86 при низу safe area — усе × K (1080/390). Бракує висоти — стискається спершу блок картинки (до 108), поле й лоток ніколи.
 
 Оверлеї: картка перед забігом («ЦЬОГО ЗАБІГУ · тема» або «ПРОДОВЖЕННЯ · тема» зі зліпка; тап або таймер), картка завершення картинки (знімок екрана розмито, свайп праворуч — у колекцію, ліворуч — геть), картка фіналу у дві фази (поки можна продовжити й ролик готовий — «Продовжити за ролик»/«Завершити»; у фіналі — нагороди, «Подвоїти за ролик», «Домалювати одразу · N нафти», «Ще раз»).
+
+Галактика (§12): `GalaxyScreen` (карусель планет поточного циклу, «Відкрити») → `PlanetScreen` (слоти на кулі: порожній → `CollectionScreen` у режимі вибору → `AppRouter.TryPlaceInSlot` + `Pop`; зайнятий → «Замінити / Повернути»; усі зайняті → «планета ожила», остання — «галактика завершена») → колекція — окремий екран із віртуалізованою сіткою й фільтрами. Слоти й картки малюються з одного атласу (`SlotAtlas`) чотирма шарами — бюджет викликів тримає `MetaScreenRig.EstimateBatches`.
 
 Правила в'ю (перевіряє `Tools/check-ui-animation.py`): щокадрова анімація — лише `localPosition/localScale/localRotation` і `CanvasRenderer`; маска й гало картинки — `SetPixels32/Apply` з одного `LateUpdate`; тряска поля рухає окремий вузол `Board/Shake`; ніколи `sizeDelta`, `anchoredPosition` чи `Image.color` у циклі.
 
@@ -336,19 +344,20 @@ public sealed class PlayerState {                  // рантайм — пра�
     void SaveRun(RunSession); void ClearRun();       // зліпок забігу (§9)
     long FinishPictureCost(Rarity, float remaining); bool TryFinishPicture(Rarity, float remaining);   // §13, за нафту
     bool ShouldShowInterstitial;
-    bool PlacePicture(planetId, pictureId, lon, lat); bool RemoveLastPlacement(planetId);
-    long CompleteLevel(...); bool PaintZone(...);     // режим «Рівні» й фарбування планет — сироти до Фаз 3–4
+    GalaxyLayout Layout; int CurrentGalaxy; int FreeCopies(pictureId); bool CanEditPlanet(galaxy, planetId);   // §12
+    bool TryPlaceInSlot(galaxy, planetId, slot, pictureId, DateTime); bool ClearSlot(galaxy, planetId, slot);
+    long CompleteLevel(...);                         // режим «Рівні» — сирота
     void Persist();
 }
 ```
 
 - **Колекція** — `id → (скільки разів, коли вперше)`; рекорд колекції = різних (§8) — це і є метрика «Колекція» в Рейтингах.
-- **Розміщення** — список «планета + картинка + довгота/широта», кілька на планету; редактор — «Зняти останню». У Фазі 3 замінюється слотами планет (§12).
+- **Слоти планет (§12)** — список «галактика + планета + слот + картинка + коли» (`GalaxyData.Slots`); одна зібрана копія — один слот; стани планет і галактик — похідні (`GalaxyState`, `GalaxyProgress.FromSave`).
 - **Ідентифікатори у файлі — назви, не індекси** (картинки, фарби, планети): бібліотека росте темами.
 
 ### Збереження — з міграціями з першого дня
 
-`SaveFile.Version` — завжди перше поле; поточна **v7** (v5 — піксельні картинки й колекція за id, v6 — зліпок забігу `RunSnapshot`, v7 — кроки у зліпку). Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Точки автозбереження: кінець забігу (`CompleteRun`), кожна зібрана картинка (`CollectPicture`), зліпок на кожен лоток, паузу й вихід у хаб (`SaveRun`), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
+`SaveFile.Version` — завжди перше поле; поточна **v8** (v5 — піксельні картинки й колекція за id, v6 — зліпок забігу `RunSnapshot`, v7 — кроки у зліпку, v8 — слоти планет: розміщення → слоти, літри → нафта, зони — геть; `MigrationContext` несе розкладку й економіку з конфігів). Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Точки автозбереження: кінець забігу (`CompleteRun`), кожна зібрана картинка (`CollectPicture`), зліпок на кожен лоток, паузу й вихід у хаб (`SaveRun`), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
 
 ---
 
@@ -383,7 +392,7 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 **Бюджет:** 60 fps на iPhone SE 2 / Snapdragon 6-серії; ≤35 draw calls на екран; ≤150 МБ RAM; холодний старт ≤3 с; **нуль GC-алокацій під час ходу**.
 
 - Core працює з масивами й структурами; `MoveResult` — переиспользуемий буфер зі спільним списком клітинок, не новий список щоходу; бот і сесія не алокують у циклі ходу.
-- Поле (K1Candy) — на клітинку чотири спрайти в чотирьох окремих шарах (лунка, гало, блок, блиск), порожня клітинка — вимкнені об'єкти; видимий стан — чиста модель `BoardVisual` (Core). Картинка — один `RawImage` із шейдером `InkFlow/DarkCanvas` (арт і маска розміру арту, гало на сітці полотна; покриття й гало рахує Core `PictureCanvas`), маска й гало оновлюються `SetPixels32/Apply` з одного `LateUpdate`.
+- Поле (K1Candy) — на клітинку чотири спрайти в чотирьох окремих шарах (лунка, гало, блок, блиск), порожня клітинка — вимкнені об'єкти; видимий стан — чиста модель `BoardVisual` (Core). Слоти планети — так само чотири шари (плями, панелі, рамки, пікселі) і один атлас `SlotAtlas` на всі картинки екрана; порожні плями — два спільні матеріали. Картинка — один `RawImage` із шейдером `InkFlow/DarkCanvas` (арт і маска розміру арту, гало на сітці полотна; покриття й гало рахує Core `PictureCanvas`), маска й гало оновлюються `SetPixels32/Apply` з одного `LateUpdate`.
 - Планети — шейдер `InkFlow/Planet` (дві октави шуму, обертання через `_Time`), зони планети — `InkFlow/Zone`; накладки картинок проєктуються стадією, як зони.
 - Один атлас UI-спрайтів, один шрифт (Nunito з кирилицею; піктограми — спрайти, не гліфи).
 - **Ніякого post-process Bloom.** ASTC для обох платформ. `targetFrameRate = 60`.
@@ -410,7 +419,7 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
 | EditMode | `InkFlow.Meta.Tests` | економіка забігу, колекція, розміщення, ліміти, міграції v1→v7, профіль, рейтинги |
 | Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **311 тестів** |
-| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **18 тестів** на зібраному префабі через стенд `RunScreenRig`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості. Лише в Unity: редактор закритий або batch на копії проєкту |
+| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **23 тести** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання), колекція (лише зібране, фільтр рідкості, притлумлення без вільних копій). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
 **Обов'язкові тести-запобіжники:**
@@ -425,6 +434,8 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 9. У порожній клітинці поля немає активної графіки (`BoardVisualTests`).
 10. Готова картинка покриває рівно свій арт, не більше й не менше (`PictureCanvasTests` на всій бібліотеці).
 11. Самоперевірка розкладки бачить навмисно зсунуте полотно (`BoardLayoutTests.ShiftedCanvas_IsReportedAsAFault`).
+12. Одна зібрана копія — один слот; планета оживає лише коли зайняті всі слоти, редагувати можна лише поточну галактику й відкриті планети (`PlayerStateTests`, `PersistenceTests`, `GalaxyProgressTests`).
+13. Міграція v7→v8 не губить колекцію, нафту й рекорд: розміщення стають слотами по черзі, літри — нафтою за курсом конфігу.
 
 Перед комітом: `bash Tools/check-compile.sh` (компілює response-файлами Unity), `python3 Tools/check-ui-animation.py`, `check-glyphs.py`, `check-navigation.py`.
 
@@ -456,7 +467,7 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | **0. Документ** | ✅ майстер-док переписано під піксельні картинки (Сесія 3) |
 | **1. Фундамент картинок** | ✅ майстер-палітра, `PixelPicture`, бібліотека 117, колода «невидані першими», збереження з міграціями, контактний аркуш |
 | **2. Забіг** | ✅ кольори з картинки, кроки з ліній, зв'язне проявлення, перефарбування, завершення зі свайпом; вигляд K1Candy + W4DarkCanvas + A1Breathe, над полем лише картинка (Сесії 3–5) |
-| **3. Галактика-вітрина** | ⛔ наступна: слоти планет замість фарбування зон, прибирання економіки фарби |
+| **3. Галактика-вітрина** | ✅ слоти планет замість фарбування зон (Фаза 3, Сесія 6): `GalaxyConfig`, цикли галактик, колекція окремим екраном, v8; літри повернуто нафтою |
 | **4. Магазин — лише нафта** | ⛔ |
 | **5. Налаштування** | ⛔ |
 | **6. Профіль** | ⛔ |
