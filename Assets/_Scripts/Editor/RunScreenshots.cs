@@ -42,8 +42,6 @@ namespace InkFlow.Editor
                 "Assets/_Sprites/K1Candy/block-base.png", "Assets/_Sprites/K1Candy/block-highlight.png", "Assets/_Sprites/K1Candy/glow.png"
             })
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-            foreach (var name in A1Sprites.Names)
-                AssetDatabase.ImportAsset(A1Sprites.PathOf(name), ImportAssetOptions.ForceUpdate);
             RefreshPictureLibrary.Refresh();
             BuildEndlessScreen.Build();
             CaptureAll();

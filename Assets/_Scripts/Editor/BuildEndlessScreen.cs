@@ -93,7 +93,6 @@ namespace InkFlow.Editor
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (darkCanvas == null) missing.Add(PictureViewBuilder.DarkCanvasShaderPath);
             K1Sprites.AllPresent(missing);
-            A1Sprites.AllPresent(missing);
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Нескінченний НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -450,8 +449,8 @@ namespace InkFlow.Editor
             plateStroke.raycastTarget = false;
 
             // Тривога поля A1Breathe (§11), шар 1: зовнішнє сяйво ПІД панеллю (панель ховає його серцевину).
-            var outerCalm = A1Sprites.Layer(go, "PulseOuterCalm", "glow_outer_calm");
-            var outerCritical = A1Sprites.Layer(go, "PulseOuterCritical", "glow_outer_critical");
+            var outerCalm = A1Layers.Layer(go, "PulseOuterCalm");
+            var outerCritical = A1Layers.Layer(go, "PulseOuterCritical");
 
             var plateGo = Child(go, "Plate");
             Stretch(plateGo);
@@ -518,9 +517,9 @@ namespace InkFlow.Editor
 
             // Тривога поля A1Breathe, шари 3–4: внутрішнє сяйво в межах поля над лунками й блоками,
             // тонка рамка над усім. Альфою всіх п'яти керує BoardPulse.
-            var innerCalm = A1Sprites.Layer(go, "PulseInnerCalm", "glow_inner_calm");
-            var innerCritical = A1Sprites.Layer(go, "PulseInnerCritical", "glow_inner_critical");
-            var frameLine = A1Sprites.Layer(go, "PulseFrame", "frame_line");
+            var innerCalm = A1Layers.Layer(go, "PulseInnerCalm");
+            var innerCritical = A1Layers.Layer(go, "PulseInnerCritical");
+            var frameLine = A1Layers.Layer(go, "PulseFrame");
             pulse = go.AddComponent<BoardPulse>();
             Wire(pulse, ("design", design), ("outerCalm", outerCalm), ("outerCritical", outerCritical),
                 ("innerCalm", innerCalm), ("innerCritical", innerCritical), ("frame", frameLine));

@@ -662,7 +662,18 @@ namespace InkFlow.Style
         [SerializeField] private float[] rarityHaloAlphas = { 0.35f, 0.45f, 0.55f, 0.65f, 0.8f, 0.9f };
 
         [Header("Тривога поля «мало місця» (§11): A1Breathe, docs/StyleRef/A1Breathe/")]
-        [Tooltip("Дихання сяйва: a = мін + (макс − мін)·(0.5 − 0.5·cos(2π·t / період)). Кольори й товщини запечені в спрайтах.")]
+        [Tooltip("Яскравість тривоги за рівнем: множник альфи всіх шарів рівня, і сяйв, і тонкої рамки (1 — як в еталоні). " +
+                 "Автор після гри: на третину тьмяніше, а «останній хід» помітно сильніший — тож «мало місця» 0.6, «останній хід» 0.75. " +
+                 "Тонка рамка однакова для обох рівнів, і на тонкій смузі вона стирала різницю між ними.")]
+        [SerializeField, Range(0f, 1f)] private float pulseBrightnessWarn = 0.6f;
+        [SerializeField, Range(0f, 1f)] private float pulseBrightnessStrong = 0.75f;
+        [Tooltip("Товщина смуги сяйва: множник ширини штриха й розмиття (1 — як в еталоні A1Breathe). Пік альфи від неї " +
+                 "не змінюється — лише ширина. Тонка рамка завжди 2 px макета. Автор після гри: удвічі тонше.")]
+        [SerializeField, Range(0.25f, 1.5f)] private float pulseThickness = 0.5f;
+        [Tooltip("Градієнт по діагоналі панелі: лівий верхній кут → правий нижній (еталон: кораловий → бурштиновий).")]
+        [SerializeField] private Color pulseColorFrom = Hex("#FF5E7A");
+        [SerializeField] private Color pulseColorTo = Hex("#FFB35C");
+        [Tooltip("Дихання сяйва: a = мін + (макс − мін)·(0.5 − 0.5·cos(2π·t / період)).")]
         [SerializeField, Range(0f, 1f)] private float pulseAlphaMin = 0.25f;
         [SerializeField, Range(0f, 1f)] private float pulseAlphaMax = 1f;
         [Tooltip("Період дихання: «мало місця» 1.8 с, «останній хід» 0.9 с.")]
@@ -1095,6 +1106,11 @@ namespace InkFlow.Style
         public float PulseCalmPeriod => pulseCalmPeriod;
         public float PulseCriticalPeriod => pulseCriticalPeriod;
         public float PulseFadeDuration => pulseFadeDuration;
+        public float PulseBrightnessWarn => pulseBrightnessWarn;
+        public float PulseBrightnessStrong => pulseBrightnessStrong;
+        public float PulseThickness => pulseThickness;
+        public Color PulseColorFrom => pulseColorFrom;
+        public Color PulseColorTo => pulseColorTo;
 
         public float ScoreMinFontScale => scoreMinFontScale;
         public float ScoreDigitEm => scoreDigitEm;
