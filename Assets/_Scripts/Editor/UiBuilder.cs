@@ -27,6 +27,9 @@ namespace InkFlow.Editor
         {
             var go = new GameObject("Main Camera") { tag = "MainCamera" };
             var camera = go.AddComponent<Camera>();
+            // Єдиний слухач звуку на сцену — на камері, як і скрізь в Unity. Без нього жоден
+            // AudioSource не чутно, а консоль сипле «There are no audio listeners in the scene».
+            go.AddComponent<AudioListener>();
             camera.orthographic = true;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = design.BackgroundEdge;

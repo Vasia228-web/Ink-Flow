@@ -21,7 +21,7 @@
     <!-- Ті самі Edit Mode тести, що ганяє Unity Test Runner — крім UI-тестів, які
          піднімають префаб екрана й потребують живого UnityEngine (Assets/Tests/EditMode/UI). -->
     <Compile Include="../../Assets/Tests/EditMode/**/*.cs"
-             Exclude="../../Assets/Tests/EditMode/UI/**/*.cs" />
+             Exclude="../../Assets/Tests/EditMode/UI/**/*.cs;../../Assets/Tests/EditMode/Meta/JsonSaveStorageTests.cs" />
     <Compile Include="NUnitShim.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>

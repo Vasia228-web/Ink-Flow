@@ -83,7 +83,7 @@ namespace InkFlow.UI
             if (_state == null)
                 Debug.LogError(
                     "[InkFlow] AppRouter.Configure не викликано — екрани покажуть МОКОВІ дані " +
-                    "(нік «Нова», 1250 нафти, рівень 12). Перевір, чи підв'язаний GameBootstrap.router " +
+                    "(нік «Нова», 1250 нафти, рекорд 8420). Перевір, чи підв'язаний GameBootstrap.router " +
                     "у Main.unity, і перезбери сцену: Ink Flow → Setup → Build Main Scene.");
 
             HideAll();

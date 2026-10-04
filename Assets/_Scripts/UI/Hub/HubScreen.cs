@@ -45,8 +45,6 @@ namespace InkFlow.UI
         // розкладку. У грі всі вони перекриваються реальними.
         [SerializeField] private string mockName = "Нова";
         [SerializeField] private long mockOil = 1250;
-        [SerializeField] private int mockLevel = 12;
-        [SerializeField] private int mockStars = 27;
         [SerializeField] private int mockRecord = 8420;
 
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
@@ -100,16 +98,6 @@ namespace InkFlow.UI
             StyleRefresh.Schedule(this, Apply);
         }
 
-        /// <summary>
-        /// Наступний рівень для картки «Рівні»: найдалі пройдений плюс один.
-        /// Саме він відкритий, і саме його гравець побачить на карті поточним.
-        /// </summary>
-        private int LevelLine() =>
-            State != null ? LevelProgress.HighestCleared(State.Progress) + 1 : mockLevel;
-
-        private int StarsLine() =>
-            State != null ? LevelProgress.TotalStars(State.Progress) : mockStars;
-
         private long RecordLine() =>
             State != null ? State.Progress.EndlessRecord : mockRecord;
 
@@ -158,11 +146,9 @@ namespace InkFlow.UI
                     tagline.font = design.Font;
             }
 
-            // ★ немає в Nunito, тож підставляємо іконку тегом. Голий символ не годиться:
-            // TMP шукає відсутні гліфи лише у fallback-ШРИФТАХ, а не у спрайт-асеті,
-            // і замінює їх на порожній квадрат.
-            levelsCard?.SetText("Рівні", "Розчисти сітку",
-                $"Рівень {LevelLine()} · <sprite name=\"star\"> {StarsLine()}");
+            // Режиму «Рівні» ще немає (вхід веде на «Скоро»), тож картка чесно каже «Скоро» —
+            // без вигаданого номера рівня й зірок, яких гравець ніколи не заробляв.
+            levelsCard?.SetText("Рівні", "Скоро", "Режим у роботі");
             endlessCard?.SetText("Нескінченний", "Малюй картинки",
                 $"Картинок · {PicturesLine()} · рекорд {RecordLine():N0}");
             levelsCard?.Apply();

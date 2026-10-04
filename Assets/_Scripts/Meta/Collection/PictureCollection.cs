@@ -80,7 +80,9 @@ namespace InkFlow.Meta
                     continue;
                 if (collection._entries.ContainsKey(record.PictureId))
                     continue;
-                var first = DateTime.TryParse(record.FirstUtc, null,
+                // Дата у файлі — ISO «o», тож читається лише інваріантною культурою: у культурі телефону
+                // з іншим календарем той самий рядок дав би інший рік.
+                var first = DateTime.TryParse(record.FirstUtc, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
                     out var parsed)
                     ? parsed

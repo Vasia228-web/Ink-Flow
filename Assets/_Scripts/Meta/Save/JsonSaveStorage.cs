@@ -53,9 +53,39 @@ namespace InkFlow.Meta
             }
             catch (Exception e)
             {
-                Debug.LogError($"[InkFlow] Не вдалося прочитати збереження: {e.Message}. Починаємо з чистого.");
+                // Нечитабельний файл НЕ стирається мовчки: перший же Persist перезаписав би save.json,
+                // другий — і .bak, і колекція з нафтою зникли б назавжди. Копія лишається поруч.
+                var failed = TryPreserveFailed();
+                Debug.LogError($"[InkFlow] Не вдалося прочитати збереження: {e.Message}. Починаємо з чистого; " +
+                               (failed is null ? "копію файлу зберегти не вдалося." : $"копія файлу — {failed}."));
                 return new SaveFile();
             }
+        }
+
+        /// <summary>Копія нечитабельного файлу поруч із ним: save.json.failed-&lt;UTC&gt;; null, якщо скопіювати не вдалося.</summary>
+        private string? TryPreserveFailed()
+        {
+            try
+            {
+                var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+                var failedPath = $"{_path}.failed-{stamp}";
+                File.Copy(_path, failedPath, overwrite: true);
+                return failedPath;
+            }
+            catch (Exception copyError)
+            {
+                Debug.LogError($"[InkFlow] Копію зіпсованого збереження зробити не вдалося: {copyError.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Усі копії нечитабельних файлів поруч зі збереженням (для тестів і дев-панелі).</summary>
+        public string[] FailedCopies()
+        {
+            var directory = Path.GetDirectoryName(_path);
+            if (directory is null || directory.Length == 0 || !Directory.Exists(directory))
+                return Array.Empty<string>();
+            return Directory.GetFiles(directory, Path.GetFileName(_path) + ".failed-*");
         }
 
         public void Save(SaveFile save)

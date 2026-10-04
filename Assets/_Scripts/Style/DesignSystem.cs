@@ -604,6 +604,10 @@ namespace InkFlow.Style
         [Tooltip("Спрайт блоку в центрі має яскравість ~0.83 від білого: тонуємо кольором родини, " +
                  "помноженим на це число, щоб основний тон лягав рівно на середину блоку.")]
         [SerializeField, Range(1f, 1.4f)] private float blockTintBoost = 1.2f;
+        [Tooltip("Стеля яскравості блока: найяскравіший канал після підсилення не вище цього числа, відтінок " +
+                 "зберігається. Без стелі білий, вершки, срібло й м'ята давали чистий білий — без блиску й грані " +
+                 "(знімок КОСМОНАВТА з білим полем). 1 — вимкнено.")]
+        [SerializeField, Range(0.5f, 1f)] private float blockMaxBrightness = 0.92f;
         [Tooltip("Світіння блоку — спрайт-гало під блоком (НЕ Bloom): прозорість і розмір відносно блоку.")]
         [SerializeField, Range(0f, 1f)] private float blockGlowAlpha = 0.55f;
         [SerializeField, Range(1f, 2f)] private float blockGlowScale = 1.5f;
@@ -1051,9 +1055,28 @@ namespace InkFlow.Style
         public BoardGeometry BoardGeometryFor(int width, int height) =>
             BoardGeometry.For(width, height, boardSideMargin, boardPadding, boardGap);
 
-        /// <summary>Тонування білого спрайта блоку: основний тон родини лягає на середину блоку (K1Candy).</summary>
-        public Color BlockTint(Color baseColor) => new Color(
-            Mathf.Min(1f, baseColor.r * blockTintBoost), Mathf.Min(1f, baseColor.g * blockTintBoost), Mathf.Min(1f, baseColor.b * blockTintBoost), 1f);
+        public float BlockMaxBrightness => blockMaxBrightness;
+
+        /// <summary>
+        /// Тонування білого спрайта блоку: основний тон родини лягає на середину блоку (K1Candy).
+        /// Найяскравіший канал обрізається до <see cref="BlockMaxBrightness"/> зі збереженням відтінку:
+        /// світлі родини лишаються світлими, але блиск і грань спрайта на них видно.
+        /// </summary>
+        public Color BlockTint(Color baseColor)
+        {
+            var r = baseColor.r * blockTintBoost;
+            var g = baseColor.g * blockTintBoost;
+            var b = baseColor.b * blockTintBoost;
+            var peak = Mathf.Max(r, Mathf.Max(g, b));
+            if (peak > blockMaxBrightness && peak > 0f)
+            {
+                var k = blockMaxBrightness / peak;
+                r *= k;
+                g *= k;
+                b *= k;
+            }
+            return new Color(Mathf.Min(1f, r), Mathf.Min(1f, g), Mathf.Min(1f, b), 1f);
+        }
 
         public Color PictureTitleColor => pictureTitleColor;
         public Color PictureCanvasColor => pictureCanvasColor;

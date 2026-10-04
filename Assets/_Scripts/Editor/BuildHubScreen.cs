@@ -371,14 +371,13 @@ namespace InkFlow.Editor
             Place(title, new Vector2(0f, M(17f)), new Vector2(textW, M(24f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
-            var subtitle = Label(text, "Subtitle", "Розчисти сітку", design, font,
+            var subtitle = Label(text, "Subtitle", "Скоро", design, font,
                 design.FontSizeCardSubtitle, design.TextMuted, TextAlignmentOptions.Left);
             Place(subtitle, new Vector2(0f, -M(2f)), new Vector2(textW, M(16f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
-            // Зірка тегом, а не символом: у сцені лишався літерал ★, і TMP щоразу
-            // писав «not found in font asset», бо гліфа в Nunito немає.
-            var stat = Label(text, "Stat", "Рівень 12 · <sprite name=\"star\"> 27", design, font,
+            // Режиму «Рівні» ще немає — картка каже «Скоро», без вигаданого рівня й зірок.
+            var stat = Label(text, "Stat", "Режим у роботі", design, font,
                 design.FontSizeLabel, design.AccentPrimary, TextAlignmentOptions.Left);
             Place(stat, new Vector2(0f, -M(19f)), new Vector2(textW, M(16f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));

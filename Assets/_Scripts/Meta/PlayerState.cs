@@ -106,7 +106,9 @@ namespace InkFlow.Meta
         {
             File.Wallet.OilDrops = Wallet.OilDrops;
             File.Wallet.PlaysToday = DailyLimit.PlaysToday;
-            File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd");
+            // Інваріантна культура обов'язкова: на телефоні з тайським чи японським календарем «yyyy»
+            // дало б 2569, Restore не впізнав би день, і денний ліміт скидався б на кожному запуску.
+            File.Wallet.DayUtc = DailyLimit.CurrentDayUtc.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             PaintInventory.Save(Paints, File.Paints);
             PictureCollection.Save(Collection, File.Collection);
 
