@@ -440,9 +440,9 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 
 ## 16. Git-workflow і `CLAUDE.md`
 
-- Гілка на фазу (зараз робота йде на `main`; push — лише автор); окремий коміт на кожен пункт промту; імперативні повідомлення українською.
+- Гілка на фазу (зараз робота йде на `main`); push — після «ок» автора на кожній контрольній точці; окремий коміт на кожен пункт промту; імперативні повідомлення українською.
 - **Git LFS** для `.png`, `.wav`, `.psd`, `.fbx`; Force Text + Visible Meta Files.
-- `Assets/_Prefabs/Screens/GalaxyScreen.prefab` — автор править сам; у коміти сесії не входив.
+- Усі `Assets/_Prefabs/Screens/*.prefab` — згенеровані `Build*Screen`, руками не правляться (`GalaxyScreen.prefab` — не виняток: його відмінності в робочій копії були Unity-пересеріалізацією, а не правкою автора). Перезібрані сцени й префаби комітяться за рішенням автора.
 - `CLAUDE.md` у корені — стан проєкту; `docs/implementation-notes.md` — журнал рішень, відступів, сиріт і цифр прогонів.
 
 ---
