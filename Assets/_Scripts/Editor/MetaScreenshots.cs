@@ -10,7 +10,7 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Знімки екранів метагри (Фази 3–7) з редактора, без Play Mode: чотири роздільності × стани
-    /// галактики, планети й колекції. Меню: Ink Flow → Debug → Capture Meta Screenshots.
+    /// галактики, планети, колекції й магазину. Меню: Ink Flow → Debug → Capture Meta Screenshots.
     /// Пише PNG у docs/screenshots/meta/. Для планети з усіма слотами логує оцінку викликів
     /// малювання (бюджет iPhone SE ≤ 35, архідок §12); перевищення в batch — код виходу 1.
     /// Batch: Unity -batchmode -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.MetaScreenshots.BuildAndCapture -quit
@@ -26,7 +26,8 @@ namespace InkFlow.Editor
         {
             "galaxy-fresh", "galaxy-mid", "galaxy-second",
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
-            "collection-browse", "collection-pick", "collection-empty"
+            "collection-browse", "collection-pick", "collection-empty",
+            "shop", "shop-offline"
         };
 
         public static void BuildAndCapture()
@@ -35,6 +36,7 @@ namespace InkFlow.Editor
             BuildGalaxyScreen.Build();
             BuildPlanetScreen.Build();
             BuildCollectionScreen.Build();
+            BuildShopScreen.Build();
             CaptureAll();
         }
 
@@ -43,7 +45,7 @@ namespace InkFlow.Editor
         {
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen" })
+            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen" })
                 if (!MetaScreenRig<ScreenBase>.Available(name))
                 {
                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
@@ -115,6 +117,20 @@ namespace InkFlow.Editor
                         if (runs > DrawCallBudget)
                             overBudget.Add($"{device.Name} / {state}: {runs} змін пари (різних {distinct})");
                     }
+                    rig.SavePng(path);
+                    break;
+                }
+                case "shop":
+                case "shop-offline":
+                {
+                    // Зі стором (FakeIap: ціни §13 рядками) і без нього (NullIap: кнопки сплять, екран каже чому).
+                    using var rig = MetaScreenRig<ShopScreen>.Create(device, "ShopScreen");
+                    var player = rig.NewPlayer();
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    rig.Screen.BindServices(state == "shop"
+                        ? new InkFlow.Platform.FakeIap()
+                        : new InkFlow.Platform.NullIap());
+                    rig.Enter(player, ScreenArgs.Empty);
                     rig.SavePng(path);
                     break;
                 }

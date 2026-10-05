@@ -62,7 +62,10 @@ namespace InkFlow.Meta
             {
                 var json = File.ReadAllText(_path);
                 var save = JsonUtility.FromJson<SaveFile>(json) ?? new SaveFile();
-                return SaveMigrations.Migrate(save, _migrations);
+                // Файли до v8 тримали запас фарби й розміщення — полів, яких у SaveFile уже немає.
+                // Крок v7→v8 мусить їх прочитати, тож старий файл парситься вдруге в legacy-форму.
+                var legacy = save.Version < 8 ? JsonUtility.FromJson<Legacy.LegacyPaintSave>(json) : null;
+                return SaveMigrations.Migrate(save, _migrations, legacy);
             }
             catch (Exception e)
             {

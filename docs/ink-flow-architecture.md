@@ -251,7 +251,7 @@ Strong: тісних ≥ dangerStrongShapes (18) або фігура з лотк
 
 ```
 NoPieceFits() — ЄДИНА перевірка живості, після кожного ходу; State = Lost
-ContinueAfterLoss(): дозволено, поки ContinuesUsed < ContinuesPerRun (1); поле чисте, лоток новий, рахунок і картинка лишаються
+ContinueAfterLoss(): дозволено, поки ContinuesUsed < ContinuesPerRun (2: перший — за ролик, далі — за нафту, §13); поле чисте, лоток новий, рахунок і картинка лишаються
 CompletePictureNow(): усі кроки заповнено, картинка зарахована, наступна витягнута, поле й лоток перефарбовано;
                       форми в лотку, зайнятість поля й рахунок не змінюються (§13 — донат не впливає на проходження)
 Restart(): усе з нуля, нова картинка з колоди
@@ -291,8 +291,10 @@ BalanceConfig.asset   → BalanceData:   поле 8×8, лоток 3, мішок
                                         rarityStepTargets ± stepTolerance), родини 4–6, небезпека (dangerTightFits /
                                         WarnShapes / CalmShapes / StrongShapes), ContinuesPerRun, HintIdleSeconds
 EconomyConfig.asset   → EconomyData:   ScorePerOil, PictureRewards[6], FinishPictureCosts[6] + FinishPictureMinShare,
-                                        InterstitialEveryRuns, RewardAdMultiplier; поля старого режиму «Рівні» й фарб
-                                        (StarterPaintLiters, BaseLevelReward, EndlessMilestones…) — сироти до Фаз 3–4
+                                        ContinueCost, OilPacks[4] (id стору, кількість, бейдж; ціни — зі стору),
+                                        InterstitialEveryRuns, RewardAdMultiplier; числа витрат підбирає
+                                        EconomySimulation (Meta) — меню Ink Flow → Simulate → Economy (30 days);
+                                        поля старого режиму «Рівні» (BaseLevelReward, EndlessMilestones…) — сироти
 GalaxyConfig.asset    → GalaxyLayout:  планети по черзі (тип = ідентифікатор у файлі, назва, слоти 4 … 12, місяці,
                                         кільце, фінал) та імена циклів галактик; створюється Bootstrap Assets або
                                         Build Main Scene з дефолтами GalaxyLayout.Default
@@ -336,13 +338,15 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 ```csharp
 public sealed class PlayerState {                  // рантайм — правда, файл — зліпок
-    Wallet Wallet; PaintStock Paints; RewardCalculator Rewards; DailyLimitTracker DailyLimit;
+    Wallet Wallet; RewardCalculator Rewards; DailyLimitTracker DailyLimit;
     PictureCollection Collection; PictureLibrary Library; BalanceData Balance; RunSnapshot? SavedRun;
     RunReward CompleteRun(in RunSummary, DateTime);  // очки → нафта × денний, картинки → нафта за рідкістю, рекорди, партія дня
     long DoubleRunReward(long); long RewardPicture(Rarity);
     bool CollectPicture(string id, DateTime);        // одразу у файл
     void SaveRun(RunSession); void ClearRun();       // зліпок забігу (§9)
     long FinishPictureCost(Rarity, float remaining); bool TryFinishPicture(Rarity, float remaining);   // §13, за нафту
+    long ContinueCost; bool TryContinueRun();        // §13: продовжити після програшу за нафту
+    IReadOnlyList<OilPack> OilPacks; void GrantPurchasedOil(OilPack);   // §13: магазин — стор підтвердив, нафта у файл
     bool ShouldShowInterstitial;
     GalaxyLayout Layout; int CurrentGalaxy; int FreeCopies(pictureId); bool CanEditPlanet(galaxy, planetId);   // §12
     bool TryPlaceInSlot(galaxy, planetId, slot, pictureId, DateTime); bool ClearSlot(galaxy, planetId, slot);
@@ -353,11 +357,12 @@ public sealed class PlayerState {                  // рантайм — пра�
 
 - **Колекція** — `id → (скільки разів, коли вперше)`; рекорд колекції = різних (§8) — це і є метрика «Колекція» в Рейтингах.
 - **Слоти планет (§12)** — список «галактика + планета + слот + картинка + коли» (`GalaxyData.Slots`); одна зібрана копія — один слот; стани планет і галактик — похідні (`GalaxyState`, `GalaxyProgress.FromSave`). Планета відкрита, якщо вона перша, одразу за ожилою або з картинками (`GalaxyState.IsPlanetOpen`). Записи, яких розкладка не адресує (слоти чи планети, яких уже немає в `GalaxyConfig`), у файлі лишаються, але в прогресі й зайнятих копіях не рахуються (`IsAddressed`): усе, що каже «скільки зайнято», бере розкладку.
-- **Ідентифікатори у файлі — назви, не індекси** (картинки, фарби, планети): бібліотека росте темами.
+- **Ідентифікатори у файлі — назви, не індекси** (картинки, планети): бібліотека росте темами.
+- **Нафта витрачається лише на дві дії** (§13): «домалювати одразу» і «продовжити після програшу»; магазин продає лише нафту, ціна — зі стору (`IIapService.Query`), у грі немає жодного числа-ціни.
 
 ### Збереження — з міграціями з першого дня
 
-`SaveFile.Version` — завжди перше поле; поточна **v8** (v5 — піксельні картинки й колекція за id, v6 — зліпок забігу `RunSnapshot`, v7 — кроки у зліпку, v8 — слоти планет: розміщення → слоти, літри → нафта, зони — геть; `MigrationContext` несе розкладку й економіку з конфігів). Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Нечитабельний файл не стирається: `JsonSaveStorage` відкладає його в `save.json.failed-<UTC>` копією, а якщо файл не читається навіть для копіювання — перейменуванням; не вдалось і це — сховище не пише поверх оригіналу (`LoadFailedWithoutBackup`). Точки автозбереження: кінець забігу (`CompleteRun`), кожна зібрана картинка (`CollectPicture`), зліпок на кожен лоток, паузу й вихід у хаб (`SaveRun`), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
+`SaveFile.Version` — завжди перше поле; поточна **v9** (v5 — піксельні картинки й колекція за id, v6 — зліпок забігу `RunSnapshot`, v7 — кроки у зліпку, v8 — слоти планет: розміщення → слоти, літри → нафта, зони — геть; v9 — полів фарби у файлі більше немає). Старі поля для кроку v7→v8 живуть у `Meta/Save/LegacySave.cs` (`Legacy.LegacyPaintSave`): сховище парсить файл до v8 удруге в цю форму й передає `Migrate(save, context, legacy)`; `MigrationContext` несе розкладку галактики з конфігу. Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Нечитабельний файл не стирається: `JsonSaveStorage` відкладає його в `save.json.failed-<UTC>` копією, а якщо файл не читається навіть для копіювання — перейменуванням; не вдалось і це — сховище не пише поверх оригіналу (`LoadFailedWithoutBackup`). Точки автозбереження: кінець забігу (`CompleteRun`), кожна зібрана картинка (`CollectPicture`), зліпок на кожен лоток, паузу й вихід у хаб (`SaveRun`), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
 
 ---
 
@@ -370,7 +375,8 @@ public interface IHapticService      { void Light(); void Medium(); void Heavy()
 public interface IAnalyticsService   { void Track(string evt, IDictionary<string,object>? props = null); }
 public interface IAdsService         { bool IsRewardedReady; void ShowRewarded(Action<bool> done);
                                        bool IsInterstitialReady; void ShowInterstitial(Action done); }
-public interface IIapService         { void Buy(string productId, Action<PurchaseResult> done); }
+public interface IIapService         { bool IsAvailable; void Query(IReadOnlyList<string> ids, Action<IReadOnlyList<StoreProduct>> done);
+                                       void Buy(string productId, Action<PurchaseResult> done); }   // StoreProduct: id + локалізована ціна рядком
 public interface IReviewService      { void RequestReview(); }
 public interface INotificationService{ void Schedule(...); void CancelAll(); }
 ```
@@ -380,10 +386,10 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | Haptics | `Vibrator` + `VibrationEffect` | Core Haptics | `NullHaptics` |
 | Analytics | UGS / Firebase | те саме | `LogAnalytics` |
 | Ads | Unity Ads | Unity Ads + **ATT-запит** | `NullAds` (реліз) / `FakeAds` (редактор, dev) |
-| IAP | Unity IAP | Unity IAP | `FakeIap` (відмовляє) |
+| IAP | Unity IAP | Unity IAP | `FakeIap` (редактор, dev: ціни §13 рядками, покупка вдається) / `NullIap` (реліз без SDK: цін немає, кнопки сплять) |
 | Review | In-App Review | `SKStoreReviewController` | `NullReview` |
 
-Точки §17 у грі: продовжити після програшу за ролик (раз за забіг), подвоїти нафту за ролик, інтерстиціал раз на `InterstitialEveryRuns` забігів при виході з картки фіналу. «Домалювати одразу» — за нафту (§13), IAP у грі не використовується (`FakeIap` — заглушка). Без реальних сервісів кнопки роликів просто не з'являються — гра повністю грабельна без SDK.
+Точки §17 у грі: продовжити після програшу за ролик (перший раз за забіг; далі — за нафту, §13), подвоїти нафту за ролик, інтерстиціал раз на `InterstitialEveryRuns` забігів при виході з картки фіналу. «Домалювати одразу» — за нафту (§13). Магазин (§13) — чотири пакети нафти через `IIapService.Query`/`Buy`: ціна на кнопці — рядок стору. Без реальних сервісів кнопки роликів не з'являються, а магазин показує пакети з неактивними кнопками — гра повністю грабельна без SDK.
 
 ---
 
@@ -417,9 +423,9 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | Рівень | Де | Що покриває |
 |---|---|---|
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
-| EditMode | `InkFlow.Meta.Tests` | економіка забігу, колекція, розміщення, ліміти, міграції v1→v7, профіль, рейтинги |
-| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **325 тестів** |
-| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **29 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка. Лише в Unity: редактор закритий або batch на копії проєкту |
+| EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v9, профіль, рейтинги, відсутність економіки фарби |
+| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **329 тестів** |
+| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **32 тести** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
 **Обов'язкові тести-запобіжники:**
@@ -437,6 +443,8 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 12. Одна зібрана копія — один слот; планета оживає лише коли зайняті всі слоти, редагувати можна лише поточну галактику й відкриті планети (`PlayerStateTests`, `PersistenceTests`, `GalaxyProgressTests`).
 13. Міграція v7→v8 не губить колекцію, нафту й рекорд: розміщення стають слотами по черзі (копій у слотах не більше, ніж зібрано), літри — нафтою за курсом конфігу.
 14. Відкрита порожня планета не замикається, коли з попередньої забирають картинку; записи поза розкладкою (зменшені слоти, прибрана планета) не рахуються в прогрес і не тримають копій; знімати картинки із завершеної галактики не можна (`GalaxyProgressTests`, `PlayerStateTests`).
+15. Від економіки фарби не лишилось нічого: у Core/Meta немає типів і членів про фарбу, літри, мензурки, набори; у файлі — старих полів; у коді гри — файлів магазину фарб (`PaintEconomyAbsenceTests`; виняток — `Legacy` для міграції).
+16. Пропорції економіки (`EconomySimulationTests`): епічна наполовину — 1.5–4 забіги доходу, продовжити — 0.3–1 забігу, найменший пакет — 4–14 забігів; гравець може дозволити собі більшість бажаних домальовувань і не тоне в нафті.
 
 Перед комітом: `bash Tools/check-compile.sh` (компілює response-файлами Unity), `python3 Tools/check-ui-animation.py`, `check-glyphs.py`, `check-navigation.py`.
 
@@ -469,7 +477,7 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | **1. Фундамент картинок** | ✅ майстер-палітра, `PixelPicture`, бібліотека 117, колода «невидані першими», збереження з міграціями, контактний аркуш |
 | **2. Забіг** | ✅ кольори з картинки, кроки з ліній, зв'язне проявлення, перефарбування, завершення зі свайпом; вигляд K1Candy + W4DarkCanvas + A1Breathe, над полем лише картинка (Сесії 3–5) |
 | **3. Галактика-вітрина** | ✅ слоти планет замість фарбування зон (Фаза 3, Сесія 6): `GalaxyConfig`, цикли галактик (завершені — вітрина, стрілками в шапці), колекція окремим екраном, v8; літри повернуто нафтою; ревізія закрита |
-| **4. Магазин — лише нафта** | ⛔ |
+| **4. Магазин — лише нафта** | ✅ чотири пакети з `EconomyConfig`, ціна зі стору через `IIapService` (`FakeIap`/`NullIap`), нафта лише на «домалювати» й «продовжити», `EconomySimulation`, v9 без полів фарби, `PaintEconomyAbsenceTests` (Фаза 4, Сесія 6) |
 | **5. Налаштування** | ⛔ |
 | **6. Профіль** | ⛔ |
 | **7. Рейтинги на справжніх даних** | ⛔ потребує бекенду (UGS) |

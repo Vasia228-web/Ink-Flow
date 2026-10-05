@@ -81,8 +81,8 @@ namespace InkFlow.Gameplay
         [SerializeField, Range(1, 34)] private int dangerStrongShapes = 18;
 
         [Header("Продовження після програшу (§10)")]
-        [Tooltip("Скільки разів за забіг можна продовжити після програшу.")]
-        [SerializeField, Min(0)] private int continuesPerRun = 1;
+        [Tooltip("Скільки разів за забіг можна продовжити після програшу: перший — за ролик, далі — за нафту (§10, §17).")]
+        [SerializeField, Min(0)] private int continuesPerRun = 2;
 
         private BalanceData? _cached;
 

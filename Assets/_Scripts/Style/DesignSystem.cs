@@ -945,28 +945,19 @@ namespace InkFlow.Style
         [Tooltip("Розрядка «МАГАЗИН»: .18em макета.")]
         [SerializeField] private float letterSpacingShopTitle = 18f;
 
-        [Tooltip("Найтьмяніший текст — «порожньо» на картці фарби.")]
+        [Tooltip("Найтьмяніший текст: замкнені бейджі й сходинки звань у профілі.")]
         [SerializeField] private Color textFaintest = new Color(1f, 1f, 1f, 0.3f);
-
-        [Tooltip("Ціна, коли нафти не вистачає. М'яко-червона, не тривожна.")]
-        [SerializeField] private Color shopUnaffordablePrice = Hex("#FF7A97");
 
         [Tooltip("Текст на світлій заливці: на «Персику» чи «М'яті» білий зникає.")]
         [SerializeField] private Color shopOnLightText = Hex("#1C0F33");
 
-        [SerializeField, Range(0f, 0.6f)] private float shopSpecialGlowAlpha = 0.19f;
         [SerializeField, Range(0f, 0.6f)] private float shopHotGlowAlpha = 0.22f;
 
         [SerializeField] private Color shopTabActiveFrom = new Color(1f, 0.176f, 0.541f, 0.92f);
         [SerializeField] private Color shopTabActiveTo = new Color(0.616f, 0.302f, 1f, 0.9f);
 
-        [Tooltip("Підтон банера «Фарба тижня» в колір самої фарби.")]
-        [SerializeField, Range(0f, 0.5f)] private float shopWeeklyTintFrom = 0.16f;
-        [SerializeField, Range(0f, 0.5f)] private float shopWeeklyTintTo = 0.1f;
-        [SerializeField, Range(0f, 0.6f)] private float shopWeeklyGlowAlpha = 0.26f;
-
-        [Tooltip("Відступ заливки від стінок мензурки: 1 px макета.")]
-        [SerializeField] private float shopBeakerInset = 3f;
+        [Tooltip("Крапля на картці пакета нафти, px макета, від найменшого пакета до найбільшого: розмір — головний сигнал «більший пакет».")]
+        [SerializeField] private float[] oilDropSizes = { 46f, 58f, 72f, 88f };
 
         [Header("Фарбування планети")]
         [Tooltip("Назва планети в шапці: 15 px макета, ls .04em.")]
@@ -1012,10 +1003,6 @@ namespace InkFlow.Style
         [SerializeField, Range(1f, 2f)] private float planetFlashScale = 1.4f;
         [Tooltip("Колір супутника, що влітає на орбіту ожилої планети.")]
         [SerializeField] private Color planetMoonColor = new Color(0.94f, 0.95f, 1f, 1f);
-
-        [SerializeField] private Color paintLowFill = new Color(1f, 0.42f, 0.54f, 0.16f);
-        [SerializeField] private Color paintLowStroke = new Color(1f, 0.42f, 0.54f, 0.45f);
-        [SerializeField] private Color paintLowText = Hex("#FF9FB2");
 
         [Tooltip("Наближення до планети з екрана огляду.")]
         [SerializeField, Min(0.1f)] private float paintApproachDuration = 0.55f;
@@ -1306,16 +1293,19 @@ namespace InkFlow.Style
         public float FontSizeShopPrice => fontSizeShopPrice;
         public float LetterSpacingShopTitle => letterSpacingShopTitle;
         public Color TextFaintest => textFaintest;
-        public Color ShopUnaffordablePrice => shopUnaffordablePrice;
         public Color ShopOnLightText => shopOnLightText;
-        public float ShopSpecialGlowAlpha => shopSpecialGlowAlpha;
         public float ShopHotGlowAlpha => shopHotGlowAlpha;
         public Color ShopTabActiveFrom => shopTabActiveFrom;
         public Color ShopTabActiveTo => shopTabActiveTo;
-        public float ShopWeeklyTintFrom => shopWeeklyTintFrom;
-        public float ShopWeeklyTintTo => shopWeeklyTintTo;
-        public float ShopWeeklyGlowAlpha => shopWeeklyGlowAlpha;
-        public float ShopBeakerInset => shopBeakerInset;
+
+        /// <summary>Крапля пакета нафти №<paramref name="index"/> в одиницях канваса; за межами списку — найбільша.</summary>
+        public float OilDropSize(int index)
+        {
+            if (oilDropSizes == null || oilDropSizes.Length == 0)
+                return 0f;
+            var i = Mathf.Clamp(index, 0, oilDropSizes.Length - 1);
+            return oilDropSizes[i] * MockupToReference;
+        }
         public float FontSizePaintTitle => fontSizePaintTitle;
         public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
         public float FontSizeCompletion => fontSizeCompletion;
@@ -1347,9 +1337,6 @@ namespace InkFlow.Style
         public float CollectionUsedAlpha => collectionUsedAlpha;
         public float FontSizeCollectionName => fontSizeCollectionName;
         public float FontSizeCollectionCount => fontSizeCollectionCount;
-        public Color PaintLowFill => paintLowFill;
-        public Color PaintLowStroke => paintLowStroke;
-        public Color PaintLowText => paintLowText;
         public float PaintApproachDuration => paintApproachDuration;
         public float PaintApproachFromScale => paintApproachFromScale;
         public float PaintFlashDuration => paintFlashDuration;

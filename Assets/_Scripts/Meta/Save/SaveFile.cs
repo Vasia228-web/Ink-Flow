@@ -13,18 +13,11 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 8;
+        public const int CurrentVersion = 9;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
         public WalletData Wallet = new WalletData();
-
-        /// <summary>
-        /// ЗАСТАРІЛЕ (v8, Фаза 3): економіки фарби більше немає, літри повернуто нафтою в міграції.
-        /// Поле лишається оголошеним, доки крок v7→v8 має його читати (JsonUtility не читає
-        /// неоголошене); прибрати разом із <see cref="PaintsData"/> у наступній версії формату.
-        /// </summary>
-        public PaintsData Paints = new PaintsData();
         public GalaxyData Galaxy = new GalaxyData();
         public ProgressData Progress = new ProgressData();
         public SettingsData Settings = new SettingsData();
@@ -75,28 +68,13 @@ namespace InkFlow.Meta
         public string DayUtc = string.Empty;
     }
 
-    [Serializable]
-    public sealed class PaintsData
-    {
-        public List<PaintStack> Stacks = new List<PaintStack>();
-    }
-
-    [Serializable]
-    public struct PaintStack
-    {
-        public string PaintId;
-        public float Liters;
-    }
-
+    /// <summary>
+    /// Галактика у файлі (§12): лише зайняті слоти планет. Старі поля фарбування (зони, розміщення
+    /// за координатами) прибрано у v9 — їх читає лише міграція через <see cref="Legacy.LegacyPaintSave"/>.
+    /// </summary>
     [Serializable]
     public sealed class GalaxyData
     {
-        /// <summary>ЗАСТАРІЛЕ (v8): фарбування зон прибрано, крок v7→v8 чистить список. Поле — до наступної версії формату.</summary>
-        public List<PaintedZone> PaintedZones = new List<PaintedZone>();
-
-        /// <summary>ЗАСТАРІЛЕ (v8): розміщення за довготою й широтою перетворено на слоти кроком v7→v8. Поле — до наступної версії формату.</summary>
-        public List<PicturePlacement> Placements = new List<PicturePlacement>();
-
         /// <summary>
         /// Слоти планет (§12): лише зайняті — «галактика + планета + слот + картинка + коли».
         /// Галактика — індекс циклу (0 — перша), планета — назва типу, картинка — id з бібліотеки.
@@ -114,23 +92,6 @@ namespace InkFlow.Meta
 
         /// <summary>Коли поставлено, ISO «o» в UTC; порожньо — невідомо (перенесене міграцією).</summary>
         public string FilledUtc;
-    }
-
-    [Serializable]
-    public struct PicturePlacement
-    {
-        public string PlanetId;
-        public string PictureId;
-        public float Longitude;
-        public float Latitude;
-    }
-
-    [Serializable]
-    public struct PaintedZone
-    {
-        public string PlanetId;
-        public string ZoneId;
-        public string PaintId;
     }
 
     [Serializable]

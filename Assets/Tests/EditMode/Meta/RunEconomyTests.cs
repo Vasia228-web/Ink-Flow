@@ -90,18 +90,21 @@ namespace InkFlow.Tests.Meta
         [Test]
         public void FinishPicture_CostsOilByRarityAndRemainder()
         {
+            // Числа — дефолти EconomyData (їх тримає EconomySimulationTests); тут — формула.
             var state = PlayerState.NewPlayer(EconomyData.Default);
-            Assert.AreEqual(40, state.FinishPictureCost(Rarity.Common, 1f), "§13: повна ціна звичайної");
-            Assert.AreEqual(20, state.FinishPictureCost(Rarity.Common, 0.5f), "половина пікселів — половина ціни");
-            Assert.AreEqual(10, state.FinishPictureCost(Rarity.Common, 0.01f), "але не нижче чверті");
-            Assert.AreEqual(250, state.FinishPictureCost(Rarity.Epic, 1f));
+            var full = EconomyData.Default.FinishPictureCosts[(int)Rarity.Common];
+            Assert.AreEqual(100, full, "§13: повна ціна звичайної — з симуляції");
+            Assert.AreEqual(full, state.FinishPictureCost(Rarity.Common, 1f));
+            Assert.AreEqual(full / 2, state.FinishPictureCost(Rarity.Common, 0.5f), "половина пікселів — половина ціни");
+            Assert.AreEqual(full / 4, state.FinishPictureCost(Rarity.Common, 0.01f), "але не нижче чверті");
+            Assert.AreEqual(600, state.FinishPictureCost(Rarity.Epic, 1f));
             Assert.Greater(state.FinishPictureCost(Rarity.Epic, 1f), state.Rewards.ForPicture(Rarity.Epic), "домалювати дорожче, ніж отримаєш");
 
             Assert.IsFalse(state.TryFinishPicture(Rarity.Common, 1f), "нафти немає — нічого не списано");
             Assert.AreEqual(0, state.Wallet.OilDrops);
             state.Wallet.Add(100, RewardSource.Debug);
             Assert.IsTrue(state.TryFinishPicture(Rarity.Common, 0.5f));
-            Assert.AreEqual(80, state.Wallet.OilDrops);
+            Assert.AreEqual(50, state.Wallet.OilDrops);
         }
 
         [Test]
@@ -173,11 +176,11 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void Migration_V3_GetsPlacementsAndRunRecords()
+        public void Migration_V3_GetsSlotsAndRunRecords()
         {
-            var save = new SaveFile { Version = 3, Galaxy = new GalaxyData { Placements = null! } };
+            var save = new SaveFile { Version = 3, Galaxy = new GalaxyData { Slots = null! } };
             var migrated = SaveMigrations.Migrate(save);
-            Assert.IsNotNull(migrated.Galaxy.Placements);
+            Assert.IsNotNull(migrated.Galaxy.Slots);
             Assert.AreEqual(0, migrated.Progress.BestChain);
             Assert.AreEqual(0, migrated.Progress.RunsPlayed);
         }

@@ -131,12 +131,8 @@ namespace InkFlow.UI
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 
-        /// <summary>Платформні сервіси підставляє композиційний корінь. IAP на цьому екрані більше не потрібен (§13: «домалювати» — за нафту).</summary>
-        public void BindServices(IAdsService? ads, IIapService? iap)
-        {
-            _ads = ads;
-            _ = iap;
-        }
+        /// <summary>Платформні сервіси підставляє композиційний корінь: тут лише реклама — нафта витрачається зі стану (§13).</summary>
+        public void BindServices(IAdsService? ads) => _ads = ads;
 
         private LiveRecord _record;
         private int _dragging = -1;
@@ -1002,14 +998,22 @@ namespace InkFlow.UI
         {
             if (_session == null)
                 return;
-            // §9: програш — забігу більше немає; продовження за ролик живе лише в цій сесії.
+            // §9: програш — забігу більше немає; продовження за ролик чи нафту живе лише в цій сесії.
             _state?.ClearRun();
-            var canContinue = _session.CanContinue && _ads != null && _ads.IsRewardedReady;
-            if (canContinue)
+            if (CanOfferContinue)
                 ShowOver(final: false);
             else
                 FinishRun();
         }
+
+        /// <summary>§10, §17: перше продовження за забіг — за ролик (коли він готовий), далі — за нафту (§13).</summary>
+        private bool AdContinueReady =>
+            _session != null && _session.ContinuesUsed == 0 && _ads != null && _ads.IsRewardedReady;
+
+        /// <summary>Продовжити за нафту можна, коли є стан гравця; чи вистачає нафти — скаже сам чип.</summary>
+        private bool OilContinueReady => _session != null && _state != null && _session.ContinuesUsed < _session.Balance.ContinuesPerRun;
+
+        private bool CanOfferContinue => _session != null && _session.CanContinue && (AdContinueReady || OilContinueReady);
 
         /// <summary>Фінал: §10 (нафта, рекорди, партія дня), картка з нагородами. Недомальована картинка втрачена (§9).</summary>
         private void FinishRun()
@@ -1025,12 +1029,33 @@ namespace InkFlow.UI
 
         private void OnContinueClicked()
         {
-            if (_session == null || _ads == null || !_session.CanContinue)
+            if (_session == null || !_session.CanContinue)
                 return;
-            _ads.ShowRewarded(watched =>
+            if (AdContinueReady)
             {
-                if (!watched || _session == null || !_session.CanContinue)
-                    return;
+                _ads!.ShowRewarded(watched =>
+                {
+                    if (!watched || _session == null || !_session.CanContinue)
+                        return;
+                    ResumeAfterContinue();
+                });
+                return;
+            }
+
+            // Ролик уже був (або реклами немає) — за нафту. Не вистачає — чип уже тьмяний, тап нічого не робить.
+            if (_state == null || !_state.TryContinueRun())
+            {
+                ShowContinueChip();
+                return;
+            }
+            ResumeAfterContinue();
+        }
+
+        private void ResumeAfterContinue()
+        {
+            if (_session == null)
+                return;
+            {
                 var result = _session.ContinueAfterLoss();
                 if (!result.Accepted)
                     return;
@@ -1042,7 +1067,29 @@ namespace InkFlow.UI
                     board.Router.Locked = false;
                 _idleSince = Time.time;
                 GameEvents.RaiseSessionStarted(_session);
-            });
+            }
+        }
+
+        /// <summary>Чип «продовжити»: за ролик — просто напис; за нафту — ціна, тьмяний, коли не вистачає.</summary>
+        private void ShowContinueChip()
+        {
+            if (_session == null || design == null)
+                return;
+            if (AdContinueReady)
+            {
+                if (overContinue != null) overContinue.interactable = true;
+                ApplyFont(overContinueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
+                if (overContinueLabel != null) overContinueLabel.text = "Продовжити за ролик";
+                return;
+            }
+            var cost = _state != null ? _state.ContinueCost : 0;
+            var affordable = _state != null && _state.Wallet.OilDrops >= cost;
+            if (overContinue != null) overContinue.interactable = affordable;
+            ApplyFont(overContinueLabel, design.FontSizeOverSecondary, affordable ? design.AccentGold : design.TextDim, FontStyles.Bold, 0f);
+            if (overContinueLabel != null)
+                overContinueLabel.text = affordable
+                    ? $"Продовжити · {Format(cost)} нафти"
+                    : $"Не вистачає нафти · {Format(cost)}";
         }
 
         private void OnDoubleClicked()
@@ -1212,10 +1259,10 @@ namespace InkFlow.UI
                 return;
             var adsReady = _ads != null && _ads.IsRewardedReady;
 
-            var showContinue = !final && adsReady && _session.CanContinue;
+            var showContinue = !final && CanOfferContinue;
             Toggle(overContinue, showContinue);
-            ApplyFont(overContinueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
-            if (overContinueLabel != null) overContinueLabel.text = "Продовжити за ролик";
+            if (showContinue)
+                ShowContinueChip();
 
             var showDouble = final && adsReady && !_doubled && _rewardForScore > 0;
             Toggle(overDouble, showDouble);

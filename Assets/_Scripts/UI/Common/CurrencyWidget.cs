@@ -77,8 +77,9 @@ namespace InkFlow.UI
 
         private void OnChanged(long amount)
         {
+            // Той самий формат, що й рахунок у забігу (§11): розряди вузьким пробілом, без ком культури.
             if (amountLabel != null)
-                amountLabel.text = amount.ToString("N0");
+                amountLabel.text = InkFlow.Core.ScoreFormat.Full(amount);
         }
 
         /// <summary>Показати значення без гаманця — для тестової сцени й превʼю.</summary>

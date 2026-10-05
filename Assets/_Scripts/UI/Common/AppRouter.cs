@@ -67,8 +67,11 @@ namespace InkFlow.UI
         }
 
         /// <summary>Платформні сервіси для кнопок §9 — лише туди, де вони потрібні.</summary>
-        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap) =>
-            endless?.BindServices(ads, iap);
+        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap)
+        {
+            endless?.BindServices(ads);
+            shop?.BindServices(iap);
+        }
 
         private void Awake() => WireGraph();
 
@@ -218,7 +221,7 @@ namespace InkFlow.UI
                     Push(galaxy, GalaxyArgs.Own);
                     break;
                 case "shop":
-                    Push(shop, new ShopArgs(oilTab: false));
+                    Push(shop);
                     break;
                 case "ranks":
                     Push(rankings);

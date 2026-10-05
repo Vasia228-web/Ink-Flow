@@ -1,13 +1,16 @@
 using System;
+using System.Collections.Generic;
+
 namespace InkFlow.Meta
 {
     /// <summary>
-    /// Числа економіки (майстер-док §7). POCO без UnityEngine — щоб економіка
+    /// Числа економіки (майстер-док §10, §13). POCO без UnityEngine — щоб економіка
     /// перевірялась headless-тестами разом із рештою Meta.
     ///
     /// У грі приходить із `EconomyConfig.asset` через композиційний корінь.
     /// Дефолти тут — не «магія в коді», а стан нового проєкту: гра має бути
-    /// грабельною, навіть якщо асет загубився.
+    /// грабельною, навіть якщо асет загубився. Підібрані <see cref="EconomySimulation"/>,
+    /// тест <c>EconomySimulationTests</c> тримає пропорції.
     /// </summary>
     public sealed class EconomyData
     {
@@ -24,17 +27,21 @@ namespace InkFlow.Meta
             int rewardAdMultiplier = 2,
             long[]? finishPictureCosts = null,
             float finishPictureMinShare = 0.25f,
-            long paintRefundOilPerLiter = 12)
+            long continueCost = 120,
+            IReadOnlyList<OilPack>? oilPacks = null)
         {
-            if (paintRefundOilPerLiter < 0)
-                throw new ArgumentOutOfRangeException(nameof(paintRefundOilPerLiter));
-            PaintRefundOilPerLiter = paintRefundOilPerLiter;
             FinishPictureCosts = finishPictureCosts ?? DefaultFinishPictureCosts();
             if (FinishPictureCosts.Length != Core.Rarities.Count)
                 throw new ArgumentOutOfRangeException(nameof(finishPictureCosts), "Шість цін: звичайна … космічна.");
             if (finishPictureMinShare < 0f || finishPictureMinShare > 1f)
                 throw new ArgumentOutOfRangeException(nameof(finishPictureMinShare));
             FinishPictureMinShare = finishPictureMinShare;
+            if (continueCost < 0)
+                throw new ArgumentOutOfRangeException(nameof(continueCost));
+            ContinueCost = continueCost;
+            OilPacks = oilPacks ?? OilPack.Defaults();
+            if (OilPacks.Count == 0)
+                throw new ArgumentException("Магазин без пакетів нафти.", nameof(oilPacks));
             if (interstitialEveryRuns < 0)
                 throw new ArgumentOutOfRangeException(nameof(interstitialEveryRuns));
             if (rewardAdMultiplier < 1)
@@ -61,12 +68,6 @@ namespace InkFlow.Meta
         /// </summary>
         public long StarterOil { get; }
 
-        /// <summary>
-        /// Міграція v8 (Фаза 3): літри фарби повертаються нафтою за цим курсом — стільки коштувала
-        /// найдешевша фарба за літр, тож ніхто не втрачає вкладене. Після міграції не використовується.
-        /// </summary>
-        public long PaintRefundOilPerLiter { get; }
-
         /// <summary>База нагороди за рівень: множиться на зірки й денний коефіцієнт.</summary>
         public long BaseLevelReward { get; }
 
@@ -83,33 +84,57 @@ namespace InkFlow.Meta
         public long[] EndlessMilestones { get; }
 
         /// <summary>
-        /// Майстер-док §10: «очки за забіг → краплі нафти». Скільки очок коштує одна
-        /// крапля. При 100 середня партія бота (~4 400 очок) дає ~44 — два-три літри
-        /// найдешевшої фарби, тобто одну-дві зони планети.
+        /// Майстер-док §10: «очки за забіг → краплі нафти». Скільки очок коштує одна крапля.
+        /// При 100 середній забіг бота (~6 200 очок) дає ~62 за очки; разом із картинками — ~150.
         /// </summary>
         public long ScorePerOil { get; }
 
         /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 10 / 20 / 40 / 80 / 160 / 400.</summary>
         public long[] PictureRewards { get; }
 
-        /// <summary>Стартова таблиця (§19: «з EconomySimulator»): подвоюється з рідкістю, космічна — окрема подія.</summary>
+        /// <summary>Стартова таблиця (§19): подвоюється з рідкістю, космічна — окрема подія.</summary>
         public static long[] DefaultPictureRewards() => new long[] { 10, 20, 40, 80, 160, 400 };
 
         /// <summary>
         /// §13: «домалювати картинку одразу» — за нафту, повна ціна за рідкістю. Реальна
-        /// ціна пропорційна решті пікселів, але не нижче <see cref="FinishPictureMinShare"/>.
+        /// ціна пропорційна решті кроків, але не нижче <see cref="FinishPictureMinShare"/>.
         /// </summary>
         public long[] FinishPictureCosts { get; }
         public float FinishPictureMinShare { get; }
 
-        /// <summary>§19: епічну можна домалювати раз на кілька забігів (забіг дає ~60–70 нафти).</summary>
-        public static long[] DefaultFinishPictureCosts() => new long[] { 40, 80, 150, 250, 400, 800 };
+        /// <summary>
+        /// §19: «епічну можна домалювати раз на кілька забігів, не щозабігу». Забіг приносить ~150
+        /// нафти (очки + картинки), картинка в момент програшу заповнена в середньому наполовину —
+        /// епічна коштує близько двох забігів, легендарна — трьох, звичайна — третину.
+        /// </summary>
+        public static long[] DefaultFinishPictureCosts() => new long[] { 100, 180, 300, 600, 1000, 2000 };
 
         /// <summary>Ціна домалювати цю картинку зараз: частка решти пікселів від повної ціни, знизу обмежена.</summary>
         public long FinishPictureCost(Core.Rarity rarity, float remainingFraction)
         {
             var share = Math.Max(FinishPictureMinShare, Math.Min(1f, remainingFraction));
             return (long)Math.Ceiling(FinishPictureCosts[(int)rarity] * share);
+        }
+
+        /// <summary>
+        /// §10, §13: «продовжити забіг після програшу» за нафту — коли ролик уже використано
+        /// (або реклами немає). Менше за один забіг доходу: продовжити мусить бути простішим рішенням,
+        /// ніж домалювати епічну.
+        /// </summary>
+        public long ContinueCost { get; }
+
+        /// <summary>§13: пакети нафти магазину; ціни — зі стору, тут лише кількості й бейджі.</summary>
+        public IReadOnlyList<OilPack> OilPacks { get; }
+
+        /// <summary>Пакет за ідентифікатором товару; null — такого немає.</summary>
+        public OilPack? FindOilPack(string productId)
+        {
+            if (productId is null)
+                return null;
+            for (var i = 0; i < OilPacks.Count; i++)
+                if (string.Equals(OilPacks[i].Id, productId, StringComparison.Ordinal))
+                    return OilPacks[i];
+            return null;
         }
 
         /// <summary>§9, §12: інтерстиціал раз на стільки забігів; 0 — ніколи. «Частіше — видаляють гру».</summary>

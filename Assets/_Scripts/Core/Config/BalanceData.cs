@@ -42,7 +42,7 @@ namespace InkFlow.Core
             int[]? rarityGridSizes = null,
             int[]? rarityMinColors = null,
             int[]? rarityMaxColors = null,
-            int continuesPerRun = 1,
+            int continuesPerRun = 2,
             int[]? rarityStepTargets = null,
             float stepTolerance = 0.35f,
             int minFamilies = 4,
@@ -242,6 +242,7 @@ namespace InkFlow.Core
 
         // ── Продовження (§10) ──
 
+        /// <summary>Скільки разів за забіг можна продовжити після програшу: перший — за ролик, далі — за нафту (§13).</summary>
         public int ContinuesPerRun { get; }
 
         // ── Похідні ──

@@ -6,7 +6,11 @@ using UnityEngine.UI;
 
 namespace InkFlow.UI
 {
-    /// <summary>Пакет нафти: крапля зростаючого розміру, кількість, ціна в грошах.</summary>
+    /// <summary>
+    /// Пакет нафти (§13): крапля зростаючого розміру, кількість, кнопка з ціною зі стору.
+    /// Поки ціни немає (стор ще відповідає або його немає взагалі) — кнопка неактивна з рискою:
+    /// зашита ціна тут не з'являється ніколи.
+    /// </summary>
     public sealed class OilPackCard : MonoBehaviour
     {
         [SerializeField] private DesignSystem design;
@@ -20,50 +24,47 @@ namespace InkFlow.UI
         [SerializeField] private GradientImage buyFill;
         [SerializeField] private TMP_Text priceLabel;
 
-        private OilPack? _pack;
         private System.Action<OilPack>? _onBuy;
+
+        /// <summary>Пакет на картці; null — картка вільна.</summary>
+        public OilPack? Pack { get; private set; }
+
+        /// <summary>Напис на кнопці (тестам): ціна зі стору або риска.</summary>
+        public string PriceText => priceLabel != null ? priceLabel.text : string.Empty;
+
+        /// <summary>Чи можна натиснути «купити» (тестам).</summary>
+        public bool CanBuy => buyButton != null && buyButton.interactable;
 
         private void Awake()
         {
             if (buyButton != null)
                 buyButton.onClick.AddListener(() =>
                 {
-                    if (_pack != null)
-                        _onBuy?.Invoke(_pack);
+                    if (Pack != null && CanBuy)
+                        _onBuy?.Invoke(Pack);
                 });
         }
 
         public void Bind(System.Action<OilPack> onBuy) => _onBuy = onBuy;
 
-        public void Show(OilPack pack, float mockupToReference)
+        /// <param name="dropSize">Діаметр краплі в одиницях канваса — з токенів за номером пакета.</param>
+        public void Show(OilPack pack, float dropSize)
         {
-            _pack = pack;
+            Pack = pack;
             if (design == null)
                 return;
 
             gameObject.SetActive(true);
 
             if (drop != null)
-            {
-                // Розмір краплі — головний сигнал «більший пакет»: 46 → 88 px макета.
-                var size = pack.DropSize * mockupToReference;
-                drop.sizeDelta = new Vector2(size, size * 1.08f);
-            }
+                drop.sizeDelta = new Vector2(dropSize, dropSize * 1.08f);
 
             if (amountLabel != null)
             {
-                amountLabel.text = $"{pack.Amount:N0}".Replace(",", " ");
+                amountLabel.text = InkFlow.Core.ScoreFormat.Full(pack.Amount);
                 amountLabel.fontSize = design.FontSizeSubtitle;
                 amountLabel.color = design.TextPrimary;
                 if (design.Font != null) amountLabel.font = design.Font;
-            }
-
-            if (priceLabel != null)
-            {
-                priceLabel.text = pack.Price;
-                priceLabel.fontSize = design.FontSizeShopCard;
-                priceLabel.color = design.TextPrimary;
-                if (design.Font != null) priceLabel.font = design.Font;
             }
 
             if (buyFill != null)
@@ -94,11 +95,38 @@ namespace InkFlow.UI
                 if (pack.Hot)
                     hotGlow.color = DesignSystem.WithAlpha(design.AccentGold, design.ShopHotGlowAlpha);
             }
+
+            SetPrice(null, false);
+        }
+
+        /// <summary>Ціна зі стору на кнопку; null — ціни немає, купити не можна.</summary>
+        public void SetPrice(string? price, bool canBuy)
+        {
+            var known = price is { Length: > 0 };
+            if (priceLabel != null)
+            {
+                priceLabel.text = known ? price! : "—";
+                if (design != null)
+                {
+                    priceLabel.fontSize = design.FontSizeShopCard;
+                    priceLabel.color = known && canBuy ? design.TextPrimary : design.TextDim;
+                    if (design.Font != null) priceLabel.font = design.Font;
+                }
+            }
+            if (buyButton != null)
+                buyButton.interactable = known && canBuy;
+            if (buyFill != null && design != null)
+            {
+                if (known && canBuy)
+                    buyFill.SetGradient(design.AccentGold, design.AccentPrimary);
+                else
+                    buyFill.SetGradient(design.ButtonDisabledFill, design.ButtonDisabledFill);
+            }
         }
 
         public void Release()
         {
-            _pack = null;
+            Pack = null;
             gameObject.SetActive(false);
         }
     }

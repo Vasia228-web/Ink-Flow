@@ -35,6 +35,19 @@ namespace InkFlow.Platform
         void ShowInterstitial(Action done);
     }
 
+    /// <summary>Товар зі стору: ідентифікатор і ЛОКАЛІЗОВАНА ціна рядком — її показують, не рахують (§13).</summary>
+    public readonly struct StoreProduct
+    {
+        public StoreProduct(string id, string localizedPrice)
+        {
+            Id = id;
+            LocalizedPrice = localizedPrice;
+        }
+
+        public string Id { get; }
+        public string LocalizedPrice { get; }
+    }
+
     public readonly struct PurchaseResult
     {
         public bool Success { get; }
@@ -49,8 +62,19 @@ namespace InkFlow.Platform
         }
     }
 
+    /// <summary>
+    /// Покупки за реальні гроші (майстер-док §13). Ціна на кнопці магазину — з <see cref="Query"/>,
+    /// не з гри: стор знає валюту й податки гравця, гра — ні. Без стору (<c>IsAvailable</c> false)
+    /// магазин показує пакети без цін і з неактивними кнопками — гра лишається грабельною.
+    /// </summary>
     public interface IIapService
     {
+        /// <summary>Чи підключений стор. false — Null-реалізація або SDK не ініціалізувався.</summary>
+        bool IsAvailable { get; }
+
+        /// <summary>Ціни товарів зі стору. Невідомі ідентифікатори у відповіді відсутні; без стору — порожній список.</summary>
+        void Query(IReadOnlyList<string> productIds, Action<IReadOnlyList<StoreProduct>> done);
+
         void Buy(string productId, Action<PurchaseResult> done);
     }
 

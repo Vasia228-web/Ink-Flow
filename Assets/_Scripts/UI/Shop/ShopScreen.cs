@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using InkFlow.Meta;
+using InkFlow.Platform;
 using InkFlow.Style;
 using TMPro;
 using UnityEngine;
@@ -6,23 +8,11 @@ using UnityEngine.UI;
 
 namespace InkFlow.UI
 {
-    /// <summary>Аргументи магазину: з якої вкладки відкрити.</summary>
-    public sealed class ShopArgs : ScreenArgs
-    {
-        public ShopArgs() { }
-
-        public ShopArgs(bool oilTab) => OilTab = oilTab;
-
-        /// <summary>Відкрити одразу «Нафту» — сюди веде «Мало фарби» з фарбування.</summary>
-        public bool OilTab { get; }
-    }
-
     /// <summary>
-    /// Магазин: дві вкладки — фарби й нафта.
-    ///
-    /// Картки створює бутстрап один раз, під час скролу не інстанціюється нічого.
-    /// Асортимент невеликий (19 фарб), тож віртуалізація тут була б складністю без
-    /// виграшу — важливо лише те, що скрол не створює об'єктів.
+    /// Магазин — тільки нафта (майстер-док §13): один екран, чотири пакети з конфігу. Ціна на кнопці —
+    /// локалізований рядок зі стору через <see cref="IIapService"/>, не з гри: стор знає валюту й податки
+    /// гравця. Поки стор не відповів або його немає — кнопки неактивні з рискою, і екран каже чому.
+    /// Покупка вдалась → нафта в гаманець і одразу у файл (<see cref="PlayerState.GrantPurchasedOil"/>).
     /// </summary>
     public sealed class ShopScreen : ScreenBase
     {
@@ -32,63 +22,22 @@ namespace InkFlow.UI
         [SerializeField] private Button backButton;
         [SerializeField] private TMP_Text title;
         [SerializeField] private CurrencyWidget currency;
-        [SerializeField] private Button plusButton;
 
-        [Header("Вкладки")]
-        [SerializeField] private Button paintTabButton;
-        [SerializeField] private Button oilTabButton;
-        [SerializeField] private GradientImage paintTabFill;
-        [SerializeField] private GradientImage oilTabFill;
-        [SerializeField] private TMP_Text paintTabLabel;
-        [SerializeField] private TMP_Text oilTabLabel;
-        [SerializeField] private RectTransform paintTabRoot;
-        [SerializeField] private RectTransform oilTabRoot;
-
-        [Header("Фарба тижня")]
-        [SerializeField] private GradientImage weeklyBackground;
-        [SerializeField] private Image weeklyGlow;
-        [SerializeField] private GradientImage weeklyDrop;
-        [SerializeField] private TMP_Text weeklyKicker;
-        [SerializeField] private TMP_Text weeklyName;
-        [SerializeField] private TMP_Text weeklyOldPrice;
-        [SerializeField] private TMP_Text weeklyPrice;
-        [SerializeField] private TMP_Text weeklyTimer;
-        [SerializeField] private Button weeklyBuyButton;
-        [SerializeField] private GradientImage weeklyBuyFill;
-        [SerializeField] private TMP_Text weeklyBuyLabel;
-
-        [Header("Секції фарб")]
-        [SerializeField] private TMP_Text[] sectionTitles = System.Array.Empty<TMP_Text>();
-        [SerializeField] private TMP_Text[] sectionSubtitles = System.Array.Empty<TMP_Text>();
-        [SerializeField] private PaintCard[] paintCards = System.Array.Empty<PaintCard>();
-
-        [Header("Нафта")]
-        [SerializeField] private TMP_Text oilPromise;
-        [SerializeField] private OilPackCard[] oilPacks = System.Array.Empty<OilPackCard>();
-        [SerializeField] private TMP_Text bundlesTitle;
-        [SerializeField] private BundleCard[] bundles = System.Array.Empty<BundleCard>();
-
-        [Header("Вибір кількості")]
-        [SerializeField] private RectTransform quantitySheet;
-        [SerializeField] private TMP_Text quantityTitle;
-        [SerializeField] private Button[] quantityButtons = System.Array.Empty<Button>();
-        [SerializeField] private GradientImage[] quantityFills = System.Array.Empty<GradientImage>();
-        [SerializeField] private TMP_Text[] quantityLabels = System.Array.Empty<TMP_Text>();
-        [SerializeField] private TMP_Text[] quantityTotals = System.Array.Empty<TMP_Text>();
-        [SerializeField] private Button confirmButton;
-        [SerializeField] private GradientImage confirmFill;
-        [SerializeField] private TMP_Text confirmLabel;
-        [SerializeField] private Button cancelButton;
-        [SerializeField] private TMP_Text cancelLabel;
+        [Header("Пакети")]
+        [SerializeField] private TMP_Text promise;
+        [SerializeField] private OilPackCard[] packs = System.Array.Empty<OilPackCard>();
+        [SerializeField] private TMP_Text statusLabel;
 
         [Header("Мокові дані")]
         [SerializeField] private long mockOil = 1250;
 
-        private ShopCatalog? _catalog;
+        private readonly Dictionary<string, string> _prices = new Dictionary<string, string>(System.StringComparer.Ordinal);
+        private readonly List<string> _ids = new List<string>(4);
+
+        private IIapService? _iap;
         private Wallet? _wallet;
-        private bool _oilTab;
-        private PaintProduct? _buying;
-        private int _quantityIndex;
+        private bool _pending;
+        private string _message = string.Empty;
 
         /// <summary>Назад у хаб.</summary>
         public System.Action? BackRequested;
@@ -97,41 +46,45 @@ namespace InkFlow.UI
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
+
+        /// <summary>Тести: картки пакетів.</summary>
+        public IReadOnlyList<OilPackCard> PreviewPacks => packs;
+
+        /// <summary>Тести: рядок стану під пакетами.</summary>
+        public string PreviewStatus => statusLabel != null && statusLabel.gameObject.activeSelf ? statusLabel.text : string.Empty;
+
+        /// <summary>Тести: натиснути «купити» на картці, як пальцем.</summary>
+        public void PreviewBuy(int index)
+        {
+            if (index >= 0 && index < packs.Length && packs[index] != null && packs[index].Pack != null)
+                OnBuy(packs[index].Pack!);
+        }
 #endif
+
+        /// <summary>Стор підставляє композиційний корінь; null — магазин без стору.</summary>
+        public void BindServices(IIapService? iap)
+        {
+            _iap = iap;
+            _prices.Clear();
+        }
 
         private void Awake()
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
-            if (plusButton != null)
-                plusButton.onClick.AddListener(() => SetTab(true));
-            if (paintTabButton != null)
-                paintTabButton.onClick.AddListener(() => SetTab(false));
-            if (oilTabButton != null)
-                oilTabButton.onClick.AddListener(() => SetTab(true));
-            if (cancelButton != null)
-                cancelButton.onClick.AddListener(CloseSheet);
-            if (confirmButton != null)
-                confirmButton.onClick.AddListener(Confirm);
-            if (weeklyBuyButton != null)
-                weeklyBuyButton.onClick.AddListener(OpenWeekly);
-
-            for (var i = 0; i < quantityButtons.Length; i++)
-            {
-                var index = i;
-                quantityButtons[i]?.onClick.AddListener(() => SelectQuantity(index));
-            }
+            for (var i = 0; i < packs.Length; i++)
+                packs[i]?.Bind(OnBuy);
         }
+
+        private IReadOnlyList<OilPack> Packs => State?.OilPacks ?? EconomyData.Default.OilPacks;
 
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            // Фаза 3: економіки фарби більше немає, тож вкладка «Фарби» схована, і магазин
-            // відкривається одразу на нафті. Фаза 4 перебудує екран цілком (§13).
-            _oilTab = true;
-            _catalog = ShopCatalog.CreateMock();
             _wallet = State?.Wallet ?? new Wallet(mockOil);
+            _message = string.Empty;
             Apply();
+            RequestPrices();
         }
 
         public void Apply()
@@ -139,283 +92,116 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            _catalog ??= ShopCatalog.CreateMock();
             _wallet ??= State?.Wallet ?? new Wallet(mockOil);
 
-            ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
-                FontStyles.Bold, design.LetterSpacingShopTitle);
+            ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary, FontStyles.Bold, design.LetterSpacingShopTitle);
             if (title != null) title.text = "МАГАЗИН";
 
-            ApplyFont(paintTabLabel, design.FontSizeBody, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(oilTabLabel, design.FontSizeBody, design.TextPrimary, FontStyles.Bold, 0f);
-            if (paintTabLabel != null) paintTabLabel.text = "Фарби";
-            if (oilTabLabel != null) oilTabLabel.text = "Нафта";
+            ApplyFont(promise, design.FontSizeCardSubtitle, design.TextMuted, FontStyles.Normal, 0f);
+            if (promise != null)
+                promise.text = "Нафта прискорює красу, а не силу:\nдомалювати картинку або продовжити забіг.";
 
-            ApplyFont(oilPromise, design.FontSizeCardSubtitle, design.TextMuted, FontStyles.Normal, 0f);
-            if (oilPromise != null)
-                oilPromise.text = "Нафта прискорює красу, а не силу.\nНа проходження рівнів покупки не впливають.";
-
-            ApplyFont(bundlesTitle, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
-            if (bundlesTitle != null) bundlesTitle.text = "Набори";
-
-            ApplyFont(cancelLabel, design.FontSizeShopCard, design.TextMuted, FontStyles.Bold, 0f);
-            if (cancelLabel != null) cancelLabel.text = "Скасувати";
+            ApplyFont(statusLabel, design.FontSizeCaption, design.TextMuted, FontStyles.Bold, 0f);
 
             currency?.Bind(_wallet);
             currency?.Apply();
 
-            ApplyTabs();
-            ApplyWeekly();
-            ApplySections();
-            ApplyOilTab();
-            CloseSheet();
-        }
-
-        private void SetTab(bool oil)
-        {
-            _oilTab = oil;
-            ApplyTabs();
-        }
-
-        private void ApplyTabs()
-        {
-            if (design == null)
-                return;
-
-            // Вкладки фарб немає (Фаза 3): її кнопка схована, вміст — ніколи не показується.
-            _oilTab = true;
-            Toggle(paintTabButton, false);
-            Toggle(paintTabRoot, false);
-            Toggle(oilTabRoot, true);
-
-            // Активна капсула — градієнт маджента → фіолет, неактивна прозора.
-            if (paintTabFill != null)
-                paintTabFill.SetGradient(
-                    !_oilTab ? design.ShopTabActiveFrom : Color.clear,
-                    !_oilTab ? design.ShopTabActiveTo : Color.clear);
-            if (oilTabFill != null)
-                oilTabFill.SetGradient(
-                    _oilTab ? design.ShopTabActiveFrom : Color.clear,
-                    _oilTab ? design.ShopTabActiveTo : Color.clear);
-
-            if (paintTabLabel != null)
-                paintTabLabel.color = !_oilTab ? design.TextPrimary : design.TextMuted;
-            if (oilTabLabel != null)
-                oilTabLabel.color = _oilTab ? design.TextPrimary : design.TextMuted;
-        }
-
-        private void ApplyWeekly()
-        {
-            if (_catalog == null || design == null)
-                return;
-
-            var offer = _catalog.Weekly;
-            var paint = offer.Paint;
-
-            if (weeklyBackground != null)
-                weeklyBackground.SetGradient(
-                    DesignSystem.WithAlpha(paint.Primary.ToColor(), design.ShopWeeklyTintFrom),
-                    DesignSystem.WithAlpha(paint.Secondary.ToColor(), design.ShopWeeklyTintTo));
-
-            if (weeklyGlow != null)
-                weeklyGlow.color = DesignSystem.WithAlpha(paint.Primary.ToColor(), design.ShopWeeklyGlowAlpha);
-
-            if (weeklyDrop != null)
-                weeklyDrop.SetGradient(
-                    DesignSystem.Lighten(paint.Primary.ToColor(), 0.5f),
-                    DesignSystem.Darken(paint.Secondary.ToColor(), 0.28f));
-
-            ApplyFont(weeklyKicker, design.FontSizeCaption, design.AccentTeal,
-                FontStyles.Bold, design.LetterSpacingWide);
-            if (weeklyKicker != null) weeklyKicker.text = "ФАРБА ТИЖНЯ";
-
-            ApplyFont(weeklyName, design.FontSizeTitle, design.TextPrimary, FontStyles.Bold, 0f);
-            if (weeklyName != null) weeklyName.text = paint.Name;
-
-            ApplyFont(weeklyOldPrice, design.FontSizeLabel, design.TextFaint, FontStyles.Normal, 0f);
-            if (weeklyOldPrice != null) weeklyOldPrice.text = $"<s>{offer.OldPrice}</s>";
-
-            ApplyFont(weeklyPrice, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
-            if (weeklyPrice != null) weeklyPrice.text = offer.Price.ToString();
-
-            ApplyFont(weeklyTimer, design.FontSizeCaption, design.TextMuted, FontStyles.Normal, 0f);
-            if (weeklyTimer != null) weeklyTimer.text = $"ще {offer.DaysLeft} дні";
-
-            ApplyFont(weeklyBuyLabel, design.FontSizeShopCard, design.TextPrimary, FontStyles.Bold, 0f);
-            if (weeklyBuyLabel != null) weeklyBuyLabel.text = "Купити";
-
-            if (weeklyBuyFill != null)
-                weeklyBuyFill.SetGradient(paint.Primary.ToColor(), paint.Secondary.ToColor());
-        }
-
-        /// <summary>
-        /// Розкладає товари по вже створених картках. Порядок обходу той самий,
-        /// що й у каталозі, тож картка №N завжди показує товар №N.
-        /// </summary>
-        private void ApplySections()
-        {
-            if (_catalog == null || _wallet == null)
-                return;
-
-            for (var i = 0; i < sectionTitles.Length; i++)
+            var list = Packs;
+            for (var i = 0; i < packs.Length; i++)
             {
-                var used = i < _catalog.Sections.Count;
-                Toggle(sectionTitles[i], used);
-                if (i < sectionSubtitles.Length)
-                    Toggle(sectionSubtitles[i], used);
-                if (!used)
+                if (packs[i] == null)
                     continue;
-
-                ApplyFont(sectionTitles[i], design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
-                sectionTitles[i].text = _catalog.Sections[i].Title;
-
-                if (i >= sectionSubtitles.Length)
-                    continue;
-                ApplyFont(sectionSubtitles[i], design.FontSizeSmall, design.TextFaint, FontStyles.Normal, 0f);
-                sectionSubtitles[i].text = _catalog.Sections[i].Subtitle;
-            }
-
-            var card = 0;
-            for (var s = 0; s < _catalog.Sections.Count; s++)
-            {
-                var items = _catalog.Sections[s].Items;
-                for (var i = 0; i < items.Count && card < paintCards.Length; i++, card++)
-                    paintCards[card]?.Show(items[i], _wallet.OilDrops);
-            }
-
-            for (; card < paintCards.Length; card++)
-                paintCards[card]?.Release();
-        }
-
-        private void ApplyOilTab()
-        {
-            if (_catalog == null)
-                return;
-
-            for (var i = 0; i < oilPacks.Length; i++)
-            {
-                if (oilPacks[i] == null)
-                    continue;
-                if (i < _catalog.OilPacks.Count)
-                    oilPacks[i].Show(_catalog.OilPacks[i], DesignSystem.MockupToReference);
+                if (i < list.Count)
+                    packs[i].Show(list[i], design.OilDropSize(i));
                 else
-                    oilPacks[i].Release();
+                    packs[i].Release();
             }
+            ApplyPrices();
+        }
 
-            for (var i = 0; i < bundles.Length; i++)
+        /// <summary>Ціни — зі стору, асинхронно: кнопки оживають, коли стор відповів.</summary>
+        private void RequestPrices()
+        {
+            if (_iap == null || !_iap.IsAvailable)
             {
-                if (bundles[i] == null)
-                    continue;
-                if (i < _catalog.Bundles.Count)
-                    bundles[i].Show(_catalog.Bundles[i]);
-                else
-                    bundles[i].Release();
-            }
-        }
-
-        /// <summary>Прив'язує колбеки карток. Викликається бутстрапом і при вході.</summary>
-        private void Start()
-        {
-            for (var i = 0; i < paintCards.Length; i++)
-                paintCards[i]?.Bind(OpenSheet, _ => SetTab(true));
-        }
-
-        private void OpenWeekly()
-        {
-            if (_catalog != null)
-                OpenSheet(_catalog.Weekly.Paint);
-        }
-
-        private void OpenSheet(PaintProduct product)
-        {
-            _buying = product;
-            _quantityIndex = 0;
-            Toggle(quantitySheet, true);
-            RefreshSheet();
-        }
-
-        private void CloseSheet()
-        {
-            _buying = null;
-            Toggle(quantitySheet, false);
-        }
-
-        private void SelectQuantity(int index)
-        {
-            _quantityIndex = index;
-            RefreshSheet();
-        }
-
-        private void RefreshSheet()
-        {
-            if (_buying == null || _wallet == null || design == null)
+                ApplyPrices();
                 return;
+            }
 
-            ApplyFont(quantityTitle, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
-            if (quantityTitle != null)
-                quantityTitle.text = $"{_buying.Name} · {_buying.PricePerLiter} /л";
-
-            var options = ShopCatalog.Quantities;
-            for (var i = 0; i < quantityLabels.Length && i < options.Length; i++)
+            _ids.Clear();
+            var list = Packs;
+            for (var i = 0; i < list.Count; i++)
+                _ids.Add(list[i].Id);
+            _iap.Query(_ids, products =>
             {
-                var selected = i == _quantityIndex;
-                var total = ShopCatalog.PriceFor(_buying, options[i].Liters);
+                if (this == null)
+                    return;
+                _prices.Clear();
+                for (var i = 0; i < products.Count; i++)
+                    _prices[products[i].Id] = products[i].LocalizedPrice;
+                ApplyPrices();
+            });
+        }
 
-                ApplyFont(quantityLabels[i], design.FontSizeShopPrice, design.TextPrimary, FontStyles.Bold, 0f);
-                quantityLabels[i].text = options[i].Badge == null
-                    ? $"{options[i].Liters} л"
-                    : $"{options[i].Liters} л  {options[i].Badge}";
+        private void ApplyPrices()
+        {
+            var storeReady = _iap != null && _iap.IsAvailable;
+            for (var i = 0; i < packs.Length; i++)
+            {
+                var card = packs[i];
+                if (card == null || card.Pack == null)
+                    continue;
+                _prices.TryGetValue(card.Pack.Id, out var price);
+                card.SetPrice(price, storeReady && !_pending);
+            }
 
-                if (i < quantityTotals.Length)
+            if (statusLabel == null || design == null)
+                return;
+            string status;
+            if (_message.Length > 0)
+                status = _message;
+            else if (_pending)
+                status = "Купівля…";
+            else if (!storeReady)
+                status = "Магазин недоступний — спробуй пізніше";
+            else if (_prices.Count == 0)
+                status = "Дізнаємось ціни…";
+            else
+                status = string.Empty;
+            statusLabel.text = status;
+            Toggle(statusLabel, status.Length > 0);
+        }
+
+        private void OnBuy(OilPack pack)
+        {
+            if (_pending || _iap == null || !_iap.IsAvailable)
+                return;
+            _pending = true;
+            _message = string.Empty;
+            ApplyPrices();
+
+            _iap.Buy(pack.Id, result =>
+            {
+                if (this == null)
+                    return;
+                _pending = false;
+                if (!result.Success)
                 {
-                    ApplyFont(quantityTotals[i], design.FontSizeSmall, design.TextMuted, FontStyles.Normal, 0f);
-                    quantityTotals[i].text = total.ToString();
+                    // Відмова стору — словами, не мовчанням: гравець має знати, що гроші не списано.
+                    _message = $"Купівля не вдалася: {result.Error ?? "стор відмовив"}";
+                    ApplyPrices();
+                    return;
                 }
 
-                if (i < quantityFills.Length && quantityFills[i] != null)
-                    quantityFills[i].SetGradient(
-                        selected ? design.ShopTabActiveFrom : design.GlassFill,
-                        selected ? design.ShopTabActiveTo : design.GlassFill);
-            }
-
-            var cost = ShopCatalog.PriceFor(_buying, options[_quantityIndex].Liters);
-            var affordable = _wallet.OilDrops >= cost;
-
-            ApplyFont(confirmLabel, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
-            if (confirmLabel != null)
-            {
-                confirmLabel.text = affordable ? $"Купити · {cost}" : "Поповнити нафту";
-                confirmLabel.color = affordable ? design.TextPrimary : design.PaintLowText;
-            }
-
-            if (confirmFill != null)
-                confirmFill.SetGradient(
-                    affordable ? design.AccentPrimary : design.PaintLowFill,
-                    affordable ? design.AccentGold : design.PaintLowFill);
-        }
-
-        private void Confirm()
-        {
-            if (_buying == null || _catalog == null || _wallet == null)
-                return;
-
-            var liters = ShopCatalog.Quantities[_quantityIndex].Liters;
-            if (!_catalog.Buy(_buying, liters, _wallet))
-            {
-                // Не вистачило — ведемо в «Нафту», а не мовчимо.
-                CloseSheet();
-                SetTab(true);
-                return;
-            }
-
-            // Покупка — одна з точок автозбереження: закрити гру одразу після
-            // неї не має коштувати гравцю списаної нафти.
-            State?.Persist();
-
-            CloseSheet();
-            ApplySections();
-            ApplyWeekly();
-            currency?.Apply();
+                // Стор підтвердив — нафта в гаманець і у файл. Без стану (майстерня) — лише в моковий гаманець.
+                if (State != null)
+                    State.GrantPurchasedOil(pack);
+                else
+                    _wallet?.Add(pack.Amount, RewardSource.Purchase);
+                _message = $"+{InkFlow.Core.ScoreFormat.Full(pack.Amount)} нафти";
+                currency?.Apply();
+                ApplyPrices();
+            });
         }
 
         private static void Toggle(Component? target, bool on)

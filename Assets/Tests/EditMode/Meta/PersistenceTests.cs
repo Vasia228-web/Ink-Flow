@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using InkFlow.Core;
 using InkFlow.Meta;
+using InkFlow.Meta.Legacy;
 using NUnit.Framework;
 
 namespace InkFlow.Tests.Meta
@@ -138,21 +139,22 @@ namespace InkFlow.Tests.Meta
             var earthSlots = Layout.Find(earth)!.Slots;
             // Більше розміщень, ніж слотів, плюс планета, якої в розкладці немає. Усе поставлене —
             // зібране: v7 вимагала картинку в колекції, і в слоти переходять лише зібрані копії.
+            // Розміщення — у legacy-формі: у SaveFile цих полів більше немає (v9).
+            var legacy = new LegacyPaintSave();
             for (var i = 0; i < earthSlots + 2; i++)
             {
                 save.Collection.Pictures.Add(new CollectedPicture { PictureId = $"pic{i}", Count = 1, FirstUtc = Now.ToString("o") });
-                save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = $"pic{i}", Longitude = i, Latitude = -i });
+                legacy.Galaxy.Placements.Add(new LegacyPlacement { PlanetId = earth, PictureId = $"pic{i}", Longitude = i, Latitude = -i });
             }
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 1, FirstUtc = Now.ToString("o") });
-            save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = "Mars", PictureId = "whale" });
+            legacy.Galaxy.Placements.Add(new LegacyPlacement { PlanetId = "Mars", PictureId = "whale" });
 
-            var migrated = SaveMigrations.Migrate(save);
+            var migrated = SaveMigrations.Migrate(save, null, legacy);
 
             Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version);
             Assert.AreEqual(earthSlots, GalaxyState.FilledCount(migrated.Galaxy, 0, earth), "зайві розміщення не влазять — вони лишаються в колекції");
             Assert.AreEqual("pic0", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, 0), "порядок додавання збережено");
             Assert.AreEqual($"pic{earthSlots - 1}", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, earthSlots - 1));
-            Assert.AreEqual(0, migrated.Galaxy.Placements.Count, "старий список спорожнено");
             Assert.AreEqual(string.Empty, migrated.Galaxy.Slots[0].FilledUtc, "час постановки невідомий — не «зараз»");
             Assert.AreEqual(0, GalaxyState.FilledCount(migrated.Galaxy, 0, "Mars"), "невідома планета пропускається, а не ламає міграцію");
         }
@@ -166,13 +168,14 @@ namespace InkFlow.Tests.Meta
             var earth = GalaxyState.PlanetId(PlanetType.Earth);
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 1, FirstUtc = Now.ToString("o") });
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "comet", Count = 2, FirstUtc = Now.ToString("o") });
+            var legacy = new LegacyPaintSave();
             for (var i = 0; i < 3; i++)
-                save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = "whale" });
+                legacy.Galaxy.Placements.Add(new LegacyPlacement { PlanetId = earth, PictureId = "whale" });
             for (var i = 0; i < 3; i++)
-                save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = "comet" });
-            save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = "ghost" });
+                legacy.Galaxy.Placements.Add(new LegacyPlacement { PlanetId = earth, PictureId = "comet" });
+            legacy.Galaxy.Placements.Add(new LegacyPlacement { PlanetId = earth, PictureId = "ghost" });
 
-            var migrated = SaveMigrations.Migrate(save);
+            var migrated = SaveMigrations.Migrate(save, null, legacy);
 
             Assert.AreEqual(1, GalaxyState.PlacedCopies(migrated.Galaxy, "whale"), "одна зібрана — один слот");
             Assert.AreEqual(2, GalaxyState.PlacedCopies(migrated.Galaxy, "comet"));
@@ -188,31 +191,29 @@ namespace InkFlow.Tests.Meta
         {
             var save = new SaveFile { Version = 7 };
             save.Wallet.OilDrops = 100;
-            save.Paints.Stacks.Add(new PaintStack { PaintId = "Ocean", Liters = 2.5f });
-            save.Paints.Stacks.Add(new PaintStack { PaintId = "Ice", Liters = 1f });
+            var legacy = new LegacyPaintSave();
+            legacy.Paints.Stacks.Add(new LegacyPaintStack { PaintId = "Ocean", Liters = 2.5f });
+            legacy.Paints.Stacks.Add(new LegacyPaintStack { PaintId = "Ice", Liters = 1f });
 
-            var migrated = SaveMigrations.Migrate(save);
+            var migrated = SaveMigrations.Migrate(save, null, legacy);
 
-            Assert.AreEqual(100 + 42, migrated.Wallet.OilDrops, "3.5 л × 12 нафти за літр, униз");
-            Assert.AreEqual(0, migrated.Paints.Stacks.Count);
+            Assert.AreEqual(100 + 42, migrated.Wallet.OilDrops, "3.5 л × 12 за літр, униз");
+            Assert.AreEqual(12, LegacyPaintSave.OilPerLiter, "заморожений курс: стільки коштував літр найдешевшої фарби");
 
-            var custom = new SaveFile { Version = 7 };
-            custom.Paints.Stacks.Add(new PaintStack { PaintId = "Ocean", Liters = 2f });
-            var context = new MigrationContext(economy: new EconomyData(paintRefundOilPerLiter: 20));
-            Assert.AreEqual(40, SaveMigrations.Migrate(custom, context).Wallet.OilDrops, "курс — з конфігу");
+            var withoutLegacy = new SaveFile { Version = 7 };
+            withoutLegacy.Wallet.OilDrops = 5;
+            Assert.AreEqual(5, SaveMigrations.Migrate(withoutLegacy).Wallet.OilDrops, "без старих полів — нічого повертати");
         }
 
         [Test]
-        public void Migration_V7_DropsPaintedZonesButKeepsTheCollection()
+        public void Migration_V7_KeepsTheCollectionAndRecord()
         {
             var save = new SaveFile { Version = 7 };
-            save.Galaxy.PaintedZones.Add(new PaintedZone { PlanetId = "Earth", ZoneId = "z1", PaintId = "Ocean" });
             save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 2, FirstUtc = Now.ToString("o") });
             save.Progress.EndlessRecord = 4321;
 
             var migrated = SaveMigrations.Migrate(save);
 
-            Assert.AreEqual(0, migrated.Galaxy.PaintedZones.Count, "ожилою планету робить лише заповнена вітрина");
             Assert.AreEqual(1, migrated.Collection.Pictures.Count);
             Assert.AreEqual(2, migrated.Collection.Pictures[0].Count);
             Assert.AreEqual(4321, migrated.Progress.EndlessRecord);
@@ -263,18 +264,5 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(0, EconomyData.Default.StarterOil);
         }
 
-        [Test]
-        public void Economy_RefundCoversTheCheapestPaint()
-        {
-            var catalog = ShopCatalog.CreateMock();
-            var cheapest = int.MaxValue;
-            foreach (var section in catalog.Sections)
-                foreach (var item in section.Items)
-                    if (item.PricePerLiter < cheapest)
-                        cheapest = item.PricePerLiter;
-
-            // Хто купував фарбу за нафту, отримує назад щонайменше те, що заплатив за найдешевшу.
-            Assert.GreaterOrEqual(EconomyData.Default.PaintRefundOilPerLiter, cheapest);
-        }
     }
 }

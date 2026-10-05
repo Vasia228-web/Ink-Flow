@@ -32,7 +32,6 @@ namespace InkFlow.Meta
 
             File.Profile ??= new ProfileData();
             File.Wallet ??= new WalletData();
-            File.Paints ??= new PaintsData();
             File.Galaxy ??= new GalaxyData();
             File.Galaxy.Slots ??= new System.Collections.Generic.List<PlanetSlotRecord>();
             File.Progress ??= new ProgressData();
@@ -247,6 +246,35 @@ namespace InkFlow.Meta
                 return false;
             Persist();
             return true;
+        }
+
+        /// <summary>§13: ціна «продовжити забіг після програшу» за нафту.</summary>
+        public long ContinueCost => Economy.ContinueCost;
+
+        /// <summary>
+        /// §10, §13: «продовжити після програшу» за нафту — коли ролик уже використано або реклами
+        /// немає. Списує ціну; false і нічого не змінює, якщо нафти не вистачає.
+        /// </summary>
+        public bool TryContinueRun()
+        {
+            if (!Wallet.TrySpend(ContinueCost))
+                return false;
+            Persist();
+            return true;
+        }
+
+        /// <summary>§13: пакети нафти магазину — з конфігу; ціни приходять зі стору.</summary>
+        public System.Collections.Generic.IReadOnlyList<OilPack> OilPacks => Economy.OilPacks;
+
+        /// <summary>
+        /// §13: стор підтвердив покупку пакета — нафта в гаманець і одразу у файл: закрити гру
+        /// після покупки не має коштувати гравцю куплених крапель.
+        /// </summary>
+        public void GrantPurchasedOil(OilPack pack)
+        {
+            if (pack is null) throw new ArgumentNullException(nameof(pack));
+            Wallet.Add(pack.Amount, RewardSource.Purchase);
+            Persist();
         }
 
         /// <summary>§9: інтерстиціал раз на N забігів — після забігу з номером, кратним N.</summary>

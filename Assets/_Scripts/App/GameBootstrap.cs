@@ -89,7 +89,11 @@ namespace InkFlow.App
 #else
             ServiceLocator.Register<IAdsService>(new NullAds());
 #endif
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             ServiceLocator.Register<IIapService>(new FakeIap());
+#else
+            ServiceLocator.Register<IIapService>(new NullIap());
+#endif
             ServiceLocator.Register<IReviewService>(new NullReview());
             ServiceLocator.Register<INotificationService>(new NullNotifications());
         }
@@ -102,9 +106,9 @@ namespace InkFlow.App
         {
             var economy = economyConfig != null ? economyConfig.ToEconomyData() : EconomyData.Default;
             var layout = LoadLayout();
-            // Міграціям потрібні розкладка галактики (скільки слотів у планети) й курс повернення
-            // літрів — обидва з конфігів, тому сховище створюється після них.
-            _storage = new JsonSaveStorage(migrations: new MigrationContext(layout, economy));
+            // Міграціям потрібна розкладка галактики (скільки слотів у планети) — з конфігу,
+            // тому сховище створюється після неї.
+            _storage = new JsonSaveStorage(migrations: new MigrationContext(layout));
 
             // Бібліотека й баланс — щоб зліпок забігу читався назвами картинок, а правила — з конфіга.
             var library = LoadLibrary();
@@ -158,7 +162,7 @@ namespace InkFlow.App
                 return;
             }
 
-            endlessScreen.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
+            endlessScreen.BindServices(ServiceLocator.Get<IAdsService>());
             endlessScreen.OnEnter(new EndlessArgs(balanceConfig.ToBalanceData()));
         }
 
