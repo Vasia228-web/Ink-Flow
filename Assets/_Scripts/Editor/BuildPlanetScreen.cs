@@ -277,7 +277,7 @@ namespace InkFlow.Editor
             // тут, запікся б у файл сцени окремим об'єктом і жив своїм життям.
             atmosphere = Quad(go, "Atmosphere", quad, size * design.PlanetAtmosphereScale);
 
-            flash = Quad(go, "Flash", circle, size * 1.4f);
+            flash = Quad(go, "Flash", circle, size * design.PlanetFlashScale);
             flash.color = Color.white;
 
             // Диск — і планета, і зона захоплення дотику: обертання та влучання
@@ -315,7 +315,7 @@ namespace InkFlow.Editor
                 Place(pixelImage, Vector2.zero, new Vector2(100f, 100f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
                 var marker = socket.gameObject.AddComponent<SlotMarker>();
-                Wire(marker, ("design", design), ("zoneShader", zoneShader),
+                Wire(marker, ("design", design),
                     ("socket", socket), ("plate", plate), ("frame", frame), ("pixels", pixelImage));
                 plate.gameObject.SetActive(false);
                 frame.gameObject.SetActive(false);
@@ -324,12 +324,13 @@ namespace InkFlow.Editor
                 markers[i] = marker;
             }
 
-            Wire(stage, ("design", design), ("disc", disc));
+            // Матеріали порожніх плям створює й нищить стадія — їй і шейдер.
+            Wire(stage, ("design", design), ("disc", disc), ("zoneShader", zoneShader));
 
             var moonGo = Child(go, "Moon");
             var moonImage = moonGo.AddComponent<Image>();
             moonImage.sprite = circle;
-            moonImage.color = new Color(0.94f, 0.95f, 1f, 1f);
+            moonImage.color = design.PlanetMoonColor;
             moonImage.raycastTarget = false;
             Place(moonImage, Vector2.zero, new Vector2(M(26f), M(26f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));

@@ -57,6 +57,9 @@ namespace InkFlow.Editor
 
         public Device Current { get; private set; }
         public Camera Camera { get; }
+
+        /// <summary>Канвас стенда цілком — з фоном і safe area: що на пристрої малюється, те й рахуємо.</summary>
+        protected GameObject CanvasRoot => _canvasGo;
         public RectTransform Safe { get; }
         public RenderTexture Target { get; private set; }
         public DesignSystem Design { get; }

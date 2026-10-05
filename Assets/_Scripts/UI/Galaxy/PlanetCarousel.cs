@@ -53,6 +53,11 @@ namespace InkFlow.UI
         /// <summary>Чи стоїть у центрі прев'ю наступної галактики.</summary>
         public bool OnPreview => _galaxy != null && _focus >= _galaxy.Planets.Count;
 
+#if UNITY_EDITOR
+        /// <summary>Стенд і тести: чи видно прев'ю наступної галактики (у режимі перегляду його немає).</summary>
+        public bool PreviewShown => nextGalaxyPreview != null && nextGalaxyPreview.gameObject.activeSelf;
+#endif
+
         private void Start() => CacheRenderers();
 
         /// <summary>Знімає рендерери разом із неактивними: слоти вмикають і вимикають

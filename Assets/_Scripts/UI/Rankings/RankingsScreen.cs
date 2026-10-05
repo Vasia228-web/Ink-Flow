@@ -100,7 +100,7 @@ namespace InkFlow.UI
         /// <summary>Відкрити галактику гравця в режимі перегляду.</summary>
         public System.Action<GalaxyArgs>? PlayerOpened;
 
-        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+        private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);

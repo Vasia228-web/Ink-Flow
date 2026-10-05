@@ -147,6 +147,21 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void Profile_ShowcaseKeepsTheFinishedGalaxy_UntilTheNextOneHasAPlanet()
+        {
+            // Щойно ожила остання планета Галактики I — поточною стала порожня II. Вітрина не має
+            // спорожніти поруч із «Галактик завершено 1».
+            var state = Fresh();
+            for (var i = 0; i < state.Layout.Planets.Count; i++)
+                CompletePlanet(state, i);
+
+            var profile = PlayerProfile.FromState(state);
+
+            Assert.AreEqual(3, profile.Showcase.Count, "вітрина — з завершеної галактики");
+            Assert.AreEqual(state.Layout.Planets[0].Name, profile.Showcase[0].Name);
+        }
+
+        [Test]
         public void Profile_RankMatchesTheHubHeader()
         {
             var state = Fresh();

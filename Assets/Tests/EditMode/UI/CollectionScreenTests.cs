@@ -38,12 +38,16 @@ namespace InkFlow.UI.Tests
             rig.Enter(player, new CollectionArgs());
             Assert.AreEqual(2, rig.Screen.VisibleIds.Count, "лише зібране");
 
+            var atlas = rig.Screen.PreviewAtlas;
+            Assert.IsNotNull(atlas);
+
             rig.Screen.SetRarity((int)Rarity.Rare + 1);
             Assert.AreEqual(1, rig.Screen.VisibleIds.Count);
             Assert.AreEqual(rare.Id, rig.Screen.VisibleIds[0]);
 
             rig.Screen.SetRarity(0);
             Assert.AreEqual(2, rig.Screen.VisibleIds.Count);
+            Assert.AreSame(atlas, rig.Screen.PreviewAtlas, "фільтр не перебудовує атлас — лише вибирає клітинки");
         }
 
         [Test]

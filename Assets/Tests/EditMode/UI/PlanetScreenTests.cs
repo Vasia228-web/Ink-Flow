@@ -68,6 +68,41 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
+        public void FinishedGalaxy_IsAShowcase_TapExplainsInsteadOfOpeningTheSheet()
+        {
+            using var rig = MetaScreenRig<PlanetScreen>.Create(ScreenRigBase.Devices[1], "PlanetScreen");
+            var player = rig.NewPlayer();
+            for (var p = 0; p < player.Layout.Planets.Count; p++)
+                rig.FillPlanet(player, p, pictureOffset: p * 5);
+            Assert.AreEqual(1, player.CurrentGalaxy);
+
+            rig.Enter(player, new PlanetArgs(0, 0));
+            rig.Screen.PreviewSheet(0);
+
+            Assert.IsFalse(rig.Screen.PreviewSheetOpen, "завершену галактику не редагують — листа немає");
+            StringAssert.Contains("завершена", rig.Screen.PreviewHint, "але тап пояснює, чому");
+        }
+
+        [Test]
+        public void UnknownPicture_ShowsAnOccupiedSlotWithoutPixels()
+        {
+            // У збереженні стоїть картинка, якої бібліотека не знає (прибрали з гри): слот зайнятий і
+            // виглядає зайнятим, а не порожнім, що «чомусь» не приймає картинку.
+            using var rig = MetaScreenRig<PlanetScreen>.Create(ScreenRigBase.Devices[0], "PlanetScreen");
+            var player = rig.NewPlayer();
+            rig.FillPlanet(player, 0, count: 1);
+            GalaxyState.Set(player.Galaxy, 0, player.Layout.Planets[0].Id, 2, "no-such-picture", System.DateTime.UtcNow);
+
+            rig.Enter(player, new PlanetArgs(0, 0));
+
+            var bound = Bound(rig.Screen);
+            Assert.IsTrue(bound[0].IsFilled && bound[0].ShowsPixels, "відома картинка — з пікселями");
+            Assert.IsTrue(bound[2].IsFilled, "невідома — слот зайнятий");
+            Assert.IsFalse(bound[2].ShowsPixels, "…але малювати нічого");
+            Assert.IsFalse(bound[1].IsFilled);
+        }
+
+        [Test]
         public void FullFinalePlanet_StaysWithinTheDrawCallBudget_OnEveryDevice()
         {
             foreach (var device in ScreenRigBase.Devices)

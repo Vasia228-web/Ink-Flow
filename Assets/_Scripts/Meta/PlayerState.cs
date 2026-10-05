@@ -262,23 +262,22 @@ namespace InkFlow.Meta
         /// <summary>
         /// Скільки копій цієї картинки ще вільні: зібрано − стоїть у слотах. Одна зібрана копія —
         /// один слот: двічі домалював кота — два слоти, один раз — один (відповідь автора, Сесія 1).
+        /// Рахуються лише слоти, які адресує розкладка: запис у слоті, якого в планети вже немає,
+        /// копію не тримає.
         /// </summary>
         public int FreeCopies(string pictureId) =>
-            Collection.CountOf(pictureId) - GalaxyState.PlacedCopies(Galaxy, pictureId);
+            Collection.CountOf(pictureId) - GalaxyState.PlacedCopies(Galaxy, pictureId, Layout);
 
         /// <summary>
-        /// Чи можна редагувати планету: лише в поточній галактиці, і лише відкриту — першу
-        /// неожилу, будь-яку перед нею або будь-яку, де вже стоять картинки.
+        /// Чи можна редагувати планету: лише в поточній галактиці, і лише відкриту
+        /// (<see cref="GalaxyState.IsPlanetOpen"/>: першу, будь-яку за ожилою або будь-яку з картинками).
         /// </summary>
         public bool CanEditPlanet(int galaxy, string planetId)
         {
             if (galaxy != CurrentGalaxy)
                 return false;
             var index = Layout.IndexOf(planetId);
-            if (index < 0)
-                return false;
-            return index <= GalaxyState.CurrentPlanetIndex(Galaxy, galaxy, Layout) ||
-                   GalaxyState.FilledCount(Galaxy, galaxy, planetId) > 0;
+            return index >= 0 && GalaxyState.IsPlanetOpen(Galaxy, galaxy, Layout, index);
         }
 
         /// <summary>

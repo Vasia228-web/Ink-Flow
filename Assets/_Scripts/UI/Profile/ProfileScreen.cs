@@ -81,7 +81,7 @@ namespace InkFlow.UI
         /// <summary>Гравець хоче змінити нік — олівець біля аватара.</summary>
         public System.Action? NickEditRequested;
 
-        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+        private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);

@@ -25,9 +25,20 @@ namespace InkFlow.UI
     {
         [SerializeField] private DesignSystem design;
         [SerializeField] private Image disc;
+        [SerializeField] private Shader zoneShader;
         [SerializeField] private SlotMarker[] markers = Array.Empty<SlotMarker>();
 
         private static readonly int RotationId = Shader.PropertyToID("_Rotation");
+        private static readonly int PaintId = Shader.PropertyToID("_Paint");
+        private static readonly int FillId = Shader.PropertyToID("_Fill");
+        private static readonly int SelectedId = Shader.PropertyToID("_Selected");
+        private static readonly int SeedId = Shader.PropertyToID("_Seed");
+
+        // Два спільні матеріали на всі слоти планети: звичайна пляма й виділена. Власний матеріал на
+        // слот ламав би батчинг — дванадцять викликів замість одного. Живуть зі стадією і гинуть з нею:
+        // статичні матеріали переживали б екран і губились на кожному перезавантаженні домену.
+        private Material? _emptyMaterial;
+        private Material? _selectedMaterial;
 
         private const float DragReferenceWidth = 1080f;
 
@@ -69,12 +80,20 @@ namespace InkFlow.UI
 
         public void Bind(PlanetSurface surface, Material discMaterial)
         {
+            // Та сама планета (повернення з колекції, перечитування слотів) лишається в тій позі, до
+            // якої гравець її докрутив: слот, який він щойно заповнив, має бути перед очима, а не на
+            // звороті кулі. Інша планета — з нуля.
+            var samePlanet = _surface != null && _surface.Type == surface.Type;
             _surface = surface;
             _discMaterial = discMaterial;
-            _rotation = 0f;
-            _velocity = 0f;
-            _rotatedByPlayer = false;
+            if (!samePlanet)
+            {
+                _rotation = 0f;
+                _velocity = 0f;
+                _rotatedByPlayer = false;
+            }
 
+            EnsureMaterials();
             var baseSize = SlotBaseSize(surface);
             for (var i = 0; i < markers.Length; i++)
             {
@@ -88,10 +107,49 @@ namespace InkFlow.UI
                     continue;
                 }
 
-                marker.Bind(surface.Slots[i], baseSize);
+                marker.Bind(surface.Slots[i], baseSize, _emptyMaterial, _selectedMaterial);
             }
 
             Project();
+        }
+
+        private void EnsureMaterials()
+        {
+            if (zoneShader == null || design == null)
+                return;
+            if (_emptyMaterial == null)
+                _emptyMaterial = MakeMaterial("SlotEmpty", 0f);
+            if (_selectedMaterial == null)
+                _selectedMaterial = MakeMaterial("SlotSelected", 1f);
+        }
+
+        private Material MakeMaterial(string name, float selected)
+        {
+            var material = new Material(zoneShader) { name = name, hideFlags = HideFlags.DontSave };
+            material.SetColor(PaintId, design.AccentBlue);
+            material.SetFloat(FillId, 0f);
+            material.SetFloat(SelectedId, selected);
+            // Форма плями однакова на всіх слотах: це гнізда під картинки, а не материки.
+            material.SetFloat(SeedId, design.SlotSocketSeed);
+            return material;
+        }
+
+        private void OnDestroy()
+        {
+            DestroyMaterial(_emptyMaterial);
+            DestroyMaterial(_selectedMaterial);
+            _emptyMaterial = null;
+            _selectedMaterial = null;
+        }
+
+        private static void DestroyMaterial(Material? material)
+        {
+            if (material == null)
+                return;
+            if (Application.isPlaying)
+                Destroy(material);
+            else
+                DestroyImmediate(material);
         }
 
         /// <summary>Маркер конкретного слота — екрану він потрібен, щоб покласти картинку.</summary>

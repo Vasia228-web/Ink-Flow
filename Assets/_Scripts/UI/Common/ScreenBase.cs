@@ -25,12 +25,37 @@ namespace InkFlow.UI
         /// </summary>
         protected PlayerState? State { get; private set; }
 
+        /// <summary>
+        /// true, поки <see cref="OnEnter"/> вмикає об'єкт. Екран читає це в <c>OnEnable</c>:
+        /// у Play Mode <c>SetActive(true)</c> одразу кличе <c>OnEnable</c>, той ставив би
+        /// <c>Apply()</c> зі СТАРИМ станом (попередня планета, попередній фільтр), а за мить
+        /// <c>OnEnter</c> виставляв справжній стан і кликав <c>Apply()</c> ще раз — двічі збирався
+        /// атлас і перев'язувалась стадія на кожному вході. Тепер вхід робить рівно один прохід.
+        /// </summary>
+        protected bool Entering { get; private set; }
+
         /// <summary>Підставляє композиційний корінь через <see cref="AppRouter"/>.</summary>
         public virtual void BindState(PlayerState state) => State = state;
 
-        public virtual void OnEnter(ScreenArgs args) => gameObject.SetActive(true);
+        public virtual void OnEnter(ScreenArgs args)
+        {
+            Entering = true;
+            try { gameObject.SetActive(true); }
+            finally { Entering = false; }
+        }
 
         public virtual void OnExit() => gameObject.SetActive(false);
+
+        /// <summary>
+        /// Перечитати стиль з <c>OnEnable</c>: у майстерні, при перекомпіляції й у Edit Mode — так,
+        /// а під час входу через <see cref="OnEnter"/> — ні, бо він сам покличе <c>Apply()</c>
+        /// з правильним станом (див. <see cref="Entering"/>).
+        /// </summary>
+        protected void ScheduleApply(System.Action apply)
+        {
+            if (!Entering)
+                StyleRefresh.Schedule(this, apply);
+        }
 
         /// <summary>
         /// Поки true, екран не запускає корутин входу (наближення, спалахи): стенд знімків і UI-тести

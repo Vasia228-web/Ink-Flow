@@ -200,7 +200,7 @@ namespace InkFlow.App
             GUILayout.Label("── Стан ──");
             GUILayout.Label($"Нік: {state.Nick}");
             GUILayout.Label($"Нафта: {state.Wallet.OilDrops}");
-            GUILayout.Label($"Галактика {state.CurrentGalaxy + 1}: у слотах {GalaxyState.TotalFilled(state.Galaxy)} картинок, " +
+            GUILayout.Label($"Галактика {state.CurrentGalaxy + 1}: у слотах {GalaxyState.TotalFilled(state.Galaxy, state.Layout)} картинок," +
                             $"планет ожило {GalaxyState.CompletedPlanets(state.Galaxy, state.Layout)}, " +
                             $"галактик завершено {GalaxyState.CompletedGalaxies(state.Galaxy, state.Layout)}");
             GUILayout.Label($"Рівні: пройдено до {LevelProgress.HighestCleared(state.Progress)}, " +
@@ -307,14 +307,14 @@ namespace InkFlow.App
             }
             GUILayout.EndHorizontal();
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Очистити колекцію й розміщення"))
+            if (GUILayout.Button("Очистити колекцію й слоти"))
             {
-                state.File.Collection.Pictures.Clear();
-                state.Galaxy.Placements.Clear();
-                var fresh = new PlayerState(state.File, state.Economy, null, state.Library, state.Balance);
-                _ = fresh;
+                // Живі об'єкти — джерело правди, файл — зліпок: чистимо колекцію й слоти в стані,
+                // Persist згортає їх у файл. Екрани перечитують стан у OnEnter — перезапуск не потрібен.
+                state.Collection.Clear();
+                state.Galaxy.Slots.Clear();
                 state.Persist();
-                Report("колекцію очищено у файлі — перезапусти застосунок, щоб перечитати");
+                Report("колекцію й слоти планет очищено — гаманець і рекорди на місці");
             }
             GUILayout.EndHorizontal();
 

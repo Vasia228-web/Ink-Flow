@@ -88,35 +88,26 @@ namespace InkFlow.Meta
         /// <summary>
         /// Галактика з індексом <paramref name="galaxy"/> з РЕАЛЬНОГО збереження.
         ///
-        /// Розкладка (назви, кількості слотів, кільця й місяці) — з конфігу. Стани рахуються тут:
-        /// ожила — усі слоти зайняті; відкрита — ПЕРША неожила, а також будь-яка, де вже стоять
-        /// картинки (гравець міг забрати картинку з ожилої планети — вона не має замкнутись
-        /// разом із тим, що в ній лишилось); решта замкнена. Тому нова гра відкриває рівно одну
-        /// планету, і жодного окремого поля «розблоковано» у файлі тримати не треба.
+        /// Розкладка (назви, кількості слотів, кільця й місяці) — з конфігу. Стани рахуються тут
+        /// (правило — <see cref="GalaxyState.IsPlanetOpen"/>): ожила — усі слоти зайняті; відкрита —
+        /// перша, будь-яка одразу за ожилою або будь-яка, де вже стоять картинки; решта замкнена.
+        /// Тому нова гра відкриває рівно одну планету, і жодного окремого поля «розблоковано» у файлі
+        /// тримати не треба. Записи поза розкладкою (слоти, яких у планети вже немає) не рахуються.
         /// </summary>
         public static GalaxyProgress FromSave(GalaxyData? data, GalaxyLayout layout, int galaxy)
         {
             if (layout is null) throw new System.ArgumentNullException(nameof(layout));
             var planets = new List<PlanetProgress>(layout.Planets.Count);
-            var currentFound = false;
 
             for (var i = 0; i < layout.Planets.Count; i++)
             {
                 var source = layout.Planets[i];
-                var filled = GalaxyState.FilledCount(data, galaxy, source.Id);
-                if (filled > source.Slots)
-                    filled = source.Slots;
+                var filled = GalaxyState.FilledCount(data, galaxy, source.Id, source.Slots);
 
-                var done = filled >= source.Slots;
                 var state = PlanetState.Locked;
-                if (done)
+                if (filled >= source.Slots)
                     state = PlanetState.Done;
-                else if (!currentFound)
-                {
-                    state = PlanetState.Current;
-                    currentFound = true;
-                }
-                else if (filled > 0)
+                else if (GalaxyState.IsPlanetOpen(data, galaxy, layout, i))
                     state = PlanetState.Current;
 
                 planets.Add(new PlanetProgress(source.Type, source.Name, source.Slots)

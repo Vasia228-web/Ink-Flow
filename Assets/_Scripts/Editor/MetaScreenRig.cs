@@ -92,10 +92,13 @@ namespace InkFlow.Editor
         }
 
         /// <summary>
-        /// Оцінка кількості викликів малювання екрана: скільки різних пар (матеріал, текстура)
-        /// серед активних видимих графік. Канвас батчить графіки з однаковою парою, якщо між ними
-        /// в глибині не стоїть інша, тож це нижня межа; верхню дає <paramref name="runs"/> — скільки
-        /// разів пара змінюється при обході ієрархії в порядку малювання.
+        /// Оцінка кількості викликів малювання всього канваса стенда (екран разом із космічним фоном —
+        /// на пристрої малюється все): скільки різних пар (матеріал, текстура) серед активних видимих
+        /// графік. Канвас батчить графіки з однаковою парою, якщо між ними в глибині не стоїть інша,
+        /// тож це нижня межа; <paramref name="runs"/> — скільки разів пара змінюється при обході
+        /// ієрархії в порядку малювання. Це ОЦІНКА, не точна верхня межа: UGUI сортує за глибиною
+        /// перекриття, і дві сусідні графіки однієї пари можуть розійтись у різні групи. Повністю
+        /// прозорі графіки канвас не малює (<c>CanvasRenderer.cullTransparentMesh</c>) — їх не рахуємо.
         /// </summary>
         public int EstimateBatches(out int runs, out int graphics)
         {
@@ -103,11 +106,12 @@ namespace InkFlow.Editor
             runs = 0;
             graphics = 0;
             (Material, Texture)? last = null;
-            foreach (var graphic in _screenGo.GetComponentsInChildren<Graphic>(false))
+            foreach (var graphic in CanvasRoot.GetComponentsInChildren<Graphic>(false))
             {
                 if (!graphic.enabled || !graphic.gameObject.activeInHierarchy)
                     continue;
-                if (graphic.canvasRenderer.GetAlpha() <= 0.001f || graphic.color.a <= 0.001f)
+                var renderer = graphic.canvasRenderer;
+                if (renderer.cullTransparentMesh && (renderer.GetAlpha() <= 0.001f || graphic.color.a <= 0.001f))
                     continue;
                 graphics++;
                 var key = (graphic.materialForRendering, graphic.mainTexture);

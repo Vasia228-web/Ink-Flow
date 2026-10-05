@@ -68,6 +68,13 @@ namespace InkFlow.Meta
             return true;
         }
 
+        /// <summary>Спорожнити колекцію — лише дев-панелі: у грі зібране не забирається.</summary>
+        public void Clear()
+        {
+            _entries.Clear();
+            _order.Clear();
+        }
+
         public static PictureCollection Load(CollectionData? data)
         {
             var collection = new PictureCollection();

@@ -1,4 +1,5 @@
 using InkFlow.Core;
+using InkFlow.Gameplay;
 using InkFlow.Style;
 using InkFlow.UI;
 using TMPro;
@@ -28,9 +29,19 @@ namespace InkFlow.Editor
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        /// <summary>Чипів тем у пулі («Усі» + теми бібліотеки) і рідкостей («Усі» + шість).</summary>
-        private const int ThemeChips = 6;
+        /// <summary>Чипів рідкості («Усі» + шість). Чипи тем — за бібліотекою, див. <see cref="ThemeChipCount"/>.</summary>
         private const int RarityChips = 7;
+
+        /// <summary>Запас чипів тем понад бібліотеку: нова тема без перезбирання екрана.</summary>
+        private const int ThemeChipHeadroom = 4;
+
+        /// <summary>«Усі теми» + стільки тем, скільки в бібліотеці, плюс запас; без бібліотеки — лише запас.</summary>
+        private static int ThemeChipCount()
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<PictureLibraryAsset>(MetaScreenRig<CollectionScreen>.LibraryPath);
+            var themes = asset != null ? asset.ToLibrary().Themes.Count : 0;
+            return 1 + themes + ThemeChipHeadroom;
+        }
 
         /// <summary>Рядків карток у пулі: в'юпорт iPhone SE вміщає ~4, запас — два.</summary>
         private const int PoolRows = 6;
@@ -109,14 +120,14 @@ namespace InkFlow.Editor
 
             var headerBottom = BuildHeader(screenGo, design!, font, circle!, circleOutline!, out var backButton, out var title, out var subtitle);
             var filtersBottom = BuildFilters(screenGo, design!, font, rounded!, circle!, circleOutline!, headerBottom,
-                out var themeButtons, out var themeFills, out var themeLabels,
+                out var themesContent, out var themeButtons, out var themeFills, out var themeLabels,
                 out var rarityButtons, out var rarityDots, out var rarityRings, out var rarityAllLabel);
             BuildGrid(screenGo, design!, font, rounded!, outline!, filtersBottom,
                 out var scroll, out var content, out var cards, out var emptyLabel, out var hintLabel);
 
             Wire(screen,
                 ("design", design!), ("backButton", backButton), ("title", title), ("subtitle", subtitle),
-                ("rarityAllLabel", rarityAllLabel),
+                ("themesContent", themesContent), ("rarityAllLabel", rarityAllLabel),
                 ("scroll", scroll), ("content", content), ("emptyLabel", emptyLabel), ("hintLabel", hintLabel));
             WireArray(screen, "themeButtons", themeButtons);
             WireArray(screen, "themeFills", themeFills);
@@ -191,6 +202,7 @@ namespace InkFlow.Editor
         // ── Фільтри: ряд чипів тем і ряд крапок рідкості ──
         private static float BuildFilters(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             Sprite rounded, Sprite circle, Sprite circleOutline, float headerBottom,
+            out RectTransform themesContent,
             out Button[] themeButtons, out GradientImage[] themeFills, out TMP_Text[] themeLabels,
             out Button[] rarityButtons, out Image[] rarityDots, out Image[] rarityRings, out TMP_Text rarityAllLabel)
         {
@@ -228,14 +240,16 @@ namespace InkFlow.Editor
             content.pivot = new Vector2(0f, 0.5f);
             scroll.viewport = viewportGo.GetComponent<RectTransform>();
             scroll.content = content;
+            themesContent = content;
 
             var chipW = M(92f);
             var gap = M(8f);
-            themeButtons = new Button[ThemeChips];
-            themeFills = new GradientImage[ThemeChips];
-            themeLabels = new TMP_Text[ThemeChips];
+            var themeChips = ThemeChipCount();
+            themeButtons = new Button[themeChips];
+            themeFills = new GradientImage[themeChips];
+            themeLabels = new TMP_Text[themeChips];
             var x = 0f;
-            for (var i = 0; i < ThemeChips; i++)
+            for (var i = 0; i < themeChips; i++)
             {
                 var chipGo = Child(contentGo, $"Theme{i}");
                 var fill = chipGo.AddComponent<GradientImage>();

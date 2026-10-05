@@ -19,6 +19,9 @@ namespace InkFlow.UI
     {
         private readonly List<Rect> _uvs = new List<Rect>();
         private Texture2D? _texture;
+        // Буфер пікселів живе з атласом: новий масив на кожну збірку — це до мегабайта сміття на
+        // колекцію зі ста картинок, і все заради одного SetPixels32, який його одразу копіює.
+        private Color32[]? _pixels;
         private int _cell;
         private int _columns;
 
@@ -67,7 +70,11 @@ namespace InkFlow.UI
                 };
             }
 
-            var pixels = new Color32[width * height];
+            if (_pixels == null || _pixels.Length != width * height)
+                _pixels = new Color32[width * height];
+            else
+                System.Array.Clear(_pixels, 0, _pixels.Length);
+            var pixels = _pixels;
             for (var i = 0; i < count; i++)
             {
                 var col = i % _columns;
@@ -102,6 +109,7 @@ namespace InkFlow.UI
 
         public void Release()
         {
+            _pixels = null;
             if (_texture == null)
                 return;
             if (Application.isPlaying)

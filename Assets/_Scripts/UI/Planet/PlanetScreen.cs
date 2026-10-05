@@ -101,7 +101,7 @@ namespace InkFlow.UI
         /// <summary>Наступна планета: огляд галактики з уже зсунутим фокусом.</summary>
         public System.Action? NextPlanetRequested;
 
-        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+        private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
@@ -146,7 +146,8 @@ namespace InkFlow.UI
             var complete = _surface.IsComplete;
             // Повернення з колекції після того, як поставлено останню картинку, — це і є момент
             // «планета ожила». Перший вхід на вже ожилу планету не святкує вдруге.
-            _celebrated = !(_returningFromCollection && complete && !_completeBeforeCollection);
+            var returning = _returningFromCollection;
+            _celebrated = !(returning && complete && !_completeBeforeCollection);
             _returningFromCollection = false;
             _hintHidden = _hintHidden || complete;
 
@@ -167,6 +168,13 @@ namespace InkFlow.UI
             }
             if (!_celebrated)
                 StartCoroutine(CelebrationRoutine());
+            else if (returning)
+            {
+                // З колекції повертаємось на ту саму планету в тій самій позі — без повторного
+                // наближення: гравець має побачити, як картинка лягла в слот, а не як куля знову влітає.
+                if (stageRoot != null)
+                    stageRoot.localScale = Vector3.one;
+            }
             else
                 StartCoroutine(ApproachRoutine());
         }
@@ -290,8 +298,12 @@ namespace InkFlow.UI
                 if (marker == null)
                     continue;
                 var picture = _atlasPictures[i];
-                if (picture == null || _atlas.Texture == null)
+                if (!_surface.Slots[i].IsFilled)
                     marker.ShowEmpty();
+                else if (picture == null || _atlas.Texture == null)
+                    // У збереженні картинка є, у бібліотеці — ні (прибрали з гри, асет не підв'язано):
+                    // слот зайнятий, і це видно; звільнити його можна, а от порожнім він не прикидається.
+                    marker.ShowUnknown(design.GlassStroke);
                 else
                     marker.ShowPicture(_atlas.Texture, _atlas.UvOf(i), design.RarityColor(picture.Rarity));
             }
@@ -303,7 +315,7 @@ namespace InkFlow.UI
             if (progressLabel == null || _surface == null)
                 return;
             progressLabel.text = _surface.IsComplete
-                ? $"Усі {_surface.Slots.Count} слотів заповнені"
+                ? $"Усі {Plural.Count(_surface.Slots.Count, "слот", "слоти", "слотів")} заповнені"
                 : $"{_surface.FilledCount} / {_surface.Slots.Count} слотів · тапни на порожній";
         }
 
@@ -343,8 +355,14 @@ namespace InkFlow.UI
             if (_surface == null)
                 return;
             // Завершена галактика — вітрина, яку більше не редагують; замкнена планета — теж ні.
+            // Мовчати не можна: тап без відповіді читається як зламана кнопка.
             if (State != null && !State.CanEditPlanet(_galaxy, PlanetId))
+            {
+                ShowHint(_galaxy < State.CurrentGalaxy
+                    ? "Ця галактика завершена — це вітрина, її вже не змінюють"
+                    : "Ця планета ще замкнена — заверши попередню");
                 return;
+            }
             if (!slot.IsFilled)
             {
                 OpenCollection(slot);
@@ -357,9 +375,18 @@ namespace InkFlow.UI
             {
                 var library = State?.Library ?? PictureLibrary.Fallback;
                 var picture = slot.PictureId is null ? null : library.Find(slot.PictureId);
-                sheetTitle.text = picture != null ? picture.Name : "Картинка";
+                sheetTitle.text = picture != null ? picture.Name : "Невідома картинка";
             }
             Toggle(slotSheet, true);
+        }
+
+        /// <summary>Підказка під планетою замість «крути пальцем»: пояснення, чому тап нічого не зробив.</summary>
+        private void ShowHint(string text)
+        {
+            if (rotateHint == null)
+                return;
+            rotateHint.text = text;
+            Toggle(rotateHint, true);
         }
 
         private void OpenCollection(PlanetSlot? slot)
@@ -421,6 +448,12 @@ namespace InkFlow.UI
 
         /// <summary>Стенд і тести: маркери слотів стадії.</summary>
         public SlotMarker[] PreviewMarkers => stage != null ? stage.Markers : System.Array.Empty<SlotMarker>();
+
+        /// <summary>Тести: чи відкритий лист зайнятого слота.</summary>
+        public bool PreviewSheetOpen => slotSheet != null && slotSheet.gameObject.activeSelf;
+
+        /// <summary>Тести: текст підказки під планетою (порожній, якщо схована).</summary>
+        public string PreviewHint => rotateHint != null && rotateHint.gameObject.activeSelf ? rotateHint.text : string.Empty;
 #endif
 
         /// <summary>Наближення до планети з екрана огляду: масштаб і зсув, не нова сцена.</summary>

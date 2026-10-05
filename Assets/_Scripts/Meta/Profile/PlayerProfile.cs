@@ -168,8 +168,12 @@ namespace InkFlow.Meta
             };
 
             // Вітрина — ожилі планети поточної галактики. Порожня, поки жодної не закінчено:
-            // показувати там незароблене означало б брехати гравцю про прогрес.
+            // показувати там незароблене означало б брехати гравцю про прогрес. Щойно завершена
+            // галактика робить поточною наступну, порожню, — тоді вітрина лишається з завершеної,
+            // доки в новій не ожиє перша планета.
             var galaxy = GalaxyProgress.FromSave(state.Galaxy, state.Layout);
+            if (galaxy.DoneCount == 0 && galaxiesDone > 0)
+                galaxy = GalaxyProgress.FromSave(state.Galaxy, state.Layout, galaxiesDone - 1);
             var showcase = new List<ShowcasePlanet>();
             for (var i = 0; i < galaxy.Planets.Count && showcase.Count < 3; i++)
             {
@@ -192,7 +196,7 @@ namespace InkFlow.Meta
                 new Achievement("a_gal", "Перша планета", Hex("#00D9C0"), planetsDone >= 1,
                     "Заповни всі слоти своєї першої планети"),
                 new Achievement("a_slot", "Перша вітрина", Hex("#FFB300"),
-                    GalaxyState.TotalFilled(state.Galaxy) >= 1,
+                    GalaxyState.TotalFilled(state.Galaxy, state.Layout) >= 1,
                     "Постав картинку в слот планети"),
                 new Achievement("a_ten", "Колекціонер", Hex("#9D4DFF"), state.Collection.Distinct >= 10,
                     "Збери десять різних картинок"),

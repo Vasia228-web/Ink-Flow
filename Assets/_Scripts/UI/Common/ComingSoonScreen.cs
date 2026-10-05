@@ -27,7 +27,7 @@ namespace InkFlow.UI
         /// <summary>Назад у хаб.</summary>
         public System.Action? BackRequested;
 
-        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+        private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);

@@ -165,6 +165,53 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void FromSave_EmptyOpenedPlanetStaysOpen_WhenAnEarlierPlanetLosesAPicture()
+        {
+            // Аквіла, Рудокам, Кріос ожили; Терра відкрита, але ще порожня. Гравець забирає кита з Аквіли,
+            // щоб перенести його на Терру: Терра не має замкнутись у цю мить — її відкрив ожилий Кріос.
+            var data = new GalaxyData();
+            FillPlanet(data, 0, 0);
+            FillPlanet(data, 0, 1);
+            FillPlanet(data, 0, 2);
+            GalaxyState.Clear(data, 0, Layout.Planets[0].Id, 0);
+
+            var galaxy = GalaxyProgress.FromSave(data, Layout);
+
+            Assert.AreEqual(PlanetState.Current, galaxy.Planets[0].State, "Аквіла без одного кита — знову в роботі");
+            Assert.AreEqual(PlanetState.Done, galaxy.Planets[1].State);
+            Assert.AreEqual(PlanetState.Done, galaxy.Planets[2].State);
+            Assert.AreEqual(PlanetState.Current, galaxy.Planets[3].State, "відкрита порожня планета не замикається");
+            Assert.AreEqual(PlanetState.Locked, galaxy.Planets[4].State);
+            Assert.IsTrue(GalaxyState.IsPlanetOpen(data, 0, Layout, 3));
+            Assert.IsFalse(GalaxyState.IsPlanetOpen(data, 0, Layout, 4));
+        }
+
+        [Test]
+        public void FromSave_IgnoresSlotRecordsBeyondTheLayout()
+        {
+            // Автор зменшив слоти першої планети з 4 до 3 після того, як гравець заповнив усі 4.
+            var data = new GalaxyData();
+            FillPlanet(data, 0, 0);
+            var shrunk = new GalaxyLayout(
+                new[]
+                {
+                    new PlanetLayout(PlanetType.Ocean, "Аквіла", 3),
+                    new PlanetLayout(PlanetType.Rocky, "Рудокам", 2)
+                },
+                new[] { "X" });
+
+            var galaxy = GalaxyProgress.FromSave(data, shrunk);
+
+            Assert.AreEqual(PlanetState.Done, galaxy.Planets[0].State);
+            Assert.AreEqual(3, galaxy.Planets[0].FilledSlots, "показуємо стільки, скільки слотів є");
+            Assert.AreEqual(3, GalaxyState.FilledCount(data, 0, Layout.Planets[0].Id, 3));
+            Assert.AreEqual(4, GalaxyState.FilledCount(data, 0, Layout.Planets[0].Id), "сирі факти файлу — усі чотири записи");
+            Assert.AreEqual(3, GalaxyState.TotalFilled(data, shrunk));
+            Assert.AreEqual(0, GalaxyState.PlacedCopies(data, "pic-0-0-3", shrunk), "запис у слоті, якого немає, копію не тримає");
+            Assert.AreEqual(1, GalaxyState.PlacedCopies(data, "pic-0-0-3"), "…але у файлі він лишається");
+        }
+
+        [Test]
         public void FromSave_ShowsTheCurrentGalaxy_WhenTheFirstIsComplete()
         {
             var data = new GalaxyData();

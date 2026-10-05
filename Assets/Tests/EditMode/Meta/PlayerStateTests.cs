@@ -180,6 +180,100 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void ClearSlot_RefusedInAFinishedGalaxy()
+        {
+            var storage = new MemoryStorage();
+            var state = PlayerState.NewPlayer(EconomyData.Default, storage);
+            for (var p = 0; p < state.Layout.Planets.Count; p++)
+            {
+                var planet = state.Layout.Planets[p];
+                for (var i = 0; i < planet.Slots; i++)
+                {
+                    state.CollectPicture($"pic-{p}-{i}", Today);
+                    Assert.IsTrue(state.TryPlaceInSlot(0, planet.Id, i, $"pic-{p}-{i}", Today));
+                }
+            }
+            Assert.AreEqual(1, state.CurrentGalaxy);
+            var writes = storage.Writes;
+
+            // Завершена галактика — вітрина: зняти звідти картинку означало б повернути поточною
+            // Галактику I і замкнути все, що гравець уже поставив у другій.
+            Assert.IsFalse(state.ClearSlot(0, Planet(0), 0), "завершену галактику не редагуємо");
+            Assert.AreEqual(state.Layout.Planets[0].Slots, GalaxyState.FilledCount(state.Galaxy, 0, Planet(0)));
+            Assert.AreEqual(1, state.CurrentGalaxy);
+            Assert.AreEqual(writes, storage.Writes, "відмова не пише файл");
+            Assert.IsTrue(state.CanEditPlanet(1, Planet(0)), "а нова галактика редагується");
+        }
+
+        // ── Розкладка з конфігу ──
+
+        private static readonly GalaxyLayout Tiny = new GalaxyLayout(
+            new[]
+            {
+                new PlanetLayout(PlanetType.Ocean, "А", 2),
+                new PlanetLayout(PlanetType.Rocky, "Б", 2)
+            },
+            new[] { "ПЕРША", "ДРУГА" });
+
+        [Test]
+        public void CustomLayout_DrivesUnlocksGalaxyCyclesAndFreeCopies()
+        {
+            // Планети й слоти — з конфігу: дві планети по два слоти мають працювати так само, як дев'ять.
+            var state = PlayerState.NewPlayer(EconomyData.Default, new MemoryStorage(), layout: Tiny);
+            var a = Tiny.Planets[0].Id;
+            var b = Tiny.Planets[1].Id;
+            for (var i = 0; i < 3; i++)
+                state.CollectPicture("whale", Today);
+            state.CollectPicture("comet", Today);
+
+            Assert.IsFalse(state.CanEditPlanet(0, b), "друга замкнена");
+            Assert.IsTrue(state.TryPlaceInSlot(0, a, 0, "whale", Today));
+            Assert.IsTrue(state.TryPlaceInSlot(0, a, 1, "whale", Today));
+            Assert.IsFalse(state.TryPlaceInSlot(0, a, 2, "whale", Today), "третього слота в цій планеті немає");
+            Assert.IsTrue(state.CanEditPlanet(0, b), "перша ожила — друга відкрилась");
+            Assert.IsTrue(state.TryPlaceInSlot(0, b, 0, "whale", Today));
+            Assert.AreEqual(0, state.FreeCopies("whale"), "три копії — три слоти");
+            Assert.IsTrue(state.TryPlaceInSlot(0, b, 1, "comet", Today));
+
+            Assert.AreEqual(1, state.CurrentGalaxy, "обидві планети ожили — наступний цикл");
+            Assert.IsTrue(GalaxyState.IsGalaxyComplete(state.Galaxy, 0, Tiny));
+            Assert.AreEqual(Tiny.SlotsPerGalaxy, GalaxyState.TotalFilled(state.Galaxy, Tiny));
+            Assert.IsTrue(state.CanEditPlanet(1, a));
+            Assert.IsFalse(state.CanEditPlanet(1, b));
+            Assert.IsFalse(state.TryPlaceInSlot(1, a, 0, "whale", Today), "усі копії кита стоять у Галактиці I");
+            state.CollectPicture("whale", Today);
+            Assert.IsTrue(state.TryPlaceInSlot(1, a, 0, "whale", Today));
+            Assert.IsTrue(GalaxyProgress.FromSave(state.Galaxy, Tiny).Name.StartsWith("ГАЛАКТИКА II ·", StringComparison.Ordinal));
+        }
+
+        [Test]
+        public void LayoutShrank_GhostRecordsDoNotCountAndFreeTheirCopies()
+        {
+            // Той самий файл, прочитаний меншою розкладкою: слотів у першій планеті стало 1, другу прибрано.
+            var storage = new MemoryStorage();
+            var before = PlayerState.NewPlayer(EconomyData.Default, storage, layout: Tiny);
+            for (var i = 0; i < 4; i++)
+                before.CollectPicture($"p{i}", Today);
+            before.TryPlaceInSlot(0, Tiny.Planets[0].Id, 0, "p0", Today);
+            before.TryPlaceInSlot(0, Tiny.Planets[0].Id, 1, "p1", Today);
+            before.TryPlaceInSlot(0, Tiny.Planets[1].Id, 0, "p2", Today);
+            before.TryPlaceInSlot(0, Tiny.Planets[1].Id, 1, "p3", Today);
+            before.Persist();
+
+            var smaller = new GalaxyLayout(new[] { new PlanetLayout(PlanetType.Ocean, "А", 1) }, new[] { "X" });
+            var after = new PlayerState(storage.Written!, EconomyData.Default, storage, layout: smaller);
+
+            Assert.AreEqual(4, after.Galaxy.Slots.Count, "записи у файлі лишаються — розкладка може знову вирости");
+            Assert.AreEqual(0, after.FreeCopies("p0"), "адресований слот тримає копію");
+            Assert.AreEqual(1, after.FreeCopies("p1"), "слот 1 у планети з одним слотом — привид, копія вільна");
+            Assert.AreEqual(1, after.FreeCopies("p2"), "планети немає в розкладці — копія вільна");
+            Assert.AreEqual(1, after.FreeCopies("p3"));
+            Assert.IsTrue(GalaxyState.IsPlanetComplete(after.Galaxy, 0, smaller.Planets[0]));
+            Assert.AreEqual(1, after.CurrentGalaxy, "єдина планета ожила — галактика завершена");
+            Assert.AreEqual(1, GalaxyState.CompletedPlanets(after.Galaxy, smaller), "привиди в «ожило» не рахуються");
+        }
+
+        [Test]
         public void Persist_FoldsRuntimeObjectsBackIntoTheFile()
         {
             var storage = new MemoryStorage();

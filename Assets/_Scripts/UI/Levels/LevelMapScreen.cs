@@ -60,7 +60,7 @@ namespace InkFlow.UI
         /// <summary>Гравець натиснув «Грати» на цьому рівні.</summary>
         public System.Action<int>? PlayRequested;
 
-        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+        private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);

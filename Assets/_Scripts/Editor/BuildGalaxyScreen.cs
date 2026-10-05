@@ -117,7 +117,8 @@ namespace InkFlow.Editor
             var screen = screenGo.AddComponent<GalaxyScreen>();
 
             var header = BuildHeader(screenGo, design!, font, circle!, circleOutline!, currencyPrefab!,
-                out var backButton, out var title, out var progress, out var currency);
+                out var backButton, out var title, out var progress, out var currency,
+                out var prevButton, out var prevLabel, out var nextButton, out var nextLabel);
             var bottom = BuildBottom(screenGo, design!, font, rounded!, circle!,
                 out var doneBadge, out var planetName, out var planetZones,
                 out var paintButton, out var paintFill, out var paintLabel,
@@ -129,6 +130,8 @@ namespace InkFlow.Editor
             Wire(screen,
                 ("design", design!), ("backButton", backButton), ("galaxyName", title),
                 ("galaxyProgress", progress), ("currency", currency), ("carousel", carousel),
+                ("prevGalaxyButton", prevButton), ("prevGalaxyLabel", prevLabel),
+                ("nextGalaxyButton", nextButton), ("nextGalaxyLabel", nextLabel),
                 ("nextGalaxyName", nextName), ("nextGalaxyHint", nextHint),
                 ("doneBadge", doneBadge), ("planetName", planetName), ("planetZones", planetZones),
                 ("paintButton", paintButton), ("paintButtonFill", paintFill),
@@ -159,7 +162,8 @@ namespace InkFlow.Editor
 
         private static RectTransform BuildHeader(GameObject parent, DesignSystem design,
             TMP_FontAsset? font, Sprite circle, Sprite circleOutline, GameObject currencyPrefab,
-            out Button backButton, out TMP_Text title, out TMP_Text progress, out CurrencyWidget currency)
+            out Button backButton, out TMP_Text title, out TMP_Text progress, out CurrencyWidget currency,
+            out Button prevButton, out TMP_Text prevLabel, out Button nextButton, out TMP_Text nextLabel)
         {
             var headerHeight = M(46f);
             var go = Child(parent, "Header");
@@ -206,12 +210,43 @@ namespace InkFlow.Editor
             Place(progress, new Vector2(-M(36f), -M(9f)), new Vector2(M(182f), M(15f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
+            // Стрілки циклів галактик — на краях проміжку назви, у тому самому якорі, що й назва:
+            // екран сам стискає назву між ними, коли вони видимі (після першої завершеної галактики),
+            // і розтягує на всю ширину, коли гортати нічого.
+            var arrowSize = M(26f);
+            prevButton = BuildArrow(go, "PrevGalaxy", "‹", -M(36f) - M(182f) * 0.5f + arrowSize * 0.5f,
+                arrowSize, design, font, circle, out prevLabel);
+            nextButton = BuildArrow(go, "NextGalaxy", "›", -M(36f) + M(182f) * 0.5f - arrowSize * 0.5f,
+                arrowSize, design, font, circle, out nextLabel);
+            prevButton.gameObject.SetActive(false);
+            nextButton.gameObject.SetActive(false);
+
             var currencyGo = (GameObject)PrefabUtility.InstantiatePrefab(currencyPrefab, go.transform);
             currency = currencyGo.GetComponent<CurrencyWidget>();
             Place(currency, Vector2.zero, new Vector2(M(112f), M(40f)),
                 new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
 
             return rect;
+        }
+
+        /// <summary>Кругла скляна стрілка «‹»/«›» у шапці (гліфи є в наборі шрифту — див. check-glyphs).</summary>
+        private static Button BuildArrow(GameObject parent, string name, string glyph, float x, float size,
+            DesignSystem design, TMP_FontAsset? font, Sprite circle, out TMP_Text label)
+        {
+            var go = Child(parent, name);
+            var fill = go.AddComponent<Image>();
+            fill.sprite = circle;
+            fill.color = design.CircleButtonFill;
+            Place(fill, new Vector2(x, M(7f)), new Vector2(size, size),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            label = Label(go, "Glyph", glyph, design, font, design.FontSizePlanetName, design.TextPrimary,
+                TextAlignmentOptions.Center);
+            Stretch(label.gameObject);
+
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = fill;
+            return button;
         }
 
         // ───────────────────────── Низ ─────────────────────────

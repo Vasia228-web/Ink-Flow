@@ -103,7 +103,9 @@ namespace InkFlow.Meta
                 // фарби більше немає.
                 //  • Розміщення «планета + довгота/широта» стають слотами тієї ж планети по черзі,
                 //    поки є слоти; зайві нікуди не губляться — у розміщеннях лише id картинок, і
-                //    всі вони лишаються в колекції.
+                //    всі вони лишаються в колекції. Копій картинки в слотах — не більше, ніж зібрано:
+                //    v7 дозволяла ставити одну зібрану картинку скільки завгодно разів, а тепер
+                //    «одна зібрана копія — один слот», і від'ємних вільних копій бути не має.
                 //  • Пофарбовані зони не переносяться: ожилою планету робить лише заповнена
                 //    вітрина. У реальних файлах фарбувалась лише Терра Прима, поки «поточною» була
                 //    Аквіла, — тож той стан і так був зламаний і нічого не означав.
@@ -119,7 +121,18 @@ namespace InkFlow.Meta
                     save.Paints ??= new PaintsData();
                     save.Paints.Stacks ??= new List<PaintStack>();
 
+                    save.Collection ??= new CollectionData();
+                    save.Collection.Pictures ??= new List<CollectedPicture>();
+                    var collected = new Dictionary<string, int>(StringComparer.Ordinal);
+                    for (var i = 0; i < save.Collection.Pictures.Count; i++)
+                    {
+                        var picture = save.Collection.Pictures[i];
+                        if (picture.PictureId is { Length: > 0 } && picture.Count > 0)
+                            collected[picture.PictureId] = picture.Count;
+                    }
+
                     var filled = new Dictionary<string, int>(StringComparer.Ordinal);
+                    var placedCopies = new Dictionary<string, int>(StringComparer.Ordinal);
                     for (var i = 0; i < save.Galaxy.Placements.Count; i++)
                     {
                         var placement = save.Galaxy.Placements[i];
@@ -131,6 +144,11 @@ namespace InkFlow.Meta
                         filled.TryGetValue(placement.PlanetId, out var n);
                         if (n >= planet.Slots)
                             continue;
+                        collected.TryGetValue(placement.PictureId, out var owned);
+                        placedCopies.TryGetValue(placement.PictureId, out var placed);
+                        if (placed >= owned)
+                            continue;
+                        placedCopies[placement.PictureId] = placed + 1;
                         GalaxyState.Set(save.Galaxy, 0, placement.PlanetId, n, placement.PictureId, DateTime.MinValue);
                         // Час постановки невідомий — порожньо, а не «зараз»: інакше міграція
                         // записала б усі старі картинки в «цей тиждень» рейтингу.

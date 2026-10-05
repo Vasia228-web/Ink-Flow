@@ -499,6 +499,9 @@ namespace InkFlow.Style
         [Tooltip("Розрядка заголовка галактики: .1em макета (проти .14em у хабі).")]
         [SerializeField] private float letterSpacingGalaxyTitle = 10f;
 
+        [Tooltip("До якої частки розміру назва галактики стискається, щоб влізти в шапку (між стрілками циклів — без розрядки).")]
+        [SerializeField, Range(0.4f, 1f)] private float galaxyTitleMinScale = 0.6f;
+
         [Tooltip("Заливка круглої скляної кнопки «‹»: rgba(255,255,255,.07) макета. " +
                  "Тут біле скло, а не темне: кнопка лежить на фоні, а не на контенті.")]
         [SerializeField] private Color circleButtonFill = new Color(1f, 1f, 1f, 0.07f);
@@ -997,10 +1000,18 @@ namespace InkFlow.Style
         [Tooltip("Кількості слотів, між якими інтерполюється радіус (дефолтна розкладка: 4 … 12).")]
         [SerializeField, Min(1)] private int slotCountFewest = 4;
         [SerializeField, Min(1)] private int slotCountMost = 12;
-        [Tooltip("Картинка в слоті відносно діаметра слота.")]
+        [Tooltip("Панель і рамка картинки в слоті відносно діаметра слота.")]
         [SerializeField, Range(0.4f, 1f)] private float slotPictureScale = 0.82f;
+        [Tooltip("Піксель-арт відносно панелі слота: поле між пікселями й рамкою.")]
+        [SerializeField, Range(0.4f, 1f)] private float slotPixelsScale = 0.82f;
         [Tooltip("Прозорість порожнього слота (сіра пляма з пунктиром).")]
         [SerializeField, Range(0.1f, 1f)] private float slotEmptyAlpha = 0.85f;
+        [Tooltip("Зерно форми порожньої плями (_Seed шейдера InkFlow/Zone): усі гнізда однакові, це не материки.")]
+        [SerializeField, Range(0f, 1f)] private float slotSocketSeed = 0.37f;
+        [Tooltip("Спалах «планета ожила» відносно діаметра планети.")]
+        [SerializeField, Range(1f, 2f)] private float planetFlashScale = 1.4f;
+        [Tooltip("Колір супутника, що влітає на орбіту ожилої планети.")]
+        [SerializeField] private Color planetMoonColor = new Color(0.94f, 0.95f, 1f, 1f);
 
         [SerializeField] private Color paintLowFill = new Color(1f, 0.42f, 0.54f, 0.16f);
         [SerializeField] private Color paintLowStroke = new Color(1f, 0.42f, 0.54f, 0.45f);
@@ -1314,7 +1325,11 @@ namespace InkFlow.Style
         public float PaintRotationDamping => paintRotationDamping;
         public float PaintAutoSpinSpeed => paintAutoSpinSpeed;
         public float SlotPictureScale => slotPictureScale;
+        public float SlotPixelsScale => slotPixelsScale;
         public float SlotEmptyAlpha => slotEmptyAlpha;
+        public float SlotSocketSeed => slotSocketSeed;
+        public float PlanetFlashScale => planetFlashScale;
+        public Color PlanetMoonColor => planetMoonColor;
 
         /// <summary>Радіус слота (px макета) для планети з такою кількістю слотів: лінійно між двома токенами.</summary>
         public float SlotRadiusFor(int slotCount)
@@ -1347,6 +1362,7 @@ namespace InkFlow.Style
         public float FontSizeNextGalaxy => fontSizeNextGalaxy;
         public float FontSizePaintButton => fontSizePaintButton;
         public float LetterSpacingGalaxyTitle => letterSpacingGalaxyTitle;
+        public float GalaxyTitleMinScale => galaxyTitleMinScale;
         public Color CircleButtonFill => circleButtonFill;
         public float PlanetSize => planetSize;
         public float PlanetSizeFinale => planetSizeFinale;

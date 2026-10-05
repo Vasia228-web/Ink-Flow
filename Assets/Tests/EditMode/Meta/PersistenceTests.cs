@@ -136,9 +136,14 @@ namespace InkFlow.Tests.Meta
             var save = new SaveFile { Version = 7 };
             var earth = GalaxyState.PlanetId(PlanetType.Earth);
             var earthSlots = Layout.Find(earth)!.Slots;
-            // Більше розміщень, ніж слотів, плюс планета, якої в розкладці немає.
+            // Більше розміщень, ніж слотів, плюс планета, якої в розкладці немає. Усе поставлене —
+            // зібране: v7 вимагала картинку в колекції, і в слоти переходять лише зібрані копії.
             for (var i = 0; i < earthSlots + 2; i++)
+            {
+                save.Collection.Pictures.Add(new CollectedPicture { PictureId = $"pic{i}", Count = 1, FirstUtc = Now.ToString("o") });
                 save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = $"pic{i}", Longitude = i, Latitude = -i });
+            }
+            save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 1, FirstUtc = Now.ToString("o") });
             save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = "Mars", PictureId = "whale" });
 
             var migrated = SaveMigrations.Migrate(save);
@@ -150,6 +155,32 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(0, migrated.Galaxy.Placements.Count, "старий список спорожнено");
             Assert.AreEqual(string.Empty, migrated.Galaxy.Slots[0].FilledUtc, "час постановки невідомий — не «зараз»");
             Assert.AreEqual(0, GalaxyState.FilledCount(migrated.Galaxy, 0, "Mars"), "невідома планета пропускається, а не ламає міграцію");
+        }
+
+        [Test]
+        public void Migration_V7_CapsCopiesByTheCollection()
+        {
+            // v7 дозволяла ставити одну зібрану картинку скільки завгодно разів. У v8 копій у слотах —
+            // не більше, ніж зібрано, інакше вільних копій ставало б від'ємно з першого запуску.
+            var save = new SaveFile { Version = 7 };
+            var earth = GalaxyState.PlanetId(PlanetType.Earth);
+            save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 1, FirstUtc = Now.ToString("o") });
+            save.Collection.Pictures.Add(new CollectedPicture { PictureId = "comet", Count = 2, FirstUtc = Now.ToString("o") });
+            for (var i = 0; i < 3; i++)
+                save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = "whale" });
+            for (var i = 0; i < 3; i++)
+                save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = "comet" });
+            save.Galaxy.Placements.Add(new PicturePlacement { PlanetId = earth, PictureId = "ghost" });
+
+            var migrated = SaveMigrations.Migrate(save);
+
+            Assert.AreEqual(1, GalaxyState.PlacedCopies(migrated.Galaxy, "whale"), "одна зібрана — один слот");
+            Assert.AreEqual(2, GalaxyState.PlacedCopies(migrated.Galaxy, "comet"));
+            Assert.AreEqual(0, GalaxyState.PlacedCopies(migrated.Galaxy, "ghost"), "незібране в слоти не потрапляє");
+            Assert.AreEqual(3, GalaxyState.FilledCount(migrated.Galaxy, 0, earth), "слоти йдуть по черзі без дірок");
+            Assert.AreEqual("whale", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, 0));
+            Assert.AreEqual("comet", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, 1));
+            Assert.AreEqual("comet", GalaxyState.PictureAt(migrated.Galaxy, 0, earth, 2));
         }
 
         [Test]

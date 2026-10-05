@@ -15,6 +15,11 @@ namespace InkFlow.Meta
     ///
     /// Усе тут — похідне й детерміноване: яка галактика поточна, яка планета відкрита, скільки
     /// завершено — рахується зі списку, тож окремих полів «розблоковано» у файлі немає.
+    ///
+    /// Записи, яких розкладка більше не адресує (автор зменшив слоти планети чи прибрав планету
+    /// з конфігу), у файлі лишаються — вони повернуться, якщо розкладка знову виросте, — але в
+    /// прогресі й у зайнятих копіях НЕ рахуються: інакше невидимий слот тримав би копію навічно.
+    /// Тому все, що каже «скільки зайнято», бере розкладку, а не лише ідентифікатор планети.
     /// </summary>
     public static class GalaxyState
     {
@@ -25,6 +30,16 @@ namespace InkFlow.Meta
             record.Galaxy == galaxy && record.Slot == slot &&
             string.Equals(record.PlanetId, planetId, StringComparison.Ordinal);
 
+        private static bool HasPicture(in PlanetSlotRecord record) => record.PictureId is { Length: > 0 };
+
+        /// <summary>Чи адресує розкладка цей запис: планета є в ній і номер слота в межах її слотів.</summary>
+        public static bool IsAddressed(in PlanetSlotRecord record, GalaxyLayout layout)
+        {
+            if (layout is null) throw new ArgumentNullException(nameof(layout));
+            var planet = layout.Find(record.PlanetId);
+            return planet != null && record.Slot >= 0 && record.Slot < planet.Slots;
+        }
+
         /// <summary>Картинка в слоті; null — порожній.</summary>
         public static string? PictureAt(GalaxyData? data, int galaxy, string planetId, int slot)
         {
@@ -32,12 +47,15 @@ namespace InkFlow.Meta
                 return null;
             for (var i = 0; i < data.Slots.Count; i++)
                 if (Same(data.Slots[i], galaxy, planetId, slot))
-                    return data.Slots[i].PictureId is { Length: > 0 } id ? id : null;
+                    return HasPicture(data.Slots[i]) ? data.Slots[i].PictureId : null;
             return null;
         }
 
-        /// <summary>Скільки слотів цієї планети зайнято.</summary>
-        public static int FilledCount(GalaxyData? data, int galaxy, string planetId)
+        /// <summary>
+        /// Скільки слотів цієї планети зайнято. <paramref name="slots"/> — скільки слотів у планети за
+        /// розкладкою: записи з номером поза ними не рахуються. Без нього — усі записи файлу (сирі факти).
+        /// </summary>
+        public static int FilledCount(GalaxyData? data, int galaxy, string planetId, int slots = int.MaxValue)
         {
             if (data?.Slots == null)
                 return 0;
@@ -45,14 +63,14 @@ namespace InkFlow.Meta
             for (var i = 0; i < data.Slots.Count; i++)
             {
                 var r = data.Slots[i];
-                if (r.Galaxy == galaxy && r.PictureId is { Length: > 0 } &&
+                if (r.Galaxy == galaxy && r.Slot >= 0 && r.Slot < slots && HasPicture(r) &&
                     string.Equals(r.PlanetId, planetId, StringComparison.Ordinal))
                     n++;
             }
             return n;
         }
 
-        /// <summary>Зайняті слоти цієї планети — у порядку номера слота.</summary>
+        /// <summary>Зайняті слоти цієї планети — у порядку номера слота (усі записи файлу).</summary>
         public static void SlotsOf(GalaxyData? data, int galaxy, string planetId, List<PlanetSlotRecord> into)
         {
             if (into is null) throw new ArgumentNullException(nameof(into));
@@ -62,7 +80,7 @@ namespace InkFlow.Meta
             for (var i = 0; i < data.Slots.Count; i++)
             {
                 var r = data.Slots[i];
-                if (r.Galaxy == galaxy && r.PictureId is { Length: > 0 } &&
+                if (r.Galaxy == galaxy && HasPicture(r) &&
                     string.Equals(r.PlanetId, planetId, StringComparison.Ordinal))
                     into.Add(r);
             }
@@ -116,27 +134,77 @@ namespace InkFlow.Meta
             return false;
         }
 
-        /// <summary>Скільки копій цієї картинки стоїть у слотах усіх галактик — стільки копій з колекції зайнято.</summary>
-        public static int PlacedCopies(GalaxyData? data, string pictureId)
+        /// <summary>
+        /// Скільки копій цієї картинки стоїть у слотах усіх галактик — стільки копій з колекції зайнято.
+        /// З розкладкою — лише в слотах, які вона адресує; без неї — усі записи файлу.
+        /// </summary>
+        public static int PlacedCopies(GalaxyData? data, string pictureId, GalaxyLayout? layout = null)
         {
             if (data?.Slots == null || pictureId is null)
                 return 0;
             var n = 0;
             for (var i = 0; i < data.Slots.Count; i++)
-                if (string.Equals(data.Slots[i].PictureId, pictureId, StringComparison.Ordinal))
-                    n++;
+            {
+                var r = data.Slots[i];
+                if (!string.Equals(r.PictureId, pictureId, StringComparison.Ordinal))
+                    continue;
+                if (layout != null && !IsAddressed(r, layout))
+                    continue;
+                n++;
+            }
             return n;
         }
 
-        /// <summary>Скільки слотів зайнято взагалі, в усіх галактиках.</summary>
-        public static int TotalFilled(GalaxyData? data)
+        /// <summary>
+        /// Зайняті копії кожної картинки одним проходом — екрану колекції, щоб не сканувати список
+        /// слотів на кожну картку. Лише адресовані розкладкою записи, як у <see cref="PlacedCopies"/>.
+        /// </summary>
+        public static void CountPlacedCopies(GalaxyData? data, GalaxyLayout layout, Dictionary<string, int> into)
+        {
+            if (into is null) throw new ArgumentNullException(nameof(into));
+            into.Clear();
+            if (data?.Slots == null)
+                return;
+            for (var i = 0; i < data.Slots.Count; i++)
+            {
+                var r = data.Slots[i];
+                if (!HasPicture(r) || !IsAddressed(r, layout))
+                    continue;
+                into.TryGetValue(r.PictureId!, out var n);
+                into[r.PictureId!] = n + 1;
+            }
+        }
+
+        /// <summary>Чи стоїть хоч одна копія картинки в іншій галактиці, ніж <paramref name="galaxy"/> (адресовані записи).</summary>
+        public static bool HasCopyOutside(GalaxyData? data, int galaxy, string pictureId, GalaxyLayout layout)
+        {
+            if (data?.Slots == null || pictureId is null)
+                return false;
+            for (var i = 0; i < data.Slots.Count; i++)
+            {
+                var r = data.Slots[i];
+                if (r.Galaxy != galaxy && string.Equals(r.PictureId, pictureId, StringComparison.Ordinal) &&
+                    IsAddressed(r, layout))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>Скільки слотів зайнято взагалі, в усіх галактиках. З розкладкою — лише адресовані нею.</summary>
+        public static int TotalFilled(GalaxyData? data, GalaxyLayout? layout = null)
         {
             if (data?.Slots == null)
                 return 0;
             var n = 0;
             for (var i = 0; i < data.Slots.Count; i++)
-                if (data.Slots[i].PictureId is { Length: > 0 })
-                    n++;
+            {
+                var r = data.Slots[i];
+                if (!HasPicture(r))
+                    continue;
+                if (layout != null && !IsAddressed(r, layout))
+                    continue;
+                n++;
+            }
             return n;
         }
 
@@ -150,9 +218,29 @@ namespace InkFlow.Meta
                 surface.Slots[i].PictureId = PictureAt(data, galaxy, planetId, surface.Slots[i].Index);
         }
 
-        /// <summary>Планета ожила: усі її слоти зайняті.</summary>
+        /// <summary>Планета ожила: усі її слоти за розкладкою зайняті.</summary>
         public static bool IsPlanetComplete(GalaxyData? data, int galaxy, PlanetLayout planet) =>
-            planet != null && FilledCount(data, galaxy, planet.Id) >= planet.Slots;
+            planet != null && FilledCount(data, galaxy, planet.Id, planet.Slots) >= planet.Slots;
+
+        /// <summary>
+        /// Планета відкрита — у неї можна ставити й з неї забирати картинки: перша в галактиці,
+        /// будь-яка одразу за ожилою або будь-яка, де вже стоять картинки.
+        ///
+        /// Правило «за ожилою», а не «перша неожила»: гравець міг забрати картинку з ожилої планети
+        /// (щоб перенести її далі) — наступна за нею планета, уже відкрита, не має замкнутись у цю мить,
+        /// навіть якщо на ній ще порожньо. Планета з картинками не замикається ніколи.
+        /// </summary>
+        public static bool IsPlanetOpen(GalaxyData? data, int galaxy, GalaxyLayout layout, int index)
+        {
+            if (layout is null) throw new ArgumentNullException(nameof(layout));
+            if (index < 0 || index >= layout.Planets.Count)
+                return false;
+            if (index == 0)
+                return true;
+            var planet = layout.Planets[index];
+            return IsPlanetComplete(data, galaxy, layout.Planets[index - 1]) ||
+                   FilledCount(data, galaxy, planet.Id, planet.Slots) > 0;
+        }
 
         /// <summary>Галактика завершена: ожила кожна планета розкладки.</summary>
         public static bool IsGalaxyComplete(GalaxyData? data, int galaxy, GalaxyLayout layout)
