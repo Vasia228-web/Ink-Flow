@@ -100,6 +100,8 @@ namespace InkFlow.Tests.Meta
             Assert.Throws<ArgumentOutOfRangeException>(() => new OilPack("x", 0));
             Assert.Throws<ArgumentException>(() => new OilPack("", 10));
             Assert.Throws<ArgumentOutOfRangeException>(() => new EconomyData(continueCost: -1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new EconomyData(continueCost: 0), "нуль — мертва кнопка, не безплатне продовження");
+            Assert.AreEqual(120, EconomyData.Default.ContinueCost, "дефолт — із симуляції (§13)");
         }
 
         [Test]

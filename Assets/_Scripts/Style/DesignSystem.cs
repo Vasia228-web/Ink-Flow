@@ -500,7 +500,19 @@ namespace InkFlow.Style
         [SerializeField] private float letterSpacingGalaxyTitle = 10f;
 
         [Tooltip("До якої частки розміру назва галактики стискається, щоб влізти в шапку (між стрілками циклів — без розрядки).")]
-        [SerializeField, Range(0.4f, 1f)] private float galaxyTitleMinScale = 0.6f;
+        [SerializeField, Range(0.4f, 1f)] private float galaxyTitleMinScale = 0.5f;
+
+        [Header("Налаштування (§15)")]
+        [Tooltip("Доріжка перемикача, коли ввімкнено.")]
+        [SerializeField] private Color toggleOnFill = Hex("#00D9C0");
+        [Tooltip("Доріжка перемикача, коли вимкнено.")]
+        [SerializeField] private Color toggleOffFill = new Color(1f, 1f, 1f, 0.14f);
+        [Tooltip("Кружок перемикача.")]
+        [SerializeField] private Color toggleKnob = Color.white;
+        [Tooltip("Відступ кружка від краю доріжки, одиниці канваса.")]
+        [SerializeField, Min(0f)] private float toggleKnobInset = 6f;
+        [Tooltip("До якої частки розміру стискається напис рядка налаштувань, щоб не переноситись на другий рядок.")]
+        [SerializeField, Range(0.5f, 1f)] private float settingsLabelMinScale = 0.75f;
 
         [Tooltip("Заливка круглої скляної кнопки «‹»: rgba(255,255,255,.07) макета. " +
                  "Тут біле скло, а не темне: кнопка лежить на фоні, а не на контенті.")]
@@ -1350,6 +1362,11 @@ namespace InkFlow.Style
         public float FontSizePaintButton => fontSizePaintButton;
         public float LetterSpacingGalaxyTitle => letterSpacingGalaxyTitle;
         public float GalaxyTitleMinScale => galaxyTitleMinScale;
+        public Color ToggleOnFill => toggleOnFill;
+        public Color ToggleOffFill => toggleOffFill;
+        public Color ToggleKnob => toggleKnob;
+        public float ToggleKnobInset => toggleKnobInset;
+        public float SettingsLabelMinScale => settingsLabelMinScale;
         public Color CircleButtonFill => circleButtonFill;
         public float PlanetSize => planetSize;
         public float PlanetSizeFinale => planetSizeFinale;

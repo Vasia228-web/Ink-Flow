@@ -137,8 +137,8 @@ namespace InkFlow.Editor
             var boardSide = M(layout.BoardSide);
             var trayHeight = M(RunLayout.TrayHeight);
 
-            BuildHeader(screenGo, design!, font, circle!, circleOutline!, retry!,
-                headerHeight, out var backButton, out var title, out var restartButton);
+            BuildHeader(screenGo, design!, font, circle!, circleOutline!,
+                headerHeight, out var backButton, out var title, out var settingsButton);
 
             var picture = BuildPicture(screenGo, design!, blockTop, pictureWidth, blockHeight);
 
@@ -180,7 +180,7 @@ namespace InkFlow.Editor
 
             Wire(screen,
                 ("design", design!),
-                ("backButton", backButton), ("title", title), ("restartButton", restartButton),
+                ("backButton", backButton), ("title", title), ("settingsButton", settingsButton),
                 ("scoreLabel", scoreLabel), ("scoreNumber", scoreNumber),
                 ("recordLabel", recordLabel), ("recordNumber", recordNumber),
                 ("pictureRoot", picture.GetComponent<RectTransform>()), ("statsRoot", statsRoot),
@@ -226,8 +226,8 @@ namespace InkFlow.Editor
 
         // ── Шапка: ‹ · НЕСКІНЧЕННИЙ · ↺ ──
         private static void BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite circle, Sprite circleOutline, Sprite retry, float height,
-            out Button backButton, out TMP_Text title, out Button restartButton)
+            Sprite circle, Sprite circleOutline, float height,
+            out Button backButton, out TMP_Text title, out Button settingsButton)
         {
             var go = Child(parent, "Header");
             var rect = go.GetComponent<RectTransform>();
@@ -243,16 +243,8 @@ namespace InkFlow.Editor
                 M(22f), design.TextPrimary, TextAlignmentOptions.Center);
             Stretch(chevron.gameObject);
 
-            restartButton = RoundButton(go, "Restart", design, circle, circleOutline,
-                new Vector2(1f, 0.5f), out var restartRoot);
-            // ↺ — спрайт, не гліф: у Nunito його немає.
-            var retryGo = Child(restartRoot, "Glyph");
-            var retryIcon = retryGo.AddComponent<Image>();
-            retryIcon.sprite = retry;
-            retryIcon.color = design.TextPrimary;
-            retryIcon.raycastTarget = false;
-            Place(retryIcon, Vector2.zero, new Vector2(M(20f), M(20f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            // §15: шестерня крайня праворуч; «Заново» живе в налаштуваннях, а не в шапці.
+            settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
 
             title = Label(go, "Title", "НЕСКІНЧЕННИЙ", design, font,
                 design.FontSizeGameTitle, design.TextMuted, TextAlignmentOptions.Center);

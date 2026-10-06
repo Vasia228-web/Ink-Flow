@@ -125,7 +125,7 @@ namespace InkFlow.Editor
             var periodHeight = M(24f);
 
             BuildHeader(screenGo, design!, font, circle!, circleOutline!, currencyPrefab!,
-                headerHeight, out var backButton, out var title, out var currency);
+                headerHeight, out var backButton, out var title, out var currency, out var settingsButton);
 
             var scopeTop = headerHeight;
             BuildScopeTabs(screenGo, design!, font, rounded!, scopeTop, scopeHeight,
@@ -161,7 +161,7 @@ namespace InkFlow.Editor
                 out var youAvatar, out var youNick, out var youGap, out var youValue, out var youUnit);
 
             Wire(screen,
-                ("design", design!), ("backButton", backButton), ("title", title),
+                ("design", design!), ("backButton", backButton), ("title", title), ("settingsButton", settingsButton),
                 ("currency", currency),
                 ("friendsTabButton", friendsButton), ("worldTabButton", worldButton),
                 ("friendsTabFill", friendsFill), ("worldTabFill", worldFill),
@@ -203,7 +203,7 @@ namespace InkFlow.Editor
         // ── Шапка: padding 0 18 12; «РЕЙТИНГИ» 15/800 ls .18em ──
         private static void BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             Sprite circle, Sprite circleOutline, GameObject currencyPrefab, float height,
-            out Button backButton, out TMP_Text title, out CurrencyWidget currency)
+            out Button backButton, out TMP_Text title, out CurrencyWidget currency, out Button settingsButton)
         {
             var go = Child(parent, "Header");
             var rect = go.GetComponent<RectTransform>();
@@ -238,13 +238,15 @@ namespace InkFlow.Editor
             // Центр вільного проміжку між «‹» і капсулою валюти, а не центр шапки.
             title = Label(go, "Title", "РЕЙТИНГИ", design, font,
                 design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(-M(36f), 0f), new Vector2(M(182f), M(24f)),
+            Place(title, new Vector2(-M(53f), 0f), new Vector2(M(160f), M(24f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var currencyGo = (GameObject)PrefabUtility.InstantiatePrefab(currencyPrefab, go.transform);
             currency = currencyGo.GetComponent<CurrencyWidget>();
-            Place(currency, Vector2.zero, new Vector2(M(112f), M(40f)),
+            // Шестерня (§15) — крайня праворуч, капсула валюти зсувається ліворуч і трохи вужчає.
+            Place(currency, new Vector2(-GearSlot, 0f), new Vector2(M(104f), M(40f)),
                 new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+            settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
         }
 
         // ── «Друзі» / «Світ»: padding 4, r22; чип r18 ──

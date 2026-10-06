@@ -40,7 +40,7 @@ namespace InkFlow.UI
         [Header("Шапка")]
         [SerializeField] private Button backButton;
         [SerializeField] private TMP_Text title;
-        [SerializeField] private Button restartButton;
+        [SerializeField] private Button settingsButton;
 
         [Header("Рахунок і рекорд (§11: праворуч угорі, без фону)")]
         [SerializeField] private TMP_Text scoreLabel;
@@ -126,6 +126,16 @@ namespace InkFlow.UI
         private bool _resumed;
         private bool _layoutDirty;
 
+        /// <summary>
+        /// Забіг живий, а поверх екрана — інший (налаштування, §15): OnEnter повертає його без перезапуску
+        /// й без картки «ПРОДОВЖЕННЯ». Знімається, коли екран іде зі стеку (SetRoot з «Додому») або
+        /// роутер каже «Заново» (<see cref="DiscardSuspendedRun"/>).
+        /// </summary>
+        private bool _suspended;
+
+        /// <summary>Екран у стеку навігації: перший OnExit входу — призупинення, другий (SetRoot) — вихід зі стеку.</summary>
+        private bool _onStack;
+
         /// <summary>Коефіцієнт макета (390 px) → reference-одиниці (1080), як у збирачі екрана.</summary>
         private const float K = 1080f / 390f;
 
@@ -174,8 +184,7 @@ namespace InkFlow.UI
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
-            if (restartButton != null)
-                restartButton.onClick.AddListener(Restart);
+            WireSettingsButton(settingsButton);
             if (overAgain != null)
                 overAgain.onClick.AddListener(OnAgainClicked);
             if (overMenu != null)
@@ -244,7 +253,11 @@ namespace InkFlow.UI
             base.OnEnter(args);
             var request = args as EndlessArgs;
             _balance = request?.Balance ?? BalanceData.Default;
-            StartSession();
+            _onStack = true;
+            if (_suspended && _session != null && !_session.IsOver && (_state == null || _state.SavedRun != null))
+                ResumeSuspended();
+            else
+                StartSession();
             Apply();
         }
 
@@ -253,7 +266,41 @@ namespace InkFlow.UI
             CollectPendingIfAny();
             SaveRun();
             StopAllRoutines();
+            // Екран лишається в стеку (поверх — налаштування): забіг живий, наступний OnEnter його відновить.
+            // Другий OnExit того самого входу — SetRoot(хаб): екран іде зі стеку, наступний вхід починає зі зліпка.
+            _suspended = _onStack && _session != null && !_session.IsOver && !_finalised;
+            _onStack = false;
             base.OnExit();
+        }
+
+        /// <summary>Роутер, «Заново» з налаштувань: призупинений забіг забути — наступний вхід стартує нову сесію.</summary>
+        public void DiscardSuspendedRun() => _suspended = false;
+
+        /// <summary>
+        /// Повернення з налаштувань: та сама сесія, без картки перед забігом — гравець нікуди не йшов.
+        /// Вигляд перечитується з моделі, бо OnExit зупинив корутини (краплі, картку завершення) посеред ходу.
+        /// </summary>
+        private void ResumeSuspended()
+        {
+            _suspended = false;
+            if (_session == null)
+                return;
+            _pendingCompletion = -1;
+            _pendingCollected = false;
+            _pendingResult = null;
+            _hintPending = false;
+            _dragging = -1;
+
+            if (board != null)
+                board.Bind(_session);
+            tray?.Show(_session.Tray);
+            picture?.Show(_session.Picture);
+            drops?.Clear();
+            completion?.Hide();
+            HideOver();
+            HideIntro();
+            _loggedDanger = DangerLevel.None;
+            ShowDanger(immediate: true);
         }
 
         private void StartSession()
@@ -1006,14 +1053,18 @@ namespace InkFlow.UI
                 FinishRun();
         }
 
-        /// <summary>§10, §17: перше продовження за забіг — за ролик (коли він готовий), далі — за нафту (§13).</summary>
-        private bool AdContinueReady =>
-            _session != null && _session.ContinuesUsed == 0 && _ads != null && _ads.IsRewardedReady;
+        /// <summary>
+        /// §10, §17: перше продовження за забіг — за ролик (коли він готовий), далі — за нафту (§13).
+        /// Саме правило — у <see cref="ContinueOffer"/> без Unity; тут лише факти: скільки було, чи готовий
+        /// ролик, чи є гаманець. Чи вистачає нафти — скаже сам чип.
+        /// </summary>
+        private ContinueKind ContinueKindNow =>
+            _session == null || !_session.CanContinue
+                ? ContinueKind.None
+                : ContinueOffer.Decide(_session.ContinuesUsed, _session.Balance.ContinuesPerRun,
+                    _ads != null && _ads.IsRewardedReady, _state != null);
 
-        /// <summary>Продовжити за нафту можна, коли є стан гравця; чи вистачає нафти — скаже сам чип.</summary>
-        private bool OilContinueReady => _session != null && _state != null && _session.ContinuesUsed < _session.Balance.ContinuesPerRun;
-
-        private bool CanOfferContinue => _session != null && _session.CanContinue && (AdContinueReady || OilContinueReady);
+        private bool CanOfferContinue => ContinueKindNow != ContinueKind.None;
 
         /// <summary>Фінал: §10 (нафта, рекорди, партія дня), картка з нагородами. Недомальована картинка втрачена (§9).</summary>
         private void FinishRun()
@@ -1029,9 +1080,10 @@ namespace InkFlow.UI
 
         private void OnContinueClicked()
         {
-            if (_session == null || !_session.CanContinue)
+            var kind = ContinueKindNow;
+            if (kind == ContinueKind.None)
                 return;
-            if (AdContinueReady)
+            if (kind == ContinueKind.Ad)
             {
                 _ads!.ShowRewarded(watched =>
                 {
@@ -1075,7 +1127,7 @@ namespace InkFlow.UI
         {
             if (_session == null || design == null)
                 return;
-            if (AdContinueReady)
+            if (ContinueKindNow == ContinueKind.Ad)
             {
                 if (overContinue != null) overContinue.interactable = true;
                 ApplyFont(overContinueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
@@ -1442,6 +1494,14 @@ namespace InkFlow.UI
         }
 
         public void PreviewPulse(DangerLevel level) => pulse?.SetLevelImmediate(level);
+
+        /// <summary>
+        /// Тестам: чи висить картка перед забігом і що на ній написано. Дивимось на корутину, а не на об'єкт:
+        /// поза Play Mode <see cref="Apply"/> ховає сам об'єкт картки (майстерня, знімки), але корутина
+        /// живе від <see cref="ShowIntro"/> до <see cref="HideIntro"/> — і в Edit Mode теж.
+        /// </summary>
+        public bool PreviewIntroShown => _intro != null;
+        public string PreviewIntroKicker => introKicker != null ? introKicker.text : string.Empty;
 
         /// <summary>Картка завершеної картинки без знімка-фону (фон — сам екран).</summary>
         public void PreviewCompletion()

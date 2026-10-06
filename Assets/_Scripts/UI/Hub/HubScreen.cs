@@ -27,6 +27,7 @@ namespace InkFlow.UI
         /// <summary>Увесь блок «аватар + нік» — кнопка в Профіль.</summary>
         [SerializeField] private Button profileButton;
         [SerializeField] private CurrencyWidget currency;
+        [SerializeField] private Button settingsButton;
 
         [Header("Лого")]
         [SerializeField] private TMP_Text logo;
@@ -67,6 +68,7 @@ namespace InkFlow.UI
 
         private void Awake()
         {
+            WireSettingsButton(settingsButton);
             // Хаб не знає, куди ведуть його картки — лише повідомляє, що їх натиснули.
             if (levelsCard != null)
                 levelsCard.Clicked += () => LevelsRequested?.Invoke();

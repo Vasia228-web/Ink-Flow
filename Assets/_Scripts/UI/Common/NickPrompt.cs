@@ -33,7 +33,8 @@ namespace InkFlow.UI
                 cancelButton.onClick.AddListener(Hide);
             if (field != null)
                 field.characterLimit = MaxLength;
-            Hide();
+            // Без Hide() тут: об'єкт у сцені лежить вимкненим зі збирача, а Awake біжить усередині
+            // першого SetActive(true) з Show() — Hide() звідси ковтав перший тап по олівцю за запуск.
         }
 
         public void Show(string current, Action<string> onConfirmed)

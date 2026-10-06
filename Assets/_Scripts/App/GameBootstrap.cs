@@ -23,12 +23,14 @@ namespace InkFlow.App
         [SerializeField] private BalanceConfig balanceConfig;
         [SerializeField] private EconomyConfig economyConfig;
         [SerializeField] private GalaxyConfig galaxyConfig;
+        [SerializeField] private AppConfig appConfig;
         [SerializeField] private PictureLibraryAsset pictureLibrary;
 
         [Header("Сцена")]
         [SerializeField] private AppRouter router;
         [SerializeField] private EndlessScreen endlessScreen;
         [SerializeField] private BoardFeedback boardFeedback;
+        [SerializeField] private GameAudio gameAudio;
 
         [Header("Налагодження")]
         [Tooltip("Відкрити одразу «Нескінченний» замість хаба.")]
@@ -48,20 +50,32 @@ namespace InkFlow.App
 
             RegisterPlatformServices();
             LoadSave();
-
-            boardFeedback?.SetHaptics(ServiceLocator.Get<IHapticService>());
+            BindSettingsConsumers();
 
             // Роутер живе в UI і про конфіги нічого не знає — стан гравця
             // підставляємо звідси, ще до Start.
             if (router != null)
             {
-                router.Configure(balanceConfig.ToBalanceData(), _state);
+                router.Configure(balanceConfig.ToBalanceData(), _state, Links());
                 router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
             }
             else
                 Debug.LogError(
                     "[InkFlow] GameBootstrap.router не підв'язаний — стан гравця нікуди не потрапить, " +
                     "і всі екрани покажуть мокові дані. Перезбери: Ink Flow → Setup → Build Main Scene.");
+        }
+
+        private AppLinks Links() => appConfig != null ? appConfig.ToAppLinks() : AppLinks.Default;
+
+        /// <summary>
+        /// Перемикачі §15 реально керують аудіо й гаптикою: гаптика поля йде через обгортку за
+        /// «Вібрацією», «Звук» і «Музика» читає GameAudio. Усе з одного стану — і при скиданні теж.
+        /// </summary>
+        private void BindSettingsConsumers()
+        {
+            boardFeedback?.SetHaptics(new SettingsGatedHaptics(ServiceLocator.Get<IHapticService>(), _state));
+            boardFeedback?.SetAudio(gameAudio);
+            gameAudio?.Bind(_state);
         }
 
         /// <summary>
@@ -196,10 +210,11 @@ namespace InkFlow.App
             ServiceLocator.Register(_state.Wallet);
             ServiceLocator.Register(_state.DailyLimit);
             ServiceLocator.Register(_state.Rewards);
+            BindSettingsConsumers();
 
             if (router != null)
             {
-                router.Configure(balance, _state);
+                router.Configure(balance, _state, Links());
                 router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
                 router.RestartFromHub();
             }

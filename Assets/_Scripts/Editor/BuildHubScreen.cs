@@ -74,6 +74,8 @@ namespace InkFlow.Editor
             var gloss = LoadSprite("circle-gloss");
             var glowSprite = LoadSprite("glow");
             var nebulaSprite = LoadSprite("nebula");
+            var circleOutline = LoadSprite("circle-outline");
+            var gear = LoadSprite("icon-gear");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var dropPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/DropView.prefab");
             var currencyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CurrencyWidget.prefab");
@@ -119,8 +121,8 @@ namespace InkFlow.Editor
             Stretch(screenGo);
             var screen = screenGo.AddComponent<HubScreen>();
 
-            var header = BuildHeader(screenGo, design!, font, dropPrefab!, currencyPrefab!,
-                out var avatar, out var nameLabel, out var profileButton, out var currency);
+            var header = BuildHeader(screenGo, design!, font, dropPrefab!, currencyPrefab!, circle!, circleOutline!, gear!,
+                out var avatar, out var nameLabel, out var profileButton, out var currency, out var settingsButton);
             var nav = BuildNavBar(screenGo, design!, font, rounded!, outline!, out var navBar);
             var middle = BuildMiddle(screenGo, design!, font, rounded!, outline!, glowSprite!, circle!,
                 header, nav, out var logo, out var tagline, out var levels, out var endless);
@@ -128,7 +130,7 @@ namespace InkFlow.Editor
 
             Wire(screen,
                 ("design", design!), ("avatar", avatar), ("playerName", nameLabel),
-                ("profileButton", profileButton), ("currency", currency), ("logo", logo),
+                ("profileButton", profileButton), ("currency", currency), ("settingsButton", settingsButton), ("logo", logo),
                 ("tagline", tagline), ("levelsCard", levels), ("endlessCard", endless),
                 ("navBar", navBar));
 
@@ -169,9 +171,9 @@ namespace InkFlow.Editor
         // капсула валюти r22 з padding 6/15/6/7 і gap 9, куля 32×34, число 17/800.
 
         private static RectTransform BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            GameObject dropPrefab, GameObject currencyPrefab,
+            GameObject dropPrefab, GameObject currencyPrefab, Sprite circle, Sprite circleOutline, Sprite gear,
             out DropView avatar, out TMP_Text nameLabel, out Button profileButton,
-            out CurrencyWidget currency)
+            out CurrencyWidget currency, out Button settingsButton)
         {
             var side = M(20f);          // 55
             var avatarSize = M(44f);    // 122
@@ -229,8 +231,10 @@ namespace InkFlow.Editor
             var currencyRect = currencyGo.GetComponent<RectTransform>();
             currencyRect.anchorMin = currencyRect.anchorMax = new Vector2(1f, 0.5f);
             currencyRect.pivot = new Vector2(1f, 0.5f);
-            currencyRect.anchoredPosition = Vector2.zero;
+            // Шестерня (§15) крайня праворуч — капсула валюти зсувається ліворуч на її слот.
+            currencyRect.anchoredPosition = new Vector2(-GearSlot, 0f);
             currencyRect.sizeDelta = new Vector2(M(118f), M(46f)); // 327×127
+            settingsButton = GearButton(header, design, circle, circleOutline, gear);
             currency = currencyGo.GetComponent<CurrencyWidget>();
             currency.SetPreviewAmount(1250);
             currency.Apply();

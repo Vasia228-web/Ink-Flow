@@ -121,6 +121,19 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void WithRealPlayer_FollowsTheHideProfileSetting()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            Assert.IsFalse(Leaderboard.WithRealPlayer(state).You.Incognito, "за замовчуванням профіль видно");
+
+            state.SetProfileHidden(true);
+            Assert.IsTrue(Leaderboard.WithRealPlayer(state).You.Incognito, "§15: «Приховати профіль у рейтингах» — інкогніто");
+
+            state.SetProfileHidden(false);
+            Assert.IsFalse(Leaderboard.WithRealPlayer(state).You.Incognito, "перемикач назад — знову видно");
+        }
+
+        [Test]
         public void IncognitoPlayers_StayInTheTableButAreMarked()
         {
             var board = Leaderboard.CreateMock();

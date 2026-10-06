@@ -321,8 +321,11 @@ namespace InkFlow.Core.Tests
         }
 
         [Test]
-        public void ContinueAfterLoss_WorksExactlyOncePerRun()
+        public void ContinueAfterLoss_AllowsContinuesPerRunThenRefuses()
         {
+            // §10/§17: два продовження за забіг — перше за ролик, друге за нафту. Число — з балансу.
+            Assert.AreEqual(2, BalanceData.Default.ContinuesPerRun, "стеля продовжень за замовчуванням");
+
             var session = LostSession(out var scoreAtLoss);
             Assert.IsTrue(session.IsOver);
             Assert.IsTrue(session.CanContinue);
@@ -338,8 +341,18 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(scoreAtLoss, session.Score, "рахунок лишається");
             Assert.AreEqual(pictureAtLoss, session.Picture.FilledCount, "картинка лишається");
             Assert.AreEqual(1, session.ContinuesUsed);
-            Assert.IsFalse(session.CanContinue, "§10: раз за забіг");
+            Assert.IsFalse(session.CanContinue, "живий забіг не продовжують");
             Assert.IsFalse(session.ContinueAfterLoss().Accepted);
+
+            Lose(session);
+            Assert.IsTrue(session.CanContinue, "друге продовження ще в межах стелі");
+            Assert.IsTrue(session.ContinueAfterLoss().Accepted);
+            Assert.AreEqual(2, session.ContinuesUsed);
+
+            Lose(session);
+            Assert.IsFalse(session.CanContinue, "стеля: рівно ContinuesPerRun продовжень за забіг");
+            Assert.IsFalse(session.ContinueAfterLoss().Accepted);
+            Assert.AreEqual(2, session.ContinuesUsed);
 
             session.Restart();
             Assert.AreEqual(0, session.ContinuesUsed);
@@ -389,6 +402,14 @@ namespace InkFlow.Core.Tests
         private static RunSession LostSession(out int score)
         {
             var session = Stripes();
+            Lose(session);
+            score = session.Score;
+            return session;
+        }
+
+        /// <summary>Доводить живу сесію до програшу: забиває поле й ходить за підказкою, доки є куди.</summary>
+        private static void Lose(RunSession session)
+        {
             for (var y = 0; y < 7; y++)
                 TestBoard.FillRow(session.Board, y, "brbrbrbr");
             TestBoard.FillRow(session.Board, 7, "brbrbr..");
@@ -403,8 +424,6 @@ namespace InkFlow.Core.Tests
                 session.TryPlace(index, anchor);
             }
             Assert.IsTrue(session.IsOver, "сесія мала програти");
-            score = session.Score;
-            return session;
         }
 
         [Test]

@@ -21,9 +21,15 @@ namespace InkFlow.UI
 
         private AudioClip _popClip;
         private IHapticService _haptics = new NullHaptics();
+        private GameAudio? _audio;
 
-        /// <summary>Гаптику підставляє композиційний корінь — геймплей не знає платформи.</summary>
+        /// <summary>Гаптику підставляє композиційний корінь — геймплей не знає платформи (за перемикачем «Вібрація» — обгортка).</summary>
         public void SetHaptics(IHapticService haptics) => _haptics = haptics ?? new NullHaptics();
+
+        /// <summary>Перемикач «Звук» (§15) живе в <see cref="GameAudio"/>: без нього поле звучить завжди (майстерня).</summary>
+        public void SetAudio(GameAudio? audio) => _audio = audio;
+
+        private bool SoundOn => _audio == null || _audio.SoundOn;
 
         private void Awake() => _popClip = CreatePopClip();
 
@@ -32,7 +38,7 @@ namespace InkFlow.UI
         /// <summary>lineIndex — 0-базований номер лінії в межах ходу.</summary>
         public void PlayLineClear(int lineIndex, bool pure)
         {
-            if (_popClip != null && source != null)
+            if (_popClip != null && source != null && SoundOn)
             {
                 source.pitch = Mathf.Min(maxPitch, basePitch + pitchStepPerLine * lineIndex + (pure ? 0.15f : 0f));
                 source.PlayOneShot(_popClip, pure ? 1f : 0.7f);

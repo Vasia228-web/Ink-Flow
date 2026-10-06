@@ -10,7 +10,7 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Знімки екранів метагри (Фази 3–7) з редактора, без Play Mode: чотири роздільності × стани
-    /// галактики, планети, колекції й магазину. Меню: Ink Flow → Debug → Capture Meta Screenshots.
+    /// галактики, планети, колекції, магазину й налаштувань. Меню: Ink Flow → Debug → Capture Meta Screenshots.
     /// Пише PNG у docs/screenshots/meta/. Для планети з усіма слотами логує оцінку викликів
     /// малювання (бюджет iPhone SE ≤ 35, архідок §12); перевищення в batch — код виходу 1.
     /// Batch: Unity -batchmode -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.MetaScreenshots.BuildAndCapture -quit
@@ -27,7 +27,8 @@ namespace InkFlow.Editor
             "galaxy-fresh", "galaxy-mid", "galaxy-second",
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
             "collection-browse", "collection-pick", "collection-empty",
-            "shop", "shop-offline"
+            "shop", "shop-offline",
+            "settings", "settings-run"
         };
 
         public static void BuildAndCapture()
@@ -37,6 +38,7 @@ namespace InkFlow.Editor
             BuildPlanetScreen.Build();
             BuildCollectionScreen.Build();
             BuildShopScreen.Build();
+            BuildSettingsScreen.Build();
             CaptureAll();
         }
 
@@ -45,7 +47,7 @@ namespace InkFlow.Editor
         {
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen" })
+            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen" })
                 if (!MetaScreenRig<ScreenBase>.Available(name))
                 {
                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
@@ -117,6 +119,17 @@ namespace InkFlow.Editor
                         if (runs > DrawCallBudget)
                             overBudget.Add($"{device.Name} / {state}: {runs} змін пари (різних {distinct})");
                     }
+                    rig.SavePng(path);
+                    break;
+                }
+                case "settings":
+                case "settings-run":
+                {
+                    // З хаба (без «Заново») і з забігу (з «Заново»); посилання порожні — рядки «скоро».
+                    using var rig = MetaScreenRig<SettingsScreen>.Create(device, "SettingsScreen");
+                    var player = rig.NewPlayer();
+                    rig.Screen.BindLinks(AppLinks.Default);
+                    rig.Enter(player, new SettingsArgs(inRun: state == "settings-run"));
                     rig.SavePng(path);
                     break;
                 }

@@ -75,8 +75,6 @@ namespace InkFlow.UI
         /// <summary>Назад у хаб.</summary>
         public System.Action? BackRequested;
 
-        /// <summary>Налаштування — поки заглушка.</summary>
-        public System.Action? SettingsRequested;
 
         /// <summary>Гравець хоче змінити нік — олівець біля аватара.</summary>
         public System.Action? NickEditRequested;
@@ -92,7 +90,7 @@ namespace InkFlow.UI
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
             if (settingsButton != null)
-                settingsButton.onClick.AddListener(() => SettingsRequested?.Invoke());
+                WireSettingsButton(settingsButton);
             if (editAvatarButton != null)
                 editAvatarButton.onClick.AddListener(() => NickEditRequested?.Invoke());
 

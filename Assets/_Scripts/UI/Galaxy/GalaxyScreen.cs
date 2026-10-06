@@ -26,6 +26,7 @@ namespace InkFlow.UI
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private TMP_Text galaxyName;
         [SerializeField] private TMP_Text galaxyProgress;
         [SerializeField] private Button prevGalaxyButton;
@@ -341,6 +342,7 @@ namespace InkFlow.UI
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
+            WireSettingsButton(settingsButton);
             if (prevGalaxyButton != null)
                 prevGalaxyButton.onClick.AddListener(() => ShiftGalaxy(-1));
             if (nextGalaxyButton != null)

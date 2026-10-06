@@ -50,6 +50,7 @@ namespace InkFlow.UI
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private TMP_Text title;
         [SerializeField] private TMP_Text subtitle;
 
@@ -113,6 +114,7 @@ namespace InkFlow.UI
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
+            WireSettingsButton(settingsButton);
             for (var i = 0; i < themeButtons.Length; i++)
             {
                 var index = i;

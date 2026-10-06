@@ -43,6 +43,7 @@ namespace InkFlow.UI
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private TMP_Text planetTitle;
         [SerializeField] private CurrencyWidget currency;
 
@@ -111,6 +112,7 @@ namespace InkFlow.UI
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
+            WireSettingsButton(settingsButton);
             if (nextPlanetButton != null)
                 nextPlanetButton.onClick.AddListener(() => NextPlanetRequested?.Invoke());
             if (collectionButton != null)

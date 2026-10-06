@@ -64,8 +64,8 @@ namespace InkFlow.Gameplay
         [SerializeField] private long[] finishPictureCosts = { 100, 180, 300, 600, 1000, 2000 };
         [SerializeField, Range(0f, 1f)] private float finishPictureMinShare = 0.25f;
 
-        [Tooltip("«Продовжити після програшу» за нафту, коли ролик уже використано. Менше за забіг доходу.")]
-        [SerializeField, Min(0)] private long continueCost = 120;
+        [Tooltip("«Продовжити після програшу» за нафту, коли ролик уже використано. Менше за забіг доходу; нуль заборонено — безплатне продовження дає ролик.")]
+        [SerializeField, Min(1)] private long continueCost = 120;
 
         [Header("Магазин (майстер-док §13): лише нафта")]
         [Tooltip("Чотири пакети; ціни — зі стору, тут лише кількості. Ідентифікатори мають збігатись із товарами в сторах.")]

@@ -118,7 +118,7 @@ namespace InkFlow.Editor
 
             var header = BuildHeader(screenGo, design!, font, circle!, circleOutline!, currencyPrefab!,
                 out var backButton, out var title, out var progress, out var currency,
-                out var prevButton, out var prevLabel, out var nextButton, out var nextLabel);
+                out var prevButton, out var prevLabel, out var nextButton, out var nextLabel, out var settingsButton);
             var bottom = BuildBottom(screenGo, design!, font, rounded!, circle!,
                 out var doneBadge, out var planetName, out var planetZones,
                 out var paintButton, out var paintFill, out var paintLabel,
@@ -131,7 +131,7 @@ namespace InkFlow.Editor
                 ("design", design!), ("backButton", backButton), ("galaxyName", title),
                 ("galaxyProgress", progress), ("currency", currency), ("carousel", carousel),
                 ("prevGalaxyButton", prevButton), ("prevGalaxyLabel", prevLabel),
-                ("nextGalaxyButton", nextButton), ("nextGalaxyLabel", nextLabel),
+                ("nextGalaxyButton", nextButton), ("nextGalaxyLabel", nextLabel), ("settingsButton", settingsButton),
                 ("nextGalaxyName", nextName), ("nextGalaxyHint", nextHint),
                 ("doneBadge", doneBadge), ("planetName", planetName), ("planetZones", planetZones),
                 ("paintButton", paintButton), ("paintButtonFill", paintFill),
@@ -163,7 +163,8 @@ namespace InkFlow.Editor
         private static RectTransform BuildHeader(GameObject parent, DesignSystem design,
             TMP_FontAsset? font, Sprite circle, Sprite circleOutline, GameObject currencyPrefab,
             out Button backButton, out TMP_Text title, out TMP_Text progress, out CurrencyWidget currency,
-            out Button prevButton, out TMP_Text prevLabel, out Button nextButton, out TMP_Text nextLabel)
+            out Button prevButton, out TMP_Text prevLabel, out Button nextButton, out TMP_Text nextLabel,
+            out Button settingsButton)
         {
             var headerHeight = M(46f);
             var go = Child(parent, "Header");
@@ -202,29 +203,34 @@ namespace InkFlow.Editor
             // капсулу валюти. Числа — з розрахунку ширини цих блоків.
             title = Label(go, "GalaxyName", "ГАЛАКТИКА I · ПЕРВІСНА", design, font,
                 design.FontSizeGalaxyTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(-M(36f), M(7f)), new Vector2(M(182f), M(18f)),
+            // Вільний проміжок між «‹» і правим блоком (валюта + шестерня): центр −53, ширина 160 px макета.
+            var titleCenter = -M(53f);
+            var titleWidth = M(160f);
+            Place(title, new Vector2(titleCenter, M(7f)), new Vector2(titleWidth, M(18f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             progress = Label(go, "GalaxyProgress", "3 / 9 планет", design, font,
                 design.FontSizeSmall, design.TextFaint, TextAlignmentOptions.Center);
-            Place(progress, new Vector2(-M(36f), -M(9f)), new Vector2(M(182f), M(15f)),
+            Place(progress, new Vector2(titleCenter, -M(9f)), new Vector2(titleWidth, M(15f)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             // Стрілки циклів галактик — на краях проміжку назви, у тому самому якорі, що й назва:
             // екран сам стискає назву між ними, коли вони видимі (після першої завершеної галактики),
             // і розтягує на всю ширину, коли гортати нічого.
             var arrowSize = M(26f);
-            prevButton = BuildArrow(go, "PrevGalaxy", "‹", -M(36f) - M(182f) * 0.5f + arrowSize * 0.5f,
+            prevButton = BuildArrow(go, "PrevGalaxy", "‹", titleCenter - titleWidth * 0.5f + arrowSize * 0.5f,
                 arrowSize, design, font, circle, out prevLabel);
-            nextButton = BuildArrow(go, "NextGalaxy", "›", -M(36f) + M(182f) * 0.5f - arrowSize * 0.5f,
+            nextButton = BuildArrow(go, "NextGalaxy", "›", titleCenter + titleWidth * 0.5f - arrowSize * 0.5f,
                 arrowSize, design, font, circle, out nextLabel);
             prevButton.gameObject.SetActive(false);
             nextButton.gameObject.SetActive(false);
 
             var currencyGo = (GameObject)PrefabUtility.InstantiatePrefab(currencyPrefab, go.transform);
             currency = currencyGo.GetComponent<CurrencyWidget>();
-            Place(currency, Vector2.zero, new Vector2(M(112f), M(40f)),
+            // Шестерня (§15) — крайня праворуч, капсула валюти зсувається ліворуч і трохи вужчає.
+            Place(currency, new Vector2(-GearSlot, 0f), new Vector2(M(104f), M(40f)),
                 new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+            settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
 
             return rect;
         }

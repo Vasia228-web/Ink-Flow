@@ -206,6 +206,23 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void LegacyForm_KeepsTheHistoricalJsonKeys()
+        {
+            // JsonUtility збігає поля за іменами, а відсутній ключ мовчки лишає порожній список: перейменування
+            // тут повернуло б гравцю 0 нафти й 0 слотів без жодної помилки. Імена — з файлів v4–v7.
+            Assert.IsNotNull(typeof(LegacyPaintSave).GetField("Paints"));
+            Assert.IsNotNull(typeof(LegacyPaintSave).GetField("Galaxy"));
+            Assert.IsNotNull(typeof(LegacyPaints).GetField("Stacks"));
+            Assert.IsNotNull(typeof(LegacyPaintStack).GetField("PaintId"));
+            Assert.IsNotNull(typeof(LegacyPaintStack).GetField("Liters"));
+            Assert.IsNotNull(typeof(LegacyGalaxy).GetField("Placements"));
+            Assert.IsNotNull(typeof(LegacyPlacement).GetField("PlanetId"));
+            Assert.IsNotNull(typeof(LegacyPlacement).GetField("PictureId"));
+            Assert.IsNotNull(typeof(LegacyPlacement).GetField("Longitude"));
+            Assert.IsNotNull(typeof(LegacyPlacement).GetField("Latitude"));
+        }
+
+        [Test]
         public void Migration_V7_KeepsTheCollectionAndRecord()
         {
             var save = new SaveFile { Version = 7 };

@@ -16,6 +16,7 @@ namespace InkFlow.UI
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private TMP_Text title;
 
         [Header("Тіло")]
@@ -37,6 +38,7 @@ namespace InkFlow.UI
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
+            WireSettingsButton(settingsButton);
         }
 
         public override void OnEnter(ScreenArgs args)

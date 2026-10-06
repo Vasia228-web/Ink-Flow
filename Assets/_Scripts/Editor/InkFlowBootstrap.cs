@@ -22,6 +22,7 @@ namespace InkFlow.Editor
         private const string BalanceConfigPath = "Assets/_ScriptableObjects/Balance/BalanceConfig.asset";
         private const string EconomyConfigPath = "Assets/_ScriptableObjects/Balance/EconomyConfig.asset";
         internal const string GalaxyConfigPath = "Assets/_ScriptableObjects/Balance/GalaxyConfig.asset";
+        internal const string AppConfigPath = "Assets/_ScriptableObjects/Balance/AppConfig.asset";
 
         [MenuItem("Ink Flow/Setup/Bootstrap Assets")]
         public static void BootstrapAssets()
@@ -126,6 +127,7 @@ namespace InkFlow.Editor
             EnsureAsset<BalanceConfig>(BalanceConfigPath);
             EnsureAsset<EconomyConfig>(EconomyConfigPath);
             EnsureAsset<GalaxyConfig>(GalaxyConfigPath);
+            EnsureAsset<AppConfig>(AppConfigPath);
             RefreshPictureLibrary.Refresh();
         }
 
@@ -135,6 +137,14 @@ namespace InkFlow.Editor
             EnsureFolder("Assets/_ScriptableObjects/Balance");
             EnsureAsset<GalaxyConfig>(GalaxyConfigPath);
             return AssetDatabase.LoadAssetAtPath<GalaxyConfig>(GalaxyConfigPath);
+        }
+
+        /// <summary>Посилання й локалі (§15) з дефолтами — створюється, якщо асета ще немає.</summary>
+        internal static AppConfig EnsureAppConfig()
+        {
+            EnsureFolder("Assets/_ScriptableObjects/Balance");
+            EnsureAsset<AppConfig>(AppConfigPath);
+            return AssetDatabase.LoadAssetAtPath<AppConfig>(AppConfigPath);
         }
 
         private static void EnsureAsset<T>(string path) where T : ScriptableObject

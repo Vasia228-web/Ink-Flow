@@ -242,6 +242,8 @@ namespace InkFlow.Meta
             {
                 IsYou = true,
                 IsFriend = true,
+                // §15: «Приховати профіль у рейтингах» — у таблиці гравець є, але інкогніто.
+                Incognito = state.Settings.ProfileHidden,
                 GalaxiesDone = galaxiesDone,
                 PlanetsWeek = planetsDone,
                 PlanetsAll = planetsDone,

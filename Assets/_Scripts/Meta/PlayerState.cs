@@ -72,6 +72,31 @@ namespace InkFlow.Meta
         public ProgressData Progress => File.Progress;
         public GalaxyData Galaxy => File.Galaxy;
 
+        // ── Налаштування (§15) ──
+
+        /// <summary>Перемикачі звуку, музики, вібрації й приватності — у файлі, читаються звідси.</summary>
+        public SettingsData Settings => File.Settings;
+
+        /// <summary>Щось перемкнули: аудіо й гаптика перечитують стан.</summary>
+        public event Action? SettingsChanged;
+
+        public void SetSound(bool on) => ChangeSetting(Settings.Sound != on, () => Settings.Sound = on);
+        public void SetMusic(bool on) => ChangeSetting(Settings.Music != on, () => Settings.Music = on);
+        public void SetVibration(bool on) => ChangeSetting(Settings.Vibration != on, () => Settings.Vibration = on);
+
+        /// <summary>§15, §16: прихований профіль — у рейтингах «Гравець-інкогніто».</summary>
+        public void SetProfileHidden(bool hidden) => ChangeSetting(Settings.ProfileHidden != hidden, () => Settings.ProfileHidden = hidden);
+
+        /// <summary>Перемикач — одразу у файл: закрити гру після нього не має повернути старе значення.</summary>
+        private void ChangeSetting(bool changed, Action apply)
+        {
+            if (!changed)
+                return;
+            apply();
+            Persist();
+            SettingsChanged?.Invoke();
+        }
+
         public string Nick
         {
             get => File.Profile.Nick is null || File.Profile.Nick.Length == 0

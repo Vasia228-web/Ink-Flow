@@ -22,6 +22,7 @@ namespace InkFlow.UI
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
+        [SerializeField] private Button settingsButton;
         [SerializeField] private TMP_Text title;
         [SerializeField] private CurrencyWidget currency;
 
@@ -70,6 +71,7 @@ namespace InkFlow.UI
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
+            WireSettingsButton(settingsButton);
             if (sheetCloseArea != null)
                 sheetCloseArea.onClick.AddListener(CloseSheet);
             if (playButton != null)

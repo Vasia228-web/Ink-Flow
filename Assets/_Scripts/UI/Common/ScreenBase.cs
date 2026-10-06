@@ -37,6 +37,19 @@ namespace InkFlow.UI
         /// <summary>Підставляє композиційний корінь через <see cref="AppRouter"/>.</summary>
         public virtual void BindState(PlayerState state) => State = state;
 
+        /// <summary>
+        /// Шестерня в правому верхньому куті (§15) — на кожному екрані та сама подія, тож вона живе
+        /// тут, а роутер підписує всі екрани одним циклом. Екран лише віддає свою кнопку в
+        /// <see cref="WireSettingsButton"/>.
+        /// </summary>
+        public System.Action? SettingsRequested;
+
+        protected void WireSettingsButton(UnityEngine.UI.Button? button)
+        {
+            if (button != null)
+                button.onClick.AddListener(() => SettingsRequested?.Invoke());
+        }
+
         public virtual void OnEnter(ScreenArgs args)
         {
             Entering = true;

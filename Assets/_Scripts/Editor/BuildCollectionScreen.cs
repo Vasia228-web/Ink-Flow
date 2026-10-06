@@ -118,7 +118,7 @@ namespace InkFlow.Editor
             Stretch(screenGo);
             var screen = screenGo.AddComponent<CollectionScreen>();
 
-            var headerBottom = BuildHeader(screenGo, design!, font, circle!, circleOutline!, out var backButton, out var title, out var subtitle);
+            var headerBottom = BuildHeader(screenGo, design!, font, circle!, circleOutline!, out var backButton, out var title, out var subtitle, out var settingsButton);
             var filtersBottom = BuildFilters(screenGo, design!, font, rounded!, circle!, circleOutline!, headerBottom,
                 out var themesContent, out var themeButtons, out var themeFills, out var themeLabels,
                 out var rarityButtons, out var rarityDots, out var rarityRings, out var rarityAllLabel);
@@ -126,7 +126,7 @@ namespace InkFlow.Editor
                 out var scroll, out var content, out var cards, out var emptyLabel, out var hintLabel);
 
             Wire(screen,
-                ("design", design!), ("backButton", backButton), ("title", title), ("subtitle", subtitle),
+                ("design", design!), ("backButton", backButton), ("title", title), ("subtitle", subtitle), ("settingsButton", settingsButton),
                 ("themesContent", themesContent), ("rarityAllLabel", rarityAllLabel),
                 ("scroll", scroll), ("content", content), ("emptyLabel", emptyLabel), ("hintLabel", hintLabel));
             WireArray(screen, "themeButtons", themeButtons);
@@ -153,7 +153,7 @@ namespace InkFlow.Editor
 
         // ── Шапка: кнопка 40, «КОЛЕКЦІЯ» 15/800, підзаголовок 11/700 під нею ──
         private static float BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite circle, Sprite circleOutline, out Button backButton, out TMP_Text title, out TMP_Text subtitle)
+            Sprite circle, Sprite circleOutline, out Button backButton, out TMP_Text title, out TMP_Text subtitle, out Button settingsButton)
         {
             var height = M(46f);
             var go = Child(parent, "Header");
@@ -185,6 +185,7 @@ namespace InkFlow.Editor
 
             backButton = backGo.AddComponent<Button>();
             backButton.targetGraphic = backFill;
+            settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
 
             title = Label(go, "Title", "КОЛЕКЦІЯ", design, font,
                 design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);

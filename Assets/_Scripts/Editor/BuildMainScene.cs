@@ -44,7 +44,8 @@ namespace InkFlow.Editor
         private static readonly string[] ScreenNames =
         {
             "HubScreen", "LevelMapScreen", "ComingSoonScreen", "EndlessScreen",
-            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen"
+            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen",
+            "SettingsScreen"
         };
 
         [MenuItem("Ink Flow/Setup/Build Main Scene")]
@@ -68,6 +69,7 @@ namespace InkFlow.Editor
             // Розкладка галактики з дефолтами створюється тут же: вимагати окремого кроку заради асета,
             // який і так дорівнює коду, означало б ще одну причину «не зібралось».
             var galaxyConfig = InkFlowBootstrap.EnsureGalaxyConfig();
+            var appConfig = InkFlowBootstrap.EnsureAppConfig();
             var pictures = AssetDatabase.LoadAssetAtPath<PictureLibraryAsset>(PicturesPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
 
@@ -145,6 +147,7 @@ namespace InkFlow.Editor
             // Діалог ніка лежить ПОВЕРХ усіх екранів: він не бере участі в
             // навігації й не має ховатись разом з екраном, з якого відкритий.
             var prompt = BuildNickPrompt(safe, design!);
+            var confirm = BuildConfirmPrompt(safe, design!);
 
             var routerGo = Child(safe, "AppRouter");
             var router = routerGo.AddComponent<AppRouter>();
@@ -160,10 +163,20 @@ namespace InkFlow.Editor
                 ("shop", screens["ShopScreen"]),
                 ("rankings", screens["RankingsScreen"]),
                 ("profile", screens["ProfileScreen"]),
-                ("nickPrompt", prompt));
+                ("settings", screens["SettingsScreen"]),
+                ("nickPrompt", prompt),
+                ("confirmPrompt", confirm));
 
             var bootstrapGo = new GameObject("GameBootstrap");
             var bootstrap = bootstrapGo.AddComponent<GameBootstrap>();
+            // Музика (§15) — свій об'єкт з AudioSource поруч із бутстрапом; клип генерується в рантаймі.
+            var audioGo = new GameObject("GameAudio");
+            audioGo.transform.SetParent(bootstrapGo.transform, false);
+            var audioSource = audioGo.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.loop = true;
+            var gameAudio = audioGo.AddComponent<GameAudio>();
+            Wire(gameAudio, ("music", audioSource));
             // Гаптика поля підставляється сюди: композиційний корінь — єдиний, хто
             // знає реалізацію Platform, а звук/гаптика поля живуть у префабі екрана.
             var feedback = screens["EndlessScreen"].GetComponentInChildren<BoardFeedback>(true);
@@ -171,10 +184,12 @@ namespace InkFlow.Editor
                 ("balanceConfig", balance!),
                 ("economyConfig", economy!),
                 ("galaxyConfig", galaxyConfig),
+                ("appConfig", appConfig),
                 ("pictureLibrary", pictures!),
                 ("router", router),
                 ("endlessScreen", screens["EndlessScreen"]),
-                ("boardFeedback", feedback));
+                ("boardFeedback", feedback),
+                ("gameAudio", gameAudio));
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             // Дев-панель живе поруч із бутстрапом і в релізний білд не потрапляє:
@@ -280,6 +295,77 @@ namespace InkFlow.Editor
             var prompt = go.AddComponent<NickPrompt>();
             Wire(prompt, ("root", go.GetComponent<RectTransform>()), ("field", input),
                 ("confirmButton", ok), ("cancelButton", cancel));
+
+            go.SetActive(false);
+            return prompt;
+        }
+
+        /// <summary>
+        /// Діалог підтвердження (§15: «Додому» з забігу): затемнення, заголовок, пояснення, дія й «Скасувати».
+        /// Та сама панель, що й у діалогу ніка, — другий збирач не потрібен.
+        /// </summary>
+        private static ConfirmPrompt BuildConfirmPrompt(GameObject parent, DesignSystem design)
+        {
+            const float k = 1080f / 390f;
+            var go = Child(parent, "ConfirmPrompt");
+            Stretch(go);
+
+            var scrim = go.AddComponent<Image>();
+            scrim.color = design.OverScrim;
+
+            var panelGo = Child(go, "Panel");
+            var panel = panelGo.AddComponent<GradientImage>();
+            panel.sprite = LoadSprite("rounded-rect");
+            panel.type = Image.Type.Sliced;
+            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(28f * k));
+            panel.SetGradient(design.OverCardFrom, design.OverCardTo);
+            Place(panel, Vector2.zero, new Vector2(Mathf.Round(300f * k), Mathf.Round(190f * k)),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var title = Label(panelGo, "Title", "Вийти в меню?", design, design.Font,
+                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
+            Place(title, new Vector2(0f, -Mathf.Round(26f * k)),
+                new Vector2(Mathf.Round(260f * k), Mathf.Round(30f * k)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+
+            var message = Label(panelGo, "Message", "Забіг збережеться — продовжиш пізніше.", design, design.Font,
+                design.FontSizeBody, design.TextMuted, TextAlignmentOptions.Center);
+            message.textWrappingMode = TextWrappingModes.Normal;
+            Place(message, new Vector2(0f, -Mathf.Round(66f * k)),
+                new Vector2(Mathf.Round(252f * k), Mathf.Round(56f * k)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+
+            var okGo = Child(panelGo, "Confirm");
+            var okFill = okGo.AddComponent<GradientImage>();
+            okFill.sprite = LoadSprite("rounded-rect");
+            okFill.type = Image.Type.Sliced;
+            okFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(22f * k));
+            okFill.SetGradient(design.AccentTeal, design.AccentBlue);
+            Place(okFill, new Vector2(Mathf.Round(62f * k), Mathf.Round(20f * k)),
+                new Vector2(Mathf.Round(120f * k), Mathf.Round(46f * k)),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
+            var okLabel = Label(okGo, "Label", "Вийти", design, design.Font,
+                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
+            Stretch(okLabel.gameObject);
+            var ok = okGo.AddComponent<Button>();
+            ok.targetGraphic = okFill;
+
+            var cancelGo = Child(panelGo, "Cancel");
+            var cancelLabel = Label(cancelGo, "Label", "Скасувати", design, design.Font,
+                design.FontSizeShopCard, design.TextMuted, TextAlignmentOptions.Center);
+            cancelLabel.raycastTarget = true;
+            Stretch(cancelLabel.gameObject);
+            var cancelRect = cancelGo.GetComponent<RectTransform>();
+            cancelRect.anchorMin = cancelRect.anchorMax = new Vector2(0.5f, 0f);
+            cancelRect.pivot = new Vector2(0.5f, 0f);
+            cancelRect.anchoredPosition = new Vector2(-Mathf.Round(70f * k), Mathf.Round(20f * k));
+            cancelRect.sizeDelta = new Vector2(Mathf.Round(110f * k), Mathf.Round(46f * k));
+            var cancel = cancelGo.AddComponent<Button>();
+            cancel.targetGraphic = cancelLabel;
+
+            var prompt = go.AddComponent<ConfirmPrompt>();
+            Wire(prompt, ("root", go.GetComponent<RectTransform>()), ("title", title), ("message", message),
+                ("confirmButton", ok), ("confirmLabel", okLabel), ("cancelButton", cancel));
 
             go.SetActive(false);
             return prompt;

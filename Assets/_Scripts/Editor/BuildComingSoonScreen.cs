@@ -117,6 +117,7 @@ namespace InkFlow.Editor
             Stretch(chevron.gameObject);
             var backButton = backGo.AddComponent<Button>();
             backButton.targetGraphic = backFill;
+            var settingsButton = GearButton(header, design, circle!, circleOutline!, LoadSprite("icon-gear"));
 
             var title = Label(header, "Title", "РІВНІ", design, font,
                 design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
@@ -153,7 +154,7 @@ namespace InkFlow.Editor
             Place(note, new Vector2(0f, M(34f)), new Vector2(M(272f), M(80f)),
                 new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
 
-            Wire(screen, ("design", design), ("backButton", backButton), ("title", title),
+            Wire(screen, ("design", design), ("backButton", backButton), ("title", title), ("settingsButton", settingsButton),
                 ("caption", caption), ("note", note), ("plate", plate), ("plateStroke", stroke));
 
             var eventSystem = new GameObject("EventSystem");

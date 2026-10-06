@@ -32,12 +32,15 @@ namespace InkFlow.UI
         [SerializeField] private ShopScreen shop;
         [SerializeField] private RankingsScreen rankings;
         [SerializeField] private ProfileScreen profile;
+        [SerializeField] private SettingsScreen settings;
 
         [Header("Діалоги")]
         [SerializeField] private NickPrompt? nickPrompt;
+        [SerializeField] private ConfirmPrompt? confirmPrompt;
 
         private BalanceData _balance = BalanceData.Default;
         private PlayerState? _state;
+        private AppLinks _links = AppLinks.Default;
 
         /// <summary>Стан гравця — його ж роздаємо екранам.</summary>
         public PlayerState? State => _state;
@@ -50,10 +53,12 @@ namespace InkFlow.UI
         /// Роздаємо ОДИН екземпляр стану всім екранам: кожен, хто зробив би собі
         /// копію, показував би застарілі числа після покупки в сусідньому екрані.
         /// </summary>
-        public void Configure(BalanceData balance, PlayerState state)
+        public void Configure(BalanceData balance, PlayerState state, AppLinks? links = null)
         {
             _balance = balance;
             _state = state;
+            _links = links ?? AppLinks.Default;
+            settings?.BindLinks(_links);
 
             hub?.BindState(state);
             levelMap?.BindState(state);
@@ -64,6 +69,7 @@ namespace InkFlow.UI
             rankings?.BindState(state);
             profile?.BindState(state);
             endless?.BindState(state);
+            settings?.BindState(state);
         }
 
         /// <summary>Платформні сервіси для кнопок §9 — лише туди, де вони потрібні.</summary>
@@ -109,7 +115,7 @@ namespace InkFlow.UI
 
         private ScreenBase?[] AllScreens() => new ScreenBase?[]
         {
-            hub, levelMap, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile
+            hub, levelMap, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile, settings
         };
 
         private void WireGraph()
@@ -186,10 +192,67 @@ namespace InkFlow.UI
             if (profile != null)
             {
                 profile.BackRequested += Pop;
-                profile.SettingsRequested += () =>
-                    Debug.Log("[InkFlow] Налаштування ще не зроблені — екрана немає.");
                 profile.NickEditRequested += OpenNickPrompt;
             }
+
+            // ── Налаштування (§15): шестерня на кожному екрані — одна подія базового екрана ──
+            foreach (var screen in AllScreens())
+                if (screen != null && !ReferenceEquals(screen, settings))
+                    screen.SettingsRequested += OpenSettings;
+
+            if (settings != null)
+            {
+                settings.BackRequested += Pop;
+                settings.CollectionRequested += () => Push(collection, new CollectionArgs());
+                settings.HomeRequested += GoHome;
+                settings.RestartRequested += () =>
+                {
+                    // «Заново» є лише в забігу. Спершу стираємо зліпок і призупинений забіг, потім знімаємо
+                    // налаштування: OnEnter забігу без них сам стартує НОВУ сесію — один прохід замість
+                    // «відновити стару, а тоді перезапустити».
+                    _state?.ClearRun();
+                    endless?.DiscardSuspendedRun();
+                    Pop();
+                };
+            }
+        }
+
+        /// <summary>Чи відкрито налаштування поверх забігу: тоді є «Заново», а «Додому» питає підтвердження.</summary>
+        private bool InRun => navigation != null && endless != null && ReferenceEquals(navigation.Current, endless);
+
+        private bool _settingsFromRun;
+
+        private void OpenSettings()
+        {
+            if (settings == null)
+            {
+                Debug.LogError("[InkFlow] SettingsScreen не підв'язаний — перезбери: Ink Flow → Setup → Build Settings Screen → Build Main Scene.");
+                return;
+            }
+            // Запам'ятовуємо в момент відкриття: коли натиснуть «Додому», верхнім екраном будуть уже налаштування.
+            _settingsFromRun = InRun;
+            Push(settings, new SettingsArgs(_settingsFromRun));
+        }
+
+        /// <summary>
+        /// «Додому» — у хаб із чистим стеком. З забігу — з підтвердженням (§15); забіг при цьому
+        /// зберігається (OnExit екрана пише зліпок), тож гравець нічого не втрачає.
+        /// </summary>
+        private void GoHome()
+        {
+            if (_settingsFromRun && confirmPrompt != null)
+            {
+                confirmPrompt.Show("Вийти в меню?", "Забіг збережеться — продовжиш пізніше.", "Вийти", ResetToHub);
+                return;
+            }
+            ResetToHub();
+        }
+
+        private void ResetToHub()
+        {
+            if (navigation == null || hub == null)
+                return;
+            navigation.SetRoot(hub);
         }
 
         /// <summary>

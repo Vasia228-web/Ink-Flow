@@ -49,6 +49,26 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void Load_OfAFrozenV7File_RefundsLitresAndMakesSlots()
+        {
+            // Заморожений файл v7 так, як його писала гра: запас фарби й розміщення — поля, яких у SaveFile
+            // більше немає. Сховище парсить їх у legacy-форму; імена ключів тут — контракт.
+            var storage = new JsonSaveStorage(_dir);
+            const string v7 = "{\"Version\":7,\"Wallet\":{\"OilDrops\":5,\"PlaysToday\":0,\"DayUtc\":\"\"}," +
+                              "\"Paints\":{\"Stacks\":[{\"PaintId\":\"Ocean\",\"Liters\":2.5}]}," +
+                              "\"Galaxy\":{\"Placements\":[{\"PlanetId\":\"Earth\",\"PictureId\":\"whale\",\"Longitude\":1,\"Latitude\":2}]}," +
+                              "\"Collection\":{\"Pictures\":[{\"PictureId\":\"whale\",\"Count\":1,\"FirstUtc\":\"\"}]}}";
+            File.WriteAllText(storage.Path_, v7);
+
+            var loaded = storage.Load();
+
+            Assert.AreEqual(SaveFile.CurrentVersion, loaded.Version);
+            Assert.AreEqual(5 + 30, loaded.Wallet.OilDrops, "2.5 л × 12 — повернуто нафтою");
+            Assert.AreEqual("whale", GalaxyState.PictureAt(loaded.Galaxy, 0, "Earth", 0), "розміщення стало слотом");
+            Assert.AreEqual(1, loaded.Collection.Pictures.Count);
+        }
+
+        [Test]
         public void Load_OfANewerVersion_KeepsACopy_Too()
         {
             // Старіша збірка гри відкриває файл новішої: міграція відмовляється, але дані не гинуть.

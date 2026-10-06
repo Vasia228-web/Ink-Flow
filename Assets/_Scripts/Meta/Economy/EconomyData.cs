@@ -36,8 +36,10 @@ namespace InkFlow.Meta
             if (finishPictureMinShare < 0f || finishPictureMinShare > 1f)
                 throw new ArgumentOutOfRangeException(nameof(finishPictureMinShare));
             FinishPictureMinShare = finishPictureMinShare;
-            if (continueCost < 0)
-                throw new ArgumentOutOfRangeException(nameof(continueCost));
+            // Нуль заборонено свідомо: гаманець не списує нуль, і «безплатне» продовження за нафту
+            // виглядало б як мертва кнопка. Безплатне продовження — це ролик (§17), не ціна 0.
+            if (continueCost <= 0)
+                throw new ArgumentOutOfRangeException(nameof(continueCost), "Ціна «продовжити» мусить бути додатною.");
             ContinueCost = continueCost;
             OilPacks = oilPacks ?? OilPack.Defaults();
             if (OilPacks.Count == 0)
