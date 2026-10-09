@@ -58,6 +58,9 @@ namespace InkFlow.UI
 
         public InkColor Ink => ink;
 
+        /// <summary>Чи показує крапля число (тестам: аватар мусить бути без «1» із префаба).</summary>
+        public bool ShowsNumber => densityLabel != null && densityLabel.text.Length > 0;
+
         private void Awake()
         {
             // Розводимо фази, щоб краплі не «дихали» синхронно, як метроном.
@@ -131,7 +134,8 @@ namespace InkFlow.UI
 
             TickDrip();
 
-            if (_squash != null)
+            // Без дихання й без приземлення краплі нічого робити: щільні списки не платять за LateUpdate.
+            if (_squash != null || !idleWobble)
                 return;
 
             var scale = Vector3.one;

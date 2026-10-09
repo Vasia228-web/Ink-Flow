@@ -107,6 +107,102 @@ namespace InkFlow.Meta
                 : value;
         }
 
+        // ── Профіль (§14): нік за правилами, аватар із набору, вітринна картинка ──
+
+        /// <summary>Профіль змінився (нік, аватар, вітрина) — хаб і рейтинги перечитують.</summary>
+        public event Action? ProfileChanged;
+
+        /// <summary>Аватар — номер у наборі крапель (<see cref="AvatarSet"/>); номер поза набором читається як перший.</summary>
+        public int AvatarId => AvatarSet.Clamp(File.Profile.AvatarId);
+
+        public void SetAvatar(int id)
+        {
+            id = AvatarSet.Clamp(id);
+            if (File.Profile.AvatarId == id)
+                return;
+            File.Profile.AvatarId = id;
+            Persist();
+            ProfileChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Нік за правилами (§14: довжина й фільтр слів — із конфігу). Відмова лишає старий нік і каже чому;
+        /// той самий нік — успіх без запису. Сеттер <see cref="Nick"/> лишається для дев-панелі й міграцій.
+        /// Не «Try…»: так названі лише дії, що списують нафту (сторож <c>OilIsSpentOnlyOnFinishingAndContinuing</c>).
+        /// </summary>
+        public bool SetNick(string? raw, NickRules rules, out NickVerdict verdict)
+        {
+            var nick = NickRules.Normalize(raw);
+            verdict = (rules ?? NickRules.Default).Check(nick);
+            if (verdict != NickVerdict.Ok)
+                return false;
+            if (Nick == nick)
+                return true;
+            File.Profile.Nick = nick;
+            Persist();
+            ProfileChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>
+        /// Нік зі старого файлу міг не проходити нинішні правила (раніше приймалось усе від одного символу):
+        /// такий скидається на типовий, щоб у рейтингах не стояло те, чого гра сама не приймає. Кличе
+        /// композиційний корінь, коли правила відомі. Повертає true, якщо нік змінено.
+        /// </summary>
+        public bool EnforceNickRules(NickRules rules)
+        {
+            rules ??= NickRules.Default;
+            if (rules.Check(Nick) == NickVerdict.Ok)
+                return false;
+            File.Profile.Nick = ProfileData.DefaultNick;
+            Persist();
+            ProfileChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>
+        /// Вітринна картинка (§14) — та, яку бачать інші: обрана, поки вона в колекції й у бібліотеці; інакше
+        /// остання зібрана з тих, що бібліотека знає; null — показувати нічого. Файл може пам'ятати картинку,
+        /// якої вже немає (дев-очищення, прибрана з бібліотеки) — вітрина тоді не порожніє, а показує останню.
+        /// </summary>
+        public string? ShowcasePictureId
+        {
+            get
+            {
+                var chosen = File.Profile.ShowcasePictureId;
+                if (!string.IsNullOrEmpty(chosen) && Collection.Has(chosen) && Library.Find(chosen) != null)
+                    return chosen;
+                var ids = Collection.Ids;
+                for (var i = ids.Count - 1; i >= 0; i--)
+                    if (Library.Find(ids[i]) != null)
+                        return ids[i];
+                return null;
+            }
+        }
+
+        /// <summary>Чи вітрина обрана рукою (а не підставлена як остання зібрана) — екран каже гравцю, що саме він бачить.</summary>
+        public bool IsShowcaseChosen
+        {
+            get
+            {
+                var shown = ShowcasePictureId;
+                return shown != null && File.Profile.ShowcasePictureId == shown;
+            }
+        }
+
+        /// <summary>На вітрину можна поставити лише зібрану картинку.</summary>
+        public bool SetShowcasePicture(string? pictureId)
+        {
+            if (string.IsNullOrEmpty(pictureId) || !Collection.Has(pictureId!))
+                return false;
+            if (File.Profile.ShowcasePictureId == pictureId)
+                return true;
+            File.Profile.ShowcasePictureId = pictureId!;
+            Persist();
+            ProfileChanged?.Invoke();
+            return true;
+        }
+
         /// <summary>Стан щойно створеного гравця: усе по нулях, крім явно виданого стартового.</summary>
         public static PlayerState NewPlayer(EconomyData economy, ISaveStorage? storage = null,
             Core.PictureLibrary? library = null, Core.BalanceData? balance = null, GalaxyLayout? layout = null)

@@ -76,5 +76,36 @@ namespace InkFlow.UI.Tests
             Assert.Less(placedCard!.Alpha, 0.5f, "усі копії в слотах — картка притлумлена");
             Assert.AreEqual(1f, freeCard!.Alpha, 1e-3f, "вільна копія — повна яскравість");
         }
+
+        [Test]
+        public void ShowcaseMode_KeepsPlacedPicturesBright_AndTapPicks()
+        {
+            // §14: на вітрину йде будь-яка зібрана картинка — копії в слотах не рахуються, тап віддає вибір одразу.
+            using var rig = MetaScreenRig<CollectionScreen>.Create(ScreenRigBase.Devices[0], "CollectionScreen");
+            var player = rig.NewPlayer();
+            var placed = rig.Library[0];
+            player.CollectPicture(placed.Id, System.DateTime.UtcNow);
+            Assert.IsTrue(player.TryPlaceInSlot(0, player.Layout.Planets[0].Id, 0, placed.Id, System.DateTime.UtcNow));
+
+            CollectionArgs? pickedArgs = null;
+            string? pickedId = null;
+            rig.Screen.PicturePicked += (args, id) => { pickedArgs = args; pickedId = id; };
+            rig.Enter(player, CollectionArgs.ForShowcase());
+
+            CollectionCard? card = null;
+            var index = -1;
+            foreach (var candidate in rig.Screen.Cards)
+            {
+                if (candidate == null || !candidate.gameObject.activeSelf || candidate.PictureId != placed.Id) continue;
+                card = candidate;
+                index = candidate.Index;
+            }
+            Assert.IsNotNull(card, "єдина зібрана картинка є в сітці");
+            Assert.AreEqual(1f, card!.Alpha, 1e-3f, "усі копії в слотах, але для вітрини це не має значення");
+
+            rig.Screen.PreviewTap(index);
+            Assert.AreEqual(placed.Id, pickedId, "тап віддає картинку без перевірки вільних копій");
+            Assert.IsTrue(pickedArgs != null && pickedArgs.Showcase, "роутер відрізнить вітрину від слота за аргументами");
+        }
     }
 }

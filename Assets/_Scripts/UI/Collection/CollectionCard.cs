@@ -27,6 +27,9 @@ namespace InkFlow.UI
         /// <summary>Яку картинку показує картка; null — вільна.</summary>
         public string? PictureId { get; private set; }
 
+        /// <summary>Індекс у поточному зрізі колекції (тестам); −1 — картка вільна.</summary>
+        public int Index => _index;
+
         /// <summary>Поточна прозорість картки — тестам і знімкам.</summary>
         public float Alpha => group != null ? group.alpha : 1f;
 

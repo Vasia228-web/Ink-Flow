@@ -47,8 +47,11 @@ namespace InkFlow.Meta
         public string Nick { get; }
         public PlanetType Planet { get; }
 
-        /// <summary>Колір краплі-аватара в рядку.</summary>
+        /// <summary>Колір краплі-аватара в рядку (мокові гравці).</summary>
         public Rgb DropColor { get; }
+
+        /// <summary>Аватар із набору (§14) — для справжніх гравців; None — брати <see cref="DropColor"/>.</summary>
+        public InkColor Avatar { get; set; }
 
         /// <summary>Гравець сховав профіль: нік і планета не показуються, тап нічого не робить.</summary>
         public bool Incognito { get; set; }
@@ -242,7 +245,8 @@ namespace InkFlow.Meta
             {
                 IsYou = true,
                 IsFriend = true,
-                // §15: «Приховати профіль у рейтингах» — у таблиці гравець є, але інкогніто.
+                // §14: аватар — той, що обрано в профілі; §15: «Приховати профіль» — у таблиці є, але інкогніто.
+                Avatar = AvatarSet.InkOf(state.AvatarId),
                 Incognito = state.Settings.ProfileHidden,
                 GalaxiesDone = galaxiesDone,
                 PlanetsWeek = planetsDone,

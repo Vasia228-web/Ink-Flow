@@ -412,11 +412,9 @@ namespace InkFlow.UI
             if (youPosition != null)
                 youPosition.text = $"#{_board.YourPosition(_metric, _period)}";
 
+            // Той самий колір, що в рядку таблиці: аватар із профілю (§14), а не моковий.
             if (youAvatar != null)
-            {
-                var color = you.DropColor.ToColor();
-                youAvatar.SetGradient(DesignSystem.Lighten(color, 0.5f), DesignSystem.Darken(color, 0.28f));
-            }
+                RankingRow.PaintAvatar(youAvatar, design, you);
 
             ApplyFont(youNick, design.FontSizeRankRow, design.TextPrimary, FontStyles.Bold, 0f);
             if (youNick != null) youNick.text = $"Ти · {you.Nick}";

@@ -875,32 +875,8 @@ namespace InkFlow.Style
         [Tooltip("Нік на візитці: 30 px макета.")]
         [SerializeField] private float fontSizeProfileNick = 83f;
 
-        [Tooltip("Число на плитці статистики: 27 px макета.")]
-        [SerializeField] private float fontSizeProfileStat = 75f;
-
-        [Tooltip("Кружок пройденого звання.")]
-        [SerializeField] private Color rankNodeAchieved = new Color(1f, 1f, 1f, 0.08f);
-
-        [Tooltip("Кружок ще не відкритого звання — темний, майже фон.")]
-        [SerializeField] private Color rankNodeLocked = new Color(0.04f, 0.024f, 0.086f, 0.9f);
-
-        [SerializeField] private Color rankNodeStrokeDim = new Color(1f, 1f, 1f, 0.08f);
-
-        [Tooltip("Світіння поточного звання — головний акцент блоку.")]
-        [SerializeField, Range(0f, 1f)] private float rankGlowAlpha = 0.5f;
-
-        [SerializeField, Range(0f, 1f)] private float rankCapsuleGlowAlpha = 0.45f;
-
-        [Tooltip("Заливка неотриманого бейджа досягнення.")]
-        [SerializeField] private Color badgeLockedFill = new Color(1f, 1f, 1f, 0.05f);
-
-        [SerializeField, Range(0f, 1f)] private float badgeGlowAlpha = 0.35f;
-
-        [Tooltip("Секунд на оберт планети у вітрині. Повільно — вона не для дії.")]
-        [SerializeField, Min(1f)] private float showcaseSpin = 40f;
-
-        [Tooltip("Скільки висить підказка про умову досягнення.")]
-        [SerializeField, Min(0.5f)] private float toastDuration = 2.2f;
+        [Tooltip("До якої частки кегля стискається нік, щоб уміститись в один рядок (візитка, шапка хаба).")]
+        [SerializeField, Range(0.3f, 1f)] private float nickMinScale = 0.55f;
 
         [Header("Рейтинги")]
         [Tooltip("Нік і номер у рядку: 15 px макета.")]
@@ -956,9 +932,6 @@ namespace InkFlow.Style
 
         [Tooltip("Розрядка «МАГАЗИН»: .18em макета.")]
         [SerializeField] private float letterSpacingShopTitle = 18f;
-
-        [Tooltip("Найтьмяніший текст: замкнені бейджі й сходинки звань у профілі.")]
-        [SerializeField] private Color textFaintest = new Color(1f, 1f, 1f, 0.3f);
 
         [Tooltip("Текст на світлій заливці: на «Персику» чи «М'яті» білий зникає.")]
         [SerializeField] private Color shopOnLightText = Hex("#1C0F33");
@@ -1264,16 +1237,7 @@ namespace InkFlow.Style
         public Color BossSheetFrom => bossSheetFrom;
         public Color BossSheetTo => bossSheetTo;
         public float FontSizeProfileNick => fontSizeProfileNick;
-        public float FontSizeProfileStat => fontSizeProfileStat;
-        public Color RankNodeAchieved => rankNodeAchieved;
-        public Color RankNodeLocked => rankNodeLocked;
-        public Color RankNodeStrokeDim => rankNodeStrokeDim;
-        public float RankGlowAlpha => rankGlowAlpha;
-        public float RankCapsuleGlowAlpha => rankCapsuleGlowAlpha;
-        public Color BadgeLockedFill => badgeLockedFill;
-        public float BadgeGlowAlpha => badgeGlowAlpha;
-        public float ShowcaseSpin => showcaseSpin;
-        public float ToastDuration => toastDuration;
+        public float NickMinScale => nickMinScale;
         public float FontSizeRankRow => fontSizeRankRow;
         public float FontSizeRankValue => fontSizeRankValue;
         public float FontSizePodiumFirst => fontSizePodiumFirst;
@@ -1304,7 +1268,6 @@ namespace InkFlow.Style
         public float FontSizeShopCard => fontSizeShopCard;
         public float FontSizeShopPrice => fontSizeShopPrice;
         public float LetterSpacingShopTitle => letterSpacingShopTitle;
-        public Color TextFaintest => textFaintest;
         public Color ShopOnLightText => shopOnLightText;
         public float ShopHotGlowAlpha => shopHotGlowAlpha;
         public Color ShopTabActiveFrom => shopTabActiveFrom;

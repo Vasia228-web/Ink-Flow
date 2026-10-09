@@ -323,9 +323,11 @@ namespace InkFlow.App
                 GUILayout.Width(140f));
             if (GUILayout.Button("Змінити нік"))
             {
-                state.Nick = _nickInput;
-                state.Persist();
-                Report($"нік → {state.Nick}");
+                // Ті самі правила §14, що й у діалозі: дев-панель не має заводити в гру нік, якого гра не приймає.
+                if (state.SetNick(_nickInput, NickRules.Default, out var verdict))
+                    Report($"нік → {state.Nick}");
+                else
+                    Report($"нік відхилено: {NickPrompt.Message(verdict, NickRules.Default)}");
             }
             GUILayout.EndHorizontal();
         }

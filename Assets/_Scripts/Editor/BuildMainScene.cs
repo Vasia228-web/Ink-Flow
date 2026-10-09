@@ -216,7 +216,8 @@ namespace InkFlow.Editor
         /// Діалог зміни ніка. Розкладка проста настільки, що окремий збирач
         /// їй не потрібен — усе поміщається тут.
         /// </summary>
-        private static NickPrompt BuildNickPrompt(GameObject parent, DesignSystem design)
+        /// <summary>Діалог ніка — публічна фабрика: UI-тест збирає його так само, як головна сцена.</summary>
+        public static NickPrompt BuildNickPrompt(GameObject parent, DesignSystem design)
         {
             const float k = 1080f / 390f;
             var go = Child(parent, "NickPrompt");
@@ -231,7 +232,7 @@ namespace InkFlow.Editor
             panel.type = Image.Type.Sliced;
             panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(28f * k));
             panel.SetGradient(design.OverCardFrom, design.OverCardTo);
-            Place(panel, Vector2.zero, new Vector2(Mathf.Round(300f * k), Mathf.Round(190f * k)),
+            Place(panel, Vector2.zero, new Vector2(Mathf.Round(300f * k), Mathf.Round(236f * k)),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             var title = Label(panelGo, "Title", "Як тебе звати?", design, design.Font,
@@ -261,7 +262,20 @@ namespace InkFlow.Editor
             var input = fieldGo.AddComponent<TMP_InputField>();
             input.textViewport = (RectTransform)textGo.transform;
             input.textComponent = text;
-            input.characterLimit = NickPrompt.MaxLength;
+            input.characterLimit = InkFlow.Meta.NickRules.Default.MaxLength;
+
+            // Підказка про межі (§14) і рядок помилки під полем: невдалий нік не закриває діалог, а каже чому.
+            var hint = Label(panelGo, "Hint", NickPrompt.Hint(InkFlow.Meta.NickRules.Default), design, design.Font,
+                design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);
+            Place(hint, new Vector2(0f, -Mathf.Round(128f * k)),
+                new Vector2(Mathf.Round(260f * k), Mathf.Round(18f * k)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            var error = Label(panelGo, "Error", string.Empty, design, design.Font,
+                design.FontSizeCaption, design.AccentPrimary, TextAlignmentOptions.Center);
+            Place(error, new Vector2(0f, -Mathf.Round(148f * k)),
+                new Vector2(Mathf.Round(260f * k), Mathf.Round(18f * k)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            error.gameObject.SetActive(false);
 
             var okGo = Child(panelGo, "Confirm");
             var okFill = okGo.AddComponent<GradientImage>();
@@ -294,6 +308,7 @@ namespace InkFlow.Editor
 
             var prompt = go.AddComponent<NickPrompt>();
             Wire(prompt, ("root", go.GetComponent<RectTransform>()), ("field", input),
+                ("hintLabel", hint), ("errorLabel", error),
                 ("confirmButton", ok), ("cancelButton", cancel));
 
             go.SetActive(false);

@@ -22,6 +22,25 @@ namespace InkFlow.Gameplay
         [Tooltip("Коди локалей гри. Поки одна — рядка «Мова» в налаштуваннях немає (рішення Сесії 1).")]
         [SerializeField] private List<string> locales = new List<string> { AppLinks.DefaultLocale };
 
+        [Header("Профіль (§14)")]
+        [Tooltip("Найкоротший нік, символів.")]
+        [SerializeField, Min(1)] private int nickMinLength = 3;
+
+        [Tooltip("Найдовший нік, символів: довший не влізе в шапку хаба.")]
+        [SerializeField, Min(1)] private int nickMaxLength = 16;
+
+        [Tooltip("Корені образливих слів: нік, що містить будь-який із них (без регістру, латинські двійники літер і цифри-двійники рахуються), не приймається.")]
+        [SerializeField] private List<string> bannedNickWords = new List<string>(NickRules.DefaultBannedWords);
+
         public AppLinks ToAppLinks() => new AppLinks(privacyPolicyUrl?.Trim(), supportEmail?.Trim(), locales);
+
+        public NickRules ToNickRules()
+        {
+            var rules = new NickRules(Mathf.Max(1, nickMinLength), Mathf.Max(Mathf.Max(1, nickMinLength), nickMaxLength), bannedNickWords);
+            // Порожній список — фільтр вимкнено. Це право автора, але не мовчки: §14 фільтр вимагає.
+            if (rules.BannedWords.Count == 0)
+                Debug.LogWarning("[InkFlow] AppConfig.bannedNickWords порожній — фільтр образливих ніків (§14) вимкнено.");
+            return rules;
+        }
     }
 }

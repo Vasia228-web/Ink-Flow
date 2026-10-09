@@ -47,14 +47,29 @@ def font_charset() -> set:
 
 
 def ui_strings():
-    """Рядки, що справді потрапляють у TMP: аргумент Label(...) і присвоєння .text."""
+    """
+    Рядки, що справді потрапляють у TMP: аргумент Label(...), присвоєння .text, а також вирази, з яких
+    текст збирається далі — повернення `=> "…"` і гілки тернара `? "…" : "…"` (підказки ніка й підпис
+    вітрини саме такі; перша редакція чекера їх не бачила, і «чисто» для них було випадковим).
+    """
     label_arg = re.compile(r'Label\(\s*[^,]+,\s*"[^"]*",\s*("(?:[^"\\]|\\.)*")')
     text_assign = re.compile(r'\.text\s*=\s*(\$?"(?:[^"\\]|\\.)*")')
+    expr_return = re.compile(r'=>\s*(\$?"(?:[^"\\]|\\.)*")')
+    ternary_arm = re.compile(r'(?:^|[?:])\s*(\$?"(?:[^"\\]|\\.)*")\s*(?:[:;),]|$)')
 
     for path in sorted(SCRIPTS.rglob("*.cs")):
         source = path.read_text(encoding="utf-8")
+        # Вирази й гілки тернара — лише в екранах UI: у збирачах, конфігах і бутстрапі такі рядки —
+        # логи й підказки інспектора, а в TMP потрапляє лише те, що передано в Label(...).
+        in_ui = "/UI/" in path.as_posix()
         for line_no, line in enumerate(source.splitlines(), 1):
-            for pattern in (label_arg, text_assign):
+            stripped = line.strip()
+            # Логи, винятки, коментарі й хвости склеєних рядків (+ "…") у TMP не потрапляють.
+            if ("Debug.Log" in stripped or "Exception(" in stripped or stripped.startswith("//")
+                    or stripped.startswith('"') or stripped.startswith('+ "')):
+                continue
+            patterns = (label_arg, text_assign, expr_return, ternary_arm) if in_ui else (label_arg, text_assign)
+            for pattern in patterns:
                 for match in pattern.finditer(line):
                     yield path, line_no, match.group(1)
 

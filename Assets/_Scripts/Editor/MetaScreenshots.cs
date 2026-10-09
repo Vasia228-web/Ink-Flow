@@ -28,7 +28,8 @@ namespace InkFlow.Editor
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
             "collection-browse", "collection-pick", "collection-empty",
             "shop", "shop-offline",
-            "settings", "settings-run"
+            "settings", "settings-run",
+            "profile-fresh", "profile"
         };
 
         public static void BuildAndCapture()
@@ -39,6 +40,7 @@ namespace InkFlow.Editor
             BuildCollectionScreen.Build();
             BuildShopScreen.Build();
             BuildSettingsScreen.Build();
+            BuildProfileScreen.Build();
             CaptureAll();
         }
 
@@ -47,7 +49,7 @@ namespace InkFlow.Editor
         {
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen" })
+            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen", "ProfileScreen" })
                 if (!MetaScreenRig<ScreenBase>.Available(name))
                 {
                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
@@ -130,6 +132,23 @@ namespace InkFlow.Editor
                     var player = rig.NewPlayer();
                     rig.Screen.BindLinks(AppLinks.Default);
                     rig.Enter(player, new SettingsArgs(inRun: state == "settings-run"));
+                    rig.SavePng(path);
+                    break;
+                }
+                case "profile-fresh":
+                case "profile":
+                {
+                    // Новий гравець (вітрини ще немає, кнопка спить) і гравець із колекцією, обраним аватаром і вітриною.
+                    using var rig = MetaScreenRig<ProfileScreen>.Create(device, "ProfileScreen");
+                    var player = rig.NewPlayer();
+                    if (state == "profile")
+                    {
+                        for (var i = 0; i < 7; i++)
+                            player.CollectPicture(rig.Library[(i * 11) % rig.Library.Count].Id, System.DateTime.UtcNow);
+                        player.SetAvatar(3);
+                        player.SetShowcasePicture(rig.Library[22 % rig.Library.Count].Id);
+                    }
+                    rig.Enter(player, ScreenArgs.Empty);
                     rig.SavePng(path);
                     break;
                 }

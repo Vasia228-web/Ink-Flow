@@ -121,7 +121,13 @@ namespace InkFlow.UI
 
             ApplyFont(playerName, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold);
             if (playerName != null)
+            {
+                // Нік — завжди один рядок: авторозмір між стелею кегля і стелею стискання (§14: до 16 символів).
+                playerName.enableAutoSizing = true;
+                playerName.fontSizeMax = design.FontSizeSubtitle;
+                playerName.fontSizeMin = design.FontSizeSubtitle * design.NickMinScale;
                 playerName.text = State?.Nick ?? mockName;
+            }
 
 
             if (logo != null)
@@ -156,7 +162,8 @@ namespace InkFlow.UI
             levelsCard?.Apply();
             endlessCard?.Apply();
 
-            avatar?.Apply();
+            // Аватар — обраний у профілі (§14), без числа густоти з префаба.
+            avatar?.Show(AvatarSet.InkOf(State?.AvatarId ?? 0), 0);
             // У грі валюту показує підписка на гаманець (Bind), у майстерні —
             // разове число. Друге не має затирати перше.
             if (State == null)

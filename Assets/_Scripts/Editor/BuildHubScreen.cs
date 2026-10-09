@@ -217,11 +217,15 @@ namespace InkFlow.Editor
             profileButton = identityGo.AddComponent<Button>();
             profileButton.targetGraphic = hit;
 
-            // Один рядок — звання прибрано, воно живе в Профілі, де для нього
-            // є ціла драбина. Тому нік центрується по аватару, а не висить
-            // угорі там, де раніше було два рядки.
+            // Один рядок: звань у грі немає (§14), тож нік центрується по аватару. Найдовший
+            // дозволений нік (16 широких літер) стискається до одного рядка, а не переноситься.
             nameLabel = Label(identityGo, "Name", "Гравець", design, font,
                 design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Left);
+            nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            nameLabel.overflowMode = TextOverflowModes.Ellipsis;
+            nameLabel.enableAutoSizing = true;
+            nameLabel.fontSizeMax = design.FontSizeSubtitle;
+            nameLabel.fontSizeMin = design.FontSizeSubtitle * design.NickMinScale;
             Place(nameLabel, Vector2.zero, new Vector2(M(200f), M(26f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 

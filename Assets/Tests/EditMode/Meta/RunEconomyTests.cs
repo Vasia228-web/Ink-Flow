@@ -184,21 +184,5 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(0, migrated.Progress.BestChain);
             Assert.AreEqual(0, migrated.Progress.RunsPlayed);
         }
-
-        [Test]
-        public void Profile_ShowsTheCollectionAsAStat()
-        {
-            var state = PlayerState.NewPlayer(EconomyData.Default);
-            state.CollectPicture("owl", Today);
-            var profile = PlayerProfile.FromState(state);
-            var found = false;
-            foreach (var stat in profile.Stats)
-                if (stat.Label == "Картинок у колекції")
-                {
-                    found = true;
-                    Assert.AreEqual("1", stat.Value);
-                }
-            Assert.IsTrue(found);
-        }
     }
 }

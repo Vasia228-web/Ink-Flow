@@ -1,4 +1,4 @@
-using System.Collections;
+using InkFlow.Core;
 using InkFlow.Meta;
 using InkFlow.Style;
 using TMPro;
@@ -8,15 +8,14 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Профіль: візитка, драбина звань, статистика, палітра, вітрина й досягнення.
-    ///
-    /// Скролиться цілком разом із шапкою — так у макеті. Планета вітрини малюється
-    /// тим самим шейдером, що в Галактиці й Рейтингах.
+    /// Профіль (майстер-док §14): аватар із набору крапель, нік і вітринна картинка з колекції — те, що
+    /// бачать інші гравці. Драбини звань, статистики, палітри, вітрини планет і бейджів немає (Фаза 6
+    /// прибрала). Скролиться цілком разом із шапкою — так у макеті. Усе читається зі стану на кожен
+    /// вхід; без стану (майстерня) — мокові значення й порожня вітрина.
     /// </summary>
     public sealed class ProfileScreen : ScreenBase
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private Shader planetShader;
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
@@ -24,126 +23,242 @@ namespace InkFlow.UI
         [SerializeField] private Button settingsButton;
 
         [Header("Візитка")]
+        [SerializeField] private RectTransform identityCard;
         [SerializeField] private DropView avatar;
-        [SerializeField] private Button editAvatarButton;
-        [SerializeField] private GradientImage editAvatarFill;
+        [SerializeField] private Button editNickButton;
+        [SerializeField] private GradientImage editNickFill;
         [SerializeField] private TMP_Text nickLabel;
-        [SerializeField] private GradientImage rankCapsule;
-        [SerializeField] private Image rankCapsuleGlow;
-        [SerializeField] private TMP_Text rankLabel;
-        [SerializeField] private TMP_Text oilValue;
-        [SerializeField] private TMP_Text oilWord;
+        [SerializeField] private TMP_Text nickHint;
 
-        [Header("Звання")]
-        [SerializeField] private TMP_Text ladderCaption;
-        [SerializeField] private RankStepView[] ladder = System.Array.Empty<RankStepView>();
-
-        [Header("Статистика")]
-        [SerializeField] private TMP_Text[] statValues = System.Array.Empty<TMP_Text>();
-        [SerializeField] private TMP_Text[] statLabels = System.Array.Empty<TMP_Text>();
-        [SerializeField] private Image[] statStars = System.Array.Empty<Image>();
+        [Header("Аватар")]
+        [SerializeField] private TMP_Text avatarCaption;
+        [Tooltip("Краплі набору — прості градієнтні кола (одна текстура на ряд), не DropView: без LateUpdate і без власного обробника тапу.")]
+        [SerializeField] private GradientImage[] avatarOptions = System.Array.Empty<GradientImage>();
+        [SerializeField] private Button[] avatarButtons = System.Array.Empty<Button>();
+        [SerializeField] private Image[] avatarRings = System.Array.Empty<Image>();
 
         [Header("Вітрина")]
         [SerializeField] private TMP_Text showcaseCaption;
-        [SerializeField] private Image showcasePlanet;
-        [SerializeField] private TMP_Text showcaseName;
-        [SerializeField] private Button[] thumbButtons = System.Array.Empty<Button>();
-        [SerializeField] private Image[] thumbPlanets = System.Array.Empty<Image>();
-        [SerializeField] private Image[] thumbRings = System.Array.Empty<Image>();
+        [SerializeField] private PictureView showcasePicture;
+        [SerializeField] private RectTransform showcaseEmpty;
+        [SerializeField] private Image showcaseEmptyFrame;
+        [SerializeField] private TMP_Text showcaseEmptyGlyph;
+        [SerializeField] private TMP_Text showcaseHint;
+        [SerializeField] private Button showcaseButton;
+        [SerializeField] private GradientImage showcaseButtonFill;
+        [SerializeField] private TMP_Text showcaseButtonLabel;
 
-        [Header("Досягнення")]
-        [SerializeField] private TMP_Text achievementsCaption;
-        [SerializeField] private AchievementBadge[] badges = System.Array.Empty<AchievementBadge>();
-        [SerializeField] private RectTransform toast;
-        [SerializeField] private TMP_Text toastLabel;
-
-        private static readonly int ModeId = Shader.PropertyToID("_Mode");
-        private static readonly int TypeId = Shader.PropertyToID("_Type");
-        private static readonly int SpinId = Shader.PropertyToID("_Spin");
-        private static readonly int SeedId = Shader.PropertyToID("_Seed");
-        private static readonly int PaintedId = Shader.PropertyToID("_Painted");
-        private static readonly int LockedId = Shader.PropertyToID("_Locked");
-        private static readonly int BaseId = Shader.PropertyToID("_Base");
-        private static readonly int LandId = Shader.PropertyToID("_Land");
-        private static readonly int AtmoId = Shader.PropertyToID("_Atmo");
-
-        private PlayerProfile? _profile;
-        private Material? _showcaseMaterial;
-        private Material?[] _thumbMaterials = System.Array.Empty<Material?>();
-        private Coroutine? _toast;
+        [Header("Мокові дані")]
+        [SerializeField] private string mockNick = "Нова";
 
         /// <summary>Назад у хаб.</summary>
         public System.Action? BackRequested;
 
-
         /// <summary>Гравець хоче змінити нік — олівець біля аватара.</summary>
         public System.Action? NickEditRequested;
+
+        /// <summary>«Обрати з колекції» — колекція в режимі вибору вітринної картинки.</summary>
+        public System.Action? ShowcasePickRequested;
 
         private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
+
+        public InkColor PreviewAvatarInk => avatar != null ? avatar.Ink : InkColor.None;
+        public bool PreviewAvatarShowsNumber => avatar != null && avatar.ShowsNumber;
+        public string PreviewNick => nickLabel != null ? nickLabel.text : string.Empty;
+
+        /// <summary>Тестам: скільки рядків зайняв нік після розкладки (має бути один).</summary>
+        public int PreviewNickLineCount
+        {
+            get
+            {
+                if (nickLabel == null)
+                    return 0;
+                nickLabel.ForceMeshUpdate();
+                return nickLabel.textInfo.lineCount;
+            }
+        }
+
+        /// <summary>Тестам: зсунути краплю-аватар на <paramref name="dy"/> одиниць (перевірка, що сторож перекриття бачить зсув).</summary>
+        public void PreviewShiftAvatar(float dy)
+        {
+            if (avatar == null)
+                return;
+            var rect = (RectTransform)avatar.transform;
+            rect.anchoredPosition += new Vector2(0f, dy);
+        }
+        public string? PreviewShowcaseId => showcasePicture != null && showcasePicture.gameObject.activeSelf ? showcasePicture.Picture?.Id : null;
+        public bool PreviewCanPickShowcase => showcaseButton != null && showcaseButton.interactable;
+        public int PreviewSelectedAvatar
+        {
+            get
+            {
+                for (var i = 0; i < avatarRings.Length; i++)
+                    if (avatarRings[i] != null && avatarRings[i].gameObject.activeSelf)
+                        return i;
+                return -1;
+            }
+        }
+
+        /// <summary>Тестам: тап по аватару з набору, як пальцем.</summary>
+        public void PreviewPickAvatar(int index) => OnAvatarTapped(index);
+
+        /// <summary>
+        /// Тестам: на скільки ЛОКАЛЬНИХ одиниць картки верх краплі-аватара стирчить над верхом візитки
+        /// (додатне — обрізається маскою скролу; старий баг «аватар обрізаний згори карткою»). Світові одиниці
+        /// стенда тут не годяться: на канвасі Screen Space – Camera пів одиниці — це ~100 px.
+        /// </summary>
+        public float PreviewAvatarOverflow
+        {
+            get
+            {
+                if (avatar == null || identityCard == null)
+                    return 0f;
+                var corners = new Vector3[4];
+                ((RectTransform)avatar.transform).GetWorldCorners(corners);
+                var avatarTopLocal = identityCard.InverseTransformPoint(corners[1]).y;
+                return avatarTopLocal - identityCard.rect.yMax;
+            }
+        }
 #endif
 
         private void Awake()
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
-            if (settingsButton != null)
-                WireSettingsButton(settingsButton);
-            if (editAvatarButton != null)
-                editAvatarButton.onClick.AddListener(() => NickEditRequested?.Invoke());
+            WireSettingsButton(settingsButton);
+            if (editNickButton != null)
+                editNickButton.onClick.AddListener(() => NickEditRequested?.Invoke());
+            if (showcaseButton != null)
+                showcaseButton.onClick.AddListener(() => ShowcasePickRequested?.Invoke());
 
-            for (var i = 0; i < thumbButtons.Length; i++)
+            for (var i = 0; i < avatarButtons.Length; i++)
             {
                 var index = i;
-                thumbButtons[i]?.onClick.AddListener(() => SelectShowcase(index));
+                avatarButtons[i]?.onClick.AddListener(() => OnAvatarTapped(index));
             }
-        }
-
-        private void Start()
-        {
-            for (var i = 0; i < badges.Length; i++)
-                badges[i]?.Bind(ShowRequirement);
         }
 
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            _profile = State != null ? PlayerProfile.FromState(State) : PlayerProfile.CreateMock();
             Apply();
         }
 
-        /// <summary>Перечитати стан без повторного входу на екран.</summary>
-        public void Refresh()
-        {
-            _profile = null;
-            Apply();
-        }
+        /// <summary>Перечитати стан без повторного входу на екран (після зміни ніка).</summary>
+        public void Refresh() => Apply();
 
         public void Apply()
         {
             if (design == null)
                 return;
 
-            _profile ??= State != null ? PlayerProfile.FromState(State) : PlayerProfile.CreateMock();
-
-            ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
-                FontStyles.Bold, design.LetterSpacingShopTitle);
+            ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary, FontStyles.Bold, design.LetterSpacingShopTitle);
             if (title != null) title.text = "ПРОФІЛЬ";
-
-            Caption(ladderCaption, "ЗВАННЯ");
+            Caption(avatarCaption, "АВАТАР");
             Caption(showcaseCaption, "ВІТРИНА");
-            Caption(achievementsCaption, "ДОСЯГНЕННЯ");
 
             ApplyIdentity();
-            ApplyLadder();
-            ApplyStats();
+            ApplyAvatars();
             ApplyShowcase();
-            ApplyAchievements();
+        }
 
-            if (toast != null)
-                toast.gameObject.SetActive(false);
+        private void ApplyIdentity()
+        {
+            var avatarId = State?.AvatarId ?? 0;
+            // 0 — без числа густоти: з префаба крапля приходить із «1» (старий баг на аватарі).
+            avatar?.Show(AvatarSet.InkOf(avatarId), 0);
+
+            if (editNickFill != null)
+                editNickFill.SetGradient(design.AccentTeal, design.AccentBlue);
+
+            ApplyFont(nickLabel, design.FontSizeProfileNick, design.TextPrimary, FontStyles.Bold, 0f);
+            if (nickLabel != null)
+            {
+                // Нік — завжди один рядок: 16 широких літер стискаються, а не переносяться на підказку.
+                nickLabel.enableAutoSizing = true;
+                nickLabel.fontSizeMax = design.FontSizeProfileNick;
+                nickLabel.fontSizeMin = design.FontSizeProfileNick * design.NickMinScale;
+                nickLabel.text = State?.Nick ?? mockNick;
+            }
+
+            ApplyFont(nickHint, design.FontSizeLabel, design.TextMuted, FontStyles.Normal, 0f);
+            if (nickHint != null) nickHint.text = "Нік і аватар бачать інші гравці";
+        }
+
+        private void ApplyAvatars()
+        {
+            var selected = State?.AvatarId ?? 0;
+            for (var i = 0; i < avatarOptions.Length; i++)
+            {
+                var exists = i < AvatarSet.Count;
+                if (i < avatarButtons.Length)
+                    Toggle(avatarButtons[i], exists);
+                if (exists && avatarOptions[i] != null)
+                {
+                    var color = design.Ink(AvatarSet.InkOf(i));
+                    avatarOptions[i].SetGradient(DesignSystem.Lighten(color, 0.5f), DesignSystem.Darken(color, 0.28f));
+                }
+                if (i < avatarRings.Length && avatarRings[i] != null)
+                {
+                    // Обраний обведено — інакше незрозуміло, який із шести зараз на візитці.
+                    avatarRings[i].color = design.TextPrimary;
+                    Toggle(avatarRings[i], exists && i == selected);
+                }
+            }
+        }
+
+        private void ApplyShowcase()
+        {
+            var id = State?.ShowcasePictureId;
+            var picture = id != null && State != null ? State.Library.Find(id) : null;
+
+            // Та сама картинка — не перераховуємо маску й гало на кожен вхід чи Refresh.
+            var same = showcasePicture != null && showcasePicture.gameObject.activeSelf && showcasePicture.Picture == picture;
+            Toggle(showcasePicture, picture != null);
+            if (picture != null && showcasePicture != null && !same)
+                showcasePicture.ShowCompleted(picture, string.Empty);
+
+            // Без картинки — порожня рамка зі знаком питання на тому ж місці: картка не западає, а чекає.
+            Toggle(showcaseEmpty, picture == null);
+            if (showcaseEmptyFrame != null)
+                showcaseEmptyFrame.color = design.GlassStroke;
+            ApplyFont(showcaseEmptyGlyph, design.FontSizeProfileNick, design.TextDim, FontStyles.Bold, 0f);
+            if (showcaseEmptyGlyph != null) showcaseEmptyGlyph.text = "?";
+
+            // Гравець має знати, обрав він вітрину сам чи її підставила гра (остання домальована).
+            ApplyFont(showcaseHint, design.FontSizeLabel, design.TextMuted, FontStyles.Normal, 0f);
+            if (showcaseHint != null)
+                showcaseHint.text = picture == null
+                    ? "Домалюй першу картинку в забігу — вона стане вітриною"
+                    : State != null && State.IsShowcaseChosen
+                        ? $"{picture.Name} · {RarityNames.Of(picture.Rarity)} — твоя вітрина, її бачать інші гравці"
+                        : $"{picture.Name} · {RarityNames.Of(picture.Rarity)} — остання домальована, поки ти не обереш свою";
+
+            var canPick = State != null && State.Collection.Distinct > 0;
+            if (showcaseButton != null)
+                showcaseButton.interactable = canPick;
+            if (showcaseButtonFill != null)
+            {
+                if (canPick) showcaseButtonFill.SetGradient(design.AccentTeal, design.AccentBlue);
+                else showcaseButtonFill.SetGradient(design.GlassFill, design.GlassFill);
+            }
+            ApplyFont(showcaseButtonLabel, design.FontSizeSubtitle, canPick ? design.TextPrimary : design.TextDim, FontStyles.Bold, 0f);
+            if (showcaseButtonLabel != null) showcaseButtonLabel.text = "Обрати з колекції";
+        }
+
+        private void OnAvatarTapped(int index)
+        {
+            if (index < 0 || index >= AvatarSet.Count)
+                return;
+            State?.SetAvatar(index);
+            // Лише те, що змінилось: крапля на візитці й два кільця, а не весь екран.
+            avatar?.Show(AvatarSet.InkOf(index), 0);
+            for (var i = 0; i < avatarRings.Length; i++)
+                Toggle(avatarRings[i], i == index);
+            avatar?.PlayLand();
         }
 
         private void Caption(TMP_Text? label, string text)
@@ -151,202 +266,7 @@ namespace InkFlow.UI
             if (label == null)
                 return;
             label.text = text;
-            label.fontSize = design.FontSizeSmall;
-            label.color = design.TextFaint;
-            label.fontStyle = FontStyles.Bold;
-            label.characterSpacing = design.LetterSpacingWide;
-            if (design.Font != null) label.font = design.Font;
-        }
-
-        private void ApplyIdentity()
-        {
-            var profile = _profile!;
-
-            avatar?.Apply();
-
-            if (editAvatarFill != null)
-                editAvatarFill.SetGradient(design.AccentTeal, design.AccentBlue);
-
-            ApplyFont(nickLabel, design.FontSizeProfileNick, design.TextPrimary, FontStyles.Bold, 0f);
-            if (nickLabel != null) nickLabel.text = profile.Nick;
-
-            if (rankCapsule != null)
-                rankCapsule.SetGradient(design.ShopTabActiveFrom, design.ShopTabActiveTo);
-            if (rankCapsuleGlow != null)
-                rankCapsuleGlow.color = DesignSystem.WithAlpha(design.AccentPrimary, design.RankCapsuleGlowAlpha);
-
-            ApplyFont(rankLabel, design.FontSizeShopCard, design.TextPrimary, FontStyles.Bold, 0f);
-            if (rankLabel != null) rankLabel.text = profile.RankTitle;
-
-            ApplyFont(oilValue, design.FontSizeShopPrice, design.TextPrimary, FontStyles.Bold, 0f);
-            if (oilValue != null) oilValue.text = profile.Oil.ToString("N0").Replace(",", " ");
-
-            ApplyFont(oilWord, design.FontSizeCardSubtitle, design.TextFaint, FontStyles.Normal, 0f);
-            if (oilWord != null) oilWord.text = "нафти";
-        }
-
-        private void ApplyLadder()
-        {
-            var steps = _profile!.Ladder;
-            for (var i = 0; i < ladder.Length; i++)
-            {
-                if (ladder[i] == null)
-                    continue;
-                if (i < steps.Count)
-                    ladder[i].Show(steps[i]);
-                else
-                    ladder[i].Release();
-            }
-        }
-
-        private void ApplyStats()
-        {
-            var stats = _profile!.Stats;
-            for (var i = 0; i < statValues.Length; i++)
-            {
-                var used = i < stats.Count;
-                if (i < statLabels.Length)
-                    Toggle(statLabels[i], used);
-                Toggle(statValues[i], used);
-                if (i < statStars.Length)
-                    Toggle(statStars[i], used && stats[i].Star);
-                if (!used)
-                    continue;
-
-                var stat = stats[i];
-                ApplyFont(statValues[i], design.FontSizeProfileStat, stat.Color.ToColor(),
-                    FontStyles.Bold, 0f);
-                statValues[i].text = stat.Value;
-
-                if (i >= statLabels.Length)
-                    continue;
-                ApplyFont(statLabels[i], design.FontSizeLabel, design.TextMuted, FontStyles.Normal, 0f);
-                statLabels[i].text = stat.Label;
-
-                // Зірка перед числом — не символ, а спрайт: ★ у Nunito немає.
-                if (i < statStars.Length && statStars[i] != null && stat.Star)
-                    statStars[i].color = stat.Color.ToColor();
-            }
-        }
-
-        private void SelectShowcase(int index)
-        {
-            if (_profile == null || index < 0 || index >= _profile.Showcase.Count)
-                return;
-            _profile.FavouriteIndex = index;
-            ApplyShowcase();
-        }
-
-        private void ApplyShowcase()
-        {
-            var profile = _profile!;
-            if (showcasePlanet != null && planetShader != null)
-            {
-                if (_showcaseMaterial == null)
-                {
-                    _showcaseMaterial = new Material(planetShader) { name = "Showcase" };
-                    showcasePlanet.material = _showcaseMaterial;
-                }
-
-                var favourite = profile.Favourite;
-                if (favourite != null)
-                    ApplyPlanet(_showcaseMaterial, favourite, design.ShowcaseSpin);
-            }
-
-            ApplyFont(showcaseName, design.FontSizeShopPrice, design.TextPrimary, FontStyles.Bold, 0f);
-            if (showcaseName != null && profile.Favourite != null)
-                showcaseName.text = $"Моя гордість · {profile.Favourite.Name}";
-
-            EnsureThumbMaterials();
-            for (var i = 0; i < thumbPlanets.Length; i++)
-            {
-                var used = i < profile.Showcase.Count;
-                Toggle(thumbPlanets[i], used);
-                if (i < thumbButtons.Length)
-                    Toggle(thumbButtons[i], used);
-                if (i < thumbRings.Length && thumbRings[i] != null)
-                {
-                    // Обраний бачок обведено — інакше незрозуміло, який саме
-                    // із трьох зараз на вітрині.
-                    thumbRings[i].gameObject.SetActive(used && i == profile.FavouriteIndex);
-                    thumbRings[i].color = design.TextPrimary;
-                }
-
-                if (!used || i >= _thumbMaterials.Length || _thumbMaterials[i] == null)
-                    continue;
-                // Мініатюри не крутяться: три планети, що обертаються поруч, — шум.
-                ApplyPlanet(_thumbMaterials[i]!, profile.Showcase[i], 0f);
-            }
-        }
-
-        private void EnsureThumbMaterials()
-        {
-            if (_thumbMaterials.Length == thumbPlanets.Length || planetShader == null)
-                return;
-
-            _thumbMaterials = new Material?[thumbPlanets.Length];
-            for (var i = 0; i < thumbPlanets.Length; i++)
-            {
-                if (thumbPlanets[i] == null)
-                    continue;
-                _thumbMaterials[i] = new Material(planetShader) { name = $"Thumb{i}" };
-                thumbPlanets[i].material = _thumbMaterials[i];
-            }
-        }
-
-        private void ApplyPlanet(Material material, ShowcasePlanet planet, float spin)
-        {
-            var palette = design.Planet(planet.Type);
-            material.SetFloat(ModeId, 0f);
-            material.SetFloat(TypeId, (float)planet.Type);
-            material.SetFloat(SpinId, spin);
-            material.SetFloat(PaintedId, 1f);
-            material.SetFloat(LockedId, 0f);
-            material.SetFloat(SeedId, Mathf.Abs(planet.Id.GetHashCode() % 743) * 0.019f);
-            material.SetColor(BaseId, palette.Base);
-            material.SetColor(LandId, palette.Land);
-            material.SetColor(AtmoId, palette.Atmosphere);
-        }
-
-        private void ApplyAchievements()
-        {
-            var list = _profile!.Achievements;
-            for (var i = 0; i < badges.Length; i++)
-            {
-                if (badges[i] == null)
-                    continue;
-                if (i < list.Count)
-                    badges[i].Show(list[i]);
-                else
-                    badges[i].Release();
-            }
-        }
-
-        private void ShowRequirement(Achievement achievement)
-        {
-            if (toast == null || toastLabel == null || design == null)
-                return;
-
-            ApplyFont(toastLabel, design.FontSizeSmall, design.TextPrimary, FontStyles.Normal, 0f);
-            toastLabel.text = achievement.Unlocked
-                ? $"<b>{achievement.Name}</b> · отримано"
-                : $"<b>{achievement.Name}</b> · {achievement.Requirement}";
-
-            toast.gameObject.SetActive(true);
-            if (!isActiveAndEnabled)
-                return;
-
-            if (_toast != null)
-                StopCoroutine(_toast);
-            _toast = StartCoroutine(HideToast());
-        }
-
-        private IEnumerator HideToast()
-        {
-            yield return new WaitForSeconds(design.ToastDuration);
-            if (toast != null)
-                toast.gameObject.SetActive(false);
-            _toast = null;
+            ApplyFont(label, design.FontSizeSmall, design.TextFaint, FontStyles.Bold, design.LetterSpacingWide);
         }
 
         private static void Toggle(Component? target, bool on)
@@ -365,23 +285,6 @@ namespace InkFlow.UI
             label.characterSpacing = spacing;
             if (design.Font != null)
                 label.font = design.Font;
-        }
-
-        private void OnDestroy()
-        {
-            DestroyMaterial(_showcaseMaterial);
-            for (var i = 0; i < _thumbMaterials.Length; i++)
-                DestroyMaterial(_thumbMaterials[i]);
-        }
-
-        private static void DestroyMaterial(Material? material)
-        {
-            if (material == null)
-                return;
-            if (Application.isPlaying)
-                Destroy(material);
-            else
-                DestroyImmediate(material);
         }
     }
 }

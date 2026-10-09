@@ -134,6 +134,16 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void WithRealPlayer_CarriesTheChosenAvatar()
+        {
+            var state = PlayerState.NewPlayer(EconomyData.Default);
+            state.SetAvatar(4);
+            Assert.AreEqual(AvatarSet.InkOf(4), Leaderboard.WithRealPlayer(state).You.Avatar, "§14: аватар із профілю — у рядку рейтингу");
+            foreach (var player in Leaderboard.CreateMock().Players)
+                Assert.AreEqual(InkFlow.Core.InkColor.None, player.Avatar, "мокові гравці — за кольором краплі");
+        }
+
+        [Test]
         public void IncognitoPlayers_StayInTheTableButAreMarked()
         {
             var board = Leaderboard.CreateMock();

@@ -14,11 +14,12 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Збирає профіль за розміткою макета «Ink Flow v2».
-    /// Меню: Ink Flow → Setup → Build Profile Screen.
+    /// Збирає профіль за майстер-доком §14: візитка (аватар-крапля, нік, олівець), набір аватарів,
+    /// вітринна картинка з кнопкою «Обрати з колекції». Меню: Ink Flow → Setup → Build Profile Screen.
     ///
-    /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Екран скролиться цілком,
-    /// разом із шапкою — так у макеті. Усі елементи створюються тут один раз.
+    /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Екран скролиться цілком, разом із шапкою — так
+    /// у макеті. Крапля-аватар висить ПІД верхом картки (півот зверху), а не над ним: стара збірка
+    /// ставила півот знизу, крапля стирчала на 94 px над карткою, і маска скролу зрізала їй маківку.
     /// </summary>
     public static class BuildProfileScreen
     {
@@ -27,7 +28,6 @@ namespace InkFlow.Editor
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
-        private const string PlanetShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
 
         private const float K = 1080f / 390f;
 
@@ -37,6 +37,10 @@ namespace InkFlow.Editor
 
         /// <summary>Радіус великих карток профілю: 26 px макета.</summary>
         private static readonly float CardRadius = M(26f);
+
+        /// <summary>Аватар на візитці: 110 px макета; крапля в наборі — 44.</summary>
+        private const float AvatarMockup = 110f;
+        private const float OptionMockup = 44f;
 
         [MenuItem("Ink Flow/Setup/Build Profile Screen")]
         public static void Build()
@@ -68,13 +72,9 @@ namespace InkFlow.Editor
             var circle = LoadSprite("circle-soft");
             var circleOutline = LoadSprite("circle-outline");
             var gloss = LoadSprite("circle-gloss");
-            var quad = LoadSprite("white-quad");
-            var glow = LoadSprite("glow");
-            var star = LoadSprite("icon-star");
-            var check = LoadSprite("icon-check");
+            var nebula = LoadSprite("nebula");
             var gear = LoadSprite("icon-gear");
             var pencil = LoadSprite("icon-pencil");
-            var planetShader = AssetDatabase.LoadAssetAtPath<Shader>(PlanetShaderPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var dropPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/DropView.prefab");
 
@@ -83,11 +83,9 @@ namespace InkFlow.Editor
             foreach (var (sprite, name) in new[]
             {
                 (rounded, "rounded-rect"), (outline, "rounded-rect-outline"), (circle, "circle-soft"),
-                (circleOutline, "circle-outline"), (gloss, "circle-gloss"), (quad, "white-quad"),
-                (glow, "glow"), (star, "icon-star"), (check, "icon-check"), (gear, "icon-gear"), (pencil, "icon-pencil")
+                (circleOutline, "circle-outline"), (gloss, "circle-gloss"), (nebula, "nebula"), (gear, "icon-gear"), (pencil, "icon-pencil")
             })
                 if (sprite == null) missing.Add($"{SpriteFolder}/{name}.png");
-            if (planetShader == null) missing.Add(PlanetShaderPath);
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (dropPrefab == null) missing.Add($"{PrefabFolder}/DropView.prefab");
             if (missing.Count > 0)
@@ -126,45 +124,31 @@ namespace InkFlow.Editor
             BuildHeader(content, design!, font, circle!, circleOutline!, gear!, ref y,
                 out var backButton, out var title, out var settingsButton);
 
-            BuildIdentity(content, design!, font, rounded!, outline!, circle!, glow!, pencil!,
-                dropPrefab!, ref y, out var avatar, out var editButton, out var editFill,
-                out var nick, out var rankCapsule, out var rankGlow, out var rankLabel,
-                out var oilValue, out var oilWord);
+            BuildIdentity(content, design!, font, rounded!, outline!, circle!, pencil!, dropPrefab!, ref y,
+                out var identityCard, out var avatar, out var editButton, out var editFill, out var nick, out var nickHint);
+            _ = cosmic;
 
-            BuildLadder(content, design!, font, rounded!, outline!, circle!, glow!,
-                star!, check!, ref y, out var ladderCaption, out var ladderSteps);
+            BuildAvatars(content, design!, font, rounded!, outline!, circle!, gloss!, circleOutline!, ref y,
+                out var avatarCaption, out var options, out var optionButtons, out var rings);
 
-            BuildStats(content, design!, font, rounded!, outline!, star!, ref y,
-                out var statValues, out var statLabels, out var statStars);
-
-            BuildShowcaseAndBadges(content, design!, font, rounded!, outline!, circle!, quad!,
-                glow!, planetShader!, ref y,
-                out var showcaseCaption, out var showcasePlanet, out var showcaseName,
-                out var thumbButtons, out var thumbPlanets, out var thumbRings,
-                out var achievementsCaption, out var badges, out var toast, out var toastLabel);
+            BuildShowcase(content, design!, font, rounded!, outline!, circle!, nebula!, ref y,
+                out var showcaseCaption, out var showcasePicture, out var showcaseEmpty, out var showcaseEmptyFrame,
+                out var showcaseEmptyGlyph, out var showcaseHint, out var showcaseButton, out var showcaseFill, out var showcaseLabel);
 
             content.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, -y + M(24f));
 
             Wire(screen,
-                ("design", design!), ("planetShader", planetShader!),
+                ("design", design!),
                 ("backButton", backButton), ("title", title), ("settingsButton", settingsButton),
-                ("avatar", avatar), ("editAvatarButton", editButton), ("editAvatarFill", editFill),
-                ("nickLabel", nick), ("rankCapsule", rankCapsule), ("rankCapsuleGlow", rankGlow),
-                ("rankLabel", rankLabel), ("oilValue", oilValue), ("oilWord", oilWord),
-                ("ladderCaption", ladderCaption),
-                ("showcaseCaption", showcaseCaption), ("showcasePlanet", showcasePlanet),
-                ("showcaseName", showcaseName),
-                ("achievementsCaption", achievementsCaption),
-                ("toast", toast), ("toastLabel", toastLabel));
-
-            WireArray(screen, "ladder", ladderSteps);
-            WireArray(screen, "statValues", statValues);
-            WireArray(screen, "statLabels", statLabels);
-            WireArray(screen, "statStars", statStars);
-            WireArray(screen, "thumbButtons", thumbButtons);
-            WireArray(screen, "thumbPlanets", thumbPlanets);
-            WireArray(screen, "thumbRings", thumbRings);
-            WireArray(screen, "badges", badges);
+                ("identityCard", identityCard), ("avatar", avatar), ("editNickButton", editButton), ("editNickFill", editFill),
+                ("nickLabel", nick), ("nickHint", nickHint),
+                ("avatarCaption", avatarCaption),
+                ("showcaseCaption", showcaseCaption), ("showcasePicture", showcasePicture), ("showcaseHint", showcaseHint),
+                ("showcaseEmpty", showcaseEmpty), ("showcaseEmptyFrame", showcaseEmptyFrame), ("showcaseEmptyGlyph", showcaseEmptyGlyph),
+                ("showcaseButton", showcaseButton), ("showcaseButtonFill", showcaseFill), ("showcaseButtonLabel", showcaseLabel));
+            WireArray(screen, "avatarOptions", options);
+            WireArray(screen, "avatarButtons", optionButtons);
+            WireArray(screen, "avatarRings", rings);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -198,36 +182,32 @@ namespace InkFlow.Editor
             Stretch(viewportGo);
             viewportGo.AddComponent<RectMask2D>();
 
-            var contentGo = Child(viewportGo, "Content");
-            var contentRect = contentGo.GetComponent<RectTransform>();
-            contentRect.anchorMin = new Vector2(0f, 1f);
-            contentRect.anchorMax = new Vector2(1f, 1f);
-            contentRect.pivot = new Vector2(0.5f, 1f);
-            contentRect.anchoredPosition = Vector2.zero;
+            content = Child(viewportGo, "Content");
+            var rect = content.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
 
             scroll.viewport = viewportGo.GetComponent<RectTransform>();
-            scroll.content = contentRect;
-            content = contentGo;
+            scroll.content = rect;
         }
 
-        // ── Шапка: padding 0 18 12; «ПРОФІЛЬ» 15/800 ls .18em; шестерня 40 ──
         private static void BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             Sprite circle, Sprite circleOutline, Sprite gear, ref float y,
             out Button backButton, out TMP_Text title, out Button settingsButton)
         {
             var height = M(46f);
-            var go = Section(parent, "Header", ref y, height, spacing: 0f);
+            var go = Section(parent, "Header", ref y, height, spacing: M(12f));
             var rect = go.GetComponent<RectTransform>();
             rect.offsetMin = new Vector2(SideMargin, rect.offsetMin.y);
             rect.offsetMax = new Vector2(-SideMargin, rect.offsetMax.y);
 
-            backButton = RoundButton(go, design, font, circle, circleOutline, null, "‹",
-                new Vector2(0f, 0.5f), Vector2.zero, out _);
-            settingsButton = RoundButton(go, design, font, circle, circleOutline, gear, null,
-                new Vector2(1f, 0.5f), Vector2.zero, out _);
+            backButton = RoundButton(go, design, font, circle, circleOutline, null, "‹", new Vector2(0f, 0.5f));
+            settingsButton = RoundButton(go, design, font, circle, circleOutline, gear, null, new Vector2(1f, 0.5f));
 
-            // Тут праворуч не капсула валюти, а кругла кнопка — вільний проміжок
-            // симетричний, тож заголовок центрується по шапці.
+            // Праворуч не капсула валюти, а кругла кнопка — проміжок симетричний, заголовок по центру шапки.
             title = Label(go, "Title", "ПРОФІЛЬ", design, font,
                 design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
             Place(title, Vector2.zero, new Vector2(M(240f), M(24f)),
@@ -235,15 +215,14 @@ namespace InkFlow.Editor
         }
 
         private static Button RoundButton(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite circle, Sprite circleOutline, Sprite? icon, string? glyph,
-            Vector2 anchor, Vector2 offset, out Image fill)
+            Sprite circle, Sprite circleOutline, Sprite? icon, string? glyph, Vector2 anchor)
         {
             var size = M(40f);
             var go = Child(parent, glyph != null ? "Back" : "Settings");
-            fill = go.AddComponent<Image>();
+            var fill = go.AddComponent<Image>();
             fill.sprite = circle;
             fill.color = design.CircleButtonFill;
-            Place(fill, offset, new Vector2(size, size), anchor, anchor);
+            Place(fill, Vector2.zero, new Vector2(size, size), anchor, anchor);
 
             var ringGo = Child(go, "Ring");
             Stretch(ringGo);
@@ -254,8 +233,7 @@ namespace InkFlow.Editor
 
             if (glyph != null)
             {
-                var label = Label(go, "Glyph", glyph, design, font,
-                    M(22f), design.TextPrimary, TextAlignmentOptions.Center);
+                var label = Label(go, "Glyph", glyph, design, font, M(22f), design.TextPrimary, TextAlignmentOptions.Center);
                 Stretch(label.gameObject);
             }
             else if (icon != null)
@@ -265,8 +243,7 @@ namespace InkFlow.Editor
                 image.sprite = icon;
                 image.color = design.TextMuted;
                 image.raycastTarget = false;
-                Place(image, Vector2.zero, new Vector2(M(20f), M(20f)),
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                Place(image, Vector2.zero, new Vector2(M(20f), M(20f)), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             }
 
             var button = go.AddComponent<Button>();
@@ -274,468 +251,203 @@ namespace InkFlow.Editor
             return button;
         }
 
-        // ── Візитка ──
+        // ── Візитка: крапля-аватар, олівець, нік ──
         private static void BuildIdentity(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle, Sprite glowSprite, Sprite pencil,
-            GameObject dropPrefab, ref float y, out DropView avatar, out Button editButton, out GradientImage editFill,
-            out TMP_Text nick, out GradientImage rankCapsule, out Image rankGlow,
-            out TMP_Text rankLabel, out TMP_Text oilValue, out TMP_Text oilWord)
+            Sprite rounded, Sprite outline, Sprite circle, Sprite pencil, GameObject dropPrefab, ref float y,
+            out RectTransform card, out DropView avatar, out Button editButton, out GradientImage editFill,
+            out TMP_Text nick, out TMP_Text nickHint)
         {
-            var height = M(269f);
+            var top = M(20f);
+            var avatarSize = M(AvatarMockup);
+            var nickTop = top + avatarSize + M(10f);
+            var hintTop = nickTop + M(40f);
+            var height = hintTop + M(18f) + M(18f);
             var go = Card(parent, "Identity", rounded, outline, design, ref y, height);
+            card = go.GetComponent<RectTransform>();
 
-            var avatarSize = M(110f);
+            // Якір зверху, півот по центру: верх краплі = верх картки − відступ, тож вона ніколи не вилазить
+            // за картку (маска скролу не зріже маківку), а дихання й приземлення масштабують її навколо
+            // центру, а не навколо маківки, як маятник.
             var avatarGo = (GameObject)PrefabUtility.InstantiatePrefab(dropPrefab, go.transform);
+            avatarGo.name = "Avatar";
             avatar = avatarGo.GetComponent<DropView>();
-            Place(avatar, new Vector2(0f, -M(16f)), new Vector2(avatarSize, avatarSize),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0f));
+            Place(avatar, new Vector2(0f, -(top + avatarSize * 0.5f)), new Vector2(avatarSize, avatarSize),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            SetDrop(avatar, density: 0, idleWobble: true);
 
             // Олівець сидить на самій краплі, правіше-нижче її центру.
             var editSize = M(30f);
-            var editGo = Child(avatarGo, "EditAvatar");
+            var editGo = Child(avatarGo, "EditNick");
             editFill = editGo.AddComponent<GradientImage>();
             editFill.sprite = circle;
             editFill.SetGradient(design.AccentTeal, design.AccentBlue);
             Place(editFill, new Vector2(-M(14f), 0f), new Vector2(editSize, editSize),
                 new Vector2(1f, 0f), new Vector2(1f, 0.5f));
 
-            // Олівець — спрайт, не символ: ✎ (U+270E) у Nunito немає, і TMP
-            // підставляв би порожній квадрат.
+            // Олівець — спрайт, не символ: ✎ у Nunito немає, TMP підставляв би порожній квадрат.
             var pencilGo = Child(editGo, "Glyph");
             var pencilIcon = pencilGo.AddComponent<Image>();
             pencilIcon.sprite = pencil;
             pencilIcon.color = design.TextPrimary;
             pencilIcon.raycastTarget = false;
-            Place(pencilIcon, Vector2.zero, new Vector2(M(15f), M(15f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            Place(pencilIcon, Vector2.zero, new Vector2(M(15f), M(15f)), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
 
             editButton = editGo.AddComponent<Button>();
             editButton.targetGraphic = editFill;
 
             nick = Label(go, "Nick", "Нова", design, font,
                 design.FontSizeProfileNick, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(nick, new Vector2(0f, -M(16f) - avatarSize - M(8f)), new Vector2(M(300f), M(40f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            // Найдовший дозволений нік (16 широких літер) стискається до одного рядка, а не переноситься на підказку.
+            nick.textWrappingMode = TextWrappingModes.NoWrap;
+            nick.overflowMode = TextOverflowModes.Ellipsis;
+            nick.enableAutoSizing = true;
+            nick.fontSizeMax = design.FontSizeProfileNick;
+            nick.fontSizeMin = design.FontSizeProfileNick * design.NickMinScale;
+            Place(nick, new Vector2(0f, -nickTop), new Vector2(M(300f), M(40f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
 
-            var capsuleGo = Child(go, "RankCapsule");
-            rankCapsule = capsuleGo.AddComponent<GradientImage>();
-            rankCapsule.sprite = rounded;
-            rankCapsule.type = Image.Type.Sliced;
-            rankCapsule.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(16f));
-            Place(rankCapsule, new Vector2(0f, -M(16f) - avatarSize - M(52f)),
-                new Vector2(M(190f), M(32f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var rankGlowGo = Child(capsuleGo, "Glow");
-            Stretch(rankGlowGo, -M(6f));
-            rankGlow = rankGlowGo.AddComponent<Image>();
-            rankGlow.sprite = glowSprite;
-            rankGlow.type = Image.Type.Sliced;
-            rankGlow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / M(6f);
-            rankGlow.raycastTarget = false;
-            rankGlowGo.transform.SetAsFirstSibling();
-
-            rankLabel = Label(capsuleGo, "Label", "Художниця галактик", design, font,
-                design.FontSizeShopCard, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(rankLabel.gameObject);
-
-            // Капсула валюти тут інша, ніж CurrencyWidget: із додатковим словом
-            // «нафти» і без глянцевої кулі — так у макеті саме на цьому екрані.
-            var oilGo = Child(go, "Oil");
-            var oilFill = oilGo.AddComponent<Image>();
-            oilFill.sprite = rounded;
-            oilFill.type = Image.Type.Sliced;
-            oilFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
-            oilFill.color = new Color(1f, 1f, 1f, 0.05f);
-            oilFill.raycastTarget = false;
-            Place(oilFill, new Vector2(0f, -M(16f) - avatarSize - M(96f)),
-                new Vector2(M(150f), M(34f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var oilStrokeGo = Child(oilGo, "Stroke");
-            Stretch(oilStrokeGo);
-            var oilStroke = oilStrokeGo.AddComponent<Image>();
-            oilStroke.sprite = outline;
-            oilStroke.type = Image.Type.Sliced;
-            oilStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
-            oilStroke.color = design.GlassStroke;
-            oilStroke.raycastTarget = false;
-
-            var oilDropGo = Child(oilGo, "Drop");
-            var oilDrop = oilDropGo.AddComponent<GradientImage>();
-            oilDrop.sprite = circle;
-            oilDrop.SetGradient(design.AccentSecondary, design.BackgroundEdge);
-            oilDrop.raycastTarget = false;
-            Place(oilDrop, new Vector2(M(9f), 0f), new Vector2(M(26f), M(28f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-
-            oilValue = Label(oilGo, "Value", "1 250", design, font,
-                design.FontSizeShopPrice, design.TextPrimary, TextAlignmentOptions.Left);
-            Place(oilValue, new Vector2(M(43f), 0f), new Vector2(M(56f), M(20f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-
-            oilWord = Label(oilGo, "Word", "нафти", design, font,
-                design.FontSizeCardSubtitle, design.TextFaint, TextAlignmentOptions.Left);
-            Place(oilWord, new Vector2(M(99f), 0f), new Vector2(M(46f), M(18f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+            nickHint = Label(go, "NickHint", "Нік і аватар бачать інші гравці", design, font,
+                design.FontSizeLabel, design.TextMuted, TextAlignmentOptions.Center);
+            Place(nickHint, new Vector2(0f, -hintTop), new Vector2(M(300f), M(18f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
         }
 
-        // ── Драбина звань: лінія зліва, п'ять сходинок ──
-        private static void BuildLadder(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle, Sprite glowSprite,
-            Sprite star, Sprite check, ref float y,
-            out TMP_Text caption, out RankStepView[] steps)
+        // ── Набір аватарів: ряд крапель, обрана обведена ──
+        // Кожна крапля — градієнтне коло з глянцем, як у рядку рейтингу, а не DropView: шість DropView
+        // дали б шість LateUpdate і перехопили б тап (IPointerClickHandler на краплі з'їдав клік слота).
+        private static void BuildAvatars(GameObject parent, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, Sprite circle, Sprite gloss, Sprite circleOutline, ref float y,
+            out TMP_Text caption, out GradientImage[] options, out Button[] buttons, out Image[] rings)
         {
-            const int count = 5;
-            var stepHeight = M(48f);
-            var height = M(16f) + M(22f) + count * stepHeight + M(10f);
-            var go = Card(parent, "Ladder", rounded, outline, design, ref y, height);
+            var count = AvatarSet.Count;
+            var option = M(OptionMockup);
+            var ringPad = M(4f);
+            var rowTop = M(40f);
+            var height = rowTop + option + M(20f);
+            var go = Card(parent, "Avatars", rounded, outline, design, ref y, height);
+            caption = Caption(go, design, font, "АВАТАР");
 
-            caption = Caption(go, design, font, "ЗВАННЯ");
-
-            // Лінія, що з'єднує кружки. Іде під ними, тому додається першою.
-            var lineGo = Child(go, "Line");
-            var line = lineGo.AddComponent<Image>();
-            line.color = new Color(1f, 1f, 1f, 0.12f);
-            line.raycastTarget = false;
-            Place(line, new Vector2(M(35f), -M(52f)), new Vector2(M(2f), count * stepHeight - M(30f)),
-                new Vector2(0f, 1f), new Vector2(0.5f, 1f));
-
-            steps = new RankStepView[count];
+            // Ряд рівномірно по ширині картки між бічними полями 18: позиції — частками ширини, щоб
+            // ряд тримався на будь-якому пристрої, а не лише на макеті 390.
+            options = new GradientImage[count];
+            buttons = new Button[count];
+            rings = new Image[count];
             for (var i = 0; i < count; i++)
-                steps[i] = BuildLadderStep(go, design, font, circle, glowSprite, star, check,
-                    -M(38f) - i * stepHeight, stepHeight);
-        }
-
-        private static RankStepView BuildLadderStep(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite circle, Sprite glowSprite, Sprite star, Sprite check,
-            float top, float height)
-        {
-            var nodeSize = M(30f);
-            var go = Child(parent, "Step");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(0f, top - height);
-            rect.offsetMax = new Vector2(0f, top);
-
-            var nodeGo = Child(go, "Node");
-            var node = nodeGo.AddComponent<GradientImage>();
-            node.sprite = circle;
-            node.raycastTarget = false;
-            Place(node, new Vector2(M(20f), 0f), new Vector2(nodeSize, nodeSize),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-
-            var nodeGlowGo = Child(nodeGo, "Glow");
-            Stretch(nodeGlowGo, -M(7f));
-            var nodeGlow = nodeGlowGo.AddComponent<Image>();
-            nodeGlow.sprite = glowSprite;
-            nodeGlow.type = Image.Type.Sliced;
-            nodeGlow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / M(7f);
-            nodeGlow.raycastTarget = false;
-            nodeGlowGo.transform.SetAsFirstSibling();
-
-            var strokeGo = Child(nodeGo, "Stroke");
-            Stretch(strokeGo);
-            var nodeStroke = strokeGo.AddComponent<Image>();
-            nodeStroke.sprite = LoadSprite("circle-outline");
-            nodeStroke.raycastTarget = false;
-
-            var checkGo = Child(nodeGo, "Check");
-            var checkIcon = checkGo.AddComponent<Image>();
-            checkIcon.sprite = check;
-            checkIcon.color = design.TextMuted;
-            checkIcon.raycastTarget = false;
-            Place(checkIcon, Vector2.zero, new Vector2(M(13f), M(13f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var starGo = Child(nodeGo, "Star");
-            var starIcon = starGo.AddComponent<Image>();
-            starIcon.sprite = star;
-            starIcon.color = design.TextPrimary;
-            starIcon.raycastTarget = false;
-            Place(starIcon, Vector2.zero, new Vector2(M(15f), M(15f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var titleLabel = Label(go, "Title", "Звання", design, font,
-                design.FontSizeRankRow, design.TextPrimary, TextAlignmentOptions.Left);
-            Place(titleLabel, new Vector2(M(62f), M(7f)), new Vector2(M(250f), M(22f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-
-            var subtitleLabel = Label(go, "Subtitle", "", design, font,
-                design.FontSizeSmall, design.AccentTeal, TextAlignmentOptions.Left);
-            Place(subtitleLabel, new Vector2(M(62f), -M(10f)), new Vector2(M(250f), M(16f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-
-            var view = go.AddComponent<RankStepView>();
-            Wire(view,
-                ("design", design), ("node", node), ("nodeStroke", nodeStroke), ("nodeGlow", nodeGlow),
-                ("checkIcon", checkIcon), ("starIcon", starIcon),
-                ("titleLabel", titleLabel), ("subtitleLabel", subtitleLabel));
-            return view;
-        }
-
-        // ── Статистика: сітка 2×2 ──
-        private static void BuildStats(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite star, ref float y,
-            out TMP_Text[] values, out TMP_Text[] labels, out Image[] stars)
-        {
-            var tileHeight = M(84f);
-            var gap = M(10f);
-            var height = tileHeight * 2f + gap;
-
-            var go = Child(parent, "Stats");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, y - height);
-            rect.offsetMax = new Vector2(-SideMargin, y);
-            y -= height + M(12f);
-
-            values = new TMP_Text[4];
-            labels = new TMP_Text[4];
-            stars = new Image[4];
-
-            for (var i = 0; i < 4; i++)
             {
-                var column = i % 2;
-                var row = i / 2;
+                var slotGo = Child(go, $"Option{i}");
+                var slot = slotGo.GetComponent<RectTransform>();
+                var t = count > 1 ? i / (float)(count - 1) : 0.5f;
+                slot.anchorMin = slot.anchorMax = new Vector2(t, 1f);
+                slot.pivot = new Vector2(t, 1f);
+                slot.anchoredPosition = new Vector2(0f, -rowTop);
+                slot.sizeDelta = new Vector2(option + ringPad * 2f, option + ringPad * 2f);
+                // Крайні відступають від країв картки на бічне поле: півот tягне їх усередину.
+                slot.anchoredPosition = new Vector2(Mathf.Lerp(SideMargin, -SideMargin, t), -rowTop);
 
-                var tileGo = Child(go, $"Tile{i}");
-                var tileRect = tileGo.GetComponent<RectTransform>();
-                tileRect.anchorMin = new Vector2(column * 0.5f, 1f);
-                tileRect.anchorMax = new Vector2((column + 1) * 0.5f, 1f);
-                tileRect.pivot = new Vector2(0.5f, 1f);
-                tileRect.offsetMin = new Vector2(column == 0 ? 0f : gap * 0.5f,
-                    -row * (tileHeight + gap) - tileHeight);
-                tileRect.offsetMax = new Vector2(column == 0 ? -gap * 0.5f : 0f,
-                    -row * (tileHeight + gap));
-
-                var fill = tileGo.AddComponent<Image>();
-                fill.sprite = rounded;
-                fill.type = Image.Type.Sliced;
-                fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
-                fill.color = new Color(1f, 1f, 1f, 0.045f);
-                fill.raycastTarget = false;
-
-                var strokeGo = Child(tileGo, "Stroke");
-                Stretch(strokeGo);
-                var stroke = strokeGo.AddComponent<Image>();
-                stroke.sprite = outline;
-                stroke.type = Image.Type.Sliced;
-                stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
-                stroke.color = new Color(1f, 1f, 1f, 0.09f);
-                stroke.raycastTarget = false;
-
-                // ★ перед числом — спрайт, не символ: у Nunito його немає.
-                var starGo = Child(tileGo, "Star");
-                var starImage = starGo.AddComponent<Image>();
-                starImage.sprite = star;
-                starImage.raycastTarget = false;
-                Place(starImage, new Vector2(M(16f), -M(18f)), new Vector2(M(22f), M(22f)),
-                    new Vector2(0f, 1f), new Vector2(0f, 0.5f));
-                stars[i] = starImage;
-
-                values[i] = Label(tileGo, "Value", "0", design, font,
-                    design.FontSizeProfileStat, design.AccentTeal, TextAlignmentOptions.Left);
-                Place(values[i], new Vector2(M(16f), -M(18f)), new Vector2(M(120f), M(34f)),
-                    new Vector2(0f, 1f), new Vector2(0f, 0.5f));
-
-                labels[i] = Label(tileGo, "Label", "Підпис", design, font,
-                    design.FontSizeLabel, design.TextMuted, TextAlignmentOptions.Left);
-                Place(labels[i], new Vector2(M(16f), -M(50f)), new Vector2(M(150f), M(30f)),
-                    new Vector2(0f, 1f), new Vector2(0f, 1f));
-            }
-        }
-
-        private static void BuildShowcaseAndBadges(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite circle, Sprite quad,
-            Sprite glowSprite, Shader planetShader, ref float y,
-            out TMP_Text showcaseCaption, out Image showcasePlanet, out TMP_Text showcaseName,
-            out Button[] thumbButtons, out Image[] thumbPlanets, out Image[] thumbRings,
-            out TMP_Text achievementsCaption, out AchievementBadge[] badges,
-            out RectTransform toast, out TMP_Text toastLabel)
-        {
-            var height = M(430f);
-            var go = Card(parent, "Showcase", rounded, outline, design, ref y, height);
-
-            showcaseCaption = Caption(go, design, font, "ВІТРИНА");
-
-            var planetSize = M(150f);
-            var planetGo = Child(go, "Planet");
-            showcasePlanet = planetGo.AddComponent<Image>();
-            showcasePlanet.sprite = quad;
-            showcasePlanet.raycastTarget = false;
-            Place(showcasePlanet, new Vector2(0f, -M(42f)), new Vector2(planetSize, planetSize),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0f));
-
-            showcaseName = Label(go, "Name", "Моя гордість · Аквіла", design, font,
-                design.FontSizeShopPrice, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(showcaseName, new Vector2(0f, -M(204f)), new Vector2(M(300f), M(20f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            const int thumbCount = 3;
-            var thumbSize = M(44f);
-            var thumbGap = M(12f);
-            thumbButtons = new Button[thumbCount];
-            thumbPlanets = new Image[thumbCount];
-            thumbRings = new Image[thumbCount];
-
-            var startX = -(thumbCount - 1) * 0.5f * (thumbSize + thumbGap);
-            for (var i = 0; i < thumbCount; i++)
-            {
-                var thumbGo = Child(go, $"Thumb{i}");
-                var hit = thumbGo.AddComponent<Image>();
-                hit.color = Color.clear;
-                Place(hit, new Vector2(startX + i * (thumbSize + thumbGap), -M(232f)),
-                    new Vector2(thumbSize, thumbSize), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-                var planetImageGo = Child(thumbGo, "Planet");
-                Stretch(planetImageGo, M(2f));
-                var planetImage = planetImageGo.AddComponent<Image>();
-                planetImage.sprite = quad;
-                planetImage.raycastTarget = false;
-
-                var ringGo = Child(thumbGo, "Ring");
+                var ringGo = Child(slotGo, "Ring");
                 Stretch(ringGo);
                 var ring = ringGo.AddComponent<Image>();
-                ring.sprite = LoadSprite("circle-outline");
+                ring.sprite = circleOutline;
+                ring.color = design.TextPrimary;
                 ring.raycastTarget = false;
+                ringGo.SetActive(i == 0);
+                rings[i] = ring;
 
-                thumbButtons[i] = thumbGo.AddComponent<Button>();
-                thumbButtons[i].targetGraphic = hit;
-                thumbPlanets[i] = planetImage;
-                thumbRings[i] = ring;
+                var dropGo = Child(slotGo, "Drop");
+                var drop = dropGo.AddComponent<GradientImage>();
+                drop.sprite = circle;
+                var ink = design.Ink(AvatarSet.InkOf(i));
+                drop.SetGradient(DesignSystem.Lighten(ink, 0.5f), DesignSystem.Darken(ink, 0.28f));
+                Place(drop, Vector2.zero, new Vector2(option, option), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                options[i] = drop;
+
+                var glossGo = Child(dropGo, "Gloss");
+                Stretch(glossGo);
+                var glossImage = glossGo.AddComponent<Image>();
+                glossImage.sprite = gloss;
+                glossImage.color = new Color(1f, 1f, 1f, design.DropGlossAlpha);
+                glossImage.raycastTarget = false;
+
+                // Ловець тапу на весь слот — влучати по краплі з кільцем, не лише по тілу; клік по тілу
+                // спливає до кнопки слота, бо на самому колі обробника немає.
+                var hit = slotGo.AddComponent<Image>();
+                hit.color = Color.clear;
+                var button = slotGo.AddComponent<Button>();
+                button.targetGraphic = hit;
+                button.transition = Selectable.Transition.None;
+                buttons[i] = button;
             }
-
-            // Роздільник між вітриною й досягненнями.
-            var dividerGo = Child(go, "Divider");
-            var divider = dividerGo.AddComponent<Image>();
-            divider.color = new Color(1f, 1f, 1f, 0.09f);
-            divider.raycastTarget = false;
-            Place(divider, new Vector2(0f, -M(272f)), new Vector2(M(318f), M(1f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            achievementsCaption = Label(go, "AchievementsCaption", "ДОСЯГНЕННЯ", design, font,
-                design.FontSizeSmall, design.TextFaint, TextAlignmentOptions.Left);
-            Place(achievementsCaption, new Vector2(M(18f), -M(288f)), new Vector2(M(200f), M(16f)),
-                new Vector2(0f, 1f), new Vector2(0f, 1f));
-
-            const int badgeCount = 4;
-            var badgeWidth = M(64f);
-            var badgeGap = M(10f);
-            badges = new AchievementBadge[badgeCount];
-            var badgeStart = -(badgeCount - 1) * 0.5f * (badgeWidth + badgeGap);
-            for (var i = 0; i < badgeCount; i++)
-                badges[i] = BuildBadge(go, design, font, circle, glowSprite, i,
-                    new Vector2(badgeStart + i * (badgeWidth + badgeGap), -M(316f)), badgeWidth);
-
-            // Підказка про умову — над бейджами, з'являється тапом по замкненому.
-            var toastGo = Child(go, "Toast");
-            var toastFill = toastGo.AddComponent<Image>();
-            toastFill.sprite = rounded;
-            toastFill.type = Image.Type.Sliced;
-            toastFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(14f));
-            toastFill.color = design.GlassFillRaised;
-            toastFill.raycastTarget = false;
-            toast = toastGo.GetComponent<RectTransform>();
-            Place(toastFill, new Vector2(0f, -M(404f)), new Vector2(M(318f), M(34f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            toastLabel = Label(toastGo, "Label", "", design, font,
-                design.FontSizeSmall, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(toastLabel.gameObject, M(8f));
         }
 
-        private static AchievementBadge BuildBadge(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite circle, Sprite glowSprite, int index,
-            Vector2 position, float width)
+        // ── Вітрина: картинка з колекції і кнопка вибору ──
+        private static void BuildShowcase(GameObject parent, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite outline, Sprite circle, Sprite nebula, ref float y,
+            out TMP_Text caption, out PictureView picture, out RectTransform empty, out Image emptyFrame, out TMP_Text emptyGlyph,
+            out TMP_Text hint, out Button button, out GradientImage fill, out TMP_Text label)
         {
-            // Іконки беремо з наявних: своїх спрайтів під кожне досягнення
-            // поки немає, а ці за змістом близькі.
-            var iconNames = new[] { "icon-galaxy", "circle-soft", "icon-shop", "icon-ranks" };
-            var circleSize = M(52f);
+            var side = M(150f);
+            var pictureTop = M(40f);
+            var hintTop = pictureTop + side + M(12f);
+            var hintHeight = M(36f);
+            var buttonTop = hintTop + hintHeight + M(12f);
+            var buttonHeight = M(46f);
+            var height = buttonTop + buttonHeight + M(18f);
+            var go = Card(parent, "Showcase", rounded, outline, design, ref y, height);
+            caption = Caption(go, design, font, "ВІТРИНА");
 
-            var go = Child(parent, $"Badge{index}");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = position;
-            rect.sizeDelta = new Vector2(width, M(78f));
+            var pictureGo = Child(go, "Picture");
+            var pictureRect = pictureGo.GetComponent<RectTransform>();
+            pictureRect.anchorMin = pictureRect.anchorMax = new Vector2(0.5f, 1f);
+            pictureRect.pivot = new Vector2(0.5f, 1f);
+            pictureRect.anchoredPosition = new Vector2(0f, -pictureTop);
+            pictureRect.sizeDelta = new Vector2(side, side);
+            picture = PictureViewBuilder.MakePictureView(pictureGo, design, font, rounded, outline, nebula,
+                side, side, M(128f), withTitle: false, captionHeight: 0f, particle: circle);
 
-            var circleGo = Child(go, "Circle");
-            var badgeCircle = circleGo.AddComponent<GradientImage>();
-            badgeCircle.sprite = circle;
-            Place(badgeCircle, Vector2.zero, new Vector2(circleSize, circleSize),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0f));
+            // Порожній стан: та сама рамка без картинки, всередині знак питання — місце чекає на першу картинку.
+            var emptyGo = Child(go, "Empty");
+            empty = emptyGo.GetComponent<RectTransform>();
+            empty.anchorMin = empty.anchorMax = new Vector2(0.5f, 1f);
+            empty.pivot = new Vector2(0.5f, 1f);
+            empty.anchoredPosition = new Vector2(0f, -pictureTop);
+            empty.sizeDelta = new Vector2(side, side);
+            emptyFrame = emptyGo.AddComponent<Image>();
+            emptyFrame.sprite = outline;
+            emptyFrame.type = Image.Type.Sliced;
+            emptyFrame.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(design.BoardPanelRadius);
+            emptyFrame.color = design.GlassStroke;
+            emptyFrame.raycastTarget = false;
+            emptyGlyph = Label(emptyGo, "Glyph", "?", design, font, design.FontSizeProfileNick, design.TextDim, TextAlignmentOptions.Center);
+            Stretch(emptyGlyph.gameObject);
+            emptyGo.SetActive(false);
 
-            var glowGo = Child(circleGo, "Glow");
-            Stretch(glowGo, -M(8f));
-            var glow = glowGo.AddComponent<Image>();
-            glow.sprite = glowSprite;
-            glow.type = Image.Type.Sliced;
-            glow.pixelsPerUnitMultiplier = GenerateUISprites.GlowFalloff / M(8f);
-            glow.raycastTarget = false;
-            glowGo.transform.SetAsFirstSibling();
+            hint = Label(go, "Hint", "Домалюй першу картинку в забігу — вона стане вітриною", design, font,
+                design.FontSizeLabel, design.TextMuted, TextAlignmentOptions.Center);
+            hint.textWrappingMode = TextWrappingModes.Normal;
+            Place(hint, new Vector2(0f, -hintTop), new Vector2(M(300f), hintHeight), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
 
-            var iconGo = Child(circleGo, "Icon");
-            var icon = iconGo.AddComponent<Image>();
-            icon.sprite = LoadSprite(iconNames[index % iconNames.Length]);
-            icon.raycastTarget = false;
-            Place(icon, Vector2.zero, new Vector2(M(26f), M(26f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var lockGo = Child(circleGo, "Lock");
-            var lockFill = lockGo.AddComponent<Image>();
-            lockFill.sprite = circle;
-            lockFill.color = new Color(0.051f, 0.027f, 0.086f, 1f);
-            lockFill.raycastTarget = false;
-            Place(lockFill, Vector2.zero, new Vector2(M(19f), M(19f)),
-                new Vector2(1f, 0f), new Vector2(0.5f, 0.5f));
-
-            // Замок малюємо тими самими прямокутниками, що й на замкненій планеті
-            // в Галактиці: жодних символів, які може не мати шрифт.
-            var lockBodyGo = Child(lockGo, "Body");
-            var lockBody = lockBodyGo.AddComponent<Image>();
-            lockBody.sprite = LoadSprite("rounded-rect");
-            lockBody.type = Image.Type.Sliced;
-            lockBody.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(2f));
-            lockBody.color = design.TextMuted;
-            lockBody.raycastTarget = false;
-            Place(lockBody, new Vector2(0f, -M(1.5f)), new Vector2(M(9f), M(6f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var shackleGo = Child(lockGo, "Shackle");
-            var shackle = shackleGo.AddComponent<Image>();
-            shackle.sprite = LoadSprite("rounded-rect-outline");
-            shackle.type = Image.Type.Sliced;
-            shackle.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(3f));
-            shackle.color = design.TextMuted;
-            shackle.raycastTarget = false;
-            Place(shackle, new Vector2(0f, M(3f)), new Vector2(M(6f), M(7f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var nameLabel = Label(go, "Name", "Досягнення", design, font,
-                design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);
-            Place(nameLabel, new Vector2(0f, -M(56f)), new Vector2(width + M(8f), M(28f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = badgeCircle;
-
-            var badge = go.AddComponent<AchievementBadge>();
-            Wire(badge,
-                ("design", design), ("button", button), ("circle", badgeCircle), ("glow", glow),
-                ("icon", icon), ("lockBadge", lockGo.GetComponent<RectTransform>()),
-                ("nameLabel", nameLabel));
-            return badge;
+            var buttonGo = Child(go, "Pick");
+            fill = buttonGo.AddComponent<GradientImage>();
+            fill.sprite = rounded;
+            fill.type = Image.Type.Sliced;
+            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(23f));
+            fill.SetGradient(design.AccentTeal, design.AccentBlue);
+            Place(fill, new Vector2(0f, -buttonTop), new Vector2(M(220f), buttonHeight), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            label = Label(buttonGo, "Label", "Обрати з колекції", design, font,
+                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
+            Stretch(label.gameObject);
+            button = buttonGo.AddComponent<Button>();
+            button.targetGraphic = fill;
         }
 
-        // ── Спільні дрібниці ──
+        /// <summary>Серіалізовані поля краплі з префаба: число густоти (аватар — без «1») і дихання.</summary>
+        private static void SetDrop(DropView drop, int density, bool idleWobble)
+        {
+            var so = new SerializedObject(drop);
+            so.FindProperty("density").intValue = density;
+            so.FindProperty("idleWobble").boolValue = idleWobble;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
 
-        /// <summary>Секція в потоці вмісту: посуває курсор y на свою висоту.</summary>
-        private static GameObject Section(GameObject parent, string name, ref float y,
-            float height, float spacing)
+        private static GameObject Section(GameObject parent, string name, ref float y, float height, float spacing)
         {
             var go = Child(parent, name);
             var rect = go.GetComponent<RectTransform>();
@@ -749,19 +461,19 @@ namespace InkFlow.Editor
         }
 
         /// <summary>Велика скляна картка профілю з обведенням.</summary>
-        private static GameObject Card(GameObject parent, string name, Sprite rounded,
-            Sprite outline, DesignSystem design, ref float y, float height)
+        private static GameObject Card(GameObject parent, string name, Sprite rounded, Sprite outline, DesignSystem design, ref float y, float height)
         {
             var go = Section(parent, name, ref y, height, M(12f));
             var rect = go.GetComponent<RectTransform>();
             rect.offsetMin = new Vector2(SideMargin, rect.offsetMin.y);
             rect.offsetMax = new Vector2(-SideMargin, rect.offsetMax.y);
 
+            // Скло — з токенів, як у налаштуваннях: біла заливка з макета в UGUI читалась сірим пластиком.
             var fill = go.AddComponent<Image>();
             fill.sprite = rounded;
             fill.type = Image.Type.Sliced;
             fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(CardRadius);
-            fill.color = new Color(1f, 1f, 1f, 0.045f);
+            fill.color = design.GlassFill;
             fill.raycastTarget = false;
 
             var strokeGo = Child(go, "Stroke");
@@ -770,15 +482,13 @@ namespace InkFlow.Editor
             stroke.sprite = outline;
             stroke.type = Image.Type.Sliced;
             stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(CardRadius);
-            stroke.color = new Color(1f, 1f, 1f, 0.09f);
+            stroke.color = design.GlassStroke;
             stroke.raycastTarget = false;
-            _ = design;
             return go;
         }
 
         /// <summary>Дрібний розріджений заголовок секції: 11/800 ls .14em.</summary>
-        private static TMP_Text Caption(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, string text)
+        private static TMP_Text Caption(GameObject parent, DesignSystem design, TMP_FontAsset? font, string text)
         {
             var label = Label(parent, "Caption", text, design, font,
                 design.FontSizeSmall, design.TextFaint, TextAlignmentOptions.Left);

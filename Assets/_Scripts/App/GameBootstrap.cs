@@ -56,7 +56,7 @@ namespace InkFlow.App
             // підставляємо звідси, ще до Start.
             if (router != null)
             {
-                router.Configure(balanceConfig.ToBalanceData(), _state, Links());
+                router.Configure(balanceConfig.ToBalanceData(), _state, Links(), Nicks());
                 router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
             }
             else
@@ -66,6 +66,8 @@ namespace InkFlow.App
         }
 
         private AppLinks Links() => appConfig != null ? appConfig.ToAppLinks() : AppLinks.Default;
+
+        private NickRules Nicks() => appConfig != null ? appConfig.ToNickRules() : NickRules.Default;
 
         /// <summary>
         /// Перемикачі §15 реально керують аудіо й гаптикою: гаптика поля йде через обгортку за
@@ -214,7 +216,7 @@ namespace InkFlow.App
 
             if (router != null)
             {
-                router.Configure(balance, _state, Links());
+                router.Configure(balance, _state, Links(), Nicks());
                 router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
                 router.RestartFromHub();
             }

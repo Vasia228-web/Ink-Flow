@@ -59,6 +59,21 @@ namespace InkFlow.UI
 
         public void Bind(System.Action<RankPlayer> onTap) => _onTap = onTap;
 
+        /// <summary>
+        /// Колір краплі гравця — один на рядок і картку «Ти»: інкогніто — сірий, справжній гравець — аватар
+        /// із профілю (§14), моковий — його <see cref="RankPlayer.DropColor"/>.
+        /// </summary>
+        public static Color AvatarColor(DesignSystem design, RankPlayer player) =>
+            player.Incognito ? design.RankIncognito
+            : player.Avatar != InkFlow.Core.InkColor.None ? design.Ink(player.Avatar)
+            : player.DropColor.ToColor();
+
+        public static void PaintAvatar(GradientImage avatar, DesignSystem design, RankPlayer player)
+        {
+            var color = AvatarColor(design, player);
+            avatar.SetGradient(DesignSystem.Lighten(color, 0.5f), DesignSystem.Darken(color, 0.28f));
+        }
+
         public void Show(RankPlayer player, int position, RankMetric metric, RankPeriod period)
         {
             _player = player;
@@ -103,10 +118,7 @@ namespace InkFlow.UI
             }
 
             if (avatar != null)
-            {
-                var color = hidden ? design.RankIncognito : player.DropColor.ToColor();
-                avatar.SetGradient(DesignSystem.Lighten(color, 0.5f), DesignSystem.Darken(color, 0.28f));
-            }
+                PaintAvatar(avatar, design, player);
 
             if (avatarGloss != null)
                 avatarGloss.color = new Color(1f, 1f, 1f, 0.5f);

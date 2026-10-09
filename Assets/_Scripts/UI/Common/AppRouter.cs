@@ -53,12 +53,16 @@ namespace InkFlow.UI
         /// Роздаємо ОДИН екземпляр стану всім екранам: кожен, хто зробив би собі
         /// копію, показував би застарілі числа після покупки в сусідньому екрані.
         /// </summary>
-        public void Configure(BalanceData balance, PlayerState state, AppLinks? links = null)
+        public void Configure(BalanceData balance, PlayerState state, AppLinks? links = null, NickRules? nickRules = null)
         {
             _balance = balance;
             _state = state;
             _links = links ?? AppLinks.Default;
+            _nickRules = nickRules ?? NickRules.Default;
             settings?.BindLinks(_links);
+            nickPrompt?.Bind(_nickRules);
+            // Нік зі старого файлу, що не проходить нинішні правила (§14), — на типовий, ще до першого екрана.
+            state.EnforceNickRules(_nickRules);
 
             hub?.BindState(state);
             levelMap?.BindState(state);
@@ -171,7 +175,10 @@ namespace InkFlow.UI
                 collection.PicturePicked += (args, pictureId) =>
                 {
                     // Постановка — одна дія стану: перевірка копій, запис і збереження разом.
-                    if (_state != null && args.PlanetId != null)
+                    // Вітрина профілю (§14) — той самий екран, інша дія стану; профіль перечитає її в OnEnter.
+                    if (_state != null && args.Showcase)
+                        _state.SetShowcasePicture(pictureId);
+                    else if (_state != null && args.PlanetId != null)
                         _state.TryPlaceInSlot(args.Galaxy, args.PlanetId, args.Slot, pictureId, System.DateTime.UtcNow);
                     Pop();
                 };
@@ -193,6 +200,8 @@ namespace InkFlow.UI
             {
                 profile.BackRequested += Pop;
                 profile.NickEditRequested += OpenNickPrompt;
+                // Вітринна картинка — з колекції в режимі вибору; Pop повертає в профіль.
+                profile.ShowcasePickRequested += () => Push(collection, CollectionArgs.ForShowcase());
             }
 
             // ── Налаштування (§15): шестерня на кожному екрані — одна подія базового екрана ──
@@ -221,6 +230,7 @@ namespace InkFlow.UI
         private bool InRun => navigation != null && endless != null && ReferenceEquals(navigation.Current, endless);
 
         private bool _settingsFromRun;
+        private NickRules _nickRules = NickRules.Default;
 
         private void OpenSettings()
         {
@@ -267,8 +277,9 @@ namespace InkFlow.UI
 
             nickPrompt.Show(_state.Nick, nick =>
             {
-                _state.Nick = nick;
-                _state.Persist();
+                // Діалог уже перевірив нік за тими самими правилами; стан перевіряє ще раз — він джерело правди.
+                if (!_state.SetNick(nick, _nickRules, out _))
+                    return;
 
                 // Нік видно і в хабі, і в рейтингах — перечитуємо обидва.
                 hub?.Refresh();

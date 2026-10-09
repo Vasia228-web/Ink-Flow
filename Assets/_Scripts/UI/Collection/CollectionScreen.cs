@@ -9,8 +9,8 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Аргументи колекції: просто подивитись (порожні) або обрати картинку в слот планети.
-    /// Слот описується так само, як у збереженні: галактика, планета, номер.
+    /// Аргументи колекції: просто подивитись (порожні), обрати картинку в слот планети або на вітрину
+    /// профілю (§14). Слот описується так само, як у збереженні: галактика, планета, номер.
     /// </summary>
     public sealed class CollectionArgs : ScreenArgs
     {
@@ -23,12 +23,18 @@ namespace InkFlow.UI
             Slot = slot;
         }
 
+        private CollectionArgs(bool showcase) => Showcase = showcase;
+
+        /// <summary>Вибір вітринної картинки профілю: будь-яка зібрана, копії не рахуються.</summary>
+        public static CollectionArgs ForShowcase() => new CollectionArgs(showcase: true);
+
         public int Galaxy { get; }
         public string? PlanetId { get; }
         public int Slot { get; }
+        public bool Showcase { get; }
 
-        /// <summary>Режим вибору: тап по картинці ставить її в слот і повертає на планету.</summary>
-        public bool IsPick => PlanetId != null;
+        /// <summary>Режим вибору: тап по картинці ставить її в слот (чи на вітрину) і повертає назад.</summary>
+        public bool IsPick => PlanetId != null || Showcase;
     }
 
     /// <summary>
@@ -108,6 +114,9 @@ namespace InkFlow.UI
 
         /// <summary>Тести: текстура атласу — щоб упевнитись, що фільтр її не перебудовує.</summary>
         public Texture? PreviewAtlas => _atlas.Texture;
+
+        /// <summary>Тестам: тап по картці з індексом у поточному зрізі, як пальцем.</summary>
+        public void PreviewTap(int index) => OnCardTapped(index);
 #endif
 
         private void Awake()
@@ -290,7 +299,11 @@ namespace InkFlow.UI
 
             if (subtitle != null)
             {
-                if (_args.IsPick)
+                if (_args.Showcase)
+                {
+                    subtitle.text = "Обери вітринну картинку · її бачать інші гравці";
+                }
+                else if (_args.IsPick)
                 {
                     var planet = (State?.Layout ?? GalaxyLayout.Default).Find(_args.PlanetId!);
                     subtitle.text = $"Обери картинку для слота · {(planet != null ? planet.Name : "планета")}";
@@ -412,8 +425,9 @@ namespace InkFlow.UI
                     card.Rect.localScale = new Vector3(scale, scale, 1f);
                     var copies = State != null ? State.Collection.CountOf(picture.Id) : 1;
                     _placed.TryGetValue(picture.Id, out var placed);
+                    // На вітрину йде будь-яка зібрана картинка — копії в слотах тут не рахуються, нічого не тьмяніє.
                     card.Show(index, picture, _atlas.Texture, _atlas.UvOf(_cells[index]), design.RarityColor(picture.Rarity),
-                        copies, copies - placed, _args.IsPick, design.CollectionUsedAlpha);
+                        copies, _args.Showcase ? copies : copies - placed, _args.IsPick, design.CollectionUsedAlpha);
                 }
             }
         }
@@ -425,6 +439,12 @@ namespace InkFlow.UI
             var id = _ids[index];
             if (!_args.IsPick)
                 return;
+
+            if (_args.Showcase)
+            {
+                PicturePicked?.Invoke(_args, id);
+                return;
+            }
 
             if (State != null && State.FreeCopies(id) <= 0)
             {

@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace InkFlow.Tests.Meta
 {
     /// <summary>
-    /// Похідні від стану: галактика, звання, профіль, карта рівнів.
+    /// Похідні від стану: галактика, карта рівнів, рейтинги.
     /// Усе це РАХУЄТЬСЯ зі збереження, а не зберігається окремо — тому
     /// розійтись із фактами не може, і саме це тут перевіряється.
     /// </summary>
@@ -89,117 +89,6 @@ namespace InkFlow.Tests.Meta
             Assert.IsFalse(state.TryPlaceInSlot(1, state.Layout.Planets[0].Id, 0, "pic-0-0", Today));
             state.CollectPicture("pic-0-0", Today);
             Assert.IsTrue(state.TryPlaceInSlot(1, state.Layout.Planets[0].Id, 0, "pic-0-0", Today), "друга копія — слот у другій галактиці");
-        }
-
-        // ── Звання ──
-
-        [Test]
-        public void Ranks_StartAtTheFirstStep()
-        {
-            Assert.AreEqual("Учень", PlayerRanks.TitleFor(0));
-            Assert.AreEqual(0, PlayerRanks.IndexFor(0));
-        }
-
-        [Test]
-        public void Ranks_RiseWithCompletedPlanets()
-        {
-            Assert.AreEqual("Колорист", PlayerRanks.TitleFor(3));
-            Assert.AreEqual("Художник галактик", PlayerRanks.TitleFor(9));
-            Assert.AreEqual("Легенда", PlayerRanks.TitleFor(100), "вище вершини звань немає");
-        }
-
-        [Test]
-        public void Ranks_CountDownToTheNextStep()
-        {
-            Assert.AreEqual(3, PlayerRanks.PlanetsToNext(0));
-            Assert.AreEqual(1, PlayerRanks.PlanetsToNext(2));
-            Assert.AreEqual(0, PlayerRanks.PlanetsToNext(100), "на вершині рахувати нічого");
-        }
-
-        // ── Профіль ──
-
-        [Test]
-        public void Profile_OfANewPlayerIsEmptyButValid()
-        {
-            var profile = PlayerProfile.FromState(Fresh());
-
-            Assert.AreEqual(ProfileData.DefaultNick, profile.Nick);
-            Assert.AreEqual("Учень", profile.RankTitle);
-            Assert.AreEqual(0, profile.Oil);
-            Assert.AreEqual(0, profile.Showcase.Count, "вітрина порожня, поки нічого не завершено");
-            Assert.AreEqual(PlayerRanks.Ladder.Length, profile.Ladder.Count);
-
-            foreach (var achievement in profile.Achievements)
-                Assert.IsFalse(achievement.Unlocked, achievement.Name);
-        }
-
-        [Test]
-        public void Profile_ShowcaseFillsWithCompletedPlanets()
-        {
-            var state = Fresh();
-            CompletePlanet(state, 0);
-            CompletePlanet(state, 1);
-
-            var profile = PlayerProfile.FromState(state);
-
-            Assert.AreEqual(2, profile.Showcase.Count);
-            Assert.AreEqual("Учень", profile.RankTitle, "поріг Колориста — три планети, не дві");
-        }
-
-        [Test]
-        public void Profile_ShowcaseKeepsTheFinishedGalaxy_UntilTheNextOneHasAPlanet()
-        {
-            // Щойно ожила остання планета Галактики I — поточною стала порожня II. Вітрина не має
-            // спорожніти поруч із «Галактик завершено 1».
-            var state = Fresh();
-            for (var i = 0; i < state.Layout.Planets.Count; i++)
-                CompletePlanet(state, i);
-
-            var profile = PlayerProfile.FromState(state);
-
-            Assert.AreEqual(3, profile.Showcase.Count, "вітрина — з завершеної галактики");
-            Assert.AreEqual(state.Layout.Planets[0].Name, profile.Showcase[0].Name);
-        }
-
-        [Test]
-        public void Profile_RankMatchesTheHubHeader()
-        {
-            var state = Fresh();
-            for (var i = 0; i < 3; i++)
-                CompletePlanet(state, i);
-
-            var planets = GalaxyState.CompletedPlanets(state.Galaxy, state.Layout);
-            var profile = PlayerProfile.FromState(state);
-
-            // Одне джерело: якби хаб і профіль рахували звання окремо, вони
-            // розійшлися б на першій же зміні порогів.
-            Assert.AreEqual(3, planets);
-            Assert.AreEqual(PlayerRanks.TitleFor(planets), profile.RankTitle);
-        }
-
-        [Test]
-        public void Profile_AchievementUnlocksOnRealProgress()
-        {
-            var state = Fresh();
-            CompletePlanet(state, 0);
-
-            var profile = PlayerProfile.FromState(state);
-
-            Assert.IsTrue(profile.Achievements[0].Unlocked, "перша ожила планета — це досягнення");
-            Assert.IsTrue(profile.Achievements[1].Unlocked, "картинка в слоті — теж");
-        }
-
-        [Test]
-        public void Profile_CountsCompletedGalaxies()
-        {
-            var state = Fresh();
-            for (var i = 0; i < state.Layout.Planets.Count; i++)
-                CompletePlanet(state, i);
-
-            var profile = PlayerProfile.FromState(state);
-
-            Assert.AreEqual("1", profile.Stats[1].Value, "галактик завершено");
-            Assert.AreEqual(state.Layout.Planets.Count.ToString(), profile.Stats[0].Value, "планет ожило");
         }
 
         // ── Карта рівнів ──
