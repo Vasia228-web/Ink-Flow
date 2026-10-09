@@ -164,13 +164,13 @@ namespace InkFlow.Tests.Meta
             state.CollectPicture("comet", Today);
             CompletePlanet(state, 0);
 
-            var board = Leaderboard.WithRealPlayer(state);
+            var planets = RankPlayer.You(state, "p", RankMetric.Planets, RankPeriod.AllTime, Today);
+            var galaxies = RankPlayer.You(state, "p", RankMetric.Galaxies, RankPeriod.AllTime, Today);
 
-            Assert.AreEqual(state.Nick, board.You.Nick);
-            Assert.AreEqual(2 + state.Layout.Planets[0].Slots, board.You.RecordAll, "§10: рекорд колекції — різні картинки");
-            Assert.AreEqual(1, board.You.PlanetsAll);
-            Assert.AreEqual(0, board.You.GalaxiesAll);
-            Assert.IsTrue(board.You.IsYou);
+            Assert.AreEqual(state.Nick, planets.Nick);
+            Assert.AreEqual(1, planets.Value, "одна планета ожила");
+            Assert.AreEqual(0, galaxies.Value);
+            Assert.IsTrue(planets.IsYou);
         }
     }
 }

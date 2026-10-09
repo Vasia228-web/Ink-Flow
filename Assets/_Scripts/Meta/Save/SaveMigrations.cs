@@ -174,6 +174,15 @@ namespace InkFlow.Meta
                 {
                     save.Version = 9;
                     return save;
+                },
+
+                // v9 → v10: база «цього тижня» для рейтингів (§16). Порожня: перший же запит рейтингів
+                // поставить початок поточного тижня й лічильники — приріст до того не рахується.
+                [9] = (save, _, _) =>
+                {
+                    save.RankWeek ??= new RankWeekData();
+                    save.Version = 10;
+                    return save;
                 }
             };
 

@@ -29,7 +29,8 @@ namespace InkFlow.Editor
             "collection-browse", "collection-pick", "collection-empty",
             "shop", "shop-offline",
             "settings", "settings-run",
-            "profile-fresh", "profile"
+            "profile-fresh", "profile",
+            "rankings", "rankings-offline", "galaxy-visitor"
         };
 
         public static void BuildAndCapture()
@@ -41,6 +42,7 @@ namespace InkFlow.Editor
             BuildShopScreen.Build();
             BuildSettingsScreen.Build();
             BuildProfileScreen.Build();
+            BuildRankingsScreen.Build();
             CaptureAll();
         }
 
@@ -49,7 +51,7 @@ namespace InkFlow.Editor
         {
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen", "ProfileScreen" })
+            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
                 if (!MetaScreenRig<ScreenBase>.Available(name))
                 {
                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
@@ -132,6 +134,38 @@ namespace InkFlow.Editor
                     var player = rig.NewPlayer();
                     rig.Screen.BindLinks(AppLinks.Default);
                     rig.Enter(player, new SettingsArgs(inRun: state == "settings-run"));
+                    rig.SavePng(path);
+                    break;
+                }
+                case "rankings":
+                case "rankings-offline":
+                {
+                    // Таблиця «навмання» з обраним аватаром на картці «Ти» і той самий екран без мережі.
+                    using var rig = MetaScreenRig<RankingsScreen>.Create(device, "RankingsScreen");
+                    var player = rig.NewPlayer();
+                    player.SetAvatar(3);
+                    rig.FillPlanet(player, 0);
+                    var leaderboards = new InkFlow.Platform.FakeLeaderboards { Offline = state == "rankings-offline" };
+                    leaderboards.Submit(InkFlow.Core.RankMetric.Planets, InkFlow.Core.RankPeriod.Week, 1);
+                    leaderboards.Submit(InkFlow.Core.RankMetric.Planets, InkFlow.Core.RankPeriod.AllTime, 1);
+                    rig.Screen.BindServices(leaderboards, new InkFlow.Platform.FakeShowcase(), new InkFlow.Platform.FakeIdentity());
+                    rig.Enter(player, ScreenArgs.Empty);
+                    rig.SavePng(path);
+                    break;
+                }
+                case "galaxy-visitor":
+                {
+                    // Чужа галактика з вітрини: планети по порядку, картка гостя з вітринною картинкою.
+                    using var rig = MetaScreenRig<GalaxyScreen>.Create(device, "GalaxyScreen");
+                    var player = rig.NewPlayer();
+                    var layout = player.Layout;
+                    var ids = new List<string>();
+                    var slots = new List<int>();
+                    foreach (var planet in layout.Planets) { ids.Add(planet.Id); slots.Add(planet.Slots); }
+                    var mock = InkFlow.Core.MockRankings.ShowcaseFor(InkFlow.Core.MockRankings.PlayerIdOf(1), ids, slots);
+                    var visitor = new InkFlow.Core.PublicShowcase(mock.PlayerId, mock.Nick, mock.AvatarId, false, rig.Library[22 % rig.Library.Count].Id,
+                        mock.PlanetsDone, mock.GalaxiesDone, mock.Galaxy, mock.Slots, mock.UpdatedUtc);
+                    rig.Enter(player, GalaxyArgs.ForVisitor(visitor));
                     rig.SavePng(path);
                     break;
                 }

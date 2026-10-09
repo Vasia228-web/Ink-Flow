@@ -233,20 +233,6 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void OtherPlayerGalaxy_HasNoPartialProgress()
-        {
-            // Чужу галактику показуємо без напівпройдених планет: скільки слотів
-            // лишилось іншому гравцеві — не наша справа.
-            var galaxy = GalaxyProgress.CreateMockForOther(5);
-
-            Assert.AreEqual(5, galaxy.DoneCount);
-            Assert.AreEqual(-1, galaxy.CurrentIndex, "У чужій галактиці «поточної» планети немає.");
-
-            foreach (var planet in galaxy.Planets)
-                Assert.AreNotEqual(PlanetState.Current, planet.State);
-        }
-
-        [Test]
         public void Fraction_IsSafeForZeroTotal()
         {
             var planet = new PlanetProgress(PlanetType.Ocean, "Порожня", 0);

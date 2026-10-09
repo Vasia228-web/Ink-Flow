@@ -250,6 +250,26 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void Migration_FromV9_AddsTheWeekBaseline()
+        {
+            // §16: v10 — база «цього тижня». Старий файл отримує порожню базу: перший запит рейтингів
+            // поставить початок поточного тижня, приріст до того — нуль, а не весь прогрес.
+            var save = new SaveFile { Version = 9, RankWeek = null! };
+            save.Collection.Pictures.Add(new CollectedPicture { PictureId = "whale", Count = 1, FirstUtc = "2026-10-01T00:00:00.0000000Z" });
+
+            var migrated = SaveMigrations.Migrate(save);
+
+            Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version);
+            Assert.IsNotNull(migrated.RankWeek);
+            Assert.AreEqual(string.Empty, migrated.RankWeek.WeekStartUtc);
+            Assert.AreEqual(1, migrated.Collection.Pictures.Count, "колекція не втрачена");
+
+            var state = new PlayerState(migrated, EconomyData.Default);
+            Assert.AreEqual(0, state.RankValue(Core.RankMetric.Planets, Core.RankPeriod.Week, new DateTime(2026, 10, 7, 0, 0, 0, DateTimeKind.Utc)));
+            Assert.AreEqual("2026-10-05", state.File.RankWeek.WeekStartUtc, "перший запит ставить початок тижня");
+        }
+
+        [Test]
         public void Migration_KeepsExistingNick()
         {
             var save = new SaveFile { Version = 2 };

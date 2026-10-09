@@ -18,7 +18,8 @@ namespace InkFlow.UI
     /// цикли від першого до поточного. Без них усе, що гравець зібрав у Галактиці I, зникало б
     /// з гри тієї ж миті, як ожила її остання планета.
     ///
-    /// Чужа галактика поки мокова: екран знає лише <see cref="GalaxyProgress"/>.
+    /// Чужа галактика (§16) — з публічної вітрини гравця: ті самі планети на тій самій розкладці,
+    /// без кнопки й пагінації, а внизу картка гостя — аватар, нік і вітринна картинка.
     /// </summary>
     public sealed class GalaxyScreen : ScreenBase
     {
@@ -50,12 +51,17 @@ namespace InkFlow.UI
         [SerializeField] private RectTransform pagination;
         [SerializeField] private Image[] dots = System.Array.Empty<Image>();
 
-        [Header("Мокові дані")]
-        [SerializeField] private int mockOtherPlanetsDone = 5;
+        [Header("Гість (§16)")]
+        [SerializeField] private RectTransform visitorCard;
+        [SerializeField] private GradientImage visitorAvatar;
+        [SerializeField] private TMP_Text visitorNick;
+        [SerializeField] private TMP_Text visitorHint;
+        [SerializeField] private PictureView visitorPicture;
 
         private GalaxyProgress? _galaxy;
         private bool _readOnly;
         private bool _own = true;
+        private PublicShowcase? _visitor;
         private int _galaxyIndex;
         private bool _keepGalaxy;
 
@@ -85,6 +91,26 @@ namespace InkFlow.UI
         /// <summary>Тести: галактика на екрані.</summary>
         public GalaxyProgress? PreviewGalaxy => _galaxy;
 
+        /// <summary>Тести: картка гостя видима.</summary>
+        public bool PreviewVisitorShown => visitorCard != null && visitorCard.gameObject.activeSelf;
+        public string PreviewVisitorNick => visitorNick != null ? visitorNick.text : string.Empty;
+        public string PreviewGalaxyTitle => galaxyName != null ? galaxyName.text : string.Empty;
+        public int PreviewFocus => carousel != null ? carousel.Focus : -1;
+        public string PreviewVisitorHint => visitorHint != null ? visitorHint.text : string.Empty;
+
+        /// <summary>Тестам: скільки символів підпису гостя TMP справді намалював (Ellipsis у тісному прямокутнику ховає все).</summary>
+        public int PreviewVisitorHintVisibleCharacters
+        {
+            get
+            {
+                if (visitorHint == null)
+                    return 0;
+                visitorHint.ForceMeshUpdate();
+                return visitorHint.textInfo.characterCount;
+            }
+        }
+        public string? PreviewVisitorPictureId => visitorPicture != null && visitorPicture.gameObject.activeSelf ? visitorPicture.Picture?.Id : null;
+
         /// <summary>Тести: гортання галактик, як стрілками в шапці.</summary>
         public void PreviewShiftGalaxy(int delta) => ShiftGalaxy(delta);
 #endif
@@ -96,6 +122,7 @@ namespace InkFlow.UI
             var galaxyArgs = args as GalaxyArgs ?? GalaxyArgs.Own;
             _readOnly = galaxyArgs.ReadOnly;
             _own = galaxyArgs.Owner.IsSelf;
+            _visitor = galaxyArgs.Visitor;
 
             // Повернення з планети лишає гравця в тій галактиці, яку він гортав; новий вхід із хаба —
             // завжди в поточній.
@@ -109,9 +136,13 @@ namespace InkFlow.UI
 
         private GalaxyProgress BuildGalaxy()
         {
-            // Своя галактика — з реального збереження; чужа лишається моковою до Фази 7 (вітрина з хмари).
+            var layout = State?.Layout ?? GalaxyLayout.Default;
+            // Своя галактика — з реального збереження; чужа — з вітрини (§16): без вітрини показати нічого,
+            // тож гість без даних бачить порожню галактику, а не вигадану.
             if (!_own)
-                return GalaxyProgress.CreateMockForOther(mockOtherPlanetsDone);
+                return _visitor != null
+                    ? GalaxyProgress.FromShowcase(_visitor, layout)
+                    : GalaxyProgress.FromShowcase(PublicShowcase.Hidden(string.Empty, 0, 0, string.Empty), layout);
             return State != null
                 ? GalaxyProgress.FromSave(State.Galaxy, State.Layout, _galaxyIndex)
                 : GalaxyProgress.CreateMock();
@@ -150,7 +181,10 @@ namespace InkFlow.UI
 
             if (galaxyName != null)
             {
-                galaxyName.text = _galaxy.Name;
+                // У гостя шапка каже, чия це галактика: без цього екран не відрізнити від свого.
+                galaxyName.text = _visitor == null ? _galaxy.Name
+                    : _visitor.Incognito ? "ГРАВЕЦЬ-ІНКОГНІТО"
+                    : $"{_visitor.Nick.ToUpperInvariant()} · {_galaxy.Name}";
                 // Назва галактики довша за вільний проміжок шапки: не переносимо (перенесений рядок
                 // лягав на «N / M планет»), а стискаємо шрифт до читабельного мінімуму. Між стрілками
                 // циклів місця ще менше — там розрядка заголовка знімається.
@@ -167,15 +201,18 @@ namespace InkFlow.UI
             if (nextGalaxyHint != null)
                 nextGalaxyHint.text = _galaxy.IsComplete
                     ? "Галактика завершена —\nце вітрина"
-                    : "Заверши цю галактику,\nщоб відкрити наступну";
+                    : _visitor != null
+                        ? "Галактика в роботі"
+                        : "Заверши цю галактику,\nщоб відкрити наступну";
 
             ApplyGalaxyArrows();
 
-            // Пагінація і кнопка — єдина різниця між своєю галактикою і чужою.
+            // Пагінація і кнопка — своя галактика; картка гостя — чужа.
             if (pagination != null)
                 pagination.gameObject.SetActive(!_readOnly);
             if (paintButton != null)
                 paintButton.gameObject.SetActive(!_readOnly);
+            ApplyVisitor();
 
             currency?.Apply();
 
@@ -183,7 +220,8 @@ namespace InkFlow.UI
             {
                 carousel.FocusChanged -= OnFocusChanged;
                 carousel.FocusChanged += OnFocusChanged;
-                var start = Mathf.Max(0, _galaxy.CurrentIndex);
+                // Гостю показуємо останню ожилу планету — його досягнення, а не порожню наступну.
+                var start = _visitor != null ? Mathf.Max(0, _galaxy.DoneCount - 1) : Mathf.Max(0, _galaxy.CurrentIndex);
                 carousel.Bind(_galaxy, _readOnly, start);
                 OnFocusChanged(carousel.Focus < 0 ? start : carousel.Focus);
             }
@@ -224,6 +262,41 @@ namespace InkFlow.UI
             rect.sizeDelta = new Vector2(to - from, rect.sizeDelta.y);
         }
 
+        /// <summary>Картка гостя (§16): аватар, нік (або «Гравець-інкогніто») і вітринна картинка з бібліотеки.</summary>
+        private void ApplyVisitor()
+        {
+            var show = !_own && _visitor != null;
+            Toggle(visitorCard, show);
+            if (!show || _visitor == null)
+                return;
+
+            var hidden = _visitor.Incognito;
+            if (visitorAvatar != null)
+            {
+                design.AvatarGradient(AvatarSet.InkOf(_visitor.AvatarId), hidden, out var from, out var to);
+                visitorAvatar.SetGradient(from, to);
+            }
+            ApplyFont(visitorNick, design.FontSizeShopCard, hidden ? design.TextMuted : design.TextPrimary, FontStyles.Bold, 0f);
+            if (visitorNick != null)
+                visitorNick.text = hidden ? "Гравець-інкогніто" : _visitor.Nick;
+
+            var picture = !hidden && _visitor.ShowcasePictureId != null && State != null
+                ? State.Library.Find(_visitor.ShowcasePictureId)
+                : null;
+            var same = visitorPicture != null && visitorPicture.gameObject.activeSelf && visitorPicture.Picture == picture;
+            Toggle(visitorPicture, picture != null);
+            if (picture != null && visitorPicture != null && !same)
+                visitorPicture.ShowCompleted(picture, string.Empty);
+
+            ApplyFont(visitorHint, design.FontSizeLabel, design.TextMuted, FontStyles.Normal, 0f);
+            if (visitorHint != null)
+                visitorHint.text = hidden
+                    ? "Профіль приховано"
+                    : picture != null
+                        ? $"Вітрина · {picture.Name}"
+                        : $"{Plural.Count(_visitor.PlanetsDone, "планета", "планети", "планет")} ожило";
+        }
+
         private void OnDisable()
         {
             if (carousel != null)
@@ -256,7 +329,7 @@ namespace InkFlow.UI
                 {
                     PlanetState.Done => $"Усі {Plural.Count(planet.TotalSlots, "слот", "слоти", "слотів")} заповнені",
                     PlanetState.Current => $"{planet.FilledSlots} / {planet.TotalSlots} слотів",
-                    _ => "Заверши попередню планету"
+                    _ => _visitor != null ? "Ще не відкрита" : "Заверши попередню планету"
                 };
             if (paintButtonLabel != null)
                 paintButtonLabel.text = "Відкрити";

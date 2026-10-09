@@ -123,6 +123,8 @@ namespace InkFlow.Editor
                 out var doneBadge, out var planetName, out var planetZones,
                 out var paintButton, out var paintFill, out var paintLabel,
                 out var pagination, out var dots);
+            BuildVisitorCard(bottom.gameObject, design!, font, rounded!, circle!,
+                out var visitorCard, out var visitorAvatar, out var visitorNick, out var visitorHint, out var visitorPicture);
 
             var carousel = BuildCarousel(screenGo, design!, font, quad!, circle!, rounded!, outline!,
                 shader!, header, bottom, out var slots, out var nextName, out var nextHint);
@@ -135,7 +137,9 @@ namespace InkFlow.Editor
                 ("nextGalaxyName", nextName), ("nextGalaxyHint", nextHint),
                 ("doneBadge", doneBadge), ("planetName", planetName), ("planetZones", planetZones),
                 ("paintButton", paintButton), ("paintButtonFill", paintFill),
-                ("paintButtonLabel", paintLabel), ("pagination", pagination));
+                ("paintButtonLabel", paintLabel), ("pagination", pagination),
+                ("visitorCard", visitorCard), ("visitorAvatar", visitorAvatar), ("visitorNick", visitorNick),
+                ("visitorHint", visitorHint), ("visitorPicture", visitorPicture));
             WireArray(screen, "dots", dots);
             WireArray(carousel, "slots", slots);
 
@@ -367,6 +371,80 @@ namespace InkFlow.Editor
         // ───────────────────────── Карусель ─────────────────────────
         // Макет: слот у left:50% top:45%, крок 176, масштаб max(.34, 1-|d|·.4),
         // прозорість max(.14, 1-|d|·.5); планета 186 (фінальна 208); прев'ю 150.
+
+        /// <summary>
+        /// Картка гостя (§16) — на місці кнопки «Відкрити» в чужій галактиці: аватар, нік, підпис і
+        /// вітринна картинка. Лежить вимкненою; екран вмикає її лише з вітриною.
+        /// </summary>
+        private static void BuildVisitorCard(GameObject block, DesignSystem design, TMP_FontAsset? font,
+            Sprite rounded, Sprite circle,
+            out RectTransform card, out GradientImage avatar, out TMP_Text nick, out TMP_Text hint, out PictureView picture)
+        {
+            var height = M(64f);
+            var go = Child(block, "VisitorCard");
+            card = go.GetComponent<RectTransform>();
+            var fill = go.AddComponent<Image>();
+            fill.sprite = rounded;
+            fill.type = Image.Type.Sliced;
+            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(20f));
+            fill.color = design.GlassFill;
+            fill.raycastTarget = false;
+            Place(fill, new Vector2(0f, M(4f) + height * 0.5f), new Vector2(M(300f), height),
+                new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
+
+            var strokeGo = Child(go, "Stroke");
+            Stretch(strokeGo);
+            var stroke = strokeGo.AddComponent<Image>();
+            stroke.sprite = LoadSprite("rounded-rect-outline");
+            stroke.type = Image.Type.Sliced;
+            stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(20f));
+            stroke.color = design.GlassStroke;
+            stroke.raycastTarget = false;
+
+            var avatarSize = M(36f);
+            var avatarGo = Child(go, "Avatar");
+            avatar = avatarGo.AddComponent<GradientImage>();
+            avatar.sprite = circle;
+            avatar.SetGradient(design.AccentPrimary, design.AccentSecondary);
+            avatar.raycastTarget = false;
+            Place(avatar, new Vector2(M(11f) + avatarSize * 0.5f, 0f), new Vector2(avatarSize, avatarSize),
+                new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f));
+            var glossGo = Child(avatarGo, "Gloss");
+            Stretch(glossGo);
+            var gloss = glossGo.AddComponent<Image>();
+            gloss.sprite = LoadSprite("circle-gloss");
+            gloss.color = new Color(1f, 1f, 1f, design.DropGlossAlpha);
+            gloss.raycastTarget = false;
+
+            var textLeft = M(11f) + avatarSize + M(10f);
+            nick = Label(go, "Nick", "Гелій", design, font, design.FontSizeShopCard, design.TextPrimary, TextAlignmentOptions.Left);
+            nick.textWrappingMode = TextWrappingModes.NoWrap;
+            nick.overflowMode = TextOverflowModes.Ellipsis;
+            // Висота рядків — із запасом під висоту рядка шрифту: Ellipsis у TMP ховає текст цілком,
+            // якщо він не вміщається по вертикалі. Підпис стискається в один рядок, а не обрізається.
+            Place(nick, new Vector2(textLeft, M(12f)), new Vector2(M(170f), M(26f)), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+            hint = Label(go, "Hint", "Вітрина · КИТ", design, font, design.FontSizeLabel, design.TextMuted, TextAlignmentOptions.Left);
+            hint.textWrappingMode = TextWrappingModes.NoWrap;
+            hint.overflowMode = TextOverflowModes.Overflow;
+            hint.enableAutoSizing = true;
+            hint.fontSizeMax = design.FontSizeLabel;
+            hint.fontSizeMin = design.FontSizeLabel * design.NickMinScale;
+            Place(hint, new Vector2(textLeft, -M(12f)), new Vector2(M(170f), M(26f)), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+
+            // Вітринна картинка — маленька панель із рамкою рідкості, як мініатюри галереї фіналу.
+            var side = M(46f);
+            var pictureGo = Child(go, "Picture");
+            var pictureRect = pictureGo.GetComponent<RectTransform>();
+            pictureRect.anchorMin = pictureRect.anchorMax = new Vector2(1f, 0.5f);
+            pictureRect.pivot = new Vector2(1f, 0.5f);
+            pictureRect.anchoredPosition = new Vector2(-M(6f), 0f);
+            pictureRect.sizeDelta = new Vector2(side, side);
+            picture = PictureViewBuilder.MakePictureView(pictureGo, design, font, rounded, LoadSprite("rounded-rect-outline"),
+                LoadSprite("nebula"), side, side, M(40f), withTitle: false, captionHeight: 0f, particle: circle);
+            pictureGo.SetActive(false);
+
+            go.SetActive(false);
+        }
 
         private static PlanetCarousel BuildCarousel(GameObject parent, DesignSystem design,
             TMP_FontAsset? font, Sprite quad, Sprite circle, Sprite rounded, Sprite outline,

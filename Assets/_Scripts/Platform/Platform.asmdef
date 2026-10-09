@@ -1,7 +1,9 @@
 {
     "name": "InkFlow.Platform",
     "rootNamespace": "InkFlow.Platform",
-    "references": [],
+    "references": [
+        "InkFlow.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

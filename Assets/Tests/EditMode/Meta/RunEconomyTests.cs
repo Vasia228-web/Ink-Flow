@@ -133,18 +133,13 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void Rankings_RecordIsTheCollection()
+        public void Rankings_HaveNoCollectionMetric()
         {
-            var state = PlayerState.NewPlayer(EconomyData.Default);
-            state.CollectPicture("whale", Today);
-            state.CollectPicture("whale", Today);
-            state.CollectPicture("comet", Today);
-            state.Progress.EndlessRecord = 99_999;
-
-            var board = Leaderboard.WithRealPlayer(state);
-
-            Assert.AreEqual(2, board.You.Value(RankMetric.Record, RankPeriod.AllTime), "§8: різні картинки, не очки");
-            Assert.AreEqual("картинок", Leaderboard.Unit(RankMetric.Record));
+            // §16: метрики — лише «Планети» й «Галактики»; «Колекції» (і очок) у рейтингах немає.
+            var metrics = (RankMetric[])System.Enum.GetValues(typeof(RankMetric));
+            Assert.AreEqual(2, metrics.Length);
+            foreach (var metric in metrics)
+                Assert.IsFalse(metric.ToString().Contains("Record") || metric.ToString().Contains("Collection"), metric.ToString());
         }
 
         [Test]
@@ -169,10 +164,10 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(2, slots[1].Slot);
             Assert.AreEqual(0, reloaded.FreeCopies("whale"));
 
-            Assert.IsTrue(reloaded.ClearSlot(0, first, 2));
+            Assert.IsTrue(reloaded.ClearSlot(0, first, 2, Today));
             Assert.AreEqual(1, GalaxyState.FilledCount(reloaded.Galaxy, 0, first));
             Assert.AreEqual(1, reloaded.FreeCopies("whale"));
-            Assert.IsFalse(reloaded.ClearSlot(0, "Venus", 0));
+            Assert.IsFalse(reloaded.ClearSlot(0, "Venus", 0, Today));
         }
 
         [Test]

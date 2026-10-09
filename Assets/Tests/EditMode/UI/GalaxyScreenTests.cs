@@ -40,6 +40,53 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
+        public void VisitorGalaxy_ComesFromTheShowcase_WithAVisitorCard()
+        {
+            using var rig = MetaScreenRig<GalaxyScreen>.Create(ScreenRigBase.Devices[0], "GalaxyScreen");
+            var player = rig.NewPlayer();
+            var opened = 0;
+            rig.Screen.OpenRequested += (_, _) => opened++;
+
+            // Гість: дві планети ожили, у третій стоїть одна картинка, вітрина — відома бібліотеці картинка.
+            var layout = player.Layout;
+            var slots = new System.Collections.Generic.List<InkFlow.Core.ShowcaseSlot>();
+            for (var p = 0; p < 2; p++)
+                for (var s = 0; s < layout.Planets[p].Slots; s++)
+                    slots.Add(new InkFlow.Core.ShowcaseSlot(layout.Planets[p].Id, s, rig.Library[s % rig.Library.Count].Id));
+            slots.Add(new InkFlow.Core.ShowcaseSlot(layout.Planets[2].Id, 0, rig.Library[3].Id));
+            var showcase = new InkFlow.Core.PublicShowcase("guest-1", "Гелій", 1, false, rig.Library[5].Id, 2, 0, 0, slots, "");
+
+            rig.Enter(player, GalaxyArgs.ForVisitor(showcase));
+
+            var galaxy = rig.Screen.PreviewGalaxy!;
+            Assert.AreEqual(2, galaxy.DoneCount, "планети з вітрини, не з мого файлу");
+            Assert.AreEqual(InkFlow.Core.PlanetState.Current, galaxy.Planets[2].State);
+            Assert.AreEqual(1, galaxy.Planets[2].FilledSlots);
+            Assert.IsTrue(rig.Screen.PreviewVisitorShown, "картка гостя");
+            Assert.AreEqual("Гелій", rig.Screen.PreviewVisitorNick);
+            Assert.AreEqual(rig.Library[5].Id, rig.Screen.PreviewVisitorPictureId, "вітринна картинка гостя");
+            Assert.IsTrue(rig.Screen.PreviewVisitorHint.StartsWith("Вітрина ·"), rig.Screen.PreviewVisitorHint);
+            Assert.IsTrue(rig.Screen.PreviewGalaxyTitle.StartsWith("ГЕЛІЙ ·"), rig.Screen.PreviewGalaxyTitle + " — шапка каже, чия це галактика");
+            Assert.AreEqual(1, rig.Screen.PreviewFocus, "гість бачить останню ожилу планету, а не порожню наступну");
+            Assert.Greater(rig.Screen.PreviewVisitorHintVisibleCharacters, 8, "підпис гостя справді намальований, а не схований тісним прямокутником");
+            Assert.IsFalse(rig.Screen.PreviewOpenButton!.gameObject.activeSelf, "редагування немає");
+            Assert.IsFalse(rig.Screen.PreviewPaginationShown);
+            rig.Screen.PreviewOpenButton.onClick.Invoke();
+            Assert.AreEqual(0, opened, "у чужій галактиці планета не відкривається");
+
+            // Прихований профіль: нік не показуємо, картинки немає, планети не видно.
+            rig.Enter(player, GalaxyArgs.ForVisitor(InkFlow.Core.PublicShowcase.Hidden("guest-2", 5, 1, "")));
+            Assert.AreEqual("Гравець-інкогніто", rig.Screen.PreviewVisitorNick);
+            Assert.AreEqual("ГРАВЕЦЬ-ІНКОГНІТО", rig.Screen.PreviewGalaxyTitle);
+            Assert.IsNull(rig.Screen.PreviewVisitorPictureId);
+            Assert.AreEqual(0, rig.Screen.PreviewGalaxy!.DoneCount);
+
+            // Своя галактика після гостя — без картки.
+            rig.Enter(player, GalaxyArgs.Own);
+            Assert.IsFalse(rig.Screen.PreviewVisitorShown);
+        }
+
+        [Test]
         public void OwnGalaxy_OpensThePlanetInFocus()
         {
             using var rig = MetaScreenRig<GalaxyScreen>.Create(ScreenRigBase.Devices[1], "GalaxyScreen");

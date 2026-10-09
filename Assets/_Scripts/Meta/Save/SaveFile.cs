@@ -13,7 +13,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 9;
+        public const int CurrentVersion = 10;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
@@ -25,6 +25,18 @@ namespace InkFlow.Meta
 
         /// <summary>Перерваний забіг (§9): порожній зліпок — забігу немає. Програш чистить, пауза пише.</summary>
         public RunSnapshot Run = new RunSnapshot();
+
+        /// <summary>База «цього тижня» для рейтингів (§16, v10): лічильники на початку поточного тижня.</summary>
+        public RankWeekData RankWeek = new RankWeekData();
+    }
+
+    /// <summary>Початок тижня (понеділок, «yyyy-MM-dd» UTC) і лічильники на той момент; тижневе значення — приріст.</summary>
+    [Serializable]
+    public sealed class RankWeekData
+    {
+        public string WeekStartUtc = string.Empty;
+        public int PlanetsAtWeekStart;
+        public int GalaxiesAtWeekStart;
     }
 
     /// <summary>Зібрані картинки (§5, §10): факти «яку, скільки разів, коли вперше».</summary>

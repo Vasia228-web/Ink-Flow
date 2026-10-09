@@ -1,4 +1,5 @@
 using System;
+using InkFlow.Core;
 
 namespace InkFlow.Meta
 {
@@ -38,6 +39,7 @@ namespace InkFlow.Meta
             File.Settings ??= new SettingsData();
             File.Collection ??= new CollectionData();
             File.Run ??= new Core.RunSnapshot();
+            File.RankWeek ??= new RankWeekData();
 
             Wallet = new Wallet(File.Wallet.OilDrops);
             Collection = PictureCollection.Load(File.Collection);
@@ -201,6 +203,77 @@ namespace InkFlow.Meta
             Persist();
             ProfileChanged?.Invoke();
             return true;
+        }
+
+
+        // ── Рейтинги (§16): локальні числа — правда; у хмару йде лише вітрина ──
+
+        /// <summary>Слоти планет змінились (постановка, звільнення) — вітрину й таблиці варто оновити.</summary>
+        public event Action? GalaxyChanged;
+
+        /// <summary>Планет ожило — з усіх циклів.</summary>
+        public int PlanetsDone => GalaxyState.CompletedPlanets(Galaxy, Layout);
+
+        /// <summary>Галактик завершено.</summary>
+        public int GalaxiesDone => GalaxyState.CompletedGalaxies(Galaxy, Layout);
+
+        /// <summary>Новий тиждень — нова база приросту; true, якщо базу оновлено (і записано).</summary>
+        public bool RollOverWeek(DateTime utcNow)
+        {
+            if (!WeekBaseline.RollOver(File.RankWeek, utcNow, PlanetsDone, GalaxiesDone))
+                return false;
+            Persist();
+            return true;
+        }
+
+        /// <summary>Значення метрики за період: за весь час — лічильник, за тиждень — приріст від бази тижня.</summary>
+        public long RankValue(RankMetric metric, RankPeriod period, DateTime utcNow)
+        {
+            RollOverWeek(utcNow);
+            if (period == RankPeriod.AllTime)
+                return metric == RankMetric.Planets ? PlanetsDone : GalaxiesDone;
+            return WeekBaseline.WeekValue(File.RankWeek, metric, PlanetsDone, GalaxiesDone);
+        }
+
+        /// <summary>
+        /// Галактика, яку показуємо іншим: поточна, якщо в ній уже стоять картинки, інакше остання
+        /// завершена (щойно завершена галактика робить поточною нову, порожню).
+        /// </summary>
+        public int ShowcaseGalaxy
+        {
+            get
+            {
+                var galaxy = CurrentGalaxy;
+                if (galaxy > 0 && FilledInGalaxy(galaxy) == 0)
+                    galaxy--;
+                return galaxy;
+            }
+        }
+
+        private int FilledInGalaxy(int galaxy)
+        {
+            var total = 0;
+            for (var i = 0; i < Layout.Planets.Count; i++)
+                total += GalaxyState.FilledCount(Galaxy, galaxy, Layout.Planets[i].Id, Layout.Planets[i].Slots);
+            return total;
+        }
+
+        /// <summary>
+        /// Публічна вітрина (§16) — єдине, що йде в хмару: нік, аватар, лічильники, слоти показуваної
+        /// галактики й вітринна картинка. Прихований профіль (§15) віддає лише прапорець і лічильники.
+        /// </summary>
+        public PublicShowcase BuildShowcase(string playerId, DateTime utcNow)
+        {
+            var stamp = utcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            if (Settings.ProfileHidden)
+                return PublicShowcase.Hidden(playerId, PlanetsDone, GalaxiesDone, stamp);
+
+            var galaxy = ShowcaseGalaxy;
+            var slots = new System.Collections.Generic.List<ShowcaseSlot>();
+            foreach (var record in Galaxy.Slots)
+                if (record.Galaxy == galaxy && GalaxyState.IsAddressed(record, Layout))
+                    slots.Add(new ShowcaseSlot(record.PlanetId, record.Slot, record.PictureId));
+            return new PublicShowcase(playerId, Nick, AvatarId, false, ShowcasePictureId, PlanetsDone, GalaxiesDone, galaxy, slots, stamp);
         }
 
         /// <summary>Стан щойно створеного гравця: усе по нулях, крім явно виданого стартового.</summary>
@@ -436,6 +509,10 @@ namespace InkFlow.Meta
         /// </summary>
         public bool TryPlaceInSlot(int galaxy, string planetId, int slot, string pictureId, DateTime utcNow)
         {
+            // База «цього тижня» (§16) мусить стояти ДО зміни слотів: інакше перша ожила планета нового
+            // гравця не рахувалась би за тиждень, бо базу поставив би вже наступний запит рейтингів.
+            // Без окремого Persist: успішна постановка пише файл сама, а відмова нічого не міняє.
+            WeekBaseline.RollOver(File.RankWeek, utcNow, PlanetsDone, GalaxiesDone);
             if (pictureId is null || pictureId.Length == 0)
                 return false;
             var planet = Layout.Find(planetId);
@@ -452,17 +529,21 @@ namespace InkFlow.Meta
 
             GalaxyState.Set(Galaxy, galaxy, planetId, slot, pictureId, utcNow);
             Persist();
+            GalaxyChanged?.Invoke();
             return true;
         }
 
         /// <summary>Повертає картинку зі слота в колекцію (§12) і зберігає. false — слот порожній або планета замкнена.</summary>
-        public bool ClearSlot(int galaxy, string planetId, int slot)
+        public bool ClearSlot(int galaxy, string planetId, int slot, DateTime utcNow)
         {
+            // База тижня — до зміни: «вийняти й поставити назад» на початку тижня не має давати приросту.
+            WeekBaseline.RollOver(File.RankWeek, utcNow, PlanetsDone, GalaxiesDone);
             if (!CanEditPlanet(galaxy, planetId))
                 return false;
             if (!GalaxyState.Clear(Galaxy, galaxy, planetId, slot))
                 return false;
             Persist();
+            GalaxyChanged?.Invoke();
             return true;
         }
     }

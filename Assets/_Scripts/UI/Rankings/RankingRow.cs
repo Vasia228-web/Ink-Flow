@@ -1,3 +1,4 @@
+using InkFlow.Core;
 using InkFlow.Meta;
 using InkFlow.Style;
 using TMPro;
@@ -59,22 +60,20 @@ namespace InkFlow.UI
 
         public void Bind(System.Action<RankPlayer> onTap) => _onTap = onTap;
 
-        /// <summary>
-        /// Колір краплі гравця — один на рядок і картку «Ти»: інкогніто — сірий, справжній гравець — аватар
-        /// із профілю (§14), моковий — його <see cref="RankPlayer.DropColor"/>.
-        /// </summary>
+        /// <summary>Колір краплі гравця — один на рядок, подіум і картку «Ти»: інкогніто — сірий, решта — аватар із набору (§14).</summary>
         public static Color AvatarColor(DesignSystem design, RankPlayer player) =>
-            player.Incognito ? design.RankIncognito
-            : player.Avatar != InkFlow.Core.InkColor.None ? design.Ink(player.Avatar)
-            : player.DropColor.ToColor();
+            Hidden(player) || player.Avatar == InkColor.None ? design.RankIncognito : design.Ink(player.Avatar);
+
+        /// <summary>Сірим малюємо чужих інкогніто; власна картка «Ти» лишається кольоровою — себе гравець знає.</summary>
+        private static bool Hidden(RankPlayer player) => player.Incognito && !player.IsYou;
 
         public static void PaintAvatar(GradientImage avatar, DesignSystem design, RankPlayer player)
         {
-            var color = AvatarColor(design, player);
-            avatar.SetGradient(DesignSystem.Lighten(color, 0.5f), DesignSystem.Darken(color, 0.28f));
+            design.AvatarGradient(player.Avatar, Hidden(player), out var from, out var to);
+            avatar.SetGradient(from, to);
         }
 
-        public void Show(RankPlayer player, int position, RankMetric metric, RankPeriod period)
+        public void Show(RankPlayer player, int position, RankMetric metric)
         {
             _player = player;
             if (design == null)
@@ -103,7 +102,7 @@ namespace InkFlow.UI
 
             if (valueLabel != null)
             {
-                valueLabel.text = player.Value(metric, period).ToString("N0").Replace(",", " ");
+                valueLabel.text = ScoreFormat.Full(player.Value);
                 valueLabel.fontSize = design.FontSizeRankValue;
                 valueLabel.color = design.TextPrimary;
                 if (design.Font != null) valueLabel.font = design.Font;

@@ -417,7 +417,7 @@ namespace InkFlow.UI
             CloseSheet();
             if (State != null)
             {
-                if (!State.ClearSlot(_galaxy, PlanetId, slot.Index))
+                if (!State.ClearSlot(_galaxy, PlanetId, slot.Index, System.DateTime.UtcNow))
                     return;
                 GalaxyState.Apply(_surface, State.Galaxy, _galaxy);
             }

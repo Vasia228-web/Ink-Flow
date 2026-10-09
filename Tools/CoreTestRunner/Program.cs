@@ -9,6 +9,7 @@ using NUnit.Framework;
 
 var failures = 0;
 var passed = 0;
+var failed = new System.Collections.Generic.List<string>();
 
 // Клас із [Test]-методами вважаємо фікстурою навіть без [TestFixture] — саме так
 // поводиться справжній NUnit. Вимагати атрибут означало б МОВЧКИ пропускати тести,
@@ -42,6 +43,7 @@ foreach (var fixture in fixtures)
             failures++;
             var inner = e.InnerException ?? e;
             var kind = inner is AssertionException ? "FAIL" : "ERROR";
+            failed.Add($"{fixture.Name}.{test.Name} [{kind}]: {inner.Message.Split('\n').FirstOrDefault()?.Trim()}");
             Console.WriteLine($"   ✘ {test.Name} [{kind}]");
             Console.WriteLine($"     {inner.Message}");
             if (inner is not AssertionException)
@@ -51,6 +53,9 @@ foreach (var fixture in fixtures)
 }
 
 Console.WriteLine();
+// Невдачі — ще раз у підсумку: серед трьох сотень рядків «✘» губиться, а ім'я тесту потрібне наступному прогону.
+foreach (var name in failed)
+    Console.WriteLine($"   ✘ {name}");
 Console.WriteLine(failures == 0
     ? $"OK — {passed} tests passed."
     : $"FAILED — {failures} failed, {passed} passed.");

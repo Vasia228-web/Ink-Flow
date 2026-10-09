@@ -1,3 +1,4 @@
+using InkFlow.Core;
 using InkFlow.Meta;
 using InkFlow.Style;
 using TMPro;
@@ -59,7 +60,7 @@ namespace InkFlow.UI
 
         public void Bind(System.Action<RankPlayer> onTap) => _onTap = onTap;
 
-        public void Show(RankPlayer player, RankMetric metric, RankPeriod period)
+        public void Show(RankPlayer player, RankMetric metric)
         {
             _player = player;
             if (design == null)
@@ -95,7 +96,7 @@ namespace InkFlow.UI
 
             if (valueLabel != null)
             {
-                valueLabel.text = player.Value(metric, period).ToString("N0").Replace(",", " ");
+                valueLabel.text = ScoreFormat.Full(player.Value);
                 // Число фарбуємо в колір медалі — саме воно, а не нік: у макеті
                 // ієрархію тримають цифри.
                 valueLabel.fontSize = place == 1 ? design.FontSizePodiumFirst : design.FontSizePodiumOther;

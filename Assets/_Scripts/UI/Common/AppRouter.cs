@@ -77,10 +77,13 @@ namespace InkFlow.UI
         }
 
         /// <summary>Платформні сервіси для кнопок §9 — лише туди, де вони потрібні.</summary>
-        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap)
+        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap,
+            InkFlow.Platform.ILeaderboardService? leaderboards = null, InkFlow.Platform.IShowcaseService? showcases = null,
+            InkFlow.Platform.IIdentityService? identity = null, int leaderboardPageSize = 50)
         {
             endless?.BindServices(ads);
             shop?.BindServices(iap);
+            rankings?.BindServices(leaderboards, showcases, identity, leaderboardPageSize);
         }
 
         private void Awake() => WireGraph();
@@ -191,7 +194,7 @@ namespace InkFlow.UI
             if (rankings != null)
             {
                 rankings.BackRequested += Pop;
-                // Чужа галактика — той самий екран у режимі перегляду.
+                // Чужа галактика — той самий екран у режимі перегляду з вітриною гравця (§16).
                 // Pop із неї поверне саме в Рейтинги: стек так і влаштований.
                 rankings.PlayerOpened += args => Push(galaxy, args);
             }

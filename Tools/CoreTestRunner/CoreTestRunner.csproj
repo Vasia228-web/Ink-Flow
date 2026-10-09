@@ -18,6 +18,11 @@
          а економіка й міграції — чистий C# і мають ганятись headless. -->
     <Compile Include="../../Assets/_Scripts/Meta/**/*.cs"
              Exclude="../../Assets/_Scripts/Meta/Save/JsonSaveStorage.cs" />
+    <!-- Рейтинги §16: інтерфейси сервісів, їхні Null/Fake без UnityEngine і синхронізація вітрини —
+         щоб поведінку «у хмару йде лише вітрина» тримав headless-тест, а не лише редактор. -->
+    <Compile Include="../../Assets/_Scripts/Platform/PlatformServices.cs" />
+    <Compile Include="../../Assets/_Scripts/Platform/Null/RankingsServices.cs" />
+    <Compile Include="../../Assets/_Scripts/App/RankingsSync.cs" />
     <!-- Ті самі Edit Mode тести, що ганяє Unity Test Runner — крім UI-тестів, які
          піднімають префаб екрана й потребують живого UnityEngine (Assets/Tests/EditMode/UI). -->
     <Compile Include="../../Assets/Tests/EditMode/**/*.cs"

@@ -149,29 +149,21 @@ namespace InkFlow.Meta
         }
 
         /// <summary>
-        /// Чужа галактика для перегляду з Рейтингів: пройдені планети завершені,
-        /// решта закрита. Проміжного стану тут не буває — ми не показуємо, скільки
-        /// слотів лишилось чужому гравцеві. Мок до Фази 7 (справжня вітрина з хмари).
+        /// Чужа галактика з публічної вітрини (§16): слоти вітрини накладаються на ТУ САМУ розкладку,
+        /// тож стани планет рахуються тим самим правилом, що й свої. Прихований профіль — без слотів:
+        /// усе замкнене, крім першої.
         /// </summary>
-        public static GalaxyProgress CreateMockForOther(int planetsDone)
+        public static GalaxyProgress FromShowcase(PublicShowcase showcase, GalaxyLayout layout)
         {
-            var layout = GalaxyLayout.Default;
-            var planets = new List<PlanetProgress>(layout.Planets.Count);
-            for (var i = 0; i < layout.Planets.Count; i++)
-            {
-                var p = layout.Planets[i];
-                var done = i < planetsDone;
-                planets.Add(new PlanetProgress(p.Type, p.Name, p.Slots)
+            if (showcase is null) throw new System.ArgumentNullException(nameof(showcase));
+            var data = new GalaxyData();
+            foreach (var slot in showcase.Slots)
+                data.Slots.Add(new PlanetSlotRecord
                 {
-                    State = done ? PlanetState.Done : PlanetState.Locked,
-                    FilledSlots = done ? p.Slots : 0,
-                    HasMoons = p.HasMoons,
-                    HasRing = p.HasRing,
-                    IsFinale = p.IsFinale
+                    Galaxy = showcase.Galaxy, PlanetId = slot.PlanetId, Slot = slot.Slot,
+                    PictureId = slot.PictureId, FilledUtc = string.Empty
                 });
-            }
-
-            return new GalaxyProgress(layout.NameOf(0), layout.NameOf(1), planets, 0);
+            return FromSave(data, layout, showcase.Galaxy);
         }
     }
 }

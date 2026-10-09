@@ -44,7 +44,7 @@
 | Пули | префаб тримає фіксовану кількість об'єктів (64 блоки, 64 привиди й підсвітки поля; краплі в картинку — пул `DropFlock`); `Instantiate` під час партії — нуль |
 | DI-фреймворк | **немає** (свідомо) — композиційний корінь вручну, `GameBootstrap` |
 | DOTS/ECS | **немає** (свідомо) — поле 8×8, це десятки об'єктів |
-| Бекенд | немає до Фази 6; далі Unity Gaming Services |
+| Бекенд | Unity Gaming Services за інтерфейсами Platform (Фаза 7: рейтинги й публічна вітрина); без нього гра працює повністю, рейтинги кажуть «не підключені» |
 
 ---
 
@@ -56,7 +56,7 @@ InkFlow.Core          ← ЖОДНИХ посилань, noEngineReferences: tru
 InkFlow.Style         ← Core        (дизайн-токени; лист, який бачить лише UI)
 InkFlow.Meta          ← Core        (економіка, галактика, колекція, збереження)
 InkFlow.Gameplay      ← Core        (ScriptableObject-обгортки конфігів)
-InkFlow.Platform      ← UnityEngine (інтерфейси сервісів + Null/Fake-реалізації)
+InkFlow.Platform      ← Core + UnityEngine (інтерфейси сервісів + Null/Fake-реалізації; DTO рейтингів — Core; UGS-адаптер за define INKFLOW_UGS)
 InkFlow.UI            ← Core + Style + Meta + Platform   (НЕ бачить Gameplay і App)
 InkFlow.App           ← усе вище    (композиційний корінь, ServiceLocator, DevPanel)
 InkFlow.Editor        ← усе         (збирачі екранів, генератори спрайтів, EconomySimulator)
@@ -97,7 +97,7 @@ Assets/
     Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Shop/ Save/ Levels/ (сирота)
       Galaxy/        GalaxyLayout (+PlanetLayout), SlotLayout, PlanetSurface (+PlanetSlot), GalaxyProgress, PlayerId
       Progress/      GalaxyState (слоти), LevelProgress (сирота)
-    Platform/        PlatformServices (інтерфейси), Null/ (Null*, Fake*, LogAnalytics)
+    Platform/        PlatformServices (інтерфейси), Null/ (Null*, Fake*, LogAnalytics), Ugs/ (UgsIdentity, UgsLeaderboards, UgsShowcase — лише з INKFLOW_UGS)
     UI/
       Level/         EndlessScreen, BoardView, BoardPulse, TrayView, PieceView, BoardFeedback,
                      PictureView, RarityHalo, RarityFrame, RarityNames, DropFlock, CompletionCard, SnapshotBlur
@@ -330,6 +330,8 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 Профіль (§14): `ProfileScreen` — візитка (крапля-аватар якорем зверху з півотом по центру, олівець → `NickPrompt` із правилами `NickRules` від роутера: підказка про межі, рядок помилки замість закриття; нік одним рядком з авторозміром), ряд аватарів `AvatarSet` (прості градієнтні кола, тап → `SetAvatar`, обрана обведена), вітринна картинка (`PictureView.ShowCompleted` лише коли картинка змінилась; порожньо — рамка зі знаком питання; підпис каже, обрана чи автоматична; «Обрати з колекції» → `CollectionArgs.ForShowcase()` → `SetShowcasePicture` + `Pop`). Драбини звань, статистики, палітри, бейджів і вітрини планет немає — ні на екрані, ні в коді.
 
+Рейтинги (§16): `RankingsScreen` — лише «Світ», сегменти «Планети»/«Галактики», таби періоду; запит сторінки в `ILeaderboardService` на вхід і на зміну фільтра (застарілі відповіді відкидаються за номером запиту); блок стану замість подіуму, поки таблиці немає («Завантажую…», «Немає з'єднання», «Рейтинги ще не підключені», «Таблиця не відповіла»); подіум топ-3, віртуалізований список, картка «Ти» зі справжніми числами (`RankPlayer.You`; місце «#—», поки сервер не відповів). Тап по гравцю → `IShowcaseService.Fetch` → `GalaxyArgs.ForVisitor(showcase)` → той самий `GalaxyScreen` у перегляді: планети з вітрини (`GalaxyProgress.FromShowcase`), картка гостя (аватар, нік або «Гравець-інкогніто», вітринна картинка), без кнопки й пагінації; інкогніто не відкривається.
+
 Галактика (§12): `GalaxyScreen` (карусель планет поточного циклу, «Відкрити») → `PlanetScreen` (слоти на кулі: порожній → `CollectionScreen` у режимі вибору → `AppRouter.TryPlaceInSlot` + `Pop`; зайнятий → «Замінити / Повернути»; усі зайняті → «планета ожила», остання — «галактика завершена») → колекція — окремий екран із віртуалізованою сіткою й фільтрами. Слоти й картки малюються з одного атласу (`SlotAtlas`) чотирма шарами — бюджет викликів тримає `MetaScreenRig.EstimateBatches`.
 
 Правила в'ю (перевіряє `Tools/check-ui-animation.py`): щокадрова анімація — лише `localPosition/localScale/localRotation` і `CanvasRenderer`; маска й гало картинки — `SetPixels32/Apply` з одного `LateUpdate`; тряска поля рухає окремий вузол `Board/Shake`; ніколи `sizeDelta`, `anchoredPosition` чи `Image.color` у циклі.
@@ -356,6 +358,9 @@ public sealed class PlayerState {                  // рантайм — пра�
     int AvatarId; void SetAvatar(int); bool SetNick(raw, NickRules, out NickVerdict);                 // §14, одразу у файл; відмова лишає старий нік
     string? ShowcasePictureId; bool SetShowcasePicture(id); event ProfileChanged;                    // обрана, поки в колекції; інакше остання зібрана
     bool EnforceNickRules(NickRules); bool IsShowcaseChosen;                                        // старий нік поза правилами → типовий; вітрина обрана чи автоматична
+    event GalaxyChanged; int PlanetsDone; int GalaxiesDone;                                          // §16: слоти змінились; лічильники з усіх циклів
+    long RankValue(RankMetric, RankPeriod, DateTime); bool RollOverWeek(DateTime);                   // «цей тиждень» — приріст від бази (WeekBaseline, файл RankWeek v10)
+    int ShowcaseGalaxy; PublicShowcase BuildShowcase(playerId, DateTime);                            // у хмару йде лише це; прихований профіль — лише прапорець і лічильники
     // NickRules(min, max, bannedWords) з AppConfig: Normalize (очищення) / Check / Fold (транслітерація, цифри-двійники); корінь — з початку слова
     // AvatarSet — по краплі на колір чорнила; RankingRow.AvatarColor — один колір аватара для рядка й картки «Ти»
     bool ShouldShowInterstitial;
@@ -366,7 +371,7 @@ public sealed class PlayerState {                  // рантайм — пра�
 }
 ```
 
-- **Колекція** — `id → (скільки разів, коли вперше)`; рекорд колекції = різних (§8) — це і є метрика «Колекція» в Рейтингах.
+- **Колекція** — `id → (скільки разів, коли вперше)`; рекорд колекції = різних (§8). У рейтингах метрики «Колекція» немає (§16).
 - **Слоти планет (§12)** — список «галактика + планета + слот + картинка + коли» (`GalaxyData.Slots`); одна зібрана копія — один слот; стани планет і галактик — похідні (`GalaxyState`, `GalaxyProgress.FromSave`). Планета відкрита, якщо вона перша, одразу за ожилою або з картинками (`GalaxyState.IsPlanetOpen`). Записи, яких розкладка не адресує (слоти чи планети, яких уже немає в `GalaxyConfig`), у файлі лишаються, але в прогресі й зайнятих копіях не рахуються (`IsAddressed`): усе, що каже «скільки зайнято», бере розкладку.
 - **Ідентифікатори у файлі — назви, не індекси** (картинки, планети): бібліотека росте темами.
 - **Нафта витрачається лише на дві дії** (§13): «домалювати одразу» і «продовжити після програшу»; магазин продає лише нафту, ціна — зі стору (`IIapService.Query`), у грі немає жодного числа-ціни.
@@ -390,6 +395,12 @@ public interface IIapService         { bool IsAvailable; void Query(IReadOnlyLis
                                        void Buy(string productId, Action<PurchaseResult> done); }   // StoreProduct: id + локалізована ціна рядком
 public interface IReviewService      { void RequestReview(); }
 public interface INotificationService{ void Schedule(...); void CancelAll(); }
+// §16 — рейтинги; DTO (RankMetric, RankPeriod, LeaderboardPage/Entry, LeaderboardStatus, PublicShowcase, MockRankings) живуть у Core
+public interface IIdentityService    { bool IsSignedIn; string PlayerId; void SignIn(Action<bool> done); }
+public interface ILeaderboardService { bool IsAvailable; void Fetch(RankMetric, RankPeriod, int limit, Action<LeaderboardPage> done);
+                                       void Submit(RankMetric, RankPeriod, long value, Action<bool>? done = null); }   // тиждень — приріст, за весь час — лічильник
+public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShowcase, Action<bool>? done = null);
+                                       void Fetch(string playerId, Action<PublicShowcase?> done); }
 ```
 
 | Інтерфейс | Android | iOS | До релізу |
@@ -399,6 +410,11 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | Ads | Unity Ads | Unity Ads + **ATT-запит** | `NullAds` (реліз) / `FakeAds` (редактор, dev) |
 | IAP | Unity IAP | Unity IAP | `FakeIap` (редактор, dev: ціни §13 рядками, покупка вдається) / `NullIap` (реліз без SDK: цін немає, кнопки сплять) |
 | Review | In-App Review | `SKStoreReviewController` | `NullReview` |
+| Identity | UGS Authentication (анонімно) | те саме | `FakeIdentity` (редактор, dev) / `NullIdentity` (реліз без UGS) |
+| Leaderboards | UGS Leaderboards: `planets_week`/`planets_all`/`galaxies_week`/`galaxies_all` (ідентифікатори в `AppConfig`; тижневі — зі скиданням щопонеділка 00:00 UTC; метадані нік/аватар/інкогніто) | те саме | `FakeLeaderboards` (таблиця макета, `Offline`) / `NullLeaderboards` («не підключені») |
+| Showcase | UGS Cloud Save, ключ `showcase` з публічним доступом | те саме | `FakeShowcase` (у пам'яті) / `NullShowcase` |
+
+Синхронізація (§16): `App/RankingsSync` (без Unity, під headless-тестом) — події стану `GalaxyChanged`/`ProfileChanged`/`SettingsChanged` лише ставлять прапорець; `Flush` (раз на кадр із бутстрапа) будує `PlayerState.BuildShowcase`, порівнює з останньою опублікованою й шле лише зміни: вітрину — коли змінилась, кожне з чотирьох значень (дві метрики × два періоди; тиждень — приріст, за весь час — лічильник) — коли змінилось. Вхід повторюється, доки не вдасться (офлайн-старт, повернення в застосунок). Локальний файл — правда; прихований профіль публікує лише прапорець і лічильники — і у вітрину, і в метадані таблиць. Екран рейтингів читає хмарний id гравця з `IIdentityService` у момент запиту, а не знімком. Null/Fake рейтингових сервісів — `Platform/Null/RankingsServices.cs` без UnityEngine; UGS-адаптер компілюється лише з define `INKFLOW_UGS` і пакетами `com.unity.services.{core,authentication,leaderboards,cloudsave}`.
 
 Точки §17 у грі: продовжити після програшу за ролик (перший раз за забіг; далі — за нафту, §13), подвоїти нафту за ролик, інтерстиціал раз на `InterstitialEveryRuns` забігів при виході з картки фіналу. «Домалювати одразу» — за нафту (§13). Магазин (§13) — чотири пакети нафти через `IIapService.Query`/`Buy`: ціна на кнопці — рядок стору. Без реальних сервісів кнопки роликів не з'являються, а магазин показує пакети з неактивними кнопками — гра повністю грабельна без SDK.
 
@@ -434,9 +450,9 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | Рівень | Де | Що покриває |
 |---|---|---|
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
-| EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v9, профіль (аватар, правила ніка, вітрина), рейтинги, відсутність економіки фарби, налаштування й посилання |
-| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **336 тестів** |
-| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **46 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять), налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
+| EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v10, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, налаштування й посилання |
+| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **355 тестів** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
+| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **55 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять), налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
 **Обов'язкові тести-запобіжники:**
@@ -492,7 +508,7 @@ public interface INotificationService{ void Schedule(...); void CancelAll(); }
 | **4. Магазин — лише нафта** | ✅ чотири пакети з `EconomyConfig`, ціна зі стору через `IIapService` (`FakeIap`/`NullIap`), нафта лише на «домалювати» й «продовжити», `EconomySimulation`, v9 без полів фарби, `PaintEconomyAbsenceTests` (Фаза 4, Сесія 6) |
 | **5. Налаштування** | ✅ шестерня на всіх екранах (`ScreenBase.SettingsRequested`), `SettingsScreen`, перемикачі реально керують `GameAudio` і `SettingsGatedHaptics`, «Додому» з підтвердженням, «Заново» лише в забігу, `AppConfig`/`AppLinks`; ревізія Фаз 4–5 закрита — забіг переживає налаштування без перезапуску (Фаза 5, Сесія 6) |
 | **6. Профіль** | ✅ аватар із набору крапель (`AvatarSet`), нік за `NickRules` з `AppConfig` (3–16, фільтр коренів), вітринна картинка з колекції (`ShowcasePictureId`, `CollectionArgs.ForShowcase`); драбину, статистику, палітру, бейджі й вітрину планет видалено; старі баги аватара закриті UI-тестами (Фаза 6, Сесія 6) |
-| **7. Рейтинги на справжніх даних** | ⛔ потребує бекенду (UGS) |
+| **7. Рейтинги на справжніх даних** | ✅ інтерфейси Platform (`IIdentityService`, `ILeaderboardService`, `IShowcaseService`) з Null/Fake і UGS-адаптером за define, `RankingsSync` (у хмару лише вітрина й два числа), база тижня v10, екран «Світ» з двома метриками й станом «немає з'єднання», чужа галактика з вітрини, інкогніто (Фаза 7, Сесія 6). Підключення UGS у проєкті — ручні кроки автора |
 | **Реліз** | ⛔ Platform-реалізації (реклама, IAP, гаптика), приватність, білди |
 
 ---

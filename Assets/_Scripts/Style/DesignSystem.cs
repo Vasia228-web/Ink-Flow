@@ -916,11 +916,9 @@ namespace InkFlow.Style
         [Tooltip("Запас унизу списку під закріплену картку «Ти».")]
         [SerializeField] private float rankListBottomPadding = 321f;
 
-        [Tooltip("Підтон картки «Ти» — маджента й фіолет із макета.")]
-        [SerializeField, Range(0f, 0.6f)] private float youCardTintFrom = 0.16f;
-        [SerializeField, Range(0f, 0.6f)] private float youCardTintTo = 0.14f;
-        [SerializeField] private Color youCardStroke = new Color(1f, 0.353f, 0.667f, 0.7f);
-        [SerializeField, Range(0f, 1f)] private float youCardGlowAlpha = 0.4f;
+        [Tooltip("Картка «Ти» (§16): щільний непрозорий фон без кольорової обводки — зверху й знизу градієнта.")]
+        [SerializeField] private Color youCardFillFrom = Hex("#2A1E56");
+        [SerializeField] private Color youCardFillTo = Hex("#1A1338");
         [SerializeField] private Color youCardText = Hex("#FFD0E6");
 
         [Header("Магазин")]
@@ -1250,10 +1248,8 @@ namespace InkFlow.Style
         public float RankRowHeight => rankRowHeight;
         public float RankRowGap => rankRowGap;
         public float RankListBottomPadding => rankListBottomPadding;
-        public float YouCardTintFrom => youCardTintFrom;
-        public float YouCardTintTo => youCardTintTo;
-        public Color YouCardStroke => youCardStroke;
-        public float YouCardGlowAlpha => youCardGlowAlpha;
+        public Color YouCardFillFrom => youCardFillFrom;
+        public Color YouCardFillTo => youCardFillTo;
         public Color YouCardText => youCardText;
 
         /// <summary>Колір медалі за місцем (1..3). Поза межами — бронза.</summary>
@@ -1434,6 +1430,18 @@ namespace InkFlow.Style
 
         /// <summary>Темний край краплі.</summary>
         public Color InkEdge(InkColor color) => Darken(Ink(color), dropEdgeDarken);
+
+        /// <summary>
+        /// Градієнт краплі-аватара (§14) — один на рядок рейтингу, картку «Ти», набір у профілі й картку
+        /// гостя: верх світліший на <see cref="DropHighlightLighten"/>, край темніший на <see cref="DropEdgeDarken"/>;
+        /// прихований профіль — сірий тими самими множниками.
+        /// </summary>
+        public void AvatarGradient(InkColor ink, bool incognito, out Color from, out Color to)
+        {
+            var color = incognito || ink == InkColor.None ? rankIncognito : Ink(ink);
+            from = Lighten(color, dropHighlightLighten);
+            to = Darken(color, dropEdgeDarken);
+        }
 
         /// <summary>Колір тіні/гало під краплею.</summary>
         public Color InkGlow(InkColor color)

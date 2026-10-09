@@ -198,8 +198,8 @@ namespace InkFlow.UI
                     Toggle(avatarButtons[i], exists);
                 if (exists && avatarOptions[i] != null)
                 {
-                    var color = design.Ink(AvatarSet.InkOf(i));
-                    avatarOptions[i].SetGradient(DesignSystem.Lighten(color, 0.5f), DesignSystem.Darken(color, 0.28f));
+                    design.AvatarGradient(AvatarSet.InkOf(i), false, out var from, out var to);
+                    avatarOptions[i].SetGradient(from, to);
                 }
                 if (i < avatarRings.Length && avatarRings[i] != null)
                 {

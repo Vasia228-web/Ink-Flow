@@ -1,13 +1,11 @@
+using InkFlow.Core;
 using InkFlow.Meta;
 
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Аргументи екрана галактики.
-    ///
-    /// Другого екрана для «чужої галактики» не буде: перегляд із Рейтингів — це той
-    /// самий екран із <see cref="ReadOnly"/>. Копія розійшлася б із оригіналом на
-    /// першій же правці розкладки.
+    /// Аргументи екрана Галактики: своя (редагована) або чужа з публічної вітрини (§16) — лише перегляд.
+    /// Один екран на обидві ролі: копія розійшлася б із оригіналом на першій правці розкладки.
     /// </summary>
     public sealed class GalaxyArgs : ScreenArgs
     {
@@ -19,6 +17,13 @@ namespace InkFlow.UI
             ReadOnly = readOnly;
         }
 
+        private GalaxyArgs(PublicShowcase visitor)
+        {
+            Owner = new PlayerId(visitor.PlayerId);
+            ReadOnly = true;
+            Visitor = visitor;
+        }
+
         // get-only, задається конструктором. `init` тут не можна: він вимагає
         // System.Runtime.CompilerServices.IsExternalInit, якого в .NET Standard 2.1
         // Unity немає, і збірка падає з CS0518.
@@ -27,11 +32,17 @@ namespace InkFlow.UI
         public PlayerId Owner { get; }
 
         /// <summary>
-        /// Тільки перегляд: ховаються кнопка «Фарбувати» й пагінація.
+        /// Тільки перегляд: ховаються кнопка «Відкрити» й пагінація.
         /// Гортати чужу галактику можна, змінювати — ні.
         /// </summary>
         public bool ReadOnly { get; }
 
+        /// <summary>Вітрина чужого гравця з хмари: планети з картинками, нік, аватар, вітринна картинка.</summary>
+        public PublicShowcase? Visitor { get; }
+
         public static readonly GalaxyArgs Own = new GalaxyArgs(PlayerId.Self, false);
+
+        /// <summary>Чужа галактика з Рейтингів (§16): лише перегляд, дані — з вітрини.</summary>
+        public static GalaxyArgs ForVisitor(PublicShowcase visitor) => new GalaxyArgs(visitor);
     }
 }

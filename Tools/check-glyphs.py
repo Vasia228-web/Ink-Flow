@@ -54,8 +54,10 @@ def ui_strings():
     """
     label_arg = re.compile(r'Label\(\s*[^,]+,\s*"[^"]*",\s*("(?:[^"\\]|\\.)*")')
     text_assign = re.compile(r'\.text\s*=\s*(\$?"(?:[^"\\]|\\.)*")')
-    expr_return = re.compile(r'=>\s*(\$?"(?:[^"\\]|\\.)*")')
-    ternary_arm = re.compile(r'(?:^|[?:])\s*(\$?"(?:[^"\\]|\\.)*")\s*(?:[:;),]|$)')
+    # В екранах UI майже кожен рядковий літерал — напис (назви об'єктів і спрайтів — ASCII, їх перевірка
+    # не чіпає), тож там беремо ВСІ літерали: вирази-повернення, обидві гілки тернара на одному рядку,
+    # кортежі у switch-виразах. Патерни вище лишаються для збирачів і решти коду.
+    any_literal = re.compile(r'(\$?"(?:[^"\\]|\\.)*")')
 
     for path in sorted(SCRIPTS.rglob("*.cs")):
         source = path.read_text(encoding="utf-8")
@@ -66,9 +68,10 @@ def ui_strings():
             stripped = line.strip()
             # Логи, винятки, коментарі й хвости склеєних рядків (+ "…") у TMP не потрапляють.
             if ("Debug.Log" in stripped or "Exception(" in stripped or stripped.startswith("//")
-                    or stripped.startswith('"') or stripped.startswith('+ "')):
+                    or stripped.startswith('"') or stripped.startswith('+ "')
+                    or "Tooltip(" in stripped or "Header(" in stripped):
                 continue
-            patterns = (label_arg, text_assign, expr_return, ternary_arm) if in_ui else (label_arg, text_assign)
+            patterns = (any_literal,) if in_ui else (label_arg, text_assign)
             for pattern in patterns:
                 for match in pattern.finditer(line):
                     yield path, line_no, match.group(1)

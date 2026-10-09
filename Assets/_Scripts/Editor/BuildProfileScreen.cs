@@ -354,8 +354,8 @@ namespace InkFlow.Editor
                 var dropGo = Child(slotGo, "Drop");
                 var drop = dropGo.AddComponent<GradientImage>();
                 drop.sprite = circle;
-                var ink = design.Ink(AvatarSet.InkOf(i));
-                drop.SetGradient(DesignSystem.Lighten(ink, 0.5f), DesignSystem.Darken(ink, 0.28f));
+                design.AvatarGradient(AvatarSet.InkOf(i), false, out var inkFrom, out var inkTo);
+                drop.SetGradient(inkFrom, inkTo);
                 Place(drop, Vector2.zero, new Vector2(option, option), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
                 options[i] = drop;
 

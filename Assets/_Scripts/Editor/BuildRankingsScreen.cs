@@ -120,19 +120,14 @@ namespace InkFlow.Editor
             var screen = screenGo.AddComponent<RankingsScreen>();
 
             var headerHeight = M(46f);
-            var scopeHeight = M(38f);
             var metricHeight = M(32f);
             var periodHeight = M(24f);
 
             BuildHeader(screenGo, design!, font, circle!, circleOutline!, currencyPrefab!,
                 headerHeight, out var backButton, out var title, out var currency, out var settingsButton);
 
-            var scopeTop = headerHeight;
-            BuildScopeTabs(screenGo, design!, font, rounded!, scopeTop, scopeHeight,
-                out var friendsButton, out var worldButton, out var friendsFill,
-                out var worldFill, out var friendsLabel, out var worldLabel);
-
-            var metricTop = scopeTop + scopeHeight + M(10f);
+            // §16: лише «Світ» — капсули «Друзі / Світ» немає, метрики стають одразу під шапкою.
+            var metricTop = headerHeight + M(8f);
             BuildMetricSegments(screenGo, design!, font, rounded!, outline!, metricTop, metricHeight,
                 out var metricButtons, out var metricFills, out var metricStrokes, out var metricLabels);
 
@@ -152,9 +147,8 @@ namespace InkFlow.Editor
                 rows[i] = BuildRow(rowsHost, design!, font, rounded!, outline!, circle!, gloss!,
                     quad!, planetShader!, i);
 
-            BuildEmptyState(content, design!, font, rounded!, circle!, podium.Height,
-                out var emptyState, out var emptyTitle, out var emptyHint,
-                out var myCodeLabel, out var enterCodeLabel);
+            BuildStatusBlock(content, design!, font, circle!,
+                out var statusBlock, out var statusTitle, out var statusHint);
 
             BuildYouCard(screenGo, design!, font, rounded!, outline!, circle!, glow!,
                 out var youBackground, out var youStroke, out var youGlow, out var youPosition,
@@ -163,17 +157,13 @@ namespace InkFlow.Editor
             Wire(screen,
                 ("design", design!), ("backButton", backButton), ("title", title), ("settingsButton", settingsButton),
                 ("currency", currency),
-                ("friendsTabButton", friendsButton), ("worldTabButton", worldButton),
-                ("friendsTabFill", friendsFill), ("worldTabFill", worldFill),
-                ("friendsTabLabel", friendsLabel), ("worldTabLabel", worldLabel),
                 ("weekButton", weekButton), ("allTimeButton", allButton),
                 ("weekLabel", weekLabel), ("allTimeLabel", allLabel),
                 ("weekUnderline", weekUnderline), ("allTimeUnderline", allUnderline),
                 ("podium", podium.Rect), ("scroll", scroll),
                 ("scrollContent", content.GetComponent<RectTransform>()),
                 ("listContent", rowsHost.GetComponent<RectTransform>()),
-                ("emptyState", emptyState), ("emptyTitle", emptyTitle), ("emptyHint", emptyHint),
-                ("myCodeLabel", myCodeLabel), ("enterCodeLabel", enterCodeLabel),
+                ("statusBlock", statusBlock), ("statusTitle", statusTitle), ("statusHint", statusHint),
                 ("youBackground", youBackground), ("youStroke", youStroke), ("youGlow", youGlow),
                 ("youPosition", youPosition), ("youAvatar", youAvatar), ("youNick", youNick),
                 ("youGap", youGap), ("youValue", youValue), ("youUnit", youUnit));
@@ -249,26 +239,13 @@ namespace InkFlow.Editor
             settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
         }
 
-        // ── «Друзі» / «Світ»: padding 4, r22; чип r18 ──
-        private static void BuildScopeTabs(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, float top, float height,
-            out Button friendsButton, out Button worldButton, out GradientImage friendsFill,
-            out GradientImage worldFill, out TMP_Text friendsLabel, out TMP_Text worldLabel)
-        {
-            var go = Track(parent, "ScopeTabs", rounded, top, height, M(22f), 0.05f, 0.1f);
-            friendsButton = Chip(go, design, font, rounded, "Друзі", 0, 2, M(4f), M(18f),
-                design.FontSizeBody, out friendsFill, out friendsLabel);
-            worldButton = Chip(go, design, font, rounded, "Світ", 1, 2, M(4f), M(18f),
-                design.FontSizeBody, out worldFill, out worldLabel);
-        }
-
-        // ── Метрика: padding 3, r15, три сегменти ──
+        // ── Метрика: padding 3, r15, два сегменти (§16: «Колекції» немає) ──
         private static void BuildMetricSegments(GameObject parent, DesignSystem design,
             TMP_FontAsset? font, Sprite rounded, Sprite outline, float top, float height,
             out Button[] buttons, out Image[] fills, out Image[] strokes, out TMP_Text[] labels)
         {
             var go = Track(parent, "MetricSegments", rounded, top, height, M(15f), 0.04f, 0.08f);
-            var names = new[] { "Планети", "Галактики", "Колекція" };
+            var names = new[] { "Планети", "Галактики" };
 
             buttons = new Button[names.Length];
             fills = new Image[names.Length];
@@ -638,18 +615,21 @@ namespace InkFlow.Editor
         }
 
         // ── Порожній стан друзів ──
-        private static void BuildEmptyState(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded, Sprite circle, float podiumHeight,
-            out RectTransform root, out TMP_Text title, out TMP_Text hint,
-            out TMP_Text myCodeLabel, out TMP_Text enterCodeLabel)
+        /// <summary>
+        /// Блок замість таблиці (§16): «Завантажую…», «Немає з'єднання», «Рейтинги ще не підключені».
+        /// Тексти ставить екран; тут — крапля-силует, заголовок і підказка на місці подіуму.
+        /// </summary>
+        private static void BuildStatusBlock(GameObject parent, DesignSystem design,
+            TMP_FontAsset? font, Sprite circle,
+            out RectTransform root, out TMP_Text title, out TMP_Text hint)
         {
-            var go = Child(parent, "EmptyState");
+            var go = Child(parent, "StatusBlock");
             root = go.GetComponent<RectTransform>();
             root.anchorMin = new Vector2(0f, 1f);
             root.anchorMax = new Vector2(1f, 1f);
             root.pivot = new Vector2(0.5f, 1f);
-            root.anchoredPosition = new Vector2(0f, -podiumHeight);
-            root.sizeDelta = new Vector2(0f, M(260f));
+            root.anchoredPosition = Vector2.zero;
+            root.sizeDelta = new Vector2(0f, M(240f));
 
             // Велика напівпрозора крапля — той самий силует, що в аватарах.
             var dropGo = Child(go, "Drop");
@@ -657,46 +637,20 @@ namespace InkFlow.Editor
             drop.sprite = circle;
             drop.color = new Color(1f, 1f, 1f, 0.1f);
             drop.raycastTarget = false;
-            Place(drop, new Vector2(0f, -M(38f)), new Vector2(M(96f), M(112f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0f));
+            // Півот ЗВЕРХУ: крапля висить під верхом блоку, а не стирчить у маску скролу півдиском.
+            Place(drop, new Vector2(0f, -M(28f)), new Vector2(M(96f), M(112f)),
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
 
-            title = Label(go, "Title", "Тут поки порожньо", design, font,
+            title = Label(go, "Title", "Немає з'єднання", design, font,
                 design.FontSizeSubtitle, design.TextMuted, TextAlignmentOptions.Center);
             Place(title, new Vector2(0f, -M(168f)), new Vector2(M(300f), M(24f)),
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
 
-            hint = Label(go, "Hint", "Додай друзів, щоб змагатися у своєму затишному колі",
+            hint = Label(go, "Hint", "Рейтинги з'являться, щойно буде мережа",
                 design, font, design.FontSizeCardSubtitle, design.TextFaint, TextAlignmentOptions.Center);
-            Place(hint, new Vector2(0f, -M(196f)), new Vector2(M(230f), M(36f)),
+            hint.textWrappingMode = TextWrappingModes.Normal;
+            Place(hint, new Vector2(0f, -M(196f)), new Vector2(M(260f), M(40f)),
                 new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            myCodeLabel = CodeButton(go, design, font, rounded, "Мій код",
-                new Vector2(-M(60f), -M(238f)), true);
-            enterCodeLabel = CodeButton(go, design, font, rounded, "Ввести код",
-                new Vector2(M(60f), -M(238f)), false);
-        }
-
-        private static TMP_Text CodeButton(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, string text, Vector2 position, bool primary)
-        {
-            var go = Child(parent, $"Code_{text}");
-            var fill = go.AddComponent<GradientImage>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(20f));
-            fill.SetGradient(
-                primary ? design.AccentPrimary : design.GlassFill,
-                primary ? design.AccentGold : design.GlassFill);
-            Place(fill, position, new Vector2(M(110f), M(44f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            var label = Label(go, "Label", text, design, font,
-                design.FontSizeShopCard, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(label.gameObject);
-
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = fill;
-            return label;
         }
 
         // ── Закріплена картка «Ти»: left/right 14, bottom 16, r22 ──

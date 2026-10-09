@@ -170,12 +170,12 @@ namespace InkFlow.Tests.Meta
             state.TryPlaceInSlot(0, Planet(0), 0, "whale", Today);
             var writes = storage.Writes;
 
-            Assert.IsTrue(state.ClearSlot(0, Planet(0), 0));
+            Assert.IsTrue(state.ClearSlot(0, Planet(0), 0, Today));
 
             Assert.AreEqual(1, state.FreeCopies("whale"));
             Assert.IsNull(GalaxyState.PictureAt(state.Galaxy, 0, Planet(0), 0));
             Assert.AreEqual(writes + 1, storage.Writes);
-            Assert.IsFalse(state.ClearSlot(0, Planet(0), 0), "порожній слот");
+            Assert.IsFalse(state.ClearSlot(0, Planet(0), 0, Today), "порожній слот");
             Assert.AreEqual(writes + 1, storage.Writes, "невдала дія не пише файл");
         }
 
@@ -198,7 +198,7 @@ namespace InkFlow.Tests.Meta
 
             // Завершена галактика — вітрина: зняти звідти картинку означало б повернути поточною
             // Галактику I і замкнути все, що гравець уже поставив у другій.
-            Assert.IsFalse(state.ClearSlot(0, Planet(0), 0), "завершену галактику не редагуємо");
+            Assert.IsFalse(state.ClearSlot(0, Planet(0), 0, Today), "завершену галактику не редагуємо");
             Assert.AreEqual(state.Layout.Planets[0].Slots, GalaxyState.FilledCount(state.Galaxy, 0, Planet(0)));
             Assert.AreEqual(1, state.CurrentGalaxy);
             Assert.AreEqual(writes, storage.Writes, "відмова не пише файл");

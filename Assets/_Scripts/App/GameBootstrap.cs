@@ -38,6 +38,7 @@ namespace InkFlow.App
 
         private ISaveStorage _storage;
         private PlayerState _state;
+        private RankingsSync? _rankings;
 
         /// <summary>Стан гравця — дев-панель дістає його саме звідси.</summary>
         public PlayerState State => _state;
@@ -57,13 +58,34 @@ namespace InkFlow.App
             if (router != null)
             {
                 router.Configure(balanceConfig.ToBalanceData(), _state, Links(), Nicks());
-                router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
+                BindRankings();
             }
             else
                 Debug.LogError(
                     "[InkFlow] GameBootstrap.router не підв'язаний — стан гравця нікуди не потрапить, " +
                     "і всі екрани покажуть мокові дані. Перезбери: Ink Flow → Setup → Build Main Scene.");
         }
+
+        /// <summary>
+        /// Рейтинги (§16): сервіси в роутер, синхронізація вітрини — на стан. Вхід у хмару асинхронний:
+        /// екран рейтингів дістає id гравця з сервісу тотожності, коли той уже ввійшов.
+        /// </summary>
+        private void BindRankings()
+        {
+            _rankings?.Dispose();
+            var identity = ServiceLocator.Get<IIdentityService>();
+            var leaderboards = ServiceLocator.Get<ILeaderboardService>();
+            var showcases = ServiceLocator.Get<IShowcaseService>();
+            _rankings = new RankingsSync(_state, identity, leaderboards, showcases);
+            _rankings.Start();
+            // Екран дістає id гравця з сервісу тотожності в момент запиту, а не знімком: вхід асинхронний.
+            router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>(),
+                leaderboards, showcases, identity, appConfig != null ? appConfig.LeaderboardPageSize : 50);
+        }
+
+        /// <summary>Зміни в хмару йдуть раз на кадр і лише коли є що слати (RankingsSync порівнює з останньою відправкою).</summary>
+        private void LateUpdate() => _rankings?.Flush();
+
 
         private AppLinks Links() => appConfig != null ? appConfig.ToAppLinks() : AppLinks.Default;
 
@@ -112,6 +134,42 @@ namespace InkFlow.App
 #endif
             ServiceLocator.Register<IReviewService>(new NullReview());
             ServiceLocator.Register<INotificationService>(new NullNotifications());
+            RegisterRankingsServices();
+        }
+
+        /// <summary>
+        /// Рейтинги (§16): справжні UGS — лише з define INKFLOW_UGS і встановленими пакетами (ручні кроки
+        /// автора); у редакторі й dev-збірках — «навмання» (таблиця макета, вітрини в пам'яті); у релізі без
+        /// UGS — Null: екран каже «не підключено», гра грабельна.
+        /// </summary>
+        private void RegisterRankingsServices()
+        {
+#if INKFLOW_UGS
+            var config = appConfig;
+            ServiceLocator.Register<IIdentityService>(new InkFlow.Platform.Ugs.UgsIdentity());
+            ServiceLocator.Register<ILeaderboardService>(new InkFlow.Platform.Ugs.UgsLeaderboards(
+                config != null ? config.LeaderboardPlanetsWeek : string.Empty,
+                config != null ? config.LeaderboardPlanetsAll : string.Empty,
+                config != null ? config.LeaderboardGalaxiesWeek : string.Empty,
+                config != null ? config.LeaderboardGalaxiesAll : string.Empty,
+                // Прихований профіль (§15): у метадані таблиці нік і аватар не йдуть — лише прапорець.
+                () => _state == null ? (string.Empty, 0, false)
+                    : _state.Settings.ProfileHidden ? (string.Empty, 0, true)
+                    : (_state.Nick, _state.AvatarId, false)));
+            ServiceLocator.Register<IShowcaseService>(new InkFlow.Platform.Ugs.UgsShowcase(config != null ? config.CloudShowcaseKey : string.Empty));
+#elif UNITY_EDITOR || DEVELOPMENT_BUILD
+            var layout = LoadLayout();
+            var ids = new System.Collections.Generic.List<string>(layout.Planets.Count);
+            var slots = new System.Collections.Generic.List<int>(layout.Planets.Count);
+            foreach (var planet in layout.Planets) { ids.Add(planet.Id); slots.Add(planet.Slots); }
+            ServiceLocator.Register<IIdentityService>(new FakeIdentity());
+            ServiceLocator.Register<ILeaderboardService>(new FakeLeaderboards());
+            ServiceLocator.Register<IShowcaseService>(new FakeShowcase(ids, slots));
+#else
+            ServiceLocator.Register<IIdentityService>(new NullIdentity());
+            ServiceLocator.Register<ILeaderboardService>(new NullLeaderboards());
+            ServiceLocator.Register<IShowcaseService>(new NullShowcase());
+#endif
         }
 
         /// <summary>
@@ -188,6 +246,9 @@ namespace InkFlow.App
         /// </summary>
         private void OnApplicationPause(bool paused)
         {
+            // Повернення в застосунок: мережа могла з'явитись — повторити вхід і відправити те, що чекало.
+            if (!paused)
+                _rankings?.Start();
             if (paused)
                 PersistSave();
         }
@@ -217,7 +278,7 @@ namespace InkFlow.App
             if (router != null)
             {
                 router.Configure(balance, _state, Links(), Nicks());
-                router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>());
+                BindRankings();
                 router.RestartFromHub();
             }
         }
@@ -225,6 +286,7 @@ namespace InkFlow.App
 
         private void OnDestroy()
         {
+            _rankings?.Dispose();
             PersistSave();
             GameEvents.Clear();
             ServiceLocator.Clear();
