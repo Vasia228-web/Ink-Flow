@@ -270,6 +270,29 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void Migration_FromV10_DropsLevelRecordsAndKeepsTheRest()
+        {
+            // v11: список пройдених рівнів прибрано разом із режимом «Рівні». Старий ключ у JSON
+            // JsonUtility не читає, переносити нікуди — крок лише піднімає версію, не чіпаючи решти.
+            var save = new SaveFile { Version = 10 };
+            save.Wallet.OilDrops = 777;
+            save.Progress.EndlessRecord = 6_200;
+            save.Progress.RunsPlayed = 12;
+            save.RankWeek.WeekStartUtc = "2026-10-05";
+            save.RankWeek.PlanetsAtWeekStart = 3;
+
+            var migrated = SaveMigrations.Migrate(save);
+
+            Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version);
+            Assert.AreEqual(777, migrated.Wallet.OilDrops);
+            Assert.AreEqual(6_200, migrated.Progress.EndlessRecord);
+            Assert.AreEqual(12, migrated.Progress.RunsPlayed);
+            Assert.AreEqual("2026-10-05", migrated.RankWeek.WeekStartUtc, "база тижня v10 переживає крок");
+            Assert.AreEqual(3, migrated.RankWeek.PlanetsAtWeekStart);
+            Assert.IsNull(typeof(ProgressData).GetField("Levels"), "записів рівнів у файлі більше немає");
+        }
+
+        [Test]
         public void Migration_KeepsExistingNick()
         {
             var save = new SaveFile { Version = 2 };
@@ -288,7 +311,6 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(SaveFile.CurrentVersion, save.Version);
             Assert.AreEqual(0, save.Wallet.OilDrops);
             Assert.AreEqual(0, save.Galaxy.Slots.Count);
-            Assert.AreEqual(0, save.Progress.Levels.Count);
             Assert.AreEqual(0, save.Progress.EndlessRecord);
             Assert.AreEqual(ProfileData.DefaultNick, save.Profile.Nick);
         }

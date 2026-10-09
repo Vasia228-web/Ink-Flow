@@ -14,8 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: InkFlow.Gameplay::InkFlow.Gameplay.EconomyConfig
   starterOil: 0
   starterPaintLiters: 0
-  baseLevelReward: 20
-  bossMultiplier: 3
   fullRewardPlays: 10
   reducedRewardRate: 0.25
-  endlessMilestones: 88130000000000001027000000000000a86100000000000050c3000000000000

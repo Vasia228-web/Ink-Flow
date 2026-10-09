@@ -339,36 +339,11 @@ namespace InkFlow.Meta
         }
 
         /// <summary>
-        /// Підсумок пройденого рівня: зірки в прогрес, нафта в гаманець, запис у файл.
-        /// Одна точка входу — інакше «зірки записались, а нафта ні» ставало б
-        /// питанням того, який екран що не забув. Режим «Рівні» — сирота («Скоро»).
-        /// </summary>
-        public long CompleteLevel(int levelId, int stars, bool isBoss, DateTime utcNow)
-        {
-            DailyLimit.RollOverIfNeeded(utcNow);
-
-            LevelProgress.Record(Progress, levelId, stars);
-
-            var reward = Rewards.ForLevel(
-                new GameResult(levelId, won: stars > 0, stars, isBoss),
-                DailyLimit.RewardMultiplier);
-
-            if (reward > 0)
-                Wallet.Add(reward, isBoss ? RewardSource.BossClear : RewardSource.LevelClear);
-
-            // Партію рахуємо ПІСЛЯ нарахування: інакше перша ж гра дня платила б
-            // за зменшеним множником.
-            DailyLimit.RegisterPlay(utcNow);
-
-            Persist();
-            return reward;
-        }
-
-        /// <summary>
         /// Підсумок забігу «Нескінченного» (майстер-док §10): очки → нафта з денним
         /// множником, картинки → нафта за рідкістю, рекорди — у прогрес, забіг
         /// рахується як партія дня (інакше нафта стала б нескінченною). Одна точка
-        /// входу, як і <see cref="CompleteLevel"/>.
+        /// входу — інакше «рекорд записався, а нафта ні» ставало б питанням того,
+        /// який екран що не забув.
         /// </summary>
         public RunReward CompleteRun(in RunSummary run, DateTime utcNow)
         {

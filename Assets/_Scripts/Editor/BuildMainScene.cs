@@ -43,7 +43,7 @@ namespace InkFlow.Editor
         /// <summary>Імена префабів у порядку, в якому вони лягають у сцену.</summary>
         private static readonly string[] ScreenNames =
         {
-            "HubScreen", "LevelMapScreen", "ComingSoonScreen", "EndlessScreen",
+            "HubScreen", "ComingSoonScreen", "EndlessScreen",
             "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen",
             "SettingsScreen"
         };
@@ -154,7 +154,6 @@ namespace InkFlow.Editor
             Wire(router,
                 ("navigation", navigation),
                 ("hub", screens["HubScreen"]),
-                ("levelMap", screens["LevelMapScreen"]),
                 ("comingSoon", screens["ComingSoonScreen"]),
                 ("endless", screens["EndlessScreen"]),
                 ("galaxy", screens["GalaxyScreen"]),

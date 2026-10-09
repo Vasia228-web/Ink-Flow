@@ -40,7 +40,6 @@ namespace InkFlow.App
         private float _holdSince = -1f;
         private Vector2 _scroll;
         private string _oilInput = "500";
-        private string _starsInput = "3";
         private string _nickInput = string.Empty;
         private int _paintIndex;
         private string _status = string.Empty;
@@ -203,16 +202,10 @@ namespace InkFlow.App
             GUILayout.Label($"Галактика {state.CurrentGalaxy + 1}: у слотах {GalaxyState.TotalFilled(state.Galaxy, state.Layout)} картинок," +
                             $"планет ожило {GalaxyState.CompletedPlanets(state.Galaxy, state.Layout)}, " +
                             $"галактик завершено {GalaxyState.CompletedGalaxies(state.Galaxy, state.Layout)}");
-            GUILayout.Label($"Рівні: пройдено до {LevelProgress.HighestCleared(state.Progress)}, " +
-                            $"зірок {LevelProgress.TotalStars(state.Progress)}");
             GUILayout.Label($"Рекорд Нескінченного: {state.Progress.EndlessRecord}");
             GUILayout.Label($"Денний ліміт: {state.DailyLimit.PlaysToday} партій, " +
                             $"множник ×{state.DailyLimit.RewardMultiplier:0.##}, " +
                             $"доба {state.DailyLimit.CurrentDayUtc:yyyy-MM-dd}");
-
-            // Режим «Рівні» вимкнено: картка в хабі веде на заглушку, а карта й
-            // прогрес лишаються у файлі (документ §10).
-            GUILayout.Label("⚠ Режим «Рівні» — заглушка «Скоро»; прогрес рівнів лише зберігається");
         }
 
         private void DrawEconomyActions(PlayerState state)
@@ -233,37 +226,6 @@ namespace InkFlow.App
 
         private void DrawProgressActions(PlayerState state)
         {
-            GUILayout.Space(6f);
-            GUILayout.Label("── Прогрес ──");
-
-            GUILayout.BeginHorizontal();
-            _starsInput = GUILayout.TextField(_starsInput, GUILayout.Width(50f));
-            if (GUILayout.Button("Відкрити всі рівні з N зірками") &&
-                int.TryParse(_starsInput, out var stars))
-            {
-                for (var id = 1; id <= LevelMap.MockTotal; id++)
-                    LevelProgress.Record(state.Progress, id, stars);
-                state.Persist();
-                Report($"усі {LevelMap.MockTotal} рівнів по {stars}★");
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Пройти наступний рівень"))
-            {
-                var next = LevelProgress.HighestCleared(state.Progress) + 1;
-                var reward = state.CompleteLevel(next, 3, false, System.DateTime.UtcNow);
-                Report($"рівень {next} пройдено на 3★, +{reward} нафти");
-            }
-
-            if (GUILayout.Button("Скинути рівні"))
-            {
-                state.Progress.Levels.Clear();
-                state.Persist();
-                Report("прогрес рівнів очищено");
-            }
-            GUILayout.EndHorizontal();
-
             GUILayout.Space(6f);
             GUILayout.Label("── Картинки ──");
             GUILayout.BeginHorizontal();

@@ -5,10 +5,6 @@ namespace InkFlow.Meta
     /// <summary>Звідки прийшла нафта — для аналітики й антифроду.</summary>
     public enum RewardSource
     {
-        LevelClear,
-        BossClear,
-        EndlessRecord,
-        EndlessMilestone,
         Purchase,
         Debug,
 

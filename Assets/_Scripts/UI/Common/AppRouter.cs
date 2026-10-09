@@ -8,13 +8,13 @@ namespace InkFlow.UI
     /// Граф навігації застосунку — ЄДИНЕ місце, де записано, що куди веде.
     ///
     /// Екрани про маршрути не знають: вони лише повідомляють про намір
-    /// (`BackRequested`, `PlayRequested`, `TabRequested`…), а рішення ухвалюється
+    /// (`BackRequested`, `EndlessRequested`, `TabRequested`…), а рішення ухвалюється
     /// тут. Тому маршрут можна змінити, не чіпаючи жодного екрана, і навпаки —
     /// екран лишається запускним окремою сценою.
     ///
     /// Правило стека: вглиб — <see cref="NavigationStack.Push"/>, назад —
-    /// <see cref="NavigationStack.Pop"/>, «наступний рівень» —
-    /// <see cref="NavigationStack.Replace"/>. Рестарт партії стека не чіпає взагалі:
+    /// <see cref="NavigationStack.Pop"/>, корінь («Додому» з забігу) —
+    /// <see cref="NavigationStack.SetRoot"/>. Рестарт партії стека не чіпає взагалі:
     /// сесія скидається на місці.
     /// </summary>
     public sealed class AppRouter : MonoBehaviour
@@ -23,7 +23,6 @@ namespace InkFlow.UI
 
         [Header("Екрани")]
         [SerializeField] private HubScreen hub;
-        [SerializeField] private LevelMapScreen levelMap;
         [SerializeField] private ComingSoonScreen comingSoon;
         [SerializeField] private EndlessScreen endless;
         [SerializeField] private GalaxyScreen galaxy;
@@ -65,7 +64,6 @@ namespace InkFlow.UI
             state.EnforceNickRules(_nickRules);
 
             hub?.BindState(state);
-            levelMap?.BindState(state);
             galaxy?.BindState(state);
             planet?.BindState(state);
             collection?.BindState(state);
@@ -122,7 +120,7 @@ namespace InkFlow.UI
 
         private ScreenBase?[] AllScreens() => new ScreenBase?[]
         {
-            hub, levelMap, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile, settings
+            hub, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile, settings
         };
 
         private void WireGraph()
@@ -131,8 +129,8 @@ namespace InkFlow.UI
             if (hub != null)
             {
                 // Картка «Рівні» лишається, але веде на заглушку «Скоро» (документ §10):
-                // карта рівнів у сцені є, та вхід у неї вимкнено, поки режим не
-                // переписано на новому ядрі.
+                // режиму ще немає — старий екран карти рівнів видалено, новий напишуть
+                // на новому ядрі разом із режимом.
                 hub.LevelsRequested += () => Push(comingSoon);
                 hub.EndlessRequested += () => Push(endless, new EndlessArgs(_balance));
                 hub.TabRequested += OnHubTab;
@@ -140,14 +138,6 @@ namespace InkFlow.UI
                 // вкладка внизу — інакше два входи в один екран рано чи пізно
                 // розійшлися б аргументами.
                 hub.ProfileRequested += () => OnHubTab("profile");
-            }
-
-            // ── Карта рівнів (осиротіла, вхід вимкнено) ──
-            if (levelMap != null)
-            {
-                levelMap.BackRequested += Pop;
-                levelMap.PlayRequested += id =>
-                    Debug.Log($"[InkFlow] Рівень {id}: режим «Рівні» ще не реалізовано на новому ядрі.");
             }
 
             if (comingSoon != null)

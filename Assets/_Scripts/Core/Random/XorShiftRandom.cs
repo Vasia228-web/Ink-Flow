@@ -3,9 +3,9 @@ using System;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Xorshift32 — власна реалізація, однакова на всіх платформах і в усіх версіях Unity (§6).
-    /// Puzzle сідиться ТІЛЬКИ levelId: те саме рішення завжди дає той самий результат,
-    /// інакше ідеальний розв'язок іноді «не спрацював би» і гравець відчув би обман.
+    /// Xorshift32 — власна реалізація, однакова на всіх платформах і в усіх версіях Unity (§6):
+    /// той самий сід дає ту саму послідовність у грі, у боті й у тестах — інакше
+    /// прогін бота й партія гравця розійшлися б на першому ж лотку.
     /// </summary>
     public sealed class XorShiftRandom : IRandomSource
     {
@@ -42,9 +42,5 @@ namespace InkFlow.Core
                 return x;
             }
         }
-
-        /// <summary>Сід рівня: стабільний і не залежить від номера спроби (§6).</summary>
-        public static XorShiftRandom ForLevel(int levelId) =>
-            new XorShiftRandom(unchecked((uint)(levelId * 2654435761u)));
     }
 }

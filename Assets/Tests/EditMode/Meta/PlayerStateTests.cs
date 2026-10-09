@@ -34,8 +34,8 @@ namespace InkFlow.Tests.Meta
             var state = PlayerState.NewPlayer(EconomyData.Default);
 
             Assert.AreEqual(0, state.Wallet.OilDrops);
-            Assert.AreEqual(0, LevelProgress.TotalStars(state.Progress));
             Assert.AreEqual(0, state.Progress.EndlessRecord);
+            Assert.AreEqual(0, state.Progress.RunsPlayed);
             Assert.AreEqual(0, state.Galaxy.Slots.Count);
             Assert.AreEqual(0, state.CurrentGalaxy);
             Assert.AreEqual(0, state.DailyLimit.PlaysToday);
@@ -50,45 +50,6 @@ namespace InkFlow.Tests.Meta
             var state = PlayerState.NewPlayer(new EconomyData(starterOil: 150));
 
             Assert.AreEqual(150, state.Wallet.OilDrops);
-        }
-
-        [Test]
-        public void CompleteLevel_AwardsStarsAndOilAndPersists()
-        {
-            var storage = new MemoryStorage();
-            var state = PlayerState.NewPlayer(EconomyData.Default, storage);
-
-            var reward = state.CompleteLevel(levelId: 1, stars: 2, isBoss: false, Today);
-
-            Assert.AreEqual(40, reward, "20 бази × 2 зірки × повний множник");
-            Assert.AreEqual(40, state.Wallet.OilDrops);
-            Assert.AreEqual(2, LevelProgress.StarsFor(state.Progress, 1));
-            Assert.AreEqual(1, storage.Writes, "підсумок партії мусить лягти у файл одразу");
-        }
-
-        [Test]
-        public void CompleteLevel_FirstPlayOfTheDayPaysFullRate()
-        {
-            var state = PlayerState.NewPlayer(new EconomyData(fullRewardPlays: 1), new MemoryStorage());
-
-            var first = state.CompleteLevel(1, 3, false, Today);
-            var second = state.CompleteLevel(2, 3, false, Today);
-
-            // Партія рахується ПІСЛЯ нарахування — інакше перша ж гра дня
-            // платила б за зменшеним множником.
-            Assert.AreEqual(60, first);
-            Assert.Less(second, first, "після вичерпання ліміту нагорода менша");
-        }
-
-        [Test]
-        public void CompleteLevel_LosingPaysNothingButStillCounts()
-        {
-            var state = PlayerState.NewPlayer(EconomyData.Default, new MemoryStorage());
-
-            var reward = state.CompleteLevel(1, stars: 0, isBoss: false, Today);
-
-            Assert.AreEqual(0, reward);
-            Assert.AreEqual(0, state.Wallet.OilDrops);
         }
 
         // ── Слоти планет (§12) ──
@@ -296,7 +257,7 @@ namespace InkFlow.Tests.Meta
             before.Wallet.Add(120, RewardSource.Debug);
             before.CollectPicture("whale", Today);
             before.TryPlaceInSlot(0, Planet(0), 3, "whale", Today);
-            LevelProgress.Record(before.Progress, 3, 2);
+            before.Progress.BestChain = 7;
             before.Persist();
 
             var after = new PlayerState(storage.Written!, EconomyData.Default, storage);
@@ -304,7 +265,7 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(120, after.Wallet.OilDrops);
             Assert.AreEqual("whale", GalaxyState.PictureAt(after.Galaxy, 0, Planet(0), 3));
             Assert.AreEqual(0, after.FreeCopies("whale"));
-            Assert.AreEqual(2, LevelProgress.StarsFor(after.Progress, 3));
+            Assert.AreEqual(7, after.Progress.BestChain);
         }
 
         [Test]

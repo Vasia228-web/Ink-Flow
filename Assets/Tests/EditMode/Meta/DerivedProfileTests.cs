@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace InkFlow.Tests.Meta
 {
     /// <summary>
-    /// Похідні від стану: галактика, карта рівнів, рейтинги.
+    /// Похідні від стану: галактика, рейтинги.
     /// Усе це РАХУЄТЬСЯ зі збереження, а не зберігається окремо — тому
     /// розійтись із фактами не може, і саме це тут перевіряється.
     /// </summary>
@@ -89,68 +89,6 @@ namespace InkFlow.Tests.Meta
             Assert.IsFalse(state.TryPlaceInSlot(1, state.Layout.Planets[0].Id, 0, "pic-0-0", Today));
             state.CollectPicture("pic-0-0", Today);
             Assert.IsTrue(state.TryPlaceInSlot(1, state.Layout.Planets[0].Id, 0, "pic-0-0", Today), "друга копія — слот у другій галактиці");
-        }
-
-        // ── Карта рівнів ──
-
-        [Test]
-        public void LevelMap_OfANewPlayerOpensOnlyTheFirst()
-        {
-            var map = LevelMap.FromProgress(new ProgressData(), 0, 10);
-
-            Assert.AreEqual(1, map.Current!.Number);
-            Assert.AreEqual(0, map.TotalStars);
-
-            foreach (var node in map.Nodes)
-            {
-                if (node.Kind == LevelNodeKind.Bonus || node.Number == 1)
-                    continue;
-                Assert.IsTrue(node.Locked, $"рівень {node.Number} має бути замкнений");
-            }
-        }
-
-        [Test]
-        public void LevelMap_ZeroStarRecordDoesNotOpenTheNextLevel()
-        {
-            var progress = new ProgressData();
-            // «Заходив і програв» — не «пройшов».
-            LevelProgress.Record(progress, 1, 0);
-
-            var map = LevelMap.FromProgress(progress, 0, 10);
-
-            Assert.AreEqual(1, map.Current!.Number);
-        }
-
-        [Test]
-        public void LevelMap_FollowsClearedLevels()
-        {
-            var progress = new ProgressData();
-            LevelProgress.Record(progress, 1, 3);
-            LevelProgress.Record(progress, 2, 2);
-
-            var map = LevelMap.FromProgress(progress, 3, 10);
-
-            Assert.AreEqual(3, map.Current!.Number);
-            Assert.AreEqual(5, map.TotalStars);
-            Assert.AreEqual(0.3f, map.DailyFraction, 0.001f);
-        }
-
-        [Test]
-        public void LevelMap_BonusUnlocksByTotalStars()
-        {
-            var progress = new ProgressData();
-            for (var id = 1; id <= 9; id++)
-                LevelProgress.Record(progress, id, 3);
-
-            var map = LevelMap.FromProgress(progress, 0, 10);
-
-            foreach (var node in map.Nodes)
-            {
-                if (node.Kind != LevelNodeKind.Bonus)
-                    continue;
-                Assert.AreEqual(map.TotalStars < node.StarsRequired, node.Locked,
-                    $"бонус на {node.StarsRequired}★ при {map.TotalStars}★");
-            }
         }
 
         // ── Рейтинги ──

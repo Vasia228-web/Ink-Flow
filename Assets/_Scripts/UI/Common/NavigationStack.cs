@@ -75,41 +75,6 @@ namespace InkFlow.UI
             below.Screen.OnEnter(below.Args);
         }
 
-        /// <summary>
-        /// Замінює ВЕРХНІЙ екран, не чіпаючи те, що під ним.
-        ///
-        /// Саме цим переходять «Далі» після пройденого рівня: пуш на кожному рівні
-        /// нарощував би стек, і після десяти рівнів «‹» вело б через усі десять.
-        /// </summary>
-        public void Replace(ScreenBase screen, ScreenArgs? args = null)
-        {
-            if (screen == null)
-                return;
-
-            if (_stack.Count == 0)
-            {
-                Push(screen, args);
-                return;
-            }
-
-            var top = _stack[_stack.Count - 1];
-            var entry = new Entry(screen, args ?? ScreenArgs.Empty);
-
-            // Той самий екран із новими аргументами — не смикаємо OnExit/OnEnter
-            // парою, просто заходимо заново: інакше блимав би кадр порожнечі.
-            if (ReferenceEquals(top.Screen, screen))
-            {
-                _stack[_stack.Count - 1] = entry;
-                screen.OnEnter(entry.Args);
-                return;
-            }
-
-            _stack.RemoveAt(_stack.Count - 1);
-            top.Screen.OnExit();
-            _stack.Add(entry);
-            screen.OnEnter(entry.Args);
-        }
-
         /// <summary>Замінює весь стек одним екраном (корінь застосунку).</summary>
         public void SetRoot(ScreenBase screen, ScreenArgs? args = null)
         {

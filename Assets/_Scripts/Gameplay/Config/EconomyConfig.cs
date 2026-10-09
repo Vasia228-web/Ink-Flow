@@ -33,23 +33,12 @@ namespace InkFlow.Gameplay
         [Tooltip("Нафта на старті. 0 — гравець заробляє її першим же забігом.")]
         [SerializeField, Min(0)] private long starterOil;
 
-        [Header("Нагорода за рівень")]
-        [Tooltip("База; підсумок = база × зірки × денний множник.")]
-        [SerializeField, Min(1)] private long baseLevelReward = 20;
-
-        [Tooltip("У скільки разів більше платить бос-рівень.")]
-        [SerializeField, Min(1)] private int bossMultiplier = 3;
-
         [Header("Денний ліміт")]
         [Tooltip("Скільки партій на день платять повну нагороду.")]
         [SerializeField, Min(1)] private int fullRewardPlays = 10;
 
         [Tooltip("Частка нагороди після вичерпання ліміту.")]
         [SerializeField, Range(0f, 1f)] private float reducedRewardRate = 0.25f;
-
-        [Header("Нескінченний (старий режим — лишається для «Рівнів»)")]
-        [Tooltip("Одноразові віхи рахунку. Виплата = віха ÷ 100.")]
-        [SerializeField] private long[] endlessMilestones = { 5000, 10000, 25000, 50000 };
 
         [Header("Забіг (майстер-док §10)")]
         [Tooltip("Скільки очок коштує одна крапля нафти. Нафта за забіг = очки ÷ це × денний множник.")]
@@ -80,11 +69,8 @@ namespace InkFlow.Gameplay
 
         public EconomyData ToEconomyData() => new EconomyData(
             starterOil,
-            baseLevelReward,
-            bossMultiplier,
             fullRewardPlays,
             reducedRewardRate,
-            endlessMilestones,
             scorePerOil,
             pictureRewards,
             interstitialEveryRuns,

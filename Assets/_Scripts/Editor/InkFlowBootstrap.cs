@@ -12,10 +12,10 @@ namespace InkFlow.Editor
     /// Меню: Ink Flow → Setup → Bootstrap Assets. Batch:
     ///   Unity -batchmode -quit -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.InkFlowBootstrap.BootstrapAssets
     ///
-    /// Сцен не будує: кожен екран збирає свій Build*Screen. Рівнів і Addressables-групи
-    /// `Levels` більше немає — режим «Рівні» вимкнено (документ §10); стару групу в
-    /// Addressables прибирає автор руками. Тут лишились спільні службові речі, якими
-    /// збирачі користуються: EnsureEditMode, EnsureFolder.
+    /// Сцен не будує: кожен екран збирає свій Build*Screen. Рівнів, їхньої Addressables-групи
+    /// `Levels` і карти рівнів більше немає — режим «Рівні» веде на «Скоро» (документ §10)
+    /// і буде написаний заново. Тут лишились спільні службові речі, якими збирачі
+    /// користуються: EnsureEditMode, EnsureFolder.
     /// </summary>
     public static class InkFlowBootstrap
     {

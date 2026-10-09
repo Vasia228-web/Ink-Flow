@@ -4,7 +4,7 @@
 >
 > **Головний принцип архітектури:** ігрова логіка не знає, що існує Unity. Усе, що можна протестувати без редактора, тестується без редактора.
 >
-> Переписано 2026-09-24 після переробки ядра (Сесія 2); оновлено 2026-10-04 (Сесія 5). Старе ядро — краплі, густота, вибухи, бос — скасоване повністю; баків, змішувача, зон і спроб Сесії 2 теж більше немає — картинка піксельна, кроки заповнюються з ліній, забіг зберігається зліпком. Що лишилось сиротами і чому, записано в `docs/implementation-notes.md` (Orphans).
+> Переписано 2026-09-24 після переробки ядра (Сесія 2); оновлено 2026-10-10 (Сесія 6, прибирання «Рівнів»). Старе ядро — краплі, густота, вибухи, бос — скасоване повністю; баків, змішувача, зон і спроб Сесії 2 теж більше немає — картинка піксельна, кроки заповнюються з ліній, забіг зберігається зліпком. Сироти режиму «Рівні» (карта, прогрес, віхи) прибрано 2026-10-10 — `docs/implementation-notes.md` (Decisions Сесії 6).
 
 ---
 
@@ -40,7 +40,7 @@
 | Цільові платформи | Android (Google Play), iOS (App Store) — **один код, нуль `#if` у геймплеї** |
 | Скриптинг | IL2CPP, .NET Standard 2.1 (без `init`, без `record`) |
 | Інпут | Unity Input System; перетягування фігур — `IPointerDownHandler`/`IDragHandler` на комірках лотка |
-| Асети | Addressables лишились у проєкті, але новий контент (картинки) — звичайні асети, згенеровані редактором |
+| Асети | Addressables лишились у проєкті (лише порожня `Default Local Group`; групу `Levels` прибрано), новий контент (картинки) — звичайні асети, згенеровані редактором |
 | Пули | префаб тримає фіксовану кількість об'єктів (64 блоки, 64 привиди й підсвітки поля; краплі в картинку — пул `DropFlock`); `Instantiate` під час партії — нуль |
 | DI-фреймворк | **немає** (свідомо) — композиційний корінь вручну, `GameBootstrap` |
 | DOTS/ECS | **немає** (свідомо) — поле 8×8, це десятки об'єктів |
@@ -90,27 +90,27 @@ Assets/
       Config/        BalanceData, PieceCatalogData, MasterPalette, PixelPicture, PictureLibrary (+ThemeNames)
       Sim/           RunBot (+BotWeights)
       Random/        IRandomSource, XorShiftRandom
-      Galaxy/        PaintKind, PlanetType (дані метагри, що потрібні Core-тестам)
+      Galaxy/        PlanetType (дані метагри, що потрібні Core-тестам)
       Rgb            колір у даних без UnityEngine
-    Style/           DesignSystem (усі кольори, радіуси, тривалості), PlanetPalette, PaintInfo, RgbExtensions
-    Gameplay/        Config/BalanceConfig, EconomyConfig, GalaxyConfig, PictureLibraryAsset — обгортки для інспектора
-    Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Shop/ Save/ Levels/ (сирота)
+    Style/           DesignSystem (усі кольори, радіуси, тривалості), PlanetPalette, RgbExtensions
+    Gameplay/        Config/BalanceConfig, EconomyConfig, GalaxyConfig, AppConfig, PictureLibraryAsset — обгортки для інспектора
+    Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Shop/ Save/
       Galaxy/        GalaxyLayout (+PlanetLayout), SlotLayout, PlanetSurface (+PlanetSlot), GalaxyProgress, PlayerId
-      Progress/      GalaxyState (слоти), LevelProgress (сирота)
+      Progress/      GalaxyState (слоти)
     Platform/        PlatformServices (інтерфейси), Null/ (Null*, Fake*, LogAnalytics), Ugs/ (UgsIdentity, UgsLeaderboards, UgsShowcase — лише з INKFLOW_UGS)
     UI/
       Level/         EndlessScreen, BoardView, BoardPulse, TrayView, PieceView, BoardFeedback,
                      PictureView, RarityHalo, RarityFrame, RarityNames, DropFlock, CompletionCard, SnapshotBlur
       Planet/        PlanetScreen (+PlanetArgs), PlanetStage, SlotMarker, SlotAtlas
       Collection/    CollectionScreen (+CollectionArgs), CollectionCard
-      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NestedScrollForwarder, …
-      Hub/ Galaxy/ Shop/ Rankings/ Profile/ Levels/ Atoms/
+      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, ComingSoonScreen, NickPrompt, ConfirmPrompt, GameAudio, …
+      Hub/ Galaxy/ Shop/ Rankings/ Profile/ Atoms/
     App/             GameBootstrap, ServiceLocator, DevPanel
     Editor/          Build*Screen, BuildMainScene, BuildUIKit, GenerateUISprites, GenerateFontAsset, RefreshPictureLibrary,
                      PictureViewBuilder (+A1Layers, K1Sprites), StyleSpriteImporter, ScreenRigBase → RunScreenRig,
                      MetaScreenRig<T>, RunScreenshots, MetaScreenshots, UiBuilder, InkFlowBootstrap, DevMenu, EconomySimulator
   _Pictures/         <тема>/<id>.txt — картинки (формат docs/pictures-format.md), 117 штук
-  _ScriptableObjects/ Balance/ (BalanceConfig, EconomyConfig, GalaxyConfig)  Style/ (DesignSystem)  Pictures/ (PictureLibrary)
+  _ScriptableObjects/ Balance/ (BalanceConfig, EconomyConfig, GalaxyConfig, AppConfig)  Style/ (DesignSystem)  Pictures/ (PictureLibrary)
   _Sprites/          UI/ (згенеровані спрайти)  K1Candy/ (копії еталона docs/StyleRef; шари тривоги A1Breathe будує код)
   _Shaders/          InkFlowPlanet, InkFlowZone, InkFlowDarkCanvas
   _Prefabs/          UI/ (атоми)  Screens/ (корені екранів — з них складається Main.unity)
@@ -293,8 +293,7 @@ BalanceConfig.asset   → BalanceData:   поле 8×8, лоток 3, мішок
 EconomyConfig.asset   → EconomyData:   ScorePerOil, PictureRewards[6], FinishPictureCosts[6] + FinishPictureMinShare,
                                         ContinueCost, OilPacks[4] (id стору, кількість, бейдж; ціни — зі стору),
                                         InterstitialEveryRuns, RewardAdMultiplier; числа витрат підбирає
-                                        EconomySimulation (Meta) — меню Ink Flow → Simulate → Economy (30 days);
-                                        поля старого режиму «Рівні» (BaseLevelReward, EndlessMilestones…) — сироти
+                                        EconomySimulation (Meta) — меню Ink Flow → Simulate → Economy (30 days)
 GalaxyConfig.asset    → GalaxyLayout:  планети по черзі (тип = ідентифікатор у файлі, назва, слоти 4 … 12, місяці,
                                         кільце, фінал) та імена циклів галактик; створюється Bootstrap Assets або
                                         Build Main Scene з дефолтами GalaxyLayout.Default
@@ -310,9 +309,9 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 ## 8. Шар Gameplay і Style — обгортки конфігів і дизайн-токени
 
-Від `InkFlow.Gameplay` лишились `BalanceConfig`, `EconomyConfig` і `PictureLibraryAsset` — обгортки для інспектора, які `ToBalanceData()`/`ToEconomyData()`/`ToLibrary()` перетворюють на POCO Core. Ігрове поле живе в UI: партія — такий самий екран, як магазин чи профіль.
+Від `InkFlow.Gameplay` лишились `BalanceConfig`, `EconomyConfig`, `GalaxyConfig`, `AppConfig` і `PictureLibraryAsset` — обгортки для інспектора, які `ToBalanceData()`/`ToEconomyData()`/`ToLayout()`/`ToAppLinks()`/`ToNickRules()`/`ToLibrary()` перетворюють на POCO Core/Meta. Ігрове поле живе в UI: партія — такий самий екран, як магазин чи профіль.
 
-`InkFlow.Style` — `DesignSystem` (усі візуальні числа), `PlanetPalette`, `PaintInfo`, `RgbExtensions` (`Rgb.ToColor()` на межі Core → в'юхи). Відкладене застосування токенів з `OnValidate`/`OnEnable` — `StyleRefresh` у `UI/Common`. Палітри: `InkColor` (інтерфейс і фарби планет, не чіпати), `RarityColor(Rarity)` (шість рідкостей), `BlockTint` для кольорів родин картинки (індекси майстер-палітри Core); `Paint(PaintKind)` і `PlanetPalette` — метагра до Фаз 3–4.
+`InkFlow.Style` — `DesignSystem` (усі візуальні числа), `PlanetPalette`, `RgbExtensions` (`Rgb.ToColor()` на межі Core → в'юхи). Відкладене застосування токенів з `OnValidate`/`OnEnable` — `StyleRefresh` у `UI/Common`. Палітри: `InkColor` (інтерфейс і фарби планет, не чіпати), `RarityColor(Rarity)` (шість рідкостей), `BlockTint` для кольорів родин картинки (індекси майстер-палітри Core); `PlanetPalette` — кольори типів планет для галактики.
 
 **Композиційний корінь** — `GameBootstrap` у `Main.unity`: читає збереження (`PlayerState` з бібліотекою картинок і балансом), реєструє сервіси в `ServiceLocator` (у редакторі й dev-збірках — `FakeAds`), віддає роутеру стан і сервіси. Залежності передаються полями через `Wire()` у збирачах, не `FindObjectOfType`.
 
@@ -320,7 +319,7 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 ## 9. Шар UI і навігація
 
-**Одна сцена `Main.unity`**, одинадцять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Шестерня (§15) на кожному екрані — подія `ScreenBase.SettingsRequested`, роутер підписує всі екрани циклом і відкриває `SettingsScreen` з `SettingsArgs(InRun)`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
+**Одна сцена `Main.unity`**, десять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Шестерня (§15) на кожному екрані — подія `ScreenBase.SettingsRequested`, роутер підписує всі екрани циклом і відкриває `SettingsScreen` з `SettingsArgs(InRun)`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
 
 Екран забігу (`EndlessScreen`) зверху вниз, px макета (`RunLayout`, Core): шапка 40 → блок 186: по центру лише картинка на полотні W4DarkCanvas (сторона `runPictureSide` 154 + запас під гало рідкості), праворуч колонка РАХУНОК/РЕКОРД 56–92 → поле 374 (панель на всю ширину мінус бічне поле 8; 64 блоки + 64 привиди) → лоток 86 при низу safe area — усе × K (1080/390). Бракує висоти — стискається спершу блок картинки (до 108), поле й лоток ніколи.
 
@@ -365,8 +364,7 @@ public sealed class PlayerState {                  // рантайм — пра�
     // AvatarSet — по краплі на колір чорнила; RankingRow.AvatarColor — один колір аватара для рядка й картки «Ти»
     bool ShouldShowInterstitial;
     GalaxyLayout Layout; int CurrentGalaxy; int FreeCopies(pictureId); bool CanEditPlanet(galaxy, planetId);   // §12
-    bool TryPlaceInSlot(galaxy, planetId, slot, pictureId, DateTime); bool ClearSlot(galaxy, planetId, slot);
-    long CompleteLevel(...);                         // режим «Рівні» — сирота
+    bool TryPlaceInSlot(galaxy, planetId, slot, pictureId, DateTime); bool ClearSlot(galaxy, planetId, slot, DateTime);
     void Persist();
 }
 ```
@@ -378,7 +376,7 @@ public sealed class PlayerState {                  // рантайм — пра�
 
 ### Збереження — з міграціями з першого дня
 
-`SaveFile.Version` — завжди перше поле; поточна **v9** (v5 — піксельні картинки й колекція за id, v6 — зліпок забігу `RunSnapshot`, v7 — кроки у зліпку, v8 — слоти планет: розміщення → слоти, літри → нафта, зони — геть; v9 — полів фарби у файлі більше немає). Старі поля для кроку v7→v8 живуть у `Meta/Save/LegacySave.cs` (`Legacy.LegacyPaintSave`): сховище парсить файл до v8 удруге в цю форму й передає `Migrate(save, context, legacy)`; `MigrationContext` несе розкладку галактики з конфігу. Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Нечитабельний файл не стирається: `JsonSaveStorage` відкладає його в `save.json.failed-<UTC>` копією, а якщо файл не читається навіть для копіювання — перейменуванням; не вдалось і це — сховище не пише поверх оригіналу (`LoadFailedWithoutBackup`). Точки автозбереження: кінець забігу (`CompleteRun`), кожна зібрана картинка (`CollectPicture`), зліпок на кожен лоток, паузу й вихід у хаб (`SaveRun`), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
+`SaveFile.Version` — завжди перше поле; поточна **v11** (v5 — піксельні картинки й колекція за id, v6 — зліпок забігу `RunSnapshot`, v7 — кроки у зліпку, v8 — слоти планет: розміщення → слоти, літри → нафта, зони — геть; v9 — полів фарби у файлі більше немає; v10 — база «цього тижня» для рейтингів; v11 — записів рівнів старого режиму більше немає, крок лише піднімає версію). Старі поля для кроку v7→v8 живуть у `Meta/Save/LegacySave.cs` (`Legacy.LegacyPaintSave`): сховище парсить файл до v8 удруге в цю форму й передає `Migrate(save, context, legacy)`; `MigrationContext` несе розкладку галактики з конфігу. Кожна міграція — окрема функція в `SaveMigrations`, покрита тестом «з кожної попередньої версії відкривається без втрат». JSON, атомарний запис (`save.tmp` → `File.Replace`), `persistentDataPath`. Нечитабельний файл не стирається: `JsonSaveStorage` відкладає його в `save.json.failed-<UTC>` копією, а якщо файл не читається навіть для копіювання — перейменуванням; не вдалось і це — сховище не пише поверх оригіналу (`LoadFailedWithoutBackup`). Точки автозбереження: кінець забігу (`CompleteRun`), кожна зібрана картинка (`CollectPicture`), зліпок на кожен лоток, паузу й вихід у хаб (`SaveRun`), покупка, фарбування, розміщення, `OnApplicationPause(true)`.
 
 ---
 
@@ -450,8 +448,8 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 | Рівень | Де | Що покриває |
 |---|---|---|
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
-| EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v10, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, налаштування й посилання |
-| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **355 тестів** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
+| EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v11, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, налаштування й посилання |
+| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **326 тестів** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
 | EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **55 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять), налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
@@ -482,7 +480,7 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 
 **`Tools/InkFlow.Sim`** — CLI на реальному Core (компілює `Assets/_Scripts/Core/**/*.cs` як звичайний .NET-проєкт). Жадібний бот на один хід із шумом; три пресети (`--bot sloppy|default|careful`), довільні ваги (`--weights`), час на хід для оцінки хвилин на картинку (`--seconds-per-move`), власна тека картинок (`--pictures`). Виводить розміщення, лінії, частку чистих, кроки заповнені й згорілі, картинки за забіг і за рідкістю, хвилини на картинку, небезпеку (частка ходів із попередженням і за скільки ходів до програшу воно з'явилось; `--danger-csv` — сирі ознаки кожного ходу), несправедливі смерті (код повернення 1, якщо є). Це нижня межа гравця: бот не планує колір через кілька лотків.
 
-**`EconomySimulator`** (редактор) — 30 днів життя гравця через `CompleteLevel`; на новий забіг (`CompleteRun`) ще не переведений.
+**`EconomySimulator`** (редактор, `Ink Flow → Simulate → Economy (30 days)`) — 30 днів життя гравця на формулах забігу (`EconomySimulation`, Meta: очки → нафта, картинки за рідкістю, денний ліміт, витрати на «домалювати» й «продовжити»); звіт у консоль, пропорції дефолтів тримає `EconomySimulationTests`.
 
 ---
 
@@ -509,6 +507,7 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 | **5. Налаштування** | ✅ шестерня на всіх екранах (`ScreenBase.SettingsRequested`), `SettingsScreen`, перемикачі реально керують `GameAudio` і `SettingsGatedHaptics`, «Додому» з підтвердженням, «Заново» лише в забігу, `AppConfig`/`AppLinks`; ревізія Фаз 4–5 закрита — забіг переживає налаштування без перезапуску (Фаза 5, Сесія 6) |
 | **6. Профіль** | ✅ аватар із набору крапель (`AvatarSet`), нік за `NickRules` з `AppConfig` (3–16, фільтр коренів), вітринна картинка з колекції (`ShowcasePictureId`, `CollectionArgs.ForShowcase`); драбину, статистику, палітру, бейджі й вітрину планет видалено; старі баги аватара закриті UI-тестами (Фаза 6, Сесія 6) |
 | **7. Рейтинги на справжніх даних** | ✅ інтерфейси Platform (`IIdentityService`, `ILeaderboardService`, `IShowcaseService`) з Null/Fake і UGS-адаптером за define, `RankingsSync` (у хмару лише вітрина й два числа), база тижня v10, екран «Світ» з двома метриками й станом «немає з'єднання», чужа галактика з вітрини, інкогніто (Фаза 7, Сесія 6). Підключення UGS у проєкті — ручні кроки автора |
+| **Прибирання сиріт «Рівнів»** | ✅ 2026-10-10: карту рівнів, прогрес рівнів, нагороди за рівень/боса/віхи, токени, Addressables-групу `Levels` і тести видалено; збереження v11; запобіжник `LevelsModeAbsenceTests`. Режим «Рівні» = картка в хабі → «Скоро», пишеться з нуля |
 | **Реліз** | ⛔ Platform-реалізації (реклама, IAP, гаптика), приватність, білди |
 
 ---

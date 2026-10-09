@@ -18,15 +18,14 @@ namespace InkFlow.Meta.Tests
                 var old = new SaveFile { Version = version };
                 old.Wallet.OilDrops = 1234;
                 old.Progress.EndlessRecord = 4321;
-                old.Progress.Levels.Add(new LevelRecord { LevelId = 7, Stars = 3 });
+                old.Progress.BestChain = 9;
 
                 var migrated = SaveMigrations.Migrate(old);
 
                 Assert.AreEqual(SaveFile.CurrentVersion, migrated.Version, $"v{version} не піднято");
                 Assert.AreEqual(1234, migrated.Wallet.OilDrops, $"v{version}: втрачено нафту");
                 Assert.AreEqual(4321, migrated.Progress.EndlessRecord, $"v{version}: втрачено рекорд");
-                Assert.AreEqual(1, migrated.Progress.Levels.Count, $"v{version}: втрачено прогрес рівнів");
-                Assert.AreEqual(3, migrated.Progress.Levels[0].Stars);
+                Assert.AreEqual(9, migrated.Progress.BestChain, $"v{version}: втрачено ланцюг");
             }
         }
 
@@ -71,7 +70,7 @@ namespace InkFlow.Meta.Tests
             long observed = -1;
             wallet.Changed += amount => observed = amount;
 
-            wallet.Add(25, RewardSource.LevelClear);
+            wallet.Add(25, RewardSource.RunScore);
 
             Assert.AreEqual(25, wallet.OilDrops);
             Assert.AreEqual(25, observed);
@@ -112,49 +111,25 @@ namespace InkFlow.Meta.Tests
         // ---------- Нагороди ----------
 
         [Test]
-        public void Reward_ScalesWithStarsAndBossMultiplier()
+        public void Reward_ForRun_IsScoreOverScorePerOil_ScaledByDailyLimit()
         {
-            var rewards = new RewardCalculator(baseLevelReward: 20, bossMultiplier: 3);
+            // §10: нафта за забіг = очки ÷ ScorePerOil × денний множник, униз.
+            var rewards = new RewardCalculator(scorePerOil: 100);
 
-            var oneStar = rewards.ForLevel(new GameResult(1, won: true, stars: 1), 1f);
-            var threeStars = rewards.ForLevel(new GameResult(1, won: true, stars: 3), 1f);
-            var boss = rewards.ForLevel(new GameResult(10, won: true, stars: 3, isBoss: true), 1f);
-
-            Assert.AreEqual(20, oneStar);
-            Assert.AreEqual(60, threeStars, "3★ платить утричі більше");
-            Assert.AreEqual(180, boss, "бос — «зарплатний день», ×3");
+            Assert.AreEqual(44, rewards.ForRun(4_450, 1f), "4 450 ÷ 100, униз");
+            Assert.AreEqual(11, rewards.ForRun(4_450, 0.25f), "ліміт вичерпано — чверть");
+            Assert.AreEqual(0, rewards.ForRun(0, 1f), "без очок — без нафти");
+            Assert.AreEqual(0, rewards.ForRun(99, 1f), "менше за одну краплю — нуль, не округлення вгору");
         }
 
         [Test]
-        public void Reward_IsZeroForLoss_AndScaledByDailyLimit()
+        public void Reward_ScorePerOil_ZeroIsRejectedByConfig_AndClampedByTheTestConstructor()
         {
-            var rewards = new RewardCalculator(baseLevelReward: 20);
-
-            Assert.AreEqual(0, rewards.ForLevel(new GameResult(1, won: false, stars: 0), 1f));
-            Assert.AreEqual(15, rewards.ForLevel(new GameResult(1, won: true, stars: 3), 0.25f));
-        }
-
-        [Test]
-        public void Endless_PaysOnlyForBeatingOwnRecord()
-        {
-            var rewards = new RewardCalculator();
-
-            Assert.AreEqual(0, rewards.ForEndlessRecord(900, previousRecord: 1000), "рекорд не побито");
-            Assert.IsTrue(rewards.ForEndlessRecord(1100, previousRecord: 1000) > 0);
-
-            // Що вищий рекорд, то дорожче коштує кожне наступне очко перевищення.
-            var earlyGain = rewards.ForEndlessRecord(400, previousRecord: 0);
-            var lateGain = rewards.ForEndlessRecord(10_400, previousRecord: 10_000);
-            Assert.AreEqual(earlyGain, lateGain, "виплата залежить від перевищення, не від абсолюту");
-        }
-
-        [Test]
-        public void Endless_MilestonesPayOnceEach()
-        {
-            var rewards = new RewardCalculator(endlessMilestones: new long[] { 5000, 10000 });
-
-            Assert.IsTrue(rewards.ForMilestones(5200, previousRecord: 4000) > 0, "перетнув 5000");
-            Assert.AreEqual(0, rewards.ForMilestones(5300, previousRecord: 5200), "віху вже отримано");
+            // Два шари, два контракти. Конфіг нуль не пропускає (ділити на нуль нема на що) —
+            // це та сама межа, що й у continueCost; а числовий конструктор лишається для тестів
+            // і затискає знизу до одиниці, щоб ніколи не ділити на нуль.
+            Assert.Throws<ArgumentOutOfRangeException>(() => new EconomyData(scorePerOil: 0));
+            Assert.AreEqual(50, new RewardCalculator(scorePerOil: 0).ForRun(50, 1f));
         }
     }
 }

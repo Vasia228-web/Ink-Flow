@@ -511,7 +511,7 @@ namespace InkFlow.Editor
             return Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - r;
         }
 
-        /// <summary>П'ятикутна зірка рейтингу рівня (замість гліфа ★).</summary>
+        /// <summary>П'ятикутна зірка — спрайт під гліф ★ у будь-якому тексті (TMP Sprite Asset).</summary>
         private static Texture2D CreateStar()
         {
             var tex = NewTexture(CircleSize);

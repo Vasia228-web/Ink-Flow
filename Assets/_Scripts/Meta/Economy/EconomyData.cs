@@ -16,11 +16,8 @@ namespace InkFlow.Meta
     {
         public EconomyData(
             long starterOil = 0,
-            long baseLevelReward = 20,
-            int bossMultiplier = 3,
             int fullRewardPlays = 10,
             float reducedRewardRate = 0.25f,
-            long[]? endlessMilestones = null,
             long scorePerOil = 100,
             long[]? pictureRewards = null,
             int interstitialEveryRuns = 4,
@@ -57,11 +54,8 @@ namespace InkFlow.Meta
             if (PictureRewards.Length != Core.Rarities.Count)
                 throw new ArgumentOutOfRangeException(nameof(pictureRewards), "Шість виплат: звичайна … космічна.");
             StarterOil = starterOil;
-            BaseLevelReward = baseLevelReward;
-            BossMultiplier = bossMultiplier;
             FullRewardPlays = fullRewardPlays;
             ReducedRewardRate = reducedRewardRate;
-            EndlessMilestones = endlessMilestones ?? new long[] { 5000, 10000, 25000, 50000 };
         }
 
         /// <summary>
@@ -70,20 +64,11 @@ namespace InkFlow.Meta
         /// </summary>
         public long StarterOil { get; }
 
-        /// <summary>База нагороди за рівень: множиться на зірки й денний коефіцієнт.</summary>
-        public long BaseLevelReward { get; }
-
-        /// <summary>Множник нагороди на бос-рівні.</summary>
-        public int BossMultiplier { get; }
-
         /// <summary>Скільки партій на день платять повну нагороду.</summary>
         public int FullRewardPlays { get; }
 
         /// <summary>Частка нагороди після вичерпання денного ліміту.</summary>
         public float ReducedRewardRate { get; }
-
-        /// <summary>Одноразові віхи рахунку в Нескінченному (старий режим; лишається для «Рівнів»).</summary>
-        public long[] EndlessMilestones { get; }
 
         /// <summary>
         /// Майстер-док §10: «очки за забіг → краплі нафти». Скільки очок коштує одна крапля.

@@ -13,7 +13,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 10;
+        public const int CurrentVersion = 11;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
@@ -106,11 +106,13 @@ namespace InkFlow.Meta
         public string FilledUtc;
     }
 
+    /// <summary>
+    /// Рекорди забігів (§8). Список пройдених рівнів старого режиму «Рівні» прибрано у v11:
+    /// режим так і не вийшов за заглушку «Скоро», а зірки в ті записи клала лише дев-панель.
+    /// </summary>
     [Serializable]
     public sealed class ProgressData
     {
-        public List<LevelRecord> Levels = new List<LevelRecord>();
-
         /// <summary>Рекорд очок за забіг (§8).</summary>
         public int EndlessRecord;
 
@@ -119,13 +121,6 @@ namespace InkFlow.Meta
 
         /// <summary>Скільки забігів зіграно.</summary>
         public int RunsPlayed;
-    }
-
-    [Serializable]
-    public struct LevelRecord
-    {
-        public int LevelId;
-        public int Stars;
     }
 
     [Serializable]
