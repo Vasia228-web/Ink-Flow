@@ -8,7 +8,9 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Автоперевірка екрана в стенді (промт U1Glaze, «Самоперевірка»): жоден напис без Ellipsis
-    /// не переповнений (TMP <c>isTextOverflowing</c>) і жодна кнопка не менша за 44 px макета.
+    /// не переповнений (TMP <c>isTextOverflowing</c>), жодна кнопка не менша за 44 px макета і жоден
+    /// сусід у розкладці не налазить на інший (ряд, що не вміщається, група стискає до мінімуму —
+    /// написи налізають один на одного, а переповнення тексту цього не бачить).
     /// Міряє в одиницях канваса стенда — тих самих, що й порівняння з еталоном.
     /// </summary>
     public static class UiAudit
@@ -51,11 +53,50 @@ namespace InkFlow.Editor
             return problems;
         }
 
-        /// <summary>Обидві перевірки одним списком.</summary>
+        /// <summary>
+        /// Сусіди в горизонтальній чи вертикальній групі, що налазять один на одного більше ніж на пів px
+        /// макета. Порядок — за положенням, не за індексом (групи бувають з reverseArrangement); групи з
+        /// від'ємним проміжком (накладання навмисне) і елементи поза розкладкою (тіні, гало) не рахуються.
+        /// </summary>
+        public static List<string> OverlappingSiblings(Transform root)
+        {
+            var problems = new List<string>();
+            var eps = 0.5f * DesignSystem.MockupToReference;
+            foreach (var group in root.GetComponentsInChildren<HorizontalOrVerticalLayoutGroup>(false))
+            {
+                if (!group.enabled || group.spacing < 0f)
+                    continue;
+                var horizontal = group is HorizontalLayoutGroup;
+                var space = (RectTransform)group.transform;
+                var items = new List<(RectTransform rect, Rect box)>();
+                foreach (Transform child in space)
+                {
+                    if (!child.gameObject.activeInHierarchy || !(child is RectTransform rect))
+                        continue;
+                    var element = child.GetComponent<ILayoutIgnorer>();
+                    if (element != null && element.ignoreLayout)
+                        continue;
+                    var min = space.InverseTransformPoint(rect.TransformPoint(rect.rect.min));
+                    var max = space.InverseTransformPoint(rect.TransformPoint(rect.rect.max));
+                    items.Add((rect, Rect.MinMaxRect(min.x, min.y, max.x, max.y)));
+                }
+                items.Sort((a, b) => horizontal ? a.box.xMin.CompareTo(b.box.xMin) : b.box.yMax.CompareTo(a.box.yMax));
+                for (var i = 1; i < items.Count; i++)
+                {
+                    var overlap = horizontal ? items[i - 1].box.xMax - items[i].box.xMin : items[i].box.yMax - items[i - 1].box.yMin;
+                    if (overlap > eps)
+                        problems.Add($"{Path(items[i].rect)}: налазить на «{items[i - 1].rect.name}» на {overlap / DesignSystem.MockupToReference:0} px макета");
+                }
+            }
+            return problems;
+        }
+
+        /// <summary>Усі перевірки одним списком.</summary>
         public static List<string> All(Transform root)
         {
             var problems = OverflowingTexts(root);
             problems.AddRange(SmallTapTargets(root));
+            problems.AddRange(OverlappingSiblings(root));
             return problems;
         }
 

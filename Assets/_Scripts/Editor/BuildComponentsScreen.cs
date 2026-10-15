@@ -123,7 +123,7 @@ namespace InkFlow.Editor
             Spacer(main);
             Capsule(main, 999_999_999);
             IconButton(main, "Gear", "icon_gear");
-            Caption(section, "головний: аватар, нік (обрізається «…»), нафта до 999 999 999, шестерня");
+            Caption(section, "головний: аватар, нік (обрізається «…»), нафта до 999\u00A0999\u00A0999, шестерня");
 
             var tab = Row(section, "Tab", 8f);
             var title = U1.Text(tab, "Title", "Колекція", design, U1.Role.H1, design.InkText, TextAlignmentOptions.Left);
@@ -275,22 +275,22 @@ namespace InkFlow.Editor
             var section = Section(content, "БЕЙДЖІ");
             // Два ряди: п'ять бейджів в один ряд не вміщаються на 402 — ряд стиснув би їх, і написи налізли б.
             var row = Row(section, "Badges", 8f);
-            U1.Badge(row, "Best", "Найвигідніше", design, "badge_amber", design.AmberInk);
-            U1.Badge(row, "Popular", "Популярне", design, "badge_pink", design.PinkInk);
+            // Слова пакетів магазину («Найвигідніше», «Популярне») — у запасі разом із магазином; кольори — ті самі.
+            U1.Badge(row, "Record", "Рекорд", design, "badge_amber", design.AmberInk);
+            U1.Badge(row, "New", "Нова", design, "badge_pink", design.PinkInk);
             U1.Badge(row, "Open", "Відкрито", design, "badge_teal", design.TealInk);
             var row2 = Row(section, "Badges2", 8f);
             U1.Badge(row2, "Soon", "Скоро", design, "badge_grey", design.InkText);
             U1.Badge(row2, "Burn", "Згорить", design, "badge_coral", Color.white);
             Caption(section, "бурштин · рожевий · бірюза · сірий · кораловий");
 
-            for (var half = 0; half < 2; half++)
+            // Як в еталоні — по одному в рядок: три бейджі рідкості з мітками в ряд на 402 не вміщаються,
+            // і ряд стискав їх так, що вони налазили один на одного.
+            for (var r = 0; r < 6; r++)
             {
-                var rarities = Row(section, $"RarityBadges{half + 1}", 8f);
-                for (var r = half * 3; r < half * 3 + 3; r++)
-                {
-                    var badge = U1.Badge(rarities, $"Rarity{r + 1}", RarityNames.Of((Rarity)r), design, $"badge_rarity_{r + 1}", design.PanelBottom);
-                    badge.transform.parent.GetComponent<HorizontalLayoutGroup>().padding.left = (int)U1.Px(34f);
-                }
+                var rarityRow = Row(section, $"RarityBadge{r + 1}", 8f);
+                U1.Badge(rarityRow, $"Rarity{r + 1}", RarityNames.Of((Rarity)r), design, $"badge_rarity_{r + 1}", design.PanelBottom,
+                    marks: $"pips_{r + 1}");
             }
             Caption(section, "рідкість: колір + кількість міток 1–6");
         }

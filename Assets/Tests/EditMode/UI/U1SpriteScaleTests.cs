@@ -46,7 +46,7 @@ namespace InkFlow.Tests.UI
         }
 
         [Test]
-        public void Showcase_HasNoOverflowingTexts_AndNoSmallTaps_OnBothCheckpointDevices()
+        public void Showcase_HasNoOverflowingTexts_NoSmallTaps_AndNoOverlaps_OnBothCheckpointDevices()
         {
             Assert.IsTrue(MetaScreenRig<ScreenBase>.Available("ComponentsShowcase"), "спершу Build Components Showcase");
             foreach (var device in new[] { ScreenRigBase.Mockup, ScreenRigBase.Small })
@@ -56,6 +56,47 @@ namespace InkFlow.Tests.UI
                 rig.Render();
                 var problems = UiAudit.All(rig.Safe);
                 Assert.AreEqual(0, problems.Count, $"{device.Name}:\n" + string.Join("\n", problems));
+            }
+        }
+
+        [Test]
+        public void OverlapAudit_CatchesSiblingsThatRunIntoEachOther_AndPassesANormalRow()
+        {
+            // Регресія до перевірки: на вітрині кроку 0 три бейджі рідкості в ряд на 402 налізали один на одного,
+            // а переповнення тексту цього не бачило. Справний ряд — чисто; зсунутий сусід — вада.
+            var root = new GameObject("AuditCanvas", typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                var row = new GameObject("Row", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+                row.transform.SetParent(root.transform, false);
+                var rowRect = (RectTransform)row.transform;
+                rowRect.sizeDelta = new Vector2(1000f, 100f);
+                var group = row.GetComponent<HorizontalLayoutGroup>();
+                group.spacing = 20f;
+                group.childControlWidth = group.childControlHeight = false;
+                group.childForceExpandWidth = group.childForceExpandHeight = false;
+                RectTransform Item(string name)
+                {
+                    var go = new GameObject(name, typeof(RectTransform));
+                    go.transform.SetParent(row.transform, false);
+                    var rect = (RectTransform)go.transform;
+                    rect.sizeDelta = new Vector2(300f, 80f);
+                    return rect;
+                }
+                var a = Item("A");
+                var b = Item("B");
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rowRect);
+                Assert.AreEqual(0, UiAudit.OverlappingSiblings(root.transform).Count, "ряд із проміжком — без накладань");
+
+                // B на 40 одиниць лізе на A (≈15 px макета) — як бейдж, розтягнутий фітером ширше за свій слот.
+                b.localPosition = a.localPosition + new Vector3(a.rect.width - 40f, 0f, 0f);
+                var problems = UiAudit.OverlappingSiblings(root.transform);
+                Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
+                StringAssert.Contains("налазить на «A»", problems[0]);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
             }
         }
     }

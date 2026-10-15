@@ -24,6 +24,7 @@ namespace InkFlow.Editor
 
         public static readonly string[] States =
         {
+            "hub",
             "galaxy-fresh", "galaxy-mid", "galaxy-second",
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
             "collection-browse", "collection-pick", "collection-empty",
@@ -52,6 +53,28 @@ namespace InkFlow.Editor
             foreach (var device in ScreenRigBase.Devices)
                 foreach (var state in new[] { "components-1", "components-2", "components-3" })
                     Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Finish(overBudget, audit);
+        }
+
+        /// <summary>
+        /// Batch: лише хаб на всіх пристроях (стан «hub») — швидка перевірка головного екрана без повного
+        /// проходу метагри. Хаб ще старого стилю, тож автоперевірка для нього — попередження, не помилка.
+        /// </summary>
+        public static void BuildAndCaptureHub()
+        {
+            BuildHubScreen.Build();
+            if (!MetaScreenRig<ScreenBase>.Available("HubScreen"))
+            {
+                Debug.LogError("[InkFlow] Немає префаба HubScreen — хаб не зібрано.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                Capture(device, "hub", Path.Combine(OutputFolder, $"{device.Name}_hub.png"), overBudget, audit);
             AssetDatabase.Refresh();
             Finish(overBudget, audit);
         }
@@ -89,6 +112,7 @@ namespace InkFlow.Editor
         public static void BuildAndCapture()
         {
             RefreshPictureLibrary.Refresh();
+            BuildHubScreen.Build();
             BuildGalaxyScreen.Build();
             BuildPlanetScreen.Build();
             BuildCollectionScreen.Build();
@@ -104,7 +128,7 @@ namespace InkFlow.Editor
         {
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
+            foreach (var name in new[] { "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
                 if (!MetaScreenRig<ScreenBase>.Available(name))
                 {
                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
@@ -145,6 +169,17 @@ namespace InkFlow.Editor
                     var distinct = rig.EstimateBatches(out var runs, out var graphics);
                     Debug.Log($"[InkFlow] {device.Name} / {state}: графік {graphics}, різних пар матеріал+текстура {distinct}, змін пари в порядку обходу {runs}.");
                     Audit(rig, "ComponentsShowcase", device.Name, state, audit);
+                    rig.SavePng(path);
+                    break;
+                }
+                case "hub":
+                {
+                    // Головний: аватар, нік, нафта (без «+»), лого, одна картка «Нескінченний», три вкладки.
+                    using var rig = MetaScreenRig<HubScreen>.Create(device, "HubScreen");
+                    var player = rig.NewPlayer();
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    rig.Enter(player, ScreenArgs.Empty);
+                    Audit(rig, "HubScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }

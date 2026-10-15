@@ -296,7 +296,9 @@ namespace InkFlow.Editor
         // ───────────────────────── Бейджі, чипи, перемикачі ─────────────────────────
 
         /// <summary>Бейдж-капсула з написом великими 12/900; ширина — за текстом, мінімум 60 px.</summary>
-        internal static TMP_Text Badge(GameObject parent, string name, string text, DesignSystem design, string sprite, Color textColor)
+        /// <param name="marks">Спрайт міток ліворуч від напису (бейдж рідкості: <c>pips_1…6</c> у розмірі з маніфесту); null — без міток.</param>
+        internal static TMP_Text Badge(GameObject parent, string name, string text, DesignSystem design, string sprite, Color textColor,
+            string? marks = null)
         {
             var go = Child(parent, name);
             var image = go.AddComponent<Image>();
@@ -304,7 +306,8 @@ namespace InkFlow.Editor
             image.type = Image.Type.Sliced;
             image.raycastTarget = false;
             var layout = go.AddComponent<HorizontalLayoutGroup>();
-            layout.padding = new RectOffset((int)Px(10f), (int)Px(10f), 0, 0);
+            layout.padding = new RectOffset((int)Px(marks == null ? 10f : 6f), (int)Px(10f), 0, 0);
+            layout.spacing = Px(6f);
             layout.childAlignment = TextAnchor.MiddleCenter;
             layout.childControlWidth = true;
             layout.childControlHeight = true;
@@ -315,6 +318,19 @@ namespace InkFlow.Editor
             element.minWidth = Px(60f);
             go.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
             go.GetComponent<RectTransform>().sizeDelta = new Vector2(Px(60f), Px(26f));
+
+            if (marks != null)
+            {
+                // Мітки — окремий спрайт (у бейдж не запечені), розмір — з маніфесту: 1 мітка вужча за 6.
+                var marksGo = Child(go, "Marks");
+                var marksImage = marksGo.AddComponent<Image>();
+                marksImage.sprite = S(marks);
+                marksImage.raycastTarget = false;
+                var size = U1GlazeSprites.Of(marks).ReferenceSize;
+                var marksLayout = marksGo.AddComponent<LayoutElement>();
+                marksLayout.preferredWidth = marksLayout.minWidth = size.x;
+                marksLayout.preferredHeight = marksLayout.minHeight = size.y;
+            }
 
             var label = Text(go, "Label", text, design, Role.Label, textColor);
             label.textWrappingMode = TextWrappingModes.NoWrap;
