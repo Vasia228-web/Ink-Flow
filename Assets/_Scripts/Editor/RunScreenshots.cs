@@ -1,21 +1,24 @@
 using System.Collections.Generic;
 using System.IO;
 using InkFlow.Core;
+using InkFlow.Platform;
 using UnityEditor;
 using UnityEngine;
 
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Знімки екрана забігу з редактора (без Play Mode): чотири роздільності × сімнадцять станів —
-    /// порожнє поле, середина гри, тривога поля «мало місця» й «останній хід», рахунок 1 234 567 і
-    /// 987 654 321, готова картинка, екран кінця забігу, після рестарту, після відновлення
-    /// зліпка, після зміни пристрою, по одному на кожну з шести рідкостей. Меню: Ink Flow → Debug → Capture Run Screenshots.
-    /// Пише PNG у docs/screenshots/ — для порівняння з еталонами docs/StyleRef/.
+    /// Знімки екрана забігу з редактора (без Play Mode): п'ять роздільностей × стани — порожнє поле, середина гри,
+    /// тривога поля «мало місця» й «останній хід», рахунок 1 234 567 і 987 654 321, картка перед забігом (нова й
+    /// продовження), картинку домальовано, підтвердження для Епічної+, програш до фіналу (ролик і нафта), фінал,
+    /// «Вийти додому?», після рестарту, після відновлення зліпка, після зміни пристрою, по одному на кожну з шести
+    /// рідкостей. Меню: Ink Flow → Debug → Capture Run Screenshots. Пише PNG у docs/screenshots/ — для порівняння з
+    /// еталонами docs/StyleRef/U1Glaze/preview.
     ///
-    /// Кожен стан проходить самоперевірку поля (<see cref="RunScreenRig.LayoutFault"/>): полотно
-    /// збігається з панеллю, лунки всередині панелі, панель усередині safe area. Вада — помилка
-    /// в консоль, у batch — код виходу 1. Стенд — <see cref="RunScreenRig"/>, той самий, що в UI-тестах.
+    /// Кожен стан проходить самоперевірку поля (<see cref="RunScreenRig.LayoutFault"/>: полотно збігається з панеллю,
+    /// лунки всередині панелі, панель усередині safe area), автоперевірку U1Glaze (<see cref="UiAudit"/>: написи,
+    /// тапи ≥ 44, сусіди в групах) і бюджет викликів малювання (симуляція батчингу UGUI ≤ 35). Вада — помилка в
+    /// консоль, у batch — код виходу 1. Стенд — <see cref="RunScreenRig"/>, той самий, що в UI-тестах.
     /// Batch: Unity -batchmode -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.RunScreenshots.BuildAndCapture -quit
     /// </summary>
     public static class RunScreenshots
@@ -25,8 +28,9 @@ namespace InkFlow.Editor
         /// <summary>Стани в порядку знімання; назви — суфікси файлів.</summary>
         public static readonly string[] States =
         {
-            "empty", "mid", "danger-warn", "danger", "score-1234567", "score-987654321", "completed", "over",
-            "restart", "restored", "device-change",
+            "empty", "mid", "danger-warn", "danger", "score-1234567", "score-987654321",
+            "intro", "intro-resumed", "completed", "completed-confirm", "over-continue", "over-continue-oil", "over",
+            "home-confirm", "restart", "restored", "device-change",
             "rarity-common", "rarity-uncommon", "rarity-rare", "rarity-epic", "rarity-legendary", "rarity-cosmic"
         };
 
@@ -47,6 +51,16 @@ namespace InkFlow.Editor
             CaptureAll();
         }
 
+        /// <summary>
+        /// Batch: те саме і ще Main.unity — діалог «Вийти додому?» і префаби екранів у застосунку збирає BuildMainScene.
+        /// Unity -batchmode -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.RunScreenshots.BuildAndCaptureWithMain -quit
+        /// </summary>
+        public static void BuildAndCaptureWithMain()
+        {
+            BuildAndCapture();
+            BuildMainScene.Build();
+        }
+
         [MenuItem("Ink Flow/Debug/Capture Run Screenshots")]
         public static void CaptureAll()
         {
@@ -61,6 +75,9 @@ namespace InkFlow.Editor
             Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
             var written = new List<string>();
             var faults = new List<string>();
+            var audit = new List<string>();
+            var overBudget = new List<string>();
+            var batchLog = new List<string>();
             for (var d = 0; d < RunScreenRig.Devices.Length; d++)
             {
                 var device = RunScreenRig.Devices[d];
@@ -73,6 +90,13 @@ namespace InkFlow.Editor
                     var fault = rig.LayoutFault();
                     if (fault != null)
                         faults.Add($"{device.Name} / {state}: {fault}");
+                    foreach (var problem in rig.Audit())
+                        audit.Add($"{device.Name} / {state}: {problem}");
+                    rig.Render();
+                    var batches = rig.SimulateBatches();
+                    batchLog.Add($"{device.Name} / {state}: {batches}");
+                    if (batches > MetaScreenshots.DrawCallBudget)
+                        overBudget.Add($"{device.Name} / {state}: {batches} викликів (батчинг UGUI) > {MetaScreenshots.DrawCallBudget}");
                     var path = Path.Combine(OutputFolder, $"{device.Name}_{state}.png");
                     rig.SavePng(path);
                     written.Add(path);
@@ -80,14 +104,29 @@ namespace InkFlow.Editor
             }
             AssetDatabase.Refresh();
             Debug.Log($"[InkFlow] Знімки ({written.Count}) у {OutputFolder}:\n  " + string.Join("\n  ", written));
+            Debug.Log("[InkFlow] Виклики малювання забігу (симуляція батчингу UGUI):\n  " + string.Join("\n  ", batchLog));
 
+            var failed = false;
             if (faults.Count == 0)
-            {
                 Debug.Log($"[InkFlow] Самоперевірка поля: {RunScreenRig.Devices.Length * States.Length} станів, поле всюди на місці.");
-                return;
+            else
+            {
+                Debug.LogError($"[InkFlow] Самоперевірка поля: {faults.Count} вад —\n  " + string.Join("\n  ", faults));
+                failed = true;
             }
-            Debug.LogError($"[InkFlow] Самоперевірка поля: {faults.Count} вад —\n  " + string.Join("\n  ", faults));
-            if (Application.isBatchMode)
+            if (audit.Count == 0)
+                Debug.Log("[InkFlow] Автоперевірка забігу: чисто.");
+            else
+            {
+                Debug.LogError($"[InkFlow] Автоперевірка забігу: {audit.Count} проблем —\n  " + string.Join("\n  ", audit));
+                failed = true;
+            }
+            if (overBudget.Count > 0)
+            {
+                Debug.LogError($"[InkFlow] Бюджет викликів малювання ({MetaScreenshots.DrawCallBudget}) перевищено:\n  " + string.Join("\n  ", overBudget));
+                failed = true;
+            }
+            if (failed && Application.isBatchMode)
                 EditorApplication.Exit(1);
         }
 
@@ -126,13 +165,42 @@ namespace InkFlow.Editor
                     rig.Show(rig.NewSession(12));
                     rig.Screen.PreviewStats(987_654_321, 999_999_999);
                     break;
+                case "intro":
+                    rig.Show(rig.NewSession(0));
+                    rig.Screen.PreviewIntro(resumed: false);
+                    break;
+                case "intro-resumed":
+                    rig.Show(rig.Restored(rig.NewSession(25)));
+                    rig.Screen.PreviewIntro(resumed: true);
+                    break;
                 case "completed":
-                    rig.Show(rig.NewSession(30));
+                    // S02Run_03 — епічна картинка, як «НЛО» на еталоні.
+                    rig.Show(rig.SessionWithRarity(Rarity.Epic, 30));
                     rig.Screen.PreviewCompletion();
                     break;
+                case "completed-confirm":
+                    rig.Show(rig.SessionWithRarity(Rarity.Epic, 30));
+                    rig.Screen.PreviewCompletionDrop();
+                    break;
+                case "over-continue":
+                    // S02Run_05 до фіналу: ролик готовий — перше продовження за ролик (ContinueOffer).
+                    rig.BindAds(new FakeAds());
+                    rig.Show(rig.NewSession(10_000, stopWhen: s => s.IsOver));
+                    rig.Screen.PreviewOverContinue();
+                    break;
+                case "over-continue-oil":
+                    // Ролика немає — продовження за нафту (у стенді 500 нафти; ціна з EconomyData).
+                    rig.Show(rig.NewSession(10_000, stopWhen: s => s.IsOver));
+                    rig.Screen.PreviewOverContinue();
+                    break;
                 case "over":
+                    rig.BindAds(new FakeAds());
                     rig.Show(rig.NewSession(10_000, stopWhen: s => s.IsOver));
                     rig.Screen.PreviewOver();
+                    break;
+                case "home-confirm":
+                    rig.Show(rig.NewSession(25));
+                    rig.ShowHomeConfirm();
                     break;
                 case "restart":
                     // ↺ і «Ще раз»: EndlessScreen.Restart → board.StopAll. Саме тут сітка колись з'їжджала на пів панелі.

@@ -155,8 +155,9 @@ namespace InkFlow.Editor
         /// (коралова — білий з тінню), необов'язкова іконка ліворуч від тексту. Розмір задає викликач
         /// якорями/Place; висота — <see cref="DesignSystem.ButtonHeight"/> або мала.
         /// </summary>
+        /// <param name="iconRight">Іконка праворуч від напису («У колекцію ›»), а не ліворуч («‹ Викинути», «▶ Ролик»).</param>
         internal static CandyButton Button(GameObject parent, string name, string text, DesignSystem design,
-            CandyButton.Tone tone, bool small = false, Sprite? icon = null)
+            CandyButton.Tone tone, bool small = false, Sprite? icon = null, bool iconRight = false)
         {
             var go = Child(parent, name);
             var rect = go.GetComponent<RectTransform>();
@@ -202,6 +203,8 @@ namespace InkFlow.Editor
             var label = Text(rowGo, "Label", text, design, small ? Role.ButtonSmall : Role.Button, Color.white);
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Overflow;
+            if (iconImage != null && iconRight)
+                iconImage.transform.SetAsLastSibling();
 
             var button = go.AddComponent<UnityEngine.UI.Button>();
             button.targetGraphic = body;
@@ -452,8 +455,9 @@ namespace InkFlow.Editor
             glow.sprite = S("frame_glow_epic");
             glow.type = Image.Type.Sliced;
             glow.raycastTarget = false;
-            // Гало 164 намальовано під рамку 112: виступ 26 px з кожного боку (пропорційно до сторони).
-            Stretch(glowGo, -side * 26f / 112f);
+            // Гало 164 намальовано під рамку 112: виступ 26 px з кожного боку. Ширина світіння — та сама на більших рамках
+            // (220 у картці завершення дала б 51 px і накрила б бейдж над рамкою), на менших — пропорційно меншає.
+            Stretch(glowGo, -Mathf.Min(Px(26f), side * 26f / 112f));
 
             var pictureGo = Child(go, "Picture");
             Stretch(pictureGo, Px(big ? 4f : 3f));
@@ -503,6 +507,65 @@ namespace InkFlow.Editor
 
         private static Sprite[] Sprites(string[] names) => System.Array.ConvertAll(names, S);
 
+        /// <summary>
+        /// Картинка в рамці рідкості як блок розкладки: обгортка зі стороною <paramref name="sidePx"/> (LayoutElement —
+        /// інакше група стиснула б рамку до нуля), рамка, у вирізі — полотно W4 без гало
+        /// (<see cref="PictureViewBuilder.MakeFramedPicture"/>). <paramref name="pipsRoomPx"/> — місце під мітки під
+        /// рамкою (вони поза розкладкою; 0 — міток немає, як на мініатюрах).
+        /// </summary>
+        /// <param name="glowRoomPx">Місце над рамкою під гало Епічної+ — щоб воно не лягало на сусіда згори (бейдж, кікер).</param>
+        internal static RarityFrameView FramedPicture(GameObject parent, string name, DesignSystem design, bool big, float sidePx,
+            float pipsRoomPx, out PictureView picture, float glowRoomPx = 0f)
+        {
+            var holder = Child(parent, name);
+            Size(holder, sidePx, glowRoomPx + sidePx + pipsRoomPx);
+            var frame = RarityFrame(holder, "Frame", design, big, sidePx, Rarity.Common);
+            var rect = frame.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, -Px(glowRoomPx));
+            if (pipsRoomPx <= 0f)
+                frame.transform.Find("Pips").gameObject.SetActive(false);
+            var inset = big ? 4f : 3f;
+            picture = PictureViewBuilder.MakeFramedPicture(frame.transform.Find("Picture").gameObject, design, Px(sidePx - inset * 2f));
+            return frame;
+        }
+
+        /// <summary>
+        /// Бейдж рідкості (S00, S02Run_02/03): капсула badge_rarity_N, мітки pips_N ліворуч у розмірі з маніфесту,
+        /// назва великими темним (panel-bottom). Рідкість міняє <see cref="RarityBadgeView.SetRarity"/>.
+        /// </summary>
+        internal static RarityBadgeView RarityBadge(GameObject parent, string name, DesignSystem design, Rarity rarity)
+        {
+            var n = Mathf.Clamp((int)rarity, 0, 5) + 1;
+            var label = Badge(parent, name, RarityNames.Of(rarity), design, $"badge_rarity_{n}", design.PanelBottom, marks: $"pips_{n}");
+            var go = label.transform.parent.gameObject;
+            var marks = go.transform.Find("Marks");
+            var view = go.AddComponent<RarityBadgeView>();
+            Wire(view, ("design", design), ("body", go.GetComponent<Image>()), ("marks", marks.GetComponent<Image>()),
+                ("marksSize", marks.GetComponent<LayoutElement>()), ("label", label));
+            var bodies = new Sprite[6];
+            var pips = new Sprite[6];
+            var sizes = new Vector2[6];
+            for (var i = 0; i < 6; i++)
+            {
+                bodies[i] = S($"badge_rarity_{i + 1}");
+                pips[i] = S(PipNames[i]);
+                sizes[i] = U1GlazeSprites.Of(PipNames[i]).ReferenceSize;
+            }
+            WireArray(view, "bodies", bodies);
+            WireArray(view, "pips", pips);
+            var so = new SerializedObject(view);
+            var sizeProp = so.FindProperty("pipSizes");
+            sizeProp.arraySize = sizes.Length;
+            for (var i = 0; i < sizes.Length; i++)
+                sizeProp.GetArrayElementAtIndex(i).vector2Value = sizes[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+            view.Configure(bodies, pips, sizes);
+            view.SetRarity(rarity);
+            return view;
+        }
+
         // ───────────────────────── Діалог і лист ─────────────────────────
 
         /// <summary>
@@ -510,21 +573,41 @@ namespace InkFlow.Editor
         /// заданої ширини по центру (висота — за вмістом через VerticalLayoutGroup + fitter).
         /// Повертає компонент; вміст кладіть у <c>panel</c>.
         /// </summary>
-        internal static DialogView Dialog(GameObject parent, string name, DesignSystem design, float widthPx, out GameObject panel)
+        internal static DialogView Dialog(GameObject parent, string name, DesignSystem design, float widthPx, out GameObject panel,
+            float paddingPx = 20f)
         {
             var go = Child(parent, name);
             Stretch(go);
             var group = go.AddComponent<CanvasGroup>();
+            var scrim = Scrim(go, design);
+            panel = DialogPanel(go, "Panel", widthPx, paddingPx);
 
-            var scrimGo = Child(go, "Scrim");
-            Stretch(scrimGo);
+            var view = go.AddComponent<DialogView>();
+            Wire(view, ("design", design), ("group", group), ("scrim", scrim), ("panel", panel.GetComponent<RectTransform>()));
+            return view;
+        }
+
+        /// <summary>Затемнення на весь екран (scrim #05040F, альфа — повзунок scrimOpacity); ловить тапи під діалогом.</summary>
+        internal static Image Scrim(GameObject parent, DesignSystem design)
+        {
+            var scrimGo = Child(parent, "Scrim");
+            // Діалог живе в safe area, а затемнення має лягти й на смуги поза нею (статус-бар, «чубчик», жест
+            // додому) — як у макеті: виступ із запасом на найбільшу safe area (≈ 62 pt згори).
+            Stretch(scrimGo, -Px(ScrimOutsetPx));
             var scrim = scrimGo.AddComponent<Image>();
             scrim.sprite = LoadSprite("white-quad");
             scrim.color = DesignSystem.WithAlpha(design.Scrim, design.ScrimOpacity);
+            return scrim;
+        }
 
-            // Як у Panel: тінь — перший дочірній, непрозора заливка — другий, обидва поза розкладкою. Графіка на
-            // самому корені панелі малювалась би ПІД дітьми, і тінь лягала б поверх діалогу (ревізія кроку 0).
-            panel = Child(go, "Panel");
+        /// <summary>
+        /// Непрозора панель діалогу (dialog, кути 28) по центру: тінь — перший дочірній, заливка — другий, обидва
+        /// поза розкладкою (графіка на самому корені малювалась би ПІД дітьми, і тінь лягала б поверх діалогу —
+        /// ревізія кроку 0); вміст — стовпчиком (VerticalLayoutGroup), висота за вмістом.
+        /// </summary>
+        internal static GameObject DialogPanel(GameObject parent, string name, float widthPx, float paddingPx = 20f)
+        {
+            var panel = Child(parent, name);
             Shadow(panel, Px(24f), -Px(12f));
             var fillGo = Child(panel, "Fill");
             var image = fillGo.AddComponent<Image>();
@@ -537,7 +620,7 @@ namespace InkFlow.Editor
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = new Vector2(Px(widthPx), Px(200f));
             var layout = panel.AddComponent<VerticalLayoutGroup>();
-            var pad = (int)Px(20f);
+            var pad = (int)Px(paddingPx);
             layout.padding = new RectOffset(pad, pad, pad, pad);
             layout.spacing = Px(12f);
             layout.childAlignment = TextAnchor.UpperCenter;
@@ -546,10 +629,46 @@ namespace InkFlow.Editor
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             panel.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            return panel;
+        }
 
-            var view = go.AddComponent<DialogView>();
-            Wire(view, ("design", design), ("group", group), ("scrim", scrim), ("panel", rect));
-            return view;
+        /// <summary>
+        /// «Вийти додому?» (S02Run_06): заголовок h1 і пояснення body по центру, бірюзова «Грати далі» (закрити — безпечна
+        /// дія), під нею скляна «Вийти». Написи ставить <see cref="InkFlow.UI.ConfirmPrompt.Show"/>. Лежить вимкненим.
+        /// </summary>
+        internal static InkFlow.UI.ConfirmPrompt ConfirmPrompt(GameObject parent, DesignSystem design)
+        {
+            var dialog = Dialog(parent, "ConfirmPrompt", design, DialogWidthPx, out var panel, DialogPaddingPx);
+            var title = Text(panel, "Title", "Вийти додому?", design, Role.H1, design.InkText);
+            title.textWrappingMode = TextWrappingModes.Normal;
+            var message = Text(panel, "Message", "Забіг збережеться — продовжиш пізніше.", design, Role.Body, design.InkMuted);
+            message.textWrappingMode = TextWrappingModes.Normal;
+            Gap(panel, 4f);
+            var cancel = Button(panel, "Cancel", "Грати далі", design, CandyButton.Tone.Teal);
+            Size(cancel.gameObject, 0f, 56f);
+            var confirm = Button(panel, "Confirm", "Вийти", design, CandyButton.Tone.Glass);
+            Size(confirm.gameObject, 0f, 56f);
+
+            var prompt = dialog.gameObject.AddComponent<InkFlow.UI.ConfirmPrompt>();
+            Wire(prompt, ("dialog", dialog), ("title", title), ("message", message),
+                ("confirmButton", confirm), ("cancelButton", cancel));
+            dialog.gameObject.SetActive(false);
+            return prompt;
+        }
+
+        /// <summary>На скільки px макета затемнення виходить за safe area з кожного боку.</summary>
+        internal const float ScrimOutsetPx = 120f;
+
+        /// <summary>Ширина й поля діалогів забігу (S02Run_02…06): 362 = 402 − 2 × 20, вміст 314.</summary>
+        internal const float DialogWidthPx = 362f;
+        internal const float DialogPaddingPx = 24f;
+
+        /// <summary>Порожній проміжок у стовпчику (px макета).</summary>
+        internal static GameObject Gap(GameObject parent, float heightPx)
+        {
+            var go = Child(parent, "Gap");
+            Size(go, 0f, heightPx);
+            return go;
         }
 
         /// <summary>Нижній лист дій: верхні кути 30, притиснутий до низу, висота за вмістом.</summary>

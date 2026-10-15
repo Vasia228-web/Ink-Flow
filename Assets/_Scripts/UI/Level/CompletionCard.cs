@@ -4,42 +4,45 @@ using InkFlow.Style;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Картка завершеної картинки (§8): забіг на паузі, фон — знімок, розмитий один раз і
-    /// затемнений, картинка в рамці рідкості на передньому плані. Свайп праворуч — у
-    /// колекцію, ліворуч — зникає; для епічної й вище свайп ліворуч просить підтвердження.
+    /// Картка завершеної картинки (§8, U1Glaze S02Run_03): забіг на паузі, затемнення 78 % і непрозорий діалог —
+    /// «КАРТИНКУ ДОМАЛЬОВАНО!», назва, бейдж рідкості, картинка в рамці рідкості, кнопки «‹ Викинути» /
+    /// «У колекцію ›» і підказка про свайп. Свайп праворуч — у колекцію, ліворуч — викинути; для Епічної й
+    /// вище «Викинути» (кнопкою чи свайпом) спершу питає окремим діалогом (S02Run_04) — на час питання картка
+    /// ховається (на еталоні під підтвердженням лише забіг під тим самим затемненням; і мінус сім викликів малювання).
     /// Рішення повертається через <see cref="Decided"/> (true — лишити).
     /// </summary>
     public sealed class CompletionCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private RawImage backdrop;
-        [SerializeField] private Image scrim;
+
+        [Tooltip("Панель діалогу — її рухає й нахиляє свайп.")]
         [SerializeField] private RectTransform card;
-        [SerializeField] private PictureView picture;
         [SerializeField] private TMP_Text kicker;
         [SerializeField] private TMP_Text title;
-        [SerializeField] private TMP_Text rarity;
-        [SerializeField] private TMP_Text hintLeft;
-        [SerializeField] private TMP_Text hintRight;
-        [SerializeField] private RectTransform confirm;
-        [SerializeField] private Image confirmFill;
-        [SerializeField] private Image confirmStroke;
+        [SerializeField] private RarityBadgeView badge;
+        [SerializeField] private RarityFrameView frame;
+        [SerializeField] private PictureView picture;
+        [SerializeField] private CandyButton dropButton;
+        [SerializeField] private CandyButton keepButton;
+        [SerializeField] private TMP_Text hint;
+
+        [Header("Підтвердження для Епічної й вище (S02Run_04)")]
+        [SerializeField] private DialogView confirm;
+        [SerializeField] private RarityFrameView confirmFrame;
+        [SerializeField] private PictureView confirmPicture;
+        [SerializeField] private TMP_Text confirmTitle;
         [SerializeField] private TMP_Text confirmText;
-        [SerializeField] private Button keepButton;
-        [SerializeField] private TMP_Text keepLabel;
-        [SerializeField] private Button dropButton;
-        [SerializeField] private TMP_Text dropLabel;
+        [SerializeField] private CandyButton confirmKeep;
+        [SerializeField] private CandyButton confirmDrop;
 
         /// <summary>true — у колекцію, false — викинуто.</summary>
         public System.Action<bool>? Decided;
 
         private PixelPicture? _picture;
-        private Texture2D? _snapshot;
         private RectTransform? _rect;
         private Vector2 _dragStart;
         private float _dragX;
@@ -51,36 +54,29 @@ namespace InkFlow.UI
 
         public bool IsShown => gameObject.activeSelf;
 
+        /// <summary>Тести: чи висить підтвердження викидання.</summary>
+        public bool IsConfirming => confirm != null && confirm.gameObject.activeSelf;
+
         private void Awake()
         {
             if (keepButton != null)
-                keepButton.onClick.AddListener(OnKeep);
+                keepButton.Button.onClick.AddListener(() => Choose(keep: true));
             if (dropButton != null)
-                dropButton.onClick.AddListener(OnDropConfirmed);
+                dropButton.Button.onClick.AddListener(() => Choose(keep: false));
+            if (confirmKeep != null)
+                confirmKeep.Button.onClick.AddListener(OnKeepAfterConfirm);
+            if (confirmDrop != null)
+                confirmDrop.Button.onClick.AddListener(OnDropConfirmed);
         }
 
         public void Apply()
         {
             if (design == null)
                 return;
-            if (scrim != null) scrim.color = design.CompletionScrim;
-            if (backdrop != null) backdrop.color = design.CompletionBackdropTint;
-            Font(kicker, design.FontSizeIntroKicker, design.TextDim, design.LetterSpacingWide);
-            if (kicker != null) kicker.text = "КАРТИНКУ ДОМАЛЬОВАНО";
-            Font(title, design.FontSizeCompletionTitle, design.TextPrimary, 0f);
-            Font(rarity, design.FontSizeCompletionRarity, design.TextMuted, design.LetterSpacingWide);
-            Font(hintLeft, design.FontSizeCompletionHint, design.TextMuted, design.LetterSpacingWide);
-            Font(hintRight, design.FontSizeCompletionHint, design.TextMuted, design.LetterSpacingWide);
-            if (hintLeft != null) hintLeft.text = "‹ ВИКИНУТИ";
-            if (hintRight != null) hintRight.text = "У КОЛЕКЦІЮ ›";
-            if (confirmFill != null) confirmFill.color = design.OverCardFrom;
-            if (confirmStroke != null) confirmStroke.color = design.GlassStroke;
-            Font(confirmText, design.FontSizeOverSecondary, design.TextPrimary, 0f);
-            Font(keepLabel, design.FontSizeOverSecondary, design.TextPrimary, 0f);
-            Font(dropLabel, design.FontSizeOverSecondary, design.TextMuted, 0f);
-            if (keepLabel != null) keepLabel.text = "Лишити";
-            if (dropLabel != null) dropLabel.text = "Викинути";
+            if (kicker != null) kicker.text = "КАРТИНКУ ДОМАЛЬОВАНО!";
+            if (hint != null) hint.text = "Свайпни картинку вліво або вправо";
             picture?.Apply();
+            confirmPicture?.Apply();
             if (!Application.isPlaying)
             {
                 if (confirm != null) confirm.gameObject.SetActive(false);
@@ -88,30 +84,26 @@ namespace InkFlow.UI
             }
         }
 
-        /// <summary>Показує картку. Знімок стає фоном; попередній знищується.</summary>
-        public void Show(PixelPicture completed, Texture2D? snapshot)
+        /// <summary>Показує картку з домальованою картинкою.</summary>
+        public void Show(PixelPicture completed)
         {
             _picture = completed;
             _busy = false;
             _dragging = false;
             _dragX = 0f;
-            ReplaceSnapshot(snapshot);
 
             gameObject.SetActive(true);
             if (confirm != null) confirm.gameObject.SetActive(false);
-            picture?.ShowCompleted(completed, string.Empty);
+            SetCardVisible(true);
             if (title != null) title.text = completed.Name;
-            if (rarity != null && design != null)
-            {
-                rarity.text = $"{RarityNames.Of(completed.Rarity)} · {ThemeNames.Of(completed.ThemeId).ToUpperInvariant()}";
-                rarity.color = design.RarityColor(completed.Rarity);
-            }
+            badge?.SetRarity(completed.Rarity);
+            frame?.SetRarity(completed.Rarity);
+            picture?.ShowCompleted(completed, string.Empty);
             ResetCard();
-            SetHints(0f);
 
             if (_motion != null)
                 StopCoroutine(_motion);
-            _motion = isActiveAndEnabled ? StartCoroutine(EnterRoutine()) : null;
+            _motion = isActiveAndEnabled && Application.isPlaying ? StartCoroutine(EnterRoutine()) : null;
         }
 
         public void Hide()
@@ -120,21 +112,11 @@ namespace InkFlow.UI
                 StopCoroutine(_motion);
             _motion = null;
             _busy = false;
-            ReplaceSnapshot(null);
+            if (confirm != null && confirm.gameObject.activeSelf)
+                confirm.Hide();
+            SetCardVisible(true);
             if (gameObject.activeSelf)
                 gameObject.SetActive(false);
-        }
-
-        private void ReplaceSnapshot(Texture2D? snapshot)
-        {
-            if (_snapshot != null && _snapshot != snapshot)
-                Destroy(_snapshot);
-            _snapshot = snapshot;
-            if (backdrop != null)
-            {
-                backdrop.texture = snapshot;
-                backdrop.enabled = snapshot != null;
-            }
         }
 
         private void ResetCard()
@@ -146,11 +128,33 @@ namespace InkFlow.UI
             card.localScale = Vector3.one;
         }
 
+        // ── Кнопки ──
+
+        /// <summary>Кнопка «У колекцію» / «Викинути»: те саме, що свайп до кінця, — без жесту.</summary>
+        private void Choose(bool keep)
+        {
+            if (_busy || IsConfirming)
+                return;
+            if (keep)
+                FlyOut(keep: true);
+            else
+                RequestDrop();
+        }
+
+        /// <summary>Викинути: Епічну й вище — лише після підтвердження (§8).</summary>
+        private void RequestDrop()
+        {
+            if (_picture != null && _picture.Rarity >= Rarity.Epic)
+                ShowConfirm();
+            else
+                FlyOut(keep: false);
+        }
+
         // ── Жест ──
 
         public void OnBeginDrag(PointerEventData eventData)
         {
-            if (_busy || (confirm != null && confirm.gameObject.activeSelf))
+            if (_busy || IsConfirming)
                 return;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(Rect, eventData.position, eventData.pressEventCamera, out _dragStart);
             _dragging = true;
@@ -165,7 +169,6 @@ namespace InkFlow.UI
             _dragX = local.x - _dragStart.x;
             card.localPosition = new Vector3(_dragX, -Mathf.Abs(_dragX) * 0.08f, 0f);
             card.localRotation = Quaternion.Euler(0f, 0f, -_dragX * design.CompletionTilt);
-            SetHints(_dragX / Mathf.Max(design.CompletionSwipeThreshold, 1f));
         }
 
         public void OnEndDrag(PointerEventData eventData)
@@ -177,15 +180,12 @@ namespace InkFlow.UI
             if (_dragX > threshold)
                 FlyOut(keep: true);
             else if (_dragX < -threshold)
-            {
-                if (_picture != null && _picture.Rarity >= Rarity.Epic)
-                    ShowConfirm();
-                else
-                    FlyOut(keep: false);
-            }
+                RequestDrop();
             else
                 SpringBack();
         }
+
+        // ── Підтвердження ──
 
         private void ShowConfirm()
         {
@@ -194,29 +194,71 @@ namespace InkFlow.UI
                 FlyOut(keep: false);
                 return;
             }
+            if (_motion != null)
+                StopCoroutine(_motion);
+            _motion = null;
+            ResetCard();
+            SetCardVisible(false);
+            if (confirmTitle != null)
+                confirmTitle.text = $"Викинути {RarityNames.Accusative(_picture.Rarity)} картинку?";
             if (confirmText != null)
-                confirmText.text = $"Викинути {RarityNames.Of(_picture.Rarity).ToLowerInvariant()} картинку «{_picture.Name}»?";
-            confirm.gameObject.SetActive(true);
+                confirmText.text = $"«{_picture.Name}» не потрапить у колекцію. Цю дію не скасувати.";
+            confirmFrame?.SetRarity(_picture.Rarity);
+            confirmPicture?.ShowCompleted(_picture, string.Empty);
+            confirm.Show();
         }
 
-        private void OnKeep()
+        private void OnKeepAfterConfirm()
         {
-            if (confirm != null) confirm.gameObject.SetActive(false);
-            SpringBack();
+            if (confirm != null) confirm.Hide();
+            SetCardVisible(true);
         }
 
+        /// <summary>Підтверджено: картка вже схована — летіти нічому, рішення одразу.</summary>
         private void OnDropConfirmed()
         {
-            if (confirm != null) confirm.gameObject.SetActive(false);
-            FlyOut(keep: false);
+            if (confirm != null) confirm.Hide();
+            _busy = true;
+            Finish(keep: false);
         }
+
+        /// <summary>
+        /// Картка — на час підтвердження під ним лише забіг (S02Run_04). Затемнення картки лишається: у підтвердження
+        /// свого немає, тож світло не блимає, поки воно з'являється, і тапи повз діалог не доходять до поля.
+        /// </summary>
+        private void SetCardVisible(bool visible)
+        {
+            if (card != null && card.gameObject.activeSelf != visible)
+                card.gameObject.SetActive(visible);
+        }
+
+        /// <summary>Тести: чи видно саму картку (під підтвердженням — ні).</summary>
+        public bool IsCardVisible => card != null && card.gameObject.activeSelf;
+
+#if UNITY_EDITOR
+        /// <summary>Знімки й тести: «Викинути», як пальцем.</summary>
+        public void PreviewDrop() => Choose(keep: false);
+
+        /// <summary>Знімки й тести: «У колекцію», як пальцем.</summary>
+        public void PreviewKeep() => Choose(keep: true);
+
+        /// <summary>Тести: «Залишити» в підтвердженні.</summary>
+        public void PreviewConfirmKeep() => OnKeepAfterConfirm();
+
+        /// <summary>Тести: «Викинути» в підтвердженні.</summary>
+        public void PreviewConfirmDrop() => OnDropConfirmed();
+
+        public string PreviewConfirmTitle => confirmTitle != null ? confirmTitle.text : string.Empty;
+#endif
+
+        // ── Рух ──
 
         private void SpringBack()
         {
             if (_motion != null)
                 StopCoroutine(_motion);
-            _motion = isActiveAndEnabled ? StartCoroutine(SpringRoutine()) : null;
-            if (!isActiveAndEnabled)
+            _motion = isActiveAndEnabled && Application.isPlaying ? StartCoroutine(SpringRoutine()) : null;
+            if (_motion == null)
                 ResetCard();
         }
 
@@ -225,7 +267,7 @@ namespace InkFlow.UI
             _busy = true;
             if (_motion != null)
                 StopCoroutine(_motion);
-            if (!isActiveAndEnabled)
+            if (!isActiveAndEnabled || !Application.isPlaying)
             {
                 Finish(keep);
                 return;
@@ -241,26 +283,17 @@ namespace InkFlow.UI
             decided?.Invoke(keep);
         }
 
-        private void SetHints(float direction)
-        {
-            var right = Mathf.Clamp01(direction);
-            var left = Mathf.Clamp01(-direction);
-            hintRight?.canvasRenderer.SetAlpha(0.35f + 0.65f * right);
-            hintLeft?.canvasRenderer.SetAlpha(0.35f + 0.65f * left);
-        }
-
-        // ── Рух ──
-
         private IEnumerator EnterRoutine()
         {
             if (card == null || design == null)
                 yield break;
             var duration = design.CompletionEnterDuration;
             var curve = design.CurveBackOut;
+            var from = design.DialogAppearScale;
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
                 var k = curve.Evaluate(Mathf.Clamp01(t / duration));
-                card.localScale = Vector3.one * Mathf.Lerp(0.8f, 1f, k);
+                card.localScale = Vector3.one * Mathf.LerpUnclamped(from, 1f, k);
                 yield return null;
             }
             card.localScale = Vector3.one;
@@ -278,9 +311,8 @@ namespace InkFlow.UI
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
                 var k = curve.Evaluate(Mathf.Clamp01(t / duration));
-                card.localPosition = Vector3.Lerp(from, Vector3.zero, k);
-                card.localRotation = Quaternion.Slerp(fromRotation, Quaternion.identity, k);
-                SetHints(0f);
+                card.localPosition = Vector3.LerpUnclamped(from, Vector3.zero, k);
+                card.localRotation = Quaternion.SlerpUnclamped(fromRotation, Quaternion.identity, k);
                 yield return null;
             }
             ResetCard();
@@ -297,10 +329,10 @@ namespace InkFlow.UI
             var from = card.localPosition;
             var fromRotation = card.localRotation;
             var width = Rect.rect.width;
-            // У колекцію — угору-праворуч і меншає; викинуто — ліворуч і гасне.
+            // У колекцію — угору-праворуч і меншає; викинуто — ліворуч за край.
             var to = keep
                 ? new Vector3(width * 0.6f, Rect.rect.height * 0.55f, 0f)
-                : new Vector3(-width, from.y - 80f, 0f);
+                : new Vector3(-width * 1.2f, from.y - 80f, 0f);
             var duration = design.CompletionFlyDuration;
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
@@ -312,18 +344,6 @@ namespace InkFlow.UI
                 yield return null;
             }
             Finish(keep);
-        }
-
-        private void Font(TMP_Text? label, float size, Color color, float spacing)
-        {
-            if (label == null || design == null)
-                return;
-            label.fontSize = size;
-            label.color = color;
-            label.fontStyle = FontStyles.Bold;
-            label.characterSpacing = spacing;
-            if (design.Font != null)
-                label.font = design.Font;
         }
     }
 }

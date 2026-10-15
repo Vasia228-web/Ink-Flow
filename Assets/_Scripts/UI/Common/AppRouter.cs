@@ -237,7 +237,9 @@ namespace InkFlow.UI
         {
             if (_settingsFromRun && confirmPrompt != null)
             {
-                confirmPrompt.Show("Вийти в меню?", "Забіг збережеться — продовжиш пізніше.", "Вийти", ResetToHub);
+                // «Грати далі» обіцяє забіг, а діалог відкрито поверх налаштувань — знімаємо й їх (OnEnter забігу
+                // повертає ту саму сесію).
+                confirmPrompt.ShowHomeConfirm(ResetToHub, Pop);
                 return;
             }
             ResetToHub();

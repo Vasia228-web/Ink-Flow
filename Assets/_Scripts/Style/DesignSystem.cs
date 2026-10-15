@@ -814,9 +814,10 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 0.5f)] private float pictureRevealPop = 0.15f;
 
         [Header("Картинка над полем: без рамки, лічильника й назви; рідкість — гало з-під неї")]
-        [Tooltip("Сторона полотна над полем, px макета (було 132 у панелі з назвою). Блок над полем = полотно + " +
-                 "запас під найширше гало з кожного боку; на короткому екрані блок стискається першим (поле → лоток → картинка).")]
-        [SerializeField, Range(110f, 210f)] private float runPictureSide = 154f;
+        [Tooltip("Найбільша сторона полотна над полем, px макета (U1Glaze S02Run_01: вікно картки 214; Сесія 5 — 154 по центру). " +
+                 "Полотно стоїть ліворуч, праворуч — панелі рахунку заввишки з нього; блок = полотно + запас під найширше гало " +
+                 "з кожного боку; на короткому екрані полотно стискається першим (поле → лоток → картинка, RunLayout).")]
+        [SerializeField, Range(116f, 240f)] private float runCanvasMaxSide = 214f;
         [Tooltip("Гало рідкості з-під картинки: ширина за краєм полотна, px макета, — від звичайної до космічної. " +
                  "Чим вища рідкість, тим ширше; найширше задає запас блоку, тож гало не лізе на поле й рахунок.")]
         [SerializeField] private float[] rarityHaloWidths = { 6f, 8f, 10f, 12f, 14f, 16f };
@@ -866,20 +867,11 @@ namespace InkFlow.Style
         [SerializeField, Min(0.05f)] private float recolorWaveMaxDuration = 0.7f;
 
         [Header("Завершення картинки (§8)")]
-        [Tooltip("Затемнення поверх розмитого знімка і тон самого знімка.")]
-        [SerializeField] private Color completionScrim = new Color(0.03f, 0.02f, 0.08f, 0.5f);
-        [SerializeField] private Color completionBackdropTint = new Color(0.62f, 0.6f, 0.7f, 1f);
-        [Tooltip("Знімок зменшується в стільки разів і розмивається стількома проходами — один раз.")]
-        [SerializeField, Range(2, 16)] private int completionBlurDownscale = 8;
-        [SerializeField, Range(0, 4)] private int completionBlurPasses = 2;
         [Tooltip("Свайп: скільки одиниць канваса — рішення; нахил картки на одиницю зсуву; тривалості.")]
         [SerializeField, Min(20f)] private float completionSwipeThreshold = 220f;
         [SerializeField, Range(0f, 0.2f)] private float completionTilt = 0.03f;
         [SerializeField, Min(0.05f)] private float completionFlyDuration = 0.42f;
         [SerializeField, Min(0.05f)] private float completionEnterDuration = 0.35f;
-        [SerializeField] private float fontSizeCompletionTitle = 59f;
-        [SerializeField] private float fontSizeCompletionRarity = 30f;
-        [SerializeField] private float fontSizeCompletionHint = 30f;
 
         [Header("Рамки рідкості (§6)")]
         [Tooltip("Епічна — м'яке світіння; легендарна — відблиск раз на період; космічна — переливи й частинки.")]
@@ -895,22 +887,7 @@ namespace InkFlow.Style
         [SerializeField, Min(0.1f)] private float lineFloatDuration = 1.5f;
         [SerializeField] private float lineFloatRise = 80f;
 
-        [Header("HUD партії")]
-        [SerializeField] private float fontSizeStatLabel = 27f;
-        [SerializeField] private float fontSizeGameTitle = 32f;
-
-        [Tooltip("Капсули статистики: заливка й обведення.")]
-        [SerializeField] private Color statCapsuleFill = new Color(1f, 1f, 1f, 0.06f);
-        [SerializeField] private Color statCapsuleStroke = new Color(1f, 1f, 1f, 0.11f);
-
         [Header("Нескінченний")]
-        [Tooltip("Числа рахунку й рекорду: 27 px макета.")]
-        [SerializeField] private float fontSizeScoreNumber = 52f;
-
-        [Tooltip("Капсули світяться різним: рахунок — бірюзою, рекорд — золотом.")]
-        [SerializeField] private Color scoreCapsuleGlow = new Color(0f, 0.851f, 0.753f, 0.18f);
-        [SerializeField] private Color recordCapsuleGlow = new Color(1f, 0.702f, 0f, 0.18f);
-
         [Tooltip("Спалах у момент, коли рахунок перегнав рекорд — не після смерті.")]
         [SerializeField, Min(0.1f)] private float recordFlashDuration = 0.9f;
 
@@ -932,37 +909,14 @@ namespace InkFlow.Style
         [SerializeField] private float fontSizePictureName = 27f;
         [SerializeField] private float fontSizePictureCaption = 24f;
 
-        [Tooltip("Рідкість (§6): колір рамки, назви й чипа — звичайна / незвичайна / рідкісна / епічна / легендарна / космічна.")]
-        [SerializeField] private Color rarityCommon = Hex("#B8BCC8");
-        [SerializeField] private Color rarityUncommon = Hex("#4ED37A");
-        [SerializeField] private Color rarityRare = Hex("#5AA7FF");
-        [SerializeField] private Color rarityEpic = Hex("#AE7BFF");
-        [SerializeField] private Color rarityLegendary = Hex("#FFC145");
-        [SerializeField] private Color rarityCosmic = Hex("#F075E6");
-
         [Tooltip("Картка перед забігом: «цього забігу — така картинка». Скільки висить сама, поки не тапнули.")]
         [SerializeField, Min(0.5f)] private float runIntroDuration = 2.6f;
         [SerializeField, Min(0f)] private float runIntroFadeDuration = 0.25f;
-        [SerializeField] private float fontSizeIntroKicker = 27f;
-        [SerializeField] private float fontSizeIntroName = 59f;
-        [SerializeField] private float fontSizeIntroRarity = 30f;
-        [SerializeField] private float fontSizeIntroHint = 30f;
-        [SerializeField] private float fontSizeOverCollected = 27f;
 
         [Header("Кінець партії (Нескінченний)")]
-        [SerializeField] private float fontSizeOverScore = 155f;
-        [SerializeField] private float fontSizeOverLabel = 30f;
-        [SerializeField] private float fontSizeRecordChip = 36f;
-        [SerializeField] private float fontSizeRewardNumber = 47f;
-        [SerializeField] private float fontSizeOverBest = 37f;
-        [SerializeField] private float fontSizeOverPrimary = 53f;
-        [SerializeField] private float fontSizeOverSecondary = 39f;
         [SerializeField] private Color overCardFrom = new Color(0.180f, 0.102f, 0.290f, 0.96f);
         [SerializeField] private Color overCardTo = new Color(0.094f, 0.051f, 0.165f, 0.96f);
         [SerializeField] private Color overScrim = new Color(0.047f, 0.020f, 0.094f, 0.78f);
-        [SerializeField] private Color recordChipFrom = Hex("#FFD54A");
-        [SerializeField] private Color recordChipTo = Hex("#FFB300");
-        [SerializeField] private Color recordChipText = Hex("#2A1A02");
 
         [Tooltip("Нагорода набігає цифрами, а не з'являється готовою.")]
         [SerializeField, Min(0.1f)] private float rewardCountDuration = 0.9f;
@@ -1176,7 +1130,7 @@ namespace InkFlow.Style
         public float PictureBorderWidth => pictureBorderWidth;
         public float PictureRevealDuration => pictureRevealDuration;
         public float PictureRevealPop => pictureRevealPop;
-        public float RunPictureSide => runPictureSide;
+        public float RunCanvasMaxSide => runCanvasMaxSide;
 
         /// <summary>Ширина гало рідкості за краєм полотна, px макета.</summary>
         public float RarityHaloWidth(Rarity rarity) => Pick(rarityHaloWidths, rarity, 6f + 2f * (int)rarity);
@@ -1224,17 +1178,10 @@ namespace InkFlow.Style
         public float DropPuffDuration => dropPuffDuration;
         public float RecolorWaveStagger => recolorWaveStagger;
         public float RecolorWaveMaxDuration => recolorWaveMaxDuration;
-        public Color CompletionScrim => completionScrim;
-        public Color CompletionBackdropTint => completionBackdropTint;
-        public int CompletionBlurDownscale => completionBlurDownscale;
-        public int CompletionBlurPasses => completionBlurPasses;
         public float CompletionSwipeThreshold => completionSwipeThreshold;
         public float CompletionTilt => completionTilt;
         public float CompletionFlyDuration => completionFlyDuration;
         public float CompletionEnterDuration => completionEnterDuration;
-        public float FontSizeCompletionTitle => fontSizeCompletionTitle;
-        public float FontSizeCompletionRarity => fontSizeCompletionRarity;
-        public float FontSizeCompletionHint => fontSizeCompletionHint;
         public float EpicGlowAlpha => epicGlowAlpha;
         public float LegendarySweepPeriod => legendarySweepPeriod;
         public float CosmicHueSpeed => cosmicHueSpeed;
@@ -1244,13 +1191,6 @@ namespace InkFlow.Style
         public float FontSizeLineFloatMixed => fontSizeLineFloatMixed;
         public float LineFloatDuration => lineFloatDuration;
         public float LineFloatRise => lineFloatRise;
-        public float FontSizeStatLabel => fontSizeStatLabel;
-        public float FontSizeGameTitle => fontSizeGameTitle;
-        public Color StatCapsuleFill => statCapsuleFill;
-        public Color StatCapsuleStroke => statCapsuleStroke;
-        public float FontSizeScoreNumber => fontSizeScoreNumber;
-        public Color ScoreCapsuleGlow => scoreCapsuleGlow;
-        public Color RecordCapsuleGlow => recordCapsuleGlow;
         public float RecordFlashDuration => recordFlashDuration;
         public float FontSizeComboPop => fontSizeComboPop;
         public float ComboPopDuration => comboPopDuration;
@@ -1266,38 +1206,18 @@ namespace InkFlow.Style
         public float FontSizePictureCaption => fontSizePictureCaption;
         public float RunIntroDuration => runIntroDuration;
         public float RunIntroFadeDuration => runIntroFadeDuration;
-        public float FontSizeIntroKicker => fontSizeIntroKicker;
-        public float FontSizeIntroName => fontSizeIntroName;
-        public float FontSizeIntroRarity => fontSizeIntroRarity;
-        public float FontSizeIntroHint => fontSizeIntroHint;
-        public float FontSizeOverCollected => fontSizeOverCollected;
 
-        /// <summary>Колір рідкості (§6): рамка картинки, назва, чип на картці.</summary>
-        public Color RarityColor(Rarity rarity) => rarity switch
-        {
-            Rarity.Uncommon => rarityUncommon,
-            Rarity.Rare => rarityRare,
-            Rarity.Epic => rarityEpic,
-            Rarity.Legendary => rarityLegendary,
-            Rarity.Cosmic => rarityCosmic,
-            _ => rarityCommon
-        };
+        /// <summary>
+        /// Колір рідкості для гало, назв і старих рамок — той самий, що в рамок і бейджів U1Glaze (rarity-1 … rarity-6):
+        /// одне джерело на гру (Сесія 1, рішення автора «так» на кольори рідкості з tokens.json).
+        /// </summary>
+        public Color RarityColor(Rarity rarity) => RarityFrame(rarity);
 
         /// <summary>Колір індексу майстер-палітри (§3) — фігури, клітинки поля, пікселі, краплі.</summary>
         public static Color PaletteColor(byte index) => MasterPalette.ColorOf(index).ToColor();
-        public float FontSizeOverScore => fontSizeOverScore;
-        public float FontSizeOverLabel => fontSizeOverLabel;
-        public float FontSizeRecordChip => fontSizeRecordChip;
-        public float FontSizeRewardNumber => fontSizeRewardNumber;
-        public float FontSizeOverBest => fontSizeOverBest;
-        public float FontSizeOverPrimary => fontSizeOverPrimary;
-        public float FontSizeOverSecondary => fontSizeOverSecondary;
         public Color OverCardFrom => overCardFrom;
         public Color OverCardTo => overCardTo;
         public Color OverScrim => overScrim;
-        public Color RecordChipFrom => recordChipFrom;
-        public Color RecordChipTo => recordChipTo;
-        public Color RecordChipText => recordChipText;
         public float RewardCountDuration => rewardCountDuration;
         public float ConfettiFallDuration => confettiFallDuration;
         public float FontSizeProfileNick => fontSizeProfileNick;

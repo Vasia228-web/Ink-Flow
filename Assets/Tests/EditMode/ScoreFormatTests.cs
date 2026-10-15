@@ -62,9 +62,11 @@ namespace InkFlow.Core.Tests
         [Test]
         public void NarrowestColumn_HoldsAnyScoreUpToABillion()
         {
-            // Найвужча колонка рахунку — RunLayout.StatsMinWidth px макета при найменшому шрифті 0.55 × 52 одиниць.
-            var column = RunLayout.StatsMinWidth * (1080f / BoardGeometry.ScreenWidth);
-            const float max = 52f;
+            // Найвужча панель рахунку на екрані забігу (U1Glaze): RunLayout.StatsMinWidth px макета мінус поля панелі
+            // (як ставить збирач — округлені одиниці), найбільший кегль — ui-h1 (28 px макета), найменший — 0.55 від нього.
+            const float k = 1080f / BoardGeometry.ScreenWidth;
+            var column = RunLayout.StatsMinWidth * k - (float)System.Math.Round(RunLayout.StatPadLeft * k) - (float)System.Math.Round(RunLayout.StatPadRight * k);
+            const float max = 28f * k;
             const float min = max * 0.55f;
             foreach (var value in new long[] { 0, 9, 99, 999, 9_999, 99_999, 999_999, 9_999_999, 99_999_999, 999_999_999, 123_456_789 })
             {

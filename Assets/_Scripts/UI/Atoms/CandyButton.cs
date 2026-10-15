@@ -39,6 +39,9 @@ namespace InkFlow.UI
         [SerializeField] private Tone tone = Tone.Coral;
         [SerializeField] private bool small;
 
+        [Tooltip("Скляна кнопка руйнівної дії («Викинути»): напис і іконка coral-300 замість ink.")]
+        [SerializeField] private bool destructive;
+
         private Coroutine? _press;
         private float _scale = 1f;
         private bool _pressed;
@@ -46,6 +49,17 @@ namespace InkFlow.UI
         public Button Button => button;
         public Tone CurrentTone => tone;
         public bool IsSmall => small;
+
+        /// <summary>Скляна кнопка руйнівної дії: напис coral-300 (S02Run_03/04 «Викинути»). Ставить збирач.</summary>
+        public bool Destructive
+        {
+            get => destructive;
+            set
+            {
+                destructive = value;
+                Apply();
+            }
+        }
 
         public string Text
         {
@@ -143,7 +157,7 @@ namespace InkFlow.UI
                 label.color = !active ? design.ButtonOffText : tone switch
                 {
                     Tone.Teal => design.TealInk,
-                    Tone.Glass => design.InkText,
+                    Tone.Glass => destructive ? design.Coral300 : design.InkText,
                     _ => Color.white
                 };
                 // Тінь тексту — лише на кораловій: окремий матеріал — окремий батч, коралова одна на екран.
@@ -153,7 +167,10 @@ namespace InkFlow.UI
             }
 
             if (icon != null)
-                icon.color = !active ? design.ButtonOffText : tone == Tone.Teal ? design.TealInk : Color.white;
+                icon.color = !active ? design.ButtonOffText
+                    : tone == Tone.Teal ? design.TealInk
+                    : tone == Tone.Glass && destructive ? design.Coral300
+                    : Color.white;
         }
 
         public void OnPointerDown(PointerEventData eventData) => Press(true);

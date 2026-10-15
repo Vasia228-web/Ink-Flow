@@ -88,7 +88,12 @@ namespace InkFlow.UI
             var rect = image.rectTransform;
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
+            // Центр гало — центр самої картинки: не квадратна картинка над полем притиснута вліво-вгору (S02Run_01),
+            // і гало, поставлене в центр квадрата, світило б повз неї. На подію, не щокадру.
+            var parent = rect.parent as RectTransform;
+            rect.anchoredPosition = canvas != null && parent != null
+                ? (Vector2)parent.InverseTransformPoint(canvas.TransformPoint(canvas.rect.center)) - parent.rect.center
+                : Vector2.zero;
             rect.sizeDelta = side + new Vector2(width * 2f, width * 2f);
             image.type = Image.Type.Sliced;
             image.pixelsPerUnitMultiplier = spriteFalloffPx / width;

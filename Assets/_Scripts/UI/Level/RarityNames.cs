@@ -15,16 +15,15 @@ namespace InkFlow.UI
             _ => "ЗВИЧАЙНА"
         };
 
-        /// <summary>«1 КОЛІР · 2 КОЛЬОРИ · 5 КОЛЬОРІВ» — для картки перед забігом.</summary>
-        public static string Colors(int count)
+        /// <summary>Знахідний відмінок малими — «Викинути епічну картинку?» (S02Run_04).</summary>
+        public static string Accusative(Rarity rarity) => rarity switch
         {
-            var last = count % 10;
-            var tens = count % 100;
-            if (last == 1 && tens != 11)
-                return $"{count} КОЛІР";
-            if (last >= 2 && last <= 4 && (tens < 12 || tens > 14))
-                return $"{count} КОЛЬОРИ";
-            return $"{count} КОЛЬОРІВ";
-        }
+            Rarity.Uncommon => "незвичайну",
+            Rarity.Rare => "рідкісну",
+            Rarity.Epic => "епічну",
+            Rarity.Legendary => "легендарну",
+            Rarity.Cosmic => "космічну",
+            _ => "звичайну"
+        };
     }
 }

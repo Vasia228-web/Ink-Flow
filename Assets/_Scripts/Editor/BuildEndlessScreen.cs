@@ -14,13 +14,15 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Збирає екран забігу: шапка, картинка W4DarkCanvas, рахунок і рекорд,
-    /// поле 8×8 K1Candy (лунки, гало, блоки, блиски), лоток на три фігури, картка перед
-    /// забігом і картка фіналу. Меню: Ink Flow → Setup → Build Endless Screen.
+    /// Збирає екран забігу U1Glaze (S02Run): шапка «‹ · НЕСКІНЧЕННИЙ · шестерня» (icon_button), ліворуч картинка
+    /// W4DarkCanvas з гало рідкості, праворуч панелі РАХУНОК / РЕКОРД (panel_card), поле 8×8 K1Candy (лунки, гало,
+    /// блоки, блиски), лоток на три фігури, і накладки-діалоги на затемненні: картка перед забігом, картинку
+    /// домальовано (+ підтвердження для Епічної+) і програш у дві фази. Меню: Ink Flow → Setup → Build Endless Screen.
     ///
-    /// Числа — px макета × K (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Геометрію поля й лотка дає
-    /// <see cref="BoardGeometry"/>: індекс блока = y × 8 + x, і саме так їх читає
-    /// <see cref="BoardView"/>.
+    /// Шапка й накладки — фабрики <see cref="U1"/>; позиції блоків екрана ставить <see cref="EndlessScreen.Layout"/>
+    /// за правилом <see cref="RunLayout"/> (Core), тут — лише початкові для сцени-майстерні. Числа — px макета × K
+    /// (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Геометрію поля й лотка дає <see cref="BoardGeometry"/>:
+    /// індекс блока = y × 8 + x, і саме так їх читає <see cref="BoardView"/>.
     /// </summary>
     public static class BuildEndlessScreen
     {
@@ -34,16 +36,17 @@ namespace InkFlow.Editor
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 
-        private static readonly float SideMargin = M(16f);
-
-        /// <summary>Блок картинки над полем, px макета: полотно плюс запас під найширше гало рідкості з кожного боку.</summary>
-        internal static float RunPictureBlock(DesignSystem design) => design.RunPictureSide + design.RarityHaloReserve * 2f;
-
         /// <summary>Скільки крапельок летить за новий рекорд.</summary>
         private const int ConfettiPieces = 18;
 
         /// <summary>Скільки написів «+фарба» може летіти одночасно.</summary>
         private const int FloatLabels = 4;
+
+        /// <summary>Зразків кольорів на картці перед забігом: родин у картинці 4–6 (PictureLibraryTests).</summary>
+        private const int SwatchCount = 6;
+
+        /// <summary>Мініатюр зібраного у фіналі.</summary>
+        private const int ThumbCount = 3;
 
         [MenuItem("Ink Flow/Setup/Build Endless Screen")]
         public static void Build()
@@ -71,28 +74,20 @@ namespace InkFlow.Editor
             IconSprites = AssetDatabase.LoadAssetAtPath<TMP_SpriteAsset>(SpriteAssetPath);
 
             var rounded = LoadSprite("rounded-rect");
-            var outline = LoadSprite("rounded-rect-outline");
             var circle = LoadSprite("circle-soft");
-            var circleOutline = LoadSprite("circle-outline");
-            var nebula = LoadSprite("nebula");
-            var glow = LoadSprite("glow");
-            var retry = LoadSprite("icon-retry");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
             var cardGlow = LoadSprite("card-glow");
             var darkCanvas = AssetDatabase.LoadAssetAtPath<Shader>(PictureViewBuilder.DarkCanvasShaderPath);
 
             var missing = new List<string>();
             if (design == null) missing.Add(DesignSystemPath);
-            foreach (var (sprite, name) in new[]
-            {
-                (rounded, "rounded-rect"), (outline, "rounded-rect-outline"),
-                (circle, "circle-soft"), (circleOutline, "circle-outline"),
-                (nebula, "nebula"), (glow, "glow"), (retry, "icon-retry"), (cardGlow, "card-glow")
-            })
+            foreach (var (sprite, name) in new[] { (rounded, "rounded-rect"), (circle, "circle-soft"), (cardGlow, "card-glow") })
                 if (sprite == null) missing.Add($"{SpriteFolder}/{name}.png");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
             if (darkCanvas == null) missing.Add(PictureViewBuilder.DarkCanvasShaderPath);
             K1Sprites.AllPresent(missing);
+            if (U1GlazeSprites.Load("dialog") == null)
+                missing.Add("спрайти U1Glaze (Ink Flow → Setup → Build UI Kit)");
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Нескінченний НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -122,61 +117,35 @@ namespace InkFlow.Editor
             Stretch(screenGo);
             var screen = screenGo.AddComponent<EndlessScreen>();
 
-            // Розкладка (§11) — правило RunLayout (Core): картинка по центру, рахунок і рекорд
-            // праворуч угорі без фону, лоток при низу, поле — що лишилось. Тут — початкові
-            // позиції для сцени-майстерні (полотно 1080×1920 = 390×693 px макета); у грі
-            // EndlessScreen.Layout() перераховує їх під фактичний екран.
-            var layout = RunLayout.For(DesignSystem.MockupWidth, 1920f / K, design!.BoardSideMargin, RunPictureBlock(design!));
-            var headerHeight = M(RunLayout.HeaderHeight);
-            var blockTop = M(layout.PictureTop);
-            var blockHeight = M(layout.PictureBlock);
-            var pictureWidth = M(layout.PictureWidth);
-            var statsWidth = M(layout.StatsWidth);
-            var statsHeight = M(36f);
-            var boardTop = M(layout.BoardTop);
-            var boardSide = M(layout.BoardSide);
-            var trayHeight = M(RunLayout.TrayHeight);
+            // Розкладка (§11) — правило RunLayout (Core): шапка, картинка ліворуч, панелі рахунку праворуч, поле,
+            // лоток при низу. Тут — початкові позиції для сцени-майстерні (1080×1920 = 402×715 px макета);
+            // у грі EndlessScreen.Layout() перераховує їх під фактичний екран.
+            var layout = RunLayout.For(DesignSystem.MockupWidth, 1920f / K, design!.BoardSideMargin,
+                design!.RunCanvasMaxSide, design!.RarityHaloReserve);
 
-            BuildHeader(screenGo, design!, font, circle!, circleOutline!,
-                headerHeight, out var backButton, out var title, out var settingsButton);
+            BuildHeader(screenGo, design!, out var backButton, out var title, out var settingsButton);
 
-            var picture = BuildPicture(screenGo, design!, blockTop, pictureWidth, blockHeight);
+            var picture = BuildPicture(screenGo, design!, layout);
 
-            var statsRoot = BuildStats(screenGo, design!, font, blockTop + M(4f), statsWidth, statsHeight,
+            var statsRoot = BuildStats(screenGo, design!, layout,
                 out var scoreLabel, out var scoreNumber, out var recordLabel, out var recordNumber);
 
-            var board = BuildBoard(screenGo, design!, font, rounded!, cardGlow!, boardTop, boardSide,
+            var board = BuildBoard(screenGo, design!, font, rounded!, cardGlow!, M(layout.BoardTop), M(layout.BoardSide),
                 out var boardPlate, out var boardPlateStroke, out var pulse);
 
-            var tray = BuildTray(screenGo, design!, trayHeight);
+            var tray = BuildTray(screenGo, design!, M(RunLayout.TrayHeight));
 
-            // Краплі летять поверх поля й картинки, під картками.
+            // Краплі летять поверх поля й картинки, під накладками.
             var dropsGo = Child(screenGo, "Drops");
             Stretch(dropsGo);
             var drops = dropsGo.AddComponent<DropFlock>();
             Wire(drops, ("design", design!), ("dropSprite", circle!));
 
-            BuildOverlays(screenGo, design!, font, out var comboPop);
+            var comboPop = BuildComboPop(screenGo, design!, font);
 
-            BuildIntro(screenGo, design!, font, rounded!, outline!, nebula!, circle!,
-                out var introCard, out var introGroup, out var introScrim, out var introPanel,
-                out var introPanelStroke, out var introPicture, out var introKicker, out var introName,
-                out var introRarity, out var introHint, out var introButton);
-
-            BuildOver(screenGo, design!, font, rounded!, outline!, circle!, nebula!,
-                out var overCard, out var overScrim, out var overPanel, out var overPanelStroke,
-                out var overScoreLabel, out var overScoreNumber,
-                out var recordChip, out var recordChipLabel,
-                out var rewardRow, out var rewardNumber, out var rewardSuffix,
-                out var overBestLabel, out var overAgain, out var overAgainFill,
-                out var overAgainLabel, out var overMenu, out var overMenuLabel,
-                out var confettiRoot, out var confetti,
-                out var overCollectedLabel, out var overThumbs,
-                out var overContinue, out var overContinueLabel,
-                out var overDouble, out var overDoubleLabel,
-                out var overFinishPicture, out var overFinishPictureLabel);
-
-            var completion = BuildCompletion(screenGo, design!, font, rounded!, outline!, nebula!, circle!);
+            var intro = BuildIntro(screenGo, design!);
+            var over = BuildOver(screenGo, design!, circle!);
+            var completion = BuildCompletion(screenGo, design!);
 
             Wire(screen,
                 ("design", design!),
@@ -189,25 +158,25 @@ namespace InkFlow.Editor
                 ("drops", drops), ("completion", completion),
                 ("boardPlate", boardPlate), ("boardPlateStroke", boardPlateStroke), ("pulse", pulse),
                 ("comboPop", comboPop),
-                ("overCard", overCard), ("overScrim", overScrim), ("overPanel", overPanel),
-                ("overPanelStroke", overPanelStroke),
-                ("overScoreLabel", overScoreLabel), ("overScoreNumber", overScoreNumber),
-                ("recordChip", recordChip), ("recordChipLabel", recordChipLabel),
-                ("rewardRow", rewardRow), ("rewardNumber", rewardNumber),
-                ("rewardSuffix", rewardSuffix), ("overBestLabel", overBestLabel),
-                ("overAgain", overAgain), ("overAgainFill", overAgainFill),
-                ("overAgainLabel", overAgainLabel),
-                ("overMenu", overMenu), ("overMenuLabel", overMenuLabel),
-                ("confettiRoot", confettiRoot), ("overCollectedLabel", overCollectedLabel),
-                ("overContinue", overContinue), ("overContinueLabel", overContinueLabel),
-                ("overDouble", overDouble), ("overDoubleLabel", overDoubleLabel),
-                ("overFinishPicture", overFinishPicture), ("overFinishPictureLabel", overFinishPictureLabel),
-                ("introCard", introCard), ("introGroup", introGroup), ("introScrim", introScrim),
-                ("introPanel", introPanel), ("introPanelStroke", introPanelStroke),
-                ("introPicture", introPicture), ("introKicker", introKicker), ("introName", introName),
-                ("introRarity", introRarity), ("introHint", introHint), ("introButton", introButton));
-            WireArray(screen, "confetti", confetti);
-            WireArray(screen, "overThumbs", overThumbs);
+                ("introDialog", intro.Dialog), ("introButton", intro.Button), ("introKicker", intro.Kicker),
+                ("introFrame", intro.Frame), ("introPicture", intro.Picture), ("introName", intro.Name),
+                ("introBadge", intro.Badge), ("introColors", intro.Colors), ("introPlay", intro.Play),
+                ("overDialog", over.Dialog), ("overFit", over.Fit), ("overPanel", over.Panel),
+                ("overKicker", over.Kicker), ("overScore", over.Score),
+                ("overRecordRow", over.RecordRow), ("overRecordValue", over.RecordValue), ("overRecordBadge", over.RecordBadge),
+                ("overReward", over.Reward), ("overRewardNumber", over.RewardNumber), ("overDouble", over.Double),
+                ("overPicture", over.Picture), ("overPictureFrame", over.PictureFrame), ("overPictureThumb", over.PictureThumb),
+                ("overPictureTitle", over.PictureTitle), ("overPictureNote", over.PictureNote),
+                ("overFinish", over.Finish), ("overFinishPrice", over.FinishPrice),
+                ("overContinueLabel", over.ContinueLabel), ("overContinueAd", over.ContinueAd),
+                ("overContinueOil", over.ContinueOil), ("overContinuePrice", over.ContinuePrice),
+                ("overCollected", over.Collected), ("overCollectedLabel", over.CollectedLabel),
+                ("overAgain", over.Again), ("overEnd", over.End), ("overMenu", over.Menu),
+                ("confettiRoot", over.ConfettiRoot));
+            WireArray(screen, "introSwatches", intro.Swatches);
+            WireArray(screen, "overThumbFrames", over.ThumbFrames);
+            WireArray(screen, "overThumbs", over.Thumbs);
+            WireArray(screen, "confetti", over.Confetti);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
@@ -224,9 +193,8 @@ namespace InkFlow.Editor
             Debug.Log($"[InkFlow] Нескінченний зібрано: {ScenePath} (коефіцієнт {K:0.000}).");
         }
 
-        // ── Шапка: ‹ · НЕСКІНЧЕННИЙ · ↺ ──
-        private static void BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite circle, Sprite circleOutline, float height,
+        // ── Шапка S02Run_01: ‹ · НЕСКІНЧЕННИЙ · шестерня (icon_button 46, заголовок ui-label) ──
+        private static void BuildHeader(GameObject parent, DesignSystem design,
             out Button backButton, out TMP_Text title, out Button settingsButton)
         {
             var go = Child(parent, "Header");
@@ -234,185 +202,79 @@ namespace InkFlow.Editor
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, -height);
-            rect.offsetMax = new Vector2(-SideMargin, 0f);
+            rect.offsetMin = new Vector2(M(RunLayout.SideMargin), -M(RunLayout.HeaderHeight));
+            rect.offsetMax = new Vector2(-M(RunLayout.SideMargin), 0f);
 
-            backButton = RoundButton(go, "Back", design, circle, circleOutline,
-                new Vector2(0f, 0.5f), out var backRoot);
-            var chevron = Label(backRoot, "Glyph", "‹", design, font,
-                M(22f), design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(chevron.gameObject);
-
+            backButton = U1.IconButton(go, "Back", design, "icon_back", new Vector2(0f, 0.5f), Vector2.zero);
             // §15: шестерня крайня праворуч; «Заново» живе в налаштуваннях, а не в шапці.
-            settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
+            settingsButton = U1.IconButton(go, "Settings", design, "icon_gear", new Vector2(1f, 0.5f), Vector2.zero);
 
-            title = Label(go, "Title", "НЕСКІНЧЕННИЙ", design, font,
-                design.FontSizeGameTitle, design.TextMuted, TextAlignmentOptions.Center);
-            Place(title, Vector2.zero, new Vector2(M(240f), M(20f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            title = U1.Text(go, "Title", "НЕСКІНЧЕННИЙ", design, U1.Role.Label, design.InkMuted);
+            title.textWrappingMode = TextWrappingModes.NoWrap;
+            var titleRect = title.rectTransform;
+            titleRect.anchorMin = Vector2.zero;
+            titleRect.anchorMax = Vector2.one;
+            var side = design.IconButtonSize + M(8f);
+            titleRect.offsetMin = new Vector2(side, 0f);
+            titleRect.offsetMax = new Vector2(-side, 0f);
         }
 
-        private static Button RoundButton(GameObject parent, string name, DesignSystem design,
-            Sprite circle, Sprite circleOutline, Vector2 anchor, out GameObject root)
+        // ── Картинка ліворуч: лише полотно (без рамки, відсотка й назви — рішення Сесії 5), рідкість — гало з-під нього ──
+        private static PictureView BuildPicture(GameObject parent, DesignSystem design, RunLayout layout)
         {
-            root = Child(parent, name);
-            var fill = root.AddComponent<Image>();
-            fill.sprite = circle;
-            fill.color = design.CircleButtonFill;
-            Place(fill, Vector2.zero, new Vector2(M(40f), M(40f)), anchor, anchor);
-
-            var ringGo = Child(root, "Ring");
-            Stretch(ringGo);
-            var ring = ringGo.AddComponent<Image>();
-            ring.sprite = circleOutline;
-            ring.color = design.GlassStroke;
-            ring.raycastTarget = false;
-
-            var button = root.AddComponent<Button>();
-            button.targetGraphic = fill;
-            return button;
+            var go = Child(parent, "Picture");
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(M(layout.PictureLeft), -M(layout.PictureTop));
+            rect.sizeDelta = new Vector2(M(layout.PictureBlock), M(layout.PictureBlock));
+            return PictureViewBuilder.MakeRunPicture(go, design, M(layout.CanvasSide));
         }
 
-        // ── Рахунок над рекордом, праворуч угорі (§11): лише підпис і число, без фону ──
-        private static RectTransform BuildStats(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            float top, float width, float rowHeight,
+        // ── Рахунок і рекорд S02Run_01: дві панелі panel_card стовпчиком, підпис ui-label і число h1 ліворуч ──
+        private static RectTransform BuildStats(GameObject parent, DesignSystem design, RunLayout layout,
             out TMP_Text scoreLabel, out TMP_Text scoreNumber, out TMP_Text recordLabel, out TMP_Text recordNumber)
         {
             var go = Child(parent, "Stats");
             var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(1f, 1f);
-            rect.anchoredPosition = new Vector2(-SideMargin, -top);
-            rect.sizeDelta = new Vector2(width, rowHeight * 2f + M(12f));
-
-            Stat(go, "Score", design, font, width, rowHeight, 0f, "РАХУНОК", "0", design.TextPrimary,
-                out scoreLabel, out scoreNumber);
-            Stat(go, "Record", design, font, width, rowHeight, -(rowHeight + M(12f)), "РЕКОРД", "0", design.AccentGold,
-                out recordLabel, out recordNumber);
-            return rect;
-        }
-
-        private static void Stat(GameObject parent, string name, DesignSystem design, TMP_FontAsset? font,
-            float width, float height, float y, string caption, string value, Color valueColor,
-            out TMP_Text label, out TMP_Text number)
-        {
-            var go = Child(parent, name);
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(1f, 1f);
-            rect.anchoredPosition = new Vector2(0f, y);
-            rect.sizeDelta = new Vector2(width, height);
-
-            label = Label(go, "Label", caption, design, font,
-                design.FontSizeStatLabel, design.TextDim, TextAlignmentOptions.Right);
-            Place(label, Vector2.zero, new Vector2(width, M(11f)),
-                new Vector2(1f, 1f), new Vector2(1f, 1f));
-            // Підпис теж не має права лізти на панель картинки: на полотні 353 колонка вужча за «РАХУНОК».
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.enableAutoSizing = true;
-            label.fontSizeMax = design.FontSizeStatLabel;
-            label.fontSizeMin = design.FontSizeStatLabel * 0.5f;
-
-            // Розмір шрифту й формат числа рахує ScoreFormat у рантаймі (§11): повний запис,
-            // менший шрифт, далі компактний — цифри табличні, ширина не стрибає.
-            number = Label(go, "Number", value, design, font,
-                design.FontSizeScoreNumber, valueColor, TextAlignmentOptions.Right);
-            Place(number, Vector2.zero, new Vector2(width, M(22f)),
-                new Vector2(1f, 0f), new Vector2(1f, 0f));
-            number.textWrappingMode = TextWrappingModes.NoWrap;
-            number.overflowMode = TextOverflowModes.Overflow;
-        }
-
-        /// <summary>Прямокутник від лівого верхнього кута екрана (з бічним полем) у px макета × K.</summary>
-        private static RectTransform TopLeft(GameObject go, float left, float top, float width, float height)
-        {
-            var rect = go.GetComponent<RectTransform>();
             rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(SideMargin + left, -top);
-            rect.sizeDelta = new Vector2(width, height);
+            rect.anchoredPosition = new Vector2(M(layout.StatsLeft), -M(layout.StatsTop));
+            rect.sizeDelta = new Vector2(M(layout.StatsWidth), M(layout.StatsHeight));
+            var column = go.AddComponent<VerticalLayoutGroup>();
+            column.spacing = M(RunLayout.StatsRowGap);
+            column.childControlWidth = column.childControlHeight = true;
+            column.childForceExpandWidth = column.childForceExpandHeight = true;
+
+            Stat(go, "Score", "РАХУНОК", design, design.InkText, out scoreLabel, out scoreNumber);
+            Stat(go, "Record", "РЕКОРД", design, design.Record, out recordLabel, out recordNumber);
             return rect;
         }
 
-        // ── Картинка по центру: лише полотно (без рамки, лічильника й назви), рідкість — гало з-під нього ──
-        private static PictureView BuildPicture(GameObject parent, DesignSystem design, float top, float width, float height)
+        private static void Stat(GameObject parent, string name, string caption, DesignSystem design, Color valueColor,
+            out TMP_Text label, out TMP_Text number)
         {
-            var go = Child(parent, "Picture");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -top);
-            rect.sizeDelta = new Vector2(width, height);
-            return PictureViewBuilder.MakeRunPicture(go, design, M(design.RunPictureSide));
-        }
+            var panel = U1.Panel(parent, name, "panel_card");
+            // Висота панелі — рівна частка стовпчика, не за вмістом: інакше різні кеглі чисел робили б панелі різними.
+            var share = panel.AddComponent<LayoutElement>();
+            share.minHeight = share.preferredHeight = 0f;
+            share.flexibleHeight = 1f;
+            var col = panel.AddComponent<VerticalLayoutGroup>();
+            col.padding = new RectOffset((int)M(RunLayout.StatPadLeft), (int)M(RunLayout.StatPadRight), (int)M(4f), (int)M(4f));
+            col.childAlignment = TextAnchor.MiddleLeft;
+            col.childControlWidth = col.childControlHeight = true;
+            col.childForceExpandWidth = true;
+            col.childForceExpandHeight = false;
 
-        // ── Картка перед забігом: «цього забігу — така картинка» ──
-        private static void BuildIntro(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite nebula, Sprite circle,
-            out RectTransform introCard, out CanvasGroup group, out Image scrim, out GradientImage panel,
-            out Image panelStroke, out PictureView picture, out TMP_Text kicker, out TMP_Text name,
-            out TMP_Text rarity, out TMP_Text hint, out Button button)
-        {
-            var go = Child(parent, "RunIntro");
-            Stretch(go);
-            introCard = go.GetComponent<RectTransform>();
-            group = go.AddComponent<CanvasGroup>();
+            label = U1.Text(panel, "Label", caption, design, U1.Role.Label, design.InkMuted, TextAlignmentOptions.Left);
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Ellipsis;
 
-            scrim = go.AddComponent<Image>();
-            scrim.color = design.OverScrim;
-            // Тап будь-де по картці — почати. Кнопка на самому скримі, без окремої графіки.
-            button = go.AddComponent<Button>();
-            button.targetGraphic = scrim;
-            button.transition = Selectable.Transition.None;
-
-            var panelGo = Child(go, "Panel");
-            panel = panelGo.AddComponent<GradientImage>();
-            panel.sprite = rounded;
-            panel.type = Image.Type.Sliced;
-            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
-            panel.raycastTarget = false;
-            Place(panel, Vector2.zero, new Vector2(M(296f), M(392f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var strokeGo = Child(panelGo, "Stroke");
-            Stretch(strokeGo);
-            panelStroke = strokeGo.AddComponent<Image>();
-            panelStroke.sprite = outline;
-            panelStroke.type = Image.Type.Sliced;
-            panelStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
-            panelStroke.color = design.GlassStroke;
-            panelStroke.raycastTarget = false;
-
-            kicker = Label(panelGo, "Kicker", "ЦЬОГО ЗАБІГУ", design, font,
-                design.FontSizeIntroKicker, design.TextDim, TextAlignmentOptions.Center);
-            Place(kicker, new Vector2(0f, -M(22f)), new Vector2(M(260f), M(16f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var pictureGo = Child(panelGo, "Picture");
-            var pictureRect = pictureGo.GetComponent<RectTransform>();
-            pictureRect.anchorMin = pictureRect.anchorMax = new Vector2(0.5f, 1f);
-            pictureRect.pivot = new Vector2(0.5f, 1f);
-            pictureRect.anchoredPosition = new Vector2(0f, -M(46f));
-            pictureRect.sizeDelta = new Vector2(M(200f), M(200f));
-            picture = PictureViewBuilder.MakePictureView(pictureGo, design, font, rounded, outline, nebula,
-                M(200f), M(200f), M(172f), withTitle: false, captionHeight: 0f, particle: circle);
-
-            name = Label(panelGo, "Name", "КИТ", design, font,
-                design.FontSizeIntroName, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(name, new Vector2(0f, -M(256f)), new Vector2(M(270f), M(30f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            rarity = Label(panelGo, "Rarity", "ЗВИЧАЙНА · 3 КОЛЬОРИ", design, font,
-                design.FontSizeIntroRarity, design.TextMuted, TextAlignmentOptions.Center);
-            Place(rarity, new Vector2(0f, -M(290f)), new Vector2(M(270f), M(18f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            hint = Label(panelGo, "Hint", "Тапни, щоб грати", design, font,
-                design.FontSizeIntroHint, design.TextMuted, TextAlignmentOptions.Center);
-            Place(hint, new Vector2(0f, M(18f)), new Vector2(M(270f), M(20f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-
-            go.SetActive(false);
+            // Кегль і формат числа рахує ScoreFormat у рантаймі (§11): повний запис, менший шрифт, далі компактний —
+            // цифри табличні, ширина не стрибає; найбільший кегль — h1, але не вищий за висоту панелі (SE).
+            number = U1.Text(panel, "Number", "0", design, U1.Role.H1, valueColor, TextAlignmentOptions.Left);
+            number.textWrappingMode = TextWrappingModes.NoWrap;
+            number.overflowMode = TextOverflowModes.Overflow;
         }
 
         // ── Поле K1Candy: панель зі спрайта + тінь, 64 лунки, на кожну клітинку гало / блок / блиск, підсвітки, привид ──
@@ -624,343 +486,325 @@ namespace InkFlow.Editor
             return tray;
         }
 
-        // ── Множник ланцюга (червоного рантa «мало місця» більше немає — §11) ──
-        private static void BuildOverlays(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            out TMP_Text comboPop)
+        // ── Множник ланцюга по центру екрана ──
+        private static TMP_Text BuildComboPop(GameObject parent, DesignSystem design, TMP_FontAsset? font)
         {
-            comboPop = Label(parent, "ComboPop", "×2", design, font,
-                design.FontSizeComboPop, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(comboPop, new Vector2(0f, 0f), new Vector2(M(300f), M(90f)),
+            var comboPop = Label(parent, "ComboPop", "×2", design, font,
+                design.FontSizeComboPop, design.InkText, TextAlignmentOptions.Center);
+            comboPop.font = design.FontBlack;
+            comboPop.fontStyle = FontStyles.Normal;
+            Place(comboPop, Vector2.zero, new Vector2(M(300f), M(90f)),
                 new Vector2(0.5f, 0.55f), new Vector2(0.5f, 0.5f));
             comboPop.raycastTarget = false;
             comboPop.gameObject.SetActive(false);
+            return comboPop;
         }
 
-        // ── Картка кінця партії ──
-        private static void BuildOver(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite circle, Sprite nebula,
-            out RectTransform overCard, out Image scrim, out GradientImage panel,
-            out Image panelStroke, out TMP_Text scoreLabel, out TMP_Text scoreNumber,
-            out GradientImage recordChip, out TMP_Text recordChipLabel,
-            out RectTransform rewardRow, out TMP_Text rewardNumber, out TMP_Text rewardSuffix,
-            out TMP_Text bestLabel, out Button again, out GradientImage againFill,
-            out TMP_Text againLabel, out Button menu, out TMP_Text menuLabel,
-            out RectTransform confettiRoot, out Image[] confetti,
-            out TMP_Text collectedLabel, out PictureView[] thumbs,
-            out Button continueButton, out TMP_Text continueLabel,
-            out Button doubleButton, out TMP_Text doubleLabel,
-            out Button finishButton, out TMP_Text finishLabel)
+        /// <summary>Рядок по центру стовпчика діалогу (бейдж, зразки): вміст шириною за собою, висота — px макета.</summary>
+        private static GameObject CenterRow(GameObject parent, string name, float heightPx, float spacingPx)
         {
-            var go = Child(parent, "GameOver");
-            Stretch(go);
-            overCard = go.GetComponent<RectTransform>();
+            var row = Child(parent, name);
+            var group = row.AddComponent<HorizontalLayoutGroup>();
+            group.spacing = M(spacingPx);
+            group.childAlignment = TextAnchor.MiddleCenter;
+            group.childControlWidth = group.childControlHeight = true;
+            group.childForceExpandWidth = group.childForceExpandHeight = false;
+            U1.Size(row, 0f, heightPx);
+            return row;
+        }
 
-            scrim = go.AddComponent<Image>();
-            scrim.color = design.OverScrim;
+        /// <summary>Кнопка на всю ширину стовпчика: висота 56 (велика) або 46 (мала).</summary>
+        private static CandyButton WideButton(GameObject parent, string name, string text, DesignSystem design,
+            CandyButton.Tone tone, string? icon = null, bool small = false, bool iconRight = false)
+        {
+            var button = U1.Button(parent, name, text, design, tone, small, icon != null ? U1.S(icon) : null, iconRight);
+            U1.Size(button.gameObject, 0f, small ? 46f : 56f);
+            return button;
+        }
 
-            var confettiGo = Child(go, "Confetti");
+        // ── Картка перед забігом (S02Run_02): «ЦЕЙ ЗАБІГ · ТЕМА», рамка рідкості, назва, бейдж, кольори, «Тапни» ──
+
+        private sealed class IntroParts
+        {
+            public DialogView Dialog = null!;
+            public Button Button = null!;
+            public TMP_Text Kicker = null!;
+            public RarityFrameView Frame = null!;
+            public PictureView Picture = null!;
+            public TMP_Text Name = null!;
+            public RarityBadgeView Badge = null!;
+            public Image[] Swatches = System.Array.Empty<Image>();
+            public TMP_Text Colors = null!;
+            public CandyButton Play = null!;
+        }
+
+        private static IntroParts BuildIntro(GameObject parent, DesignSystem design)
+        {
+            var parts = new IntroParts();
+            parts.Dialog = U1.Dialog(parent, "RunIntro", design, U1.DialogWidthPx, out var panel, U1.DialogPaddingPx);
+            // Тап будь-де — почати (рішення Сесії 1 лишається): кнопка на корені діалогу ловить тапи по затемненню й панелі.
+            var scrim = parts.Dialog.transform.Find("Scrim").GetComponent<Image>();
+            parts.Button = parts.Dialog.gameObject.AddComponent<Button>();
+            parts.Button.targetGraphic = scrim;
+            parts.Button.transition = Selectable.Transition.None;
+
+            parts.Kicker = U1.Text(panel, "Kicker", "ЦЕЙ ЗАБІГ", design, U1.Role.Label, design.InkMuted);
+            parts.Kicker.textWrappingMode = TextWrappingModes.NoWrap;
+            parts.Kicker.overflowMode = TextOverflowModes.Ellipsis;
+            parts.Frame = U1.FramedPicture(panel, "Picture", design, big: true, sidePx: 200f, pipsRoomPx: 14f, out parts.Picture, glowRoomPx: 14f);
+            parts.Name = U1.Text(panel, "Name", "Трицератопсик", design, U1.Role.H1, design.InkText);
+            parts.Name.textWrappingMode = TextWrappingModes.Normal;
+
+            var badgeRow = CenterRow(panel, "BadgeRow", 26f, 0f);
+            parts.Badge = U1.RarityBadge(badgeRow, "Rarity", design, Rarity.Uncommon);
+
+            var colors = CenterRow(panel, "Colors", 22f, 6f);
+            parts.Swatches = new Image[SwatchCount];
+            for (var i = 0; i < SwatchCount; i++)
+            {
+                var swatchGo = Child(colors, $"Swatch{i}");
+                var swatch = swatchGo.AddComponent<Image>();
+                swatch.sprite = U1.S("pip_filled");
+                swatch.raycastTarget = false;
+                U1.Size(swatchGo, 16f, 16f);
+                parts.Swatches[i] = swatch;
+            }
+            U1.Size(Child(colors, "Space"), 2f, 0f);
+            parts.Colors = U1.Text(colors, "Count", "5 кольорів", design, U1.Role.Body, design.InkMuted);
+            parts.Colors.textWrappingMode = TextWrappingModes.NoWrap;
+
+            U1.Gap(panel, 4f);
+            parts.Play = WideButton(panel, "Play", "Тапни, щоб грати", design, CandyButton.Tone.Teal, "icon_play");
+
+            parts.Dialog.gameObject.SetActive(false);
+            return parts;
+        }
+
+        // ── Програш (S02Run_05): один діалог на дві фази ──
+
+        private sealed class OverParts
+        {
+            public DialogView Dialog = null!;
+            public RectTransform Fit = null!;
+            public RectTransform Panel = null!;
+            public RectTransform ConfettiRoot = null!;
+            public Image[] Confetti = System.Array.Empty<Image>();
+            public TMP_Text Kicker = null!;
+            public TMP_Text Score = null!;
+            public RectTransform RecordRow = null!;
+            public TMP_Text RecordValue = null!;
+            public RectTransform RecordBadge = null!;
+            public RectTransform Reward = null!;
+            public TMP_Text RewardNumber = null!;
+            public CandyButton Double = null!;
+            public RectTransform Picture = null!;
+            public RarityFrameView PictureFrame = null!;
+            public PictureView PictureThumb = null!;
+            public TMP_Text PictureTitle = null!;
+            public TMP_Text PictureNote = null!;
+            public CandyButton Finish = null!;
+            public TMP_Text FinishPrice = null!;
+            public TMP_Text ContinueLabel = null!;
+            public CandyButton ContinueAd = null!;
+            public CandyButton ContinueOil = null!;
+            public TMP_Text ContinuePrice = null!;
+            public RectTransform Collected = null!;
+            public TMP_Text CollectedLabel = null!;
+            public RarityFrameView[] ThumbFrames = System.Array.Empty<RarityFrameView>();
+            public PictureView[] Thumbs = System.Array.Empty<PictureView>();
+            public CandyButton Again = null!;
+            public Button End = null!;
+            public Button Menu = null!;
+        }
+
+        private static OverParts BuildOver(GameObject parent, DesignSystem design, Sprite circle)
+        {
+            var parts = new OverParts();
+            parts.Dialog = U1.Dialog(parent, "GameOver", design, U1.DialogWidthPx, out var panel, U1.DialogPaddingPx);
+            var root = parts.Dialog.gameObject;
+            parts.Panel = panel.GetComponent<RectTransform>();
+
+            // Конфеті нового рекорду — над затемненням, під панеллю.
+            var confettiGo = Child(root, "Confetti");
             Stretch(confettiGo);
-            confettiRoot = confettiGo.GetComponent<RectTransform>();
-
-            confetti = new Image[ConfettiPieces];
+            confettiGo.transform.SetSiblingIndex(1);
+            parts.ConfettiRoot = confettiGo.GetComponent<RectTransform>();
+            parts.Confetti = new Image[ConfettiPieces];
             for (var i = 0; i < ConfettiPieces; i++)
             {
                 var pieceGo = Child(confettiGo, $"Piece{i}");
                 var piece = pieceGo.AddComponent<Image>();
                 piece.sprite = circle;
                 piece.raycastTarget = false;
-                Place(piece, Vector2.zero,
-                    new Vector2(design.PaintConfettiSize, design.PaintConfettiSize),
+                Place(piece, Vector2.zero, new Vector2(design.PaintConfettiSize, design.PaintConfettiSize),
                     new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
                 pieceGo.SetActive(false);
-                confetti[i] = piece;
+                parts.Confetti[i] = piece;
             }
 
-            var panelGo = Child(go, "Panel");
-            panel = panelGo.AddComponent<GradientImage>();
-            panel.sprite = rounded;
-            panel.type = Image.Type.Sliced;
-            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
-            // Вертикальний стос із запасом між блоками; коли екран нижчий — EndlessScreen.FitOverCard
-            // меншає всю панель, щоб рахунок угорі не зрізало.
-            Place(panel, Vector2.zero, new Vector2(M(296f), M(528f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            // Обгортка панелі: її масштабує FitOverCard на низьких екранах, саму панель — поява діалогу.
+            var fitGo = Child(root, "Fit");
+            Stretch(fitGo);
+            parts.Fit = fitGo.GetComponent<RectTransform>();
+            panel.transform.SetParent(fitGo.transform, false);
 
-            var strokeGo = Child(panelGo, "Stroke");
-            Stretch(strokeGo);
-            panelStroke = strokeGo.AddComponent<Image>();
-            panelStroke.sprite = outline;
-            panelStroke.type = Image.Type.Sliced;
-            panelStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(34f));
-            panelStroke.color = design.GlassStroke;
-            panelStroke.raycastTarget = false;
+            parts.Kicker = U1.Text(panel, "Kicker", "МІСЦЯ БІЛЬШЕ НЕМАЄ", design, U1.Role.Label, design.InkMuted);
+            parts.Score = U1.Text(panel, "Score", "720", design, U1.Role.Display, design.InkText);
+            parts.Score.textWrappingMode = TextWrappingModes.NoWrap;
 
-            scoreLabel = Label(panelGo, "ScoreLabel", "РАХУНОК", design, font,
-                design.FontSizeOverLabel, design.TextDim, TextAlignmentOptions.Center);
-            Place(scoreLabel, new Vector2(0f, -M(18f)), new Vector2(M(240f), M(16f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            var recordRow = CenterRow(panel, "Record", 28f, 8f);
+            parts.RecordRow = recordRow.GetComponent<RectTransform>();
+            U1.Text(recordRow, "Caption", "Рекорд", design, U1.Role.Body, design.InkMuted);
+            parts.RecordValue = U1.Text(recordRow, "Value", "7 980", design, U1.Role.H3, design.Record);
+            parts.RecordValue.textWrappingMode = TextWrappingModes.NoWrap;
 
-            scoreNumber = Label(panelGo, "ScoreNumber", "0", design, font,
-                design.FontSizeOverScore, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(scoreNumber, new Vector2(0f, -M(36f)), new Vector2(M(260f), M(62f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            var badgeRow = CenterRow(panel, "NewRecord", 26f, 0f);
+            parts.RecordBadge = badgeRow.GetComponent<RectTransform>();
+            U1.Badge(badgeRow, "Badge", "Новий рекорд", design, "badge_amber", design.AmberInk);
 
-            var chipGo = Child(panelGo, "RecordChip");
-            recordChip = chipGo.AddComponent<GradientImage>();
-            recordChip.sprite = rounded;
-            recordChip.type = Image.Type.Sliced;
-            recordChip.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(20f));
-            recordChip.raycastTarget = false;
-            Place(recordChip, new Vector2(0f, -M(104f)), new Vector2(M(174f), M(34f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            // Нагорода фіналу: крапля + «+N», праворуч «▶ Подвоїти» за ролик.
+            var reward = U1.Panel(panel, "Reward", "panel_low", shadow: false);
+            parts.Reward = reward.GetComponent<RectTransform>();
+            var rewardRow = reward.AddComponent<HorizontalLayoutGroup>();
+            rewardRow.padding = new RectOffset((int)M(14f), (int)M(6f), (int)M(6f), (int)M(6f));
+            rewardRow.spacing = M(8f);
+            rewardRow.childAlignment = TextAnchor.MiddleLeft;
+            rewardRow.childControlWidth = rewardRow.childControlHeight = true;
+            rewardRow.childForceExpandWidth = rewardRow.childForceExpandHeight = false;
+            var dropGo = Child(reward, "Drop");
+            var drop = dropGo.AddComponent<Image>();
+            drop.sprite = U1.S("oil_drop");
+            drop.raycastTarget = false;
+            U1.Size(dropGo, 24f, 24f);
+            parts.RewardNumber = U1.Text(reward, "Amount", "+0", design, U1.Role.H3, design.Record, TextAlignmentOptions.Left);
+            parts.RewardNumber.textWrappingMode = TextWrappingModes.NoWrap;
+            U1.Size(parts.RewardNumber.gameObject, 0f, 0f).flexibleWidth = 1f;
+            parts.Double = U1.Button(reward, "Double", "Подвоїти", design, CandyButton.Tone.Glass, small: true, icon: U1.S("icon_play"));
+            U1.Size(parts.Double.gameObject, 140f, 46f);
 
-            recordChipLabel = Label(chipGo, "Label", "НОВИЙ РЕКОРД", design, font,
-                design.FontSizeRecordChip, design.RecordChipText, TextAlignmentOptions.Center);
-            Stretch(recordChipLabel.gameObject);
+            // Картинка забігу: мініатюра в малій рамці, «Назва · 55%», «Не домалюєш — картинка згорить».
+            var picture = U1.Panel(panel, "PictureRow", "panel_low", shadow: false);
+            parts.Picture = picture.GetComponent<RectTransform>();
+            var pictureRow = picture.AddComponent<HorizontalLayoutGroup>();
+            var pad = (int)M(10f);
+            pictureRow.padding = new RectOffset(pad, (int)M(12f), pad, pad);
+            pictureRow.spacing = M(12f);
+            pictureRow.childAlignment = TextAnchor.MiddleLeft;
+            pictureRow.childControlWidth = pictureRow.childControlHeight = true;
+            pictureRow.childForceExpandWidth = pictureRow.childForceExpandHeight = false;
+            parts.PictureFrame = U1.FramedPicture(picture, "Thumb", design, big: false, sidePx: 56f, pipsRoomPx: 0f, out parts.PictureThumb);
+            var texts = Child(picture, "Texts");
+            var textCol = texts.AddComponent<VerticalLayoutGroup>();
+            textCol.spacing = M(2f);
+            textCol.childAlignment = TextAnchor.MiddleLeft;
+            textCol.childControlWidth = textCol.childControlHeight = true;
+            textCol.childForceExpandWidth = true;
+            textCol.childForceExpandHeight = false;
+            var textSize = texts.AddComponent<LayoutElement>();
+            textSize.flexibleWidth = 1f;
+            textSize.minWidth = 0f;
+            parts.PictureTitle = U1.Text(texts, "Title", "Ракета · 55%", design, U1.Role.H3, design.InkText, TextAlignmentOptions.Left);
+            parts.PictureTitle.textWrappingMode = TextWrappingModes.NoWrap;
+            parts.PictureTitle.overflowMode = TextOverflowModes.Ellipsis;
+            parts.PictureNote = U1.Text(texts, "Note", "Не домалюєш — картинка згорить", design, U1.Role.Caption, design.Danger, TextAlignmentOptions.Left);
+            parts.PictureNote.textWrappingMode = TextWrappingModes.Normal;
 
-            var rewardGo = Child(panelGo, "Reward");
-            var rewardFill = rewardGo.AddComponent<Image>();
-            rewardFill.sprite = rounded;
-            rewardFill.type = Image.Type.Sliced;
-            rewardFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(18f));
-            rewardFill.color = design.GlassFill;
-            rewardFill.raycastTarget = false;
-            Place(rewardFill, new Vector2(0f, -M(146f)), new Vector2(M(190f), M(42f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-            rewardRow = rewardGo.GetComponent<RectTransform>();
+            parts.Finish = WideButton(panel, "Finish", "Домалювати", design, CandyButton.Tone.Teal);
+            parts.FinishPrice = U1.PriceChip(parts.Finish, 500, design);
 
-            var oilGo = Child(rewardGo, "Oil");
-            var oil = oilGo.AddComponent<Image>();
-            oil.sprite = circle;
-            oil.color = design.AccentGold;
-            oil.raycastTarget = false;
-            Place(oil, new Vector2(M(12f), 0f), new Vector2(M(24f), M(26f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+            parts.ContinueLabel = U1.Text(panel, "ContinueLabel", "ПРОДОВЖИТИ ЗАБІГ", design, U1.Role.Label, design.InkMuted);
+            // Один чип продовження (рішення автора): ролик, а коли ролика вже не можна — нафта.
+            parts.ContinueAd = WideButton(panel, "ContinueAd", "Ролик", design, CandyButton.Tone.Teal, "icon_play");
+            parts.ContinueOil = WideButton(panel, "ContinueOil", "Продовжити", design, CandyButton.Tone.Teal);
+            parts.ContinuePrice = U1.PriceChip(parts.ContinueOil, 300, design);
 
-            rewardNumber = Label(rewardGo, "Number", "+0", design, font,
-                design.FontSizeRewardNumber, design.RecordChipFrom, TextAlignmentOptions.Left);
-            Place(rewardNumber, new Vector2(M(46f), 0f), new Vector2(M(70f), M(22f)),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+            // Зібране за забіг: підпис і до трьох мініатюр у малих рамках.
+            var collected = CenterRow(panel, "Collected", 44f, 8f);
+            parts.Collected = collected.GetComponent<RectTransform>();
+            parts.CollectedLabel = U1.Text(collected, "Label", "ЗІБРАНО · 3", design, U1.Role.Label, design.InkMuted);
+            parts.CollectedLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            parts.ThumbFrames = new RarityFrameView[ThumbCount];
+            parts.Thumbs = new PictureView[ThumbCount];
+            for (var i = 0; i < ThumbCount; i++)
+                parts.ThumbFrames[i] = U1.FramedPicture(collected, $"Thumb{i}", design, big: false, sidePx: 44f, pipsRoomPx: 0f, out parts.Thumbs[i]);
 
-            rewardSuffix = Label(rewardGo, "Suffix", "нагорода", design, font,
-                design.FontSizeOverLabel, design.TextDim, TextAlignmentOptions.Right);
-            Place(rewardSuffix, new Vector2(-M(14f), 0f), new Vector2(M(70f), M(18f)),
-                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+            // Єдина коралова на діалозі — «Ще раз» фіналу.
+            parts.Again = WideButton(panel, "Again", "Ще раз", design, CandyButton.Tone.Coral);
+            parts.End = U1.TextButton(panel, "End", "Завершити", design, design.InkMuted);
+            U1.Size(parts.End.gameObject, 0f, 44f);
+            parts.Menu = U1.TextButton(panel, "Menu", "В меню", design, design.InkMuted);
+            U1.Size(parts.Menu.gameObject, 0f, 44f);
 
-            bestLabel = Label(panelGo, "Best", "Рекорд · 0", design, font,
-                design.FontSizeOverBest, design.TextMuted, TextAlignmentOptions.Center);
-            Place(bestLabel, new Vector2(0f, -M(196f)), new Vector2(M(270f), M(20f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-            bestLabel.enableAutoSizing = true;
-            bestLabel.fontSizeMax = design.FontSizeOverBest;
-            bestLabel.fontSizeMin = design.FontSizeOverBest * 0.7f;
-
-            // Галерея партії: підпис і до трьох мініатюр зібраних картинок.
-            collectedLabel = Label(panelGo, "Collected", "ЗІБРАНО · 1", design, font,
-                design.FontSizeOverCollected, design.TextDim, TextAlignmentOptions.Center);
-            Place(collectedLabel, new Vector2(0f, -M(224f)), new Vector2(M(260f), M(16f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            const int thumbCount = 3;
-            var thumbSide = M(60f);
-            var thumbGap = M(12f);
-            var thumbsWidth = thumbCount * thumbSide + (thumbCount - 1) * thumbGap;
-            thumbs = new PictureView[thumbCount];
-            for (var i = 0; i < thumbCount; i++)
-            {
-                var thumbGo = Child(panelGo, $"Thumb{i}");
-                var thumbRect = thumbGo.GetComponent<RectTransform>();
-                thumbRect.anchorMin = thumbRect.anchorMax = new Vector2(0.5f, 1f);
-                thumbRect.pivot = new Vector2(0.5f, 1f);
-                thumbRect.anchoredPosition = new Vector2(-thumbsWidth * 0.5f + thumbSide * 0.5f + i * (thumbSide + thumbGap), -M(244f));
-                thumbRect.sizeDelta = new Vector2(thumbSide, thumbSide);
-                thumbs[i] = PictureViewBuilder.MakePictureView(thumbGo, design, font, rounded, outline, nebula,
-                    thumbSide, thumbSide, M(48f), withTitle: false, captionHeight: 0f, particle: circle);
-                thumbGo.SetActive(false);
-            }
-
-            // Чипи знизу вгору: «В меню», «Ще раз», ряд роликів («Продовжити» до фіналу / «Подвоїти»
-            // у фіналі), «Домалювати одразу · N нафти» (§13) — кожен у своєму ряду, текст в один рядок.
-            var chipH = M(40f);
-            continueButton = OverChip(panelGo, "Continue", design, font, rounded, outline, "Продовжити за ролик",
-                new Vector2(0f, M(120f)), new Vector2(M(244f), chipH), out continueLabel);
-            doubleButton = OverChip(panelGo, "Double", design, font, rounded, outline, "Подвоїти нафту · ролик",
-                new Vector2(0f, M(120f)), new Vector2(M(244f), chipH), out doubleLabel);
-            finishButton = OverChip(panelGo, "FinishPicture", design, font, rounded, outline, "Домалювати одразу · 40 нафти",
-                new Vector2(0f, M(168f)), new Vector2(M(244f), chipH), out finishLabel);
-            // В один рядок на будь-якому екрані: на 750×1334 картка меншає, і напис стискається шрифтом, а не крапками.
-            finishLabel.textWrappingMode = TextWrappingModes.NoWrap;
-            finishLabel.overflowMode = TextOverflowModes.Overflow;
-            finishLabel.enableAutoSizing = true;
-            finishLabel.fontSizeMax = design.FontSizeOverSecondary;
-            finishLabel.fontSizeMin = design.FontSizeOverSecondary * 0.6f;
-
-            var againGo = Child(panelGo, "Again");
-            againFill = againGo.AddComponent<GradientImage>();
-            againFill.sprite = rounded;
-            againFill.type = Image.Type.Sliced;
-            againFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(26f));
-            Place(againFill, new Vector2(0f, M(62f)), new Vector2(M(244f), M(52f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-
-            againLabel = Label(againGo, "Label", "Ще раз", design, font,
-                design.FontSizeOverPrimary, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(againLabel.gameObject);
-
-            again = againGo.AddComponent<Button>();
-            again.targetGraphic = againFill;
-
-            var menuGo = Child(panelGo, "Menu");
-            menuLabel = Label(menuGo, "Label", "В меню", design, font,
-                design.FontSizeOverSecondary, design.TextMuted, TextAlignmentOptions.Center);
-            menuLabel.raycastTarget = true;
-            Place(menuLabel, new Vector2(0f, M(22f)), new Vector2(M(140f), M(24f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-            var menuRect = menuGo.GetComponent<RectTransform>();
-            menuRect.anchorMin = menuRect.anchorMax = new Vector2(0.5f, 0f);
-            menuRect.pivot = new Vector2(0.5f, 0f);
-            menuRect.anchoredPosition = Vector2.zero;
-            menuRect.sizeDelta = new Vector2(M(140f), M(44f));
-
-            menu = menuGo.AddComponent<Button>();
-            menu.targetGraphic = menuLabel;
-
-            go.SetActive(false);
+            root.SetActive(false);
+            return parts;
         }
 
-        // ── Картка завершеної картинки (§8): знімок-фон, картинка в рамці, свайп, підтвердження ──
-        private static CompletionCard BuildCompletion(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, Sprite nebula, Sprite circle)
+        // ── Картинку домальовано (S02Run_03) + підтвердження для Епічної+ (S02Run_04) ──
+        private static CompletionCard BuildCompletion(GameObject parent, DesignSystem design)
         {
             var go = Child(parent, "Completion");
             Stretch(go);
+            U1.Scrim(go, design);
 
-            var backdropGo = Child(go, "Backdrop");
-            Stretch(backdropGo);
-            var backdrop = backdropGo.AddComponent<RawImage>();
-            backdrop.raycastTarget = false;
-            backdrop.color = design.CompletionBackdropTint;
+            // Панель діалогу — і є картка, яку рухає свайп (центр екрана — її спокій).
+            var card = U1.DialogPanel(go, "Card", U1.DialogWidthPx, U1.DialogPaddingPx);
+            var kicker = U1.Text(card, "Kicker", "КАРТИНКУ ДОМАЛЬОВАНО!", design, U1.Role.Label, design.Amber);
+            var title = U1.Text(card, "Title", "НЛО", design, U1.Role.H1, design.InkText);
+            title.textWrappingMode = TextWrappingModes.Normal;
+            var badgeRow = CenterRow(card, "BadgeRow", 26f, 0f);
+            var badge = U1.RarityBadge(badgeRow, "Rarity", design, Rarity.Epic);
+            var frame = U1.FramedPicture(card, "Picture", design, big: true, sidePx: 220f, pipsRoomPx: 14f, out var picture, glowRoomPx: 14f);
 
-            var scrimGo = Child(go, "Scrim");
-            Stretch(scrimGo);
-            var scrim = scrimGo.AddComponent<Image>();
-            scrim.color = design.CompletionScrim;
-            scrim.raycastTarget = true;
+            var buttons = Child(card, "Buttons");
+            var row = buttons.AddComponent<HorizontalLayoutGroup>();
+            row.spacing = M(12f);
+            row.childControlWidth = row.childControlHeight = true;
+            row.childForceExpandWidth = row.childForceExpandHeight = true;
+            U1.Size(buttons, 0f, 46f);
+            var drop = U1.Button(buttons, "Drop", "Викинути", design, CandyButton.Tone.Glass, small: true, icon: U1.S("icon_back"));
+            drop.Destructive = true;
+            U1.Size(drop.gameObject, 0f, 46f).flexibleWidth = 1f;
+            var keep = U1.Button(buttons, "Keep", "У колекцію", design, CandyButton.Tone.Teal, small: true, icon: U1.S("icon_chev"), iconRight: true);
+            U1.Size(keep.gameObject, 0f, 46f).flexibleWidth = 1f;
 
-            var cardGo = Child(go, "Card");
-            var card = cardGo.GetComponent<RectTransform>();
-            card.anchorMin = card.anchorMax = new Vector2(0.5f, 0.5f);
-            card.pivot = new Vector2(0.5f, 0.5f);
-            card.anchoredPosition = new Vector2(0f, M(30f));
-            card.sizeDelta = new Vector2(M(300f), M(400f));
+            var hint = U1.Text(card, "Hint", "Свайпни картинку вліво або вправо", design, U1.Role.Caption, design.InkMuted);
+            hint.textWrappingMode = TextWrappingModes.Normal;
 
-            var kicker = Label(cardGo, "Kicker", "КАРТИНКУ ДОМАЛЬОВАНО", design, font,
-                design.FontSizeIntroKicker, design.TextDim, TextAlignmentOptions.Center);
-            Place(kicker, new Vector2(0f, 0f), new Vector2(M(300f), M(16f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var pictureGo = Child(cardGo, "Picture");
-            var pictureRect = pictureGo.GetComponent<RectTransform>();
-            pictureRect.anchorMin = pictureRect.anchorMax = new Vector2(0.5f, 1f);
-            pictureRect.pivot = new Vector2(0.5f, 1f);
-            pictureRect.anchoredPosition = new Vector2(0f, -M(28f));
-            pictureRect.sizeDelta = new Vector2(M(260f), M(260f));
-            var picture = PictureViewBuilder.MakePictureView(pictureGo, design, font, rounded, outline, nebula,
-                M(260f), M(260f), M(222f), withTitle: false, captionHeight: 0f, particle: circle);
-
-            var title = Label(cardGo, "Title", "КИТ", design, font,
-                design.FontSizeCompletionTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(0f, -M(300f)), new Vector2(M(300f), M(30f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var rarity = Label(cardGo, "Rarity", "ЗВИЧАЙНА · ТВАРИНИ", design, font,
-                design.FontSizeCompletionRarity, design.TextMuted, TextAlignmentOptions.Center);
-            Place(rarity, new Vector2(0f, -M(334f)), new Vector2(M(300f), M(18f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            var hintLeft = Label(go, "HintLeft", "‹ ВИКИНУТИ", design, font,
-                design.FontSizeCompletionHint, design.TextMuted, TextAlignmentOptions.Left);
-            Place(hintLeft, new Vector2(M(24f), M(120f)), new Vector2(M(160f), M(20f)),
-                new Vector2(0f, 0f), new Vector2(0f, 0f));
-            var hintRight = Label(go, "HintRight", "У КОЛЕКЦІЮ ›", design, font,
-                design.FontSizeCompletionHint, design.TextMuted, TextAlignmentOptions.Right);
-            Place(hintRight, new Vector2(-M(24f), M(120f)), new Vector2(M(160f), M(20f)),
-                new Vector2(1f, 0f), new Vector2(1f, 0f));
-
-            // Підтвердження для епічної й вище (§8): маленька скляна панель із двома кнопками.
-            var confirmGo = Child(go, "Confirm");
-            var confirmFill = confirmGo.AddComponent<Image>();
-            confirmFill.sprite = rounded;
-            confirmFill.type = Image.Type.Sliced;
-            confirmFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
-            confirmFill.color = design.OverCardFrom;
-            Place(confirmFill, new Vector2(0f, -M(150f)), new Vector2(M(300f), M(128f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            var confirm = confirmGo.GetComponent<RectTransform>();
-
-            var confirmStrokeGo = Child(confirmGo, "Stroke");
-            Stretch(confirmStrokeGo);
-            var confirmStroke = confirmStrokeGo.AddComponent<Image>();
-            confirmStroke.sprite = outline;
-            confirmStroke.type = Image.Type.Sliced;
-            confirmStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
-            confirmStroke.color = design.GlassStroke;
-            confirmStroke.raycastTarget = false;
-
-            var confirmText = Label(confirmGo, "Text", "Викинути епічну картинку?", design, font,
-                design.FontSizeOverSecondary, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(confirmText, new Vector2(0f, -M(16f)), new Vector2(M(270f), M(44f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            // Підтвердження — окремий діалог; на час нього картка ховається, а затемнення лишається те саме, картчине
+            // (своє в підтвердження прибране: друге з появою з нуля давало б провал яскравості й зайвий виклик).
+            var confirm = U1.Dialog(go, "Confirm", design, U1.DialogWidthPx, out var confirmPanel, U1.DialogPaddingPx);
+            Object.DestroyImmediate(confirm.transform.Find("Scrim").gameObject);
+            confirmPanel.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.UpperLeft;
+            var top = Child(confirmPanel, "Top");
+            var topRow = top.AddComponent<HorizontalLayoutGroup>();
+            topRow.spacing = M(16f);
+            topRow.childAlignment = TextAnchor.MiddleLeft;
+            topRow.childControlWidth = topRow.childControlHeight = true;
+            topRow.childForceExpandWidth = topRow.childForceExpandHeight = false;
+            var confirmFrame = U1.FramedPicture(top, "Thumb", design, big: false, sidePx: 64f, pipsRoomPx: 0f, out var confirmPicture);
+            var confirmTitle = U1.Text(top, "Title", "Викинути епічну картинку?", design, U1.Role.H2, design.InkText, TextAlignmentOptions.Left);
+            confirmTitle.textWrappingMode = TextWrappingModes.Normal;
+            var titleSize = confirmTitle.gameObject.AddComponent<LayoutElement>();
+            titleSize.flexibleWidth = 1f;
+            titleSize.minWidth = 0f;
+            var confirmText = U1.Text(confirmPanel, "Text", "«НЛО» не потрапить у колекцію. Цю дію не скасувати.", design,
+                U1.Role.Body, design.InkMuted, TextAlignmentOptions.Left);
             confirmText.textWrappingMode = TextWrappingModes.Normal;
-
-            var keep = OverChip(confirmGo, "Keep", design, font, rounded, outline, "Лишити",
-                new Vector2(-M(66f), M(14f)), new Vector2(M(120f), M(40f)), out var keepLabel);
-            keep.gameObject.SetActive(true);
-            var drop = OverChip(confirmGo, "Drop", design, font, rounded, outline, "Викинути",
-                new Vector2(M(66f), M(14f)), new Vector2(M(120f), M(40f)), out var dropLabel);
-            drop.gameObject.SetActive(true);
-            confirmGo.SetActive(false);
+            U1.Gap(confirmPanel, 4f);
+            var confirmKeep = WideButton(confirmPanel, "Keep", "Залишити", design, CandyButton.Tone.Teal);
+            var confirmDrop = WideButton(confirmPanel, "Drop", "Викинути", design, CandyButton.Tone.Glass);
+            confirmDrop.Destructive = true;
+            confirm.gameObject.SetActive(false);
 
             var view = go.AddComponent<CompletionCard>();
-            Wire(view, ("design", design), ("backdrop", backdrop), ("scrim", scrim), ("card", card),
-                ("picture", picture), ("kicker", kicker), ("title", title), ("rarity", rarity),
-                ("hintLeft", hintLeft), ("hintRight", hintRight), ("confirm", confirm),
-                ("confirmFill", confirmFill), ("confirmStroke", confirmStroke), ("confirmText", confirmText),
-                ("keepButton", keep), ("keepLabel", keepLabel), ("dropButton", drop), ("dropLabel", dropLabel));
+            Wire(view, ("design", design), ("card", card.GetComponent<RectTransform>()), ("kicker", kicker), ("title", title),
+                ("badge", badge), ("frame", frame), ("picture", picture), ("dropButton", drop), ("keepButton", keep), ("hint", hint),
+                ("confirm", confirm), ("confirmFrame", confirmFrame), ("confirmPicture", confirmPicture),
+                ("confirmTitle", confirmTitle), ("confirmText", confirmText),
+                ("confirmKeep", confirmKeep), ("confirmDrop", confirmDrop));
             view.Apply();
             go.SetActive(false);
             return view;
-        }
-
-        /// <summary>Скляний чип-кнопка картки фіналу, якорем знизу панелі.</summary>
-        private static Button OverChip(GameObject parent, string name, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline, string caption, Vector2 position, Vector2 size, out TMP_Text label)
-        {
-            var go = Child(parent, name);
-            var fill = go.AddComponent<Image>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(14f));
-            fill.color = design.GlassFill;
-            Place(fill, position, size, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-
-            var strokeGo = Child(go, "Stroke");
-            Stretch(strokeGo);
-            var stroke = strokeGo.AddComponent<Image>();
-            stroke.sprite = outline;
-            stroke.type = Image.Type.Sliced;
-            stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(14f));
-            stroke.color = design.GlassStroke;
-            stroke.raycastTarget = false;
-
-            label = Label(go, "Label", caption, design, font,
-                design.FontSizeOverSecondary, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(label.gameObject);
-
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = fill;
-            go.SetActive(false);
-            return button;
         }
     }
 }

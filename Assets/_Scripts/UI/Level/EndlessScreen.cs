@@ -27,8 +27,11 @@ namespace InkFlow.UI
     }
 
     /// <summary>
-    /// Екран забігу (документ §11): картинка, рахунок і живий рекорд, поле 8×8,
-    /// лоток із трьома фігурами в кольорах картинки, попередження про застрягання й чесний фінал.
+    /// Екран забігу (документ §11, U1Glaze S02Run): шапка «‹ · НЕСКІНЧЕННИЙ · шестерня», ліворуч картинка з
+    /// гало рідкості (рішення Сесії 5: без назви й відсотка), праворуч панелі РАХУНОК і РЕКОРД, поле 8×8,
+    /// лоток із трьома фігурами в кольорах картинки, тривога «мало місця» й чесний фінал. Накладки — діалоги
+    /// U1Glaze на затемненні 78 %: картка перед забігом, картинку домальовано (<see cref="CompletionCard"/>)
+    /// і програш у дві фази (поки можна продовжити — один чип продовження; далі — фінал із нагородами).
     ///
     /// Правил тут немає — усе рахує <see cref="RunSession"/>. Екран лише показує її
     /// стан, віддає намір гравця (фігура № в клітинку) і програє те, що вона повернула.
@@ -42,7 +45,7 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text title;
         [SerializeField] private Button settingsButton;
 
-        [Header("Рахунок і рекорд (§11: праворуч угорі, без фону)")]
+        [Header("Рахунок і рекорд (S02Run_01: дві панелі праворуч від картинки)")]
         [SerializeField] private TMP_Text scoreLabel;
         [SerializeField] private TMP_Text scoreNumber;
         [SerializeField] private TMP_Text recordLabel;
@@ -67,49 +70,51 @@ namespace InkFlow.UI
         [SerializeField] private BoardPulse pulse;
         [SerializeField] private TMP_Text comboPop;
 
-        [Header("Кінець партії")]
-        [SerializeField] private RectTransform overCard;
-        [SerializeField] private Image overScrim;
-        [SerializeField] private GradientImage overPanel;
-        [SerializeField] private Image overPanelStroke;
-        [SerializeField] private TMP_Text overScoreLabel;
-        [SerializeField] private TMP_Text overScoreNumber;
-        [SerializeField] private GradientImage recordChip;
-        [SerializeField] private TMP_Text recordChipLabel;
-        [SerializeField] private RectTransform rewardRow;
-        [SerializeField] private TMP_Text rewardNumber;
-        [SerializeField] private TMP_Text rewardSuffix;
-        [SerializeField] private TMP_Text overBestLabel;
-        [SerializeField] private Button overAgain;
-        [SerializeField] private GradientImage overAgainFill;
-        [SerializeField] private TMP_Text overAgainLabel;
+        [Header("Програш (S02Run_05): діалог у дві фази")]
+        [SerializeField] private DialogView overDialog;
+        [Tooltip("Обгортка панелі: її масштабує FitOverCard, коли діалог вищий за екран (саму панель масштабує поява).")]
+        [SerializeField] private RectTransform overFit;
+        [SerializeField] private RectTransform overPanel;
+        [SerializeField] private TMP_Text overKicker;
+        [SerializeField] private TMP_Text overScore;
+        [SerializeField] private RectTransform overRecordRow;
+        [SerializeField] private TMP_Text overRecordValue;
+        [SerializeField] private RectTransform overRecordBadge;
+        [SerializeField] private RectTransform overReward;
+        [SerializeField] private TMP_Text overRewardNumber;
+        [SerializeField] private CandyButton overDouble;
+        [SerializeField] private RectTransform overPicture;
+        [SerializeField] private RarityFrameView overPictureFrame;
+        [SerializeField] private PictureView overPictureThumb;
+        [SerializeField] private TMP_Text overPictureTitle;
+        [SerializeField] private TMP_Text overPictureNote;
+        [SerializeField] private CandyButton overFinish;
+        [SerializeField] private TMP_Text overFinishPrice;
+        [SerializeField] private TMP_Text overContinueLabel;
+        [SerializeField] private CandyButton overContinueAd;
+        [SerializeField] private CandyButton overContinueOil;
+        [SerializeField] private TMP_Text overContinuePrice;
+        [SerializeField] private RectTransform overCollected;
+        [SerializeField] private TMP_Text overCollectedLabel;
+        [SerializeField] private RarityFrameView[] overThumbFrames = System.Array.Empty<RarityFrameView>();
+        [SerializeField] private PictureView[] overThumbs = System.Array.Empty<PictureView>();
+        [SerializeField] private CandyButton overAgain;
+        [SerializeField] private Button overEnd;
         [SerializeField] private Button overMenu;
-        [SerializeField] private TMP_Text overMenuLabel;
         [SerializeField] private RectTransform confettiRoot;
         [SerializeField] private Image[] confetti = System.Array.Empty<Image>();
-        [SerializeField] private TMP_Text overCollectedLabel;
-        [SerializeField] private PictureView[] overThumbs = System.Array.Empty<PictureView>();
 
-        [Header("Реклама й донат (§9)")]
-        [SerializeField] private Button overContinue;
-        [SerializeField] private TMP_Text overContinueLabel;
-        [SerializeField] private Button overDouble;
-        [SerializeField] private TMP_Text overDoubleLabel;
-        [SerializeField] private Button overFinishPicture;
-        [SerializeField] private TMP_Text overFinishPictureLabel;
-
-        [Header("Картка перед забігом (§6: гра показує картинку заздалегідь)")]
-        [SerializeField] private RectTransform introCard;
-        [SerializeField] private CanvasGroup introGroup;
-        [SerializeField] private Image introScrim;
-        [SerializeField] private GradientImage introPanel;
-        [SerializeField] private Image introPanelStroke;
-        [SerializeField] private PictureView introPicture;
-        [SerializeField] private TMP_Text introKicker;
-        [SerializeField] private TMP_Text introName;
-        [SerializeField] private TMP_Text introRarity;
-        [SerializeField] private TMP_Text introHint;
+        [Header("Картка перед забігом (§6, S02Run_02: гра показує картинку заздалегідь)")]
+        [SerializeField] private DialogView introDialog;
         [SerializeField] private Button introButton;
+        [SerializeField] private TMP_Text introKicker;
+        [SerializeField] private RarityFrameView introFrame;
+        [SerializeField] private PictureView introPicture;
+        [SerializeField] private TMP_Text introName;
+        [SerializeField] private RarityBadgeView introBadge;
+        [SerializeField] private Image[] introSwatches = System.Array.Empty<Image>();
+        [SerializeField] private TMP_Text introColors;
+        [SerializeField] private CandyButton introPlay;
 
         private RunSession? _session;
         private BalanceData _balance = BalanceData.Default;
@@ -158,6 +163,7 @@ namespace InkFlow.UI
         private Coroutine? _confetti;
         private Coroutine? _hint;
         private Coroutine? _completionFlow;
+        private Coroutine? _rewardCount;
         private float _idleSince;
         private bool _hintPending;
 
@@ -186,17 +192,23 @@ namespace InkFlow.UI
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
             WireSettingsButton(settingsButton);
             if (overAgain != null)
-                overAgain.onClick.AddListener(OnAgainClicked);
+                overAgain.Button.onClick.AddListener(OnAgainClicked);
+            if (overEnd != null)
+                overEnd.onClick.AddListener(FinishRun);
             if (overMenu != null)
                 overMenu.onClick.AddListener(() => LeaveRun(() => BackRequested?.Invoke()));
             if (introButton != null)
                 introButton.onClick.AddListener(OnIntroTapped);
-            if (overContinue != null)
-                overContinue.onClick.AddListener(OnContinueClicked);
+            if (introPlay != null)
+                introPlay.Button.onClick.AddListener(OnIntroTapped);
+            if (overContinueAd != null)
+                overContinueAd.Button.onClick.AddListener(OnContinueClicked);
+            if (overContinueOil != null)
+                overContinueOil.Button.onClick.AddListener(OnContinueClicked);
             if (overDouble != null)
-                overDouble.onClick.AddListener(OnDoubleClicked);
-            if (overFinishPicture != null)
-                overFinishPicture.onClick.AddListener(OnFinishPictureClicked);
+                overDouble.Button.onClick.AddListener(OnDoubleClicked);
+            if (overFinish != null)
+                overFinish.Button.onClick.AddListener(OnFinishPictureClicked);
             if (board != null)
             {
                 board.Router.PlaceRequested += OnPlaceRequested;
@@ -254,7 +266,9 @@ namespace InkFlow.UI
             var request = args as EndlessArgs;
             _balance = request?.Balance ?? BalanceData.Default;
             _onStack = true;
-            if (_suspended && _session != null && !_session.IsOver && (_state == null || _state.SavedRun != null))
+            // Призупинений забіг — та сама сесія. Програна, але ще не завершена (вийшли посеред програшного ходу)
+            // теж: інакше старий зліпок з останнього лотка воскресив би забіг і програш зник би.
+            if (_suspended && _session != null && (_session.IsOver || _state == null || _state.SavedRun != null))
                 ResumeSuspended();
             else
                 StartSession();
@@ -266,11 +280,27 @@ namespace InkFlow.UI
             CollectPendingIfAny();
             SaveRun();
             StopAllRoutines();
-            // Екран лишається в стеку (поверх — налаштування): забіг живий, наступний OnEnter його відновить.
-            // Другий OnExit того самого входу — SetRoot(хаб): екран іде зі стеку, наступний вхід починає зі зліпка.
-            _suspended = _onStack && _session != null && !_session.IsOver && !_finalised;
+            // Екран лишається в стеку (поверх — налаштування): забіг живий, наступний OnEnter його відновить —
+            // і програний посеред ходу теж (тоді вхід покаже програш). Другий OnExit того самого входу —
+            // SetRoot(хаб): екран іде зі стеку; програний, але не завершений забіг тоді завершується тихо (§10:
+            // рекорд і нафта не мають пропасти), а наступний вхід починає зі зліпка.
+            if (!_onStack)
+                CommitLostRun();
+            _suspended = _onStack && _session != null && !_finalised;
             _onStack = false;
             base.OnExit();
+        }
+
+        /// <summary>Програний забіг, якому не показали фінал (екран пішов зі стеку): нагорода й рекорд — без картки.</summary>
+        private void CommitLostRun()
+        {
+            if (_session == null || !_session.IsOver || _finalised)
+                return;
+            CollectPendingIfAny();
+            _state?.ClearRun();
+            _finalised = true;
+            Award(_session.Score);
+            _record.Commit();
         }
 
         /// <summary>Роутер, «Заново» з налаштувань: призупинений забіг забути — наступний вхід стартує нову сесію.</summary>
@@ -301,6 +331,10 @@ namespace InkFlow.UI
             HideIntro();
             _loggedDanger = DangerLevel.None;
             ShowDanger(immediate: true);
+            ApplyStats();
+            // Пішли посеред програшного ходу (анімацію обірвав OnExit) — показуємо те, що мало статись: програш.
+            if (_session.IsOver)
+                OnLost();
         }
 
         private void StartSession()
@@ -345,7 +379,7 @@ namespace InkFlow.UI
                 OnLost();
         }
 
-        // ── Картка перед забігом ──
+        // ── Картка перед забігом (S02Run_02) ──
 
         /// <summary>
         /// §6: «гра показує заздалегідь, яка картинка в цьому забігу». Поле замкнене, поки
@@ -353,28 +387,32 @@ namespace InkFlow.UI
         /// </summary>
         private void ShowIntro()
         {
-            if (introCard == null || _session == null || design == null)
+            if (introDialog == null || _session == null || design == null)
                 return;
 
             var def = _session.Picture.Picture;
-            var theme = ThemeNames.Of(def.ThemeId);
-            introCard.gameObject.SetActive(true);
-            if (introGroup != null) introGroup.alpha = 1f;
-            if (introScrim != null) introScrim.color = design.OverScrim;
-            if (introPanel != null) introPanel.SetGradient(design.OverCardFrom, design.OverCardTo);
-            if (introPanelStroke != null) introPanelStroke.color = design.RarityColor(def.Rarity);
-
-            ApplyFont(introKicker, design.FontSizeIntroKicker, design.TextDim, FontStyles.Bold, design.LetterSpacingWide);
+            var theme = ThemeNames.Of(def.ThemeId).ToUpperInvariant();
+            introDialog.Show();
             if (introKicker != null)
-                introKicker.text = _resumed
-                    ? $"ПРОДОВЖЕННЯ · {theme.ToUpperInvariant()}"
-                    : $"ЦЬОГО ЗАБІГУ · {theme.ToUpperInvariant()}";
-            ApplyFont(introName, design.FontSizeIntroName, design.TextPrimary, FontStyles.Bold, 0f);
+                introKicker.text = _resumed ? $"ПРОДОВЖЕННЯ · {theme}" : $"ЦЕЙ ЗАБІГ · {theme}";
             if (introName != null) introName.text = def.Name;
-            ApplyFont(introRarity, design.FontSizeIntroRarity, design.RarityColor(def.Rarity), FontStyles.Bold, design.LetterSpacingWide);
-            if (introRarity != null) introRarity.text = $"{RarityNames.Of(def.Rarity)} · {RarityNames.Colors(def.FillColors.Count)}";
-            ApplyFont(introHint, design.FontSizeIntroHint, design.TextMuted, FontStyles.Bold, 0f);
-            if (introHint != null) introHint.text = "Тапни, щоб грати";
+            introBadge?.SetRarity(def.Rarity);
+            introFrame?.SetRarity(def.Rarity);
+
+            // Зразки кольорів картинки — родини в її кольорах, стільки, скільки родин.
+            var families = def.FillColors;
+            for (var i = 0; i < introSwatches.Length; i++)
+            {
+                var swatch = introSwatches[i];
+                if (swatch == null)
+                    continue;
+                var on = i < families.Count;
+                Toggle(swatch, on);
+                if (on)
+                    swatch.color = DesignSystem.PaletteColor(families[i]);
+            }
+            if (introColors != null)
+                introColors.text = Plural.Count(families.Count, "колір", "кольори", "кольорів");
 
             // Силует без кольорів: інтрига лишається, форму видно (уточнення Сесії 1).
             // Продовження — з уже намальованими пікселями: гравець упізнає, де зупинився.
@@ -398,12 +436,15 @@ namespace InkFlow.UI
             yield return FadeIntro();
         }
 
+        /// <summary>Картка гасне сама (прозорість усього діалогу), а не зникає стрибком.</summary>
         private IEnumerator FadeIntro()
         {
+            var group = introDialog != null ? introDialog.Group : null;
+            introDialog?.Settle();
             var duration = design.RunIntroFadeDuration;
-            for (var t = 0f; t < duration && introGroup != null; t += Time.deltaTime)
+            for (var t = 0f; t < duration && group != null; t += Time.deltaTime)
             {
-                introGroup.alpha = 1f - Mathf.Clamp01(t / duration);
+                group.alpha = 1f - Mathf.Clamp01(t / duration);
                 yield return null;
             }
             HideIntro();
@@ -411,7 +452,7 @@ namespace InkFlow.UI
 
         private void OnIntroTapped()
         {
-            if (introCard == null || !introCard.gameObject.activeSelf)
+            if (introDialog == null || !introDialog.gameObject.activeSelf)
                 return;
             if (_intro != null)
                 StopCoroutine(_intro);
@@ -423,9 +464,8 @@ namespace InkFlow.UI
         private void HideIntro()
         {
             _intro = null;
-            if (introCard != null && introCard.gameObject.activeSelf)
-                introCard.gameObject.SetActive(false);
-            if (introGroup != null) introGroup.alpha = 1f;
+            if (introDialog != null && introDialog.gameObject.activeSelf)
+                introDialog.Hide();
             if (board != null && _session != null && !_session.IsOver)
                 board.Router.Locked = false;
             _idleSince = Time.time;
@@ -469,32 +509,27 @@ namespace InkFlow.UI
             return -1;
         }
 
-        // ── Завершення картинки (§8): пауза, знімок, картка, свайп ──
+        // ── Завершення картинки (§8, S02Run_03): пауза, спалах, картка ──
 
         private IEnumerator CompletionFlow(int completedIndex)
         {
             if (_session == null)
                 yield break;
+            // Позначено ще в PlayAndUnlock; прапорець «уже зібрано» (пауза посеред польоту) тут не скидаємо.
             _pendingCompletion = completedIndex;
-            _pendingCollected = false;
 
-            // Спалах на плитці — і лише тоді знімок: у фоні картки картинка вже сяє.
+            // Спалах на картинці над полем — і лише тоді картка поверх затемнення.
             picture?.PlayCompleted(null);
             yield return new WaitForSeconds(design != null ? design.PictureCompleteDuration * 0.5f : 0.3f);
-            yield return new WaitForEndOfFrame();
-
-            Texture2D? snapshot = null;
-            if (design != null && completion != null)
-                snapshot = SnapshotBlur.Capture(design.CompletionBlurDownscale, design.CompletionBlurPasses);
 
             if (completion != null)
-                completion.Show(_session.Library[completedIndex], snapshot);
+                completion.Show(_session.Library[completedIndex]);
             else
                 OnCompletionDecided(true);
             _completionFlow = null;
         }
 
-        /// <summary>Свайп зроблено: у колекцію або ні — і забіг триває: хвиля перефарбування, наступна картинка.</summary>
+        /// <summary>Рішення ухвалено: у колекцію або ні — і забіг триває: хвиля перефарбування, наступна картинка.</summary>
         private void OnCompletionDecided(bool keep)
         {
             if (_session == null || _pendingCompletion < 0)
@@ -505,7 +540,7 @@ namespace InkFlow.UI
                 _state?.CollectPicture(_session.Library[index].Id, System.DateTime.UtcNow);
             _pendingCollected = false;
 
-            if (isActiveAndEnabled)
+            if (isActiveAndEnabled && Application.isPlaying)
                 StartCoroutine(ResumeAfterCompletion());
             else
                 ResumeInstantly();
@@ -642,10 +677,10 @@ namespace InkFlow.UI
 
         private void StopAllRoutines()
         {
-            foreach (var routine in new[] { _playback, _flash, _combo, _confetti, _hint, _completionFlow })
+            foreach (var routine in new[] { _playback, _flash, _combo, _confetti, _hint, _completionFlow, _rewardCount })
                 if (routine != null)
                     StopCoroutine(routine);
-            _playback = _flash = _combo = _confetti = _hint = _completionFlow = null;
+            _playback = _flash = _combo = _confetti = _hint = _completionFlow = _rewardCount = null;
             _pendingCompletion = -1;
             _pendingResult = null;
             drops?.Clear();
@@ -725,6 +760,10 @@ namespace InkFlow.UI
             var result = _session.TryPlace(trayIndex, anchor);
             if (!result.Accepted)
                 return;
+            // §9: програш — зліпку більше немає одразу, а не після анімації: якщо гравець піде посеред неї,
+            // старий зліпок з останнього лотка не воскресить забіг.
+            if (_session.IsOver)
+                _state?.ClearRun();
 
             board.Router.Locked = true;
             // Лише поставлена комірка спорожніє: решта лотка може вже бути перефарбована
@@ -736,9 +775,16 @@ namespace InkFlow.UI
         private IEnumerator PlayAndUnlock(MoveResult result)
         {
             var completed = CompletedIndex(result);
+            // Картинку домальовано вже в моделі: якщо гравець піде посеред анімації чи польоту крапель, OnExit і пауза
+            // мусять покласти її в колекцію (CollectPendingIfAny), а не загубити разом із картою, що так і не з'явилась.
+            if (completed >= 0)
+            {
+                _pendingCompletion = completed;
+                _pendingCollected = false;
+            }
             yield return board!.PlayEvents(result, deferRecolor: completed >= 0);
 
-            // Картинку закінчено: лоток і поле лишаються в старих кольорах до свайпу (§8).
+            // Картинку закінчено: лоток і поле лишаються в старих кольорах до рішення (§8).
             if (completed < 0)
                 tray?.Show(_session!.Tray);
             ApplyStats();
@@ -814,22 +860,18 @@ namespace InkFlow.UI
 
         // ── Вигляд ──
 
+        /// <summary>
+        /// Вигляд написів, кеглі й кольори ставить збирач фабриками U1 (ролі типографіки); тут — лише те, що
+        /// залежить від стану: тексти, поле, числа, розкладка.
+        /// </summary>
         public void Apply()
         {
             if (design == null)
                 return;
 
-            ApplyFont(title, design.FontSizeGameTitle, design.TextMuted,
-                FontStyles.Bold, design.LetterSpacingWide);
             if (title != null) title.text = "НЕСКІНЧЕННИЙ";
-
-            ApplyFont(scoreLabel, design.FontSizeStatLabel, design.TextDim,
-                FontStyles.Bold, design.LetterSpacingWide);
-            if (scoreLabel != null) { scoreLabel.text = "РАХУНОК"; scoreLabel.fontSizeMax = design.FontSizeStatLabel; }
-
-            ApplyFont(recordLabel, design.FontSizeStatLabel, design.TextDim,
-                FontStyles.Bold, design.LetterSpacingWide);
-            if (recordLabel != null) { recordLabel.text = "РЕКОРД"; recordLabel.fontSizeMax = design.FontSizeStatLabel; }
+            if (scoreLabel != null) scoreLabel.text = "РАХУНОК";
+            if (recordLabel != null) recordLabel.text = "РЕКОРД";
 
             // K1Candy: панель поля — спрайт із запеченим градієнтом і обвідкою; під нею — тінь.
             if (boardPlate != null) boardPlate.color = Color.white;
@@ -842,12 +884,17 @@ namespace InkFlow.UI
             picture?.Apply();
             completion?.Apply();
             introPicture?.Apply();
+            overPictureThumb?.Apply();
             foreach (var thumb in overThumbs)
                 thumb?.Apply();
-            if (introCard != null && !Application.isPlaying)
-                introCard.gameObject.SetActive(false);
-            ApplyStats();
+            if (!Application.isPlaying)
+            {
+                // Майстерня й знімки: накладки лежать вимкненими, поки стан їх не покличе.
+                if (introDialog != null) introDialog.gameObject.SetActive(false);
+                if (overDialog != null) overDialog.gameObject.SetActive(false);
+            }
             Layout();
+            ApplyStats();
         }
 
         // ── Розкладка (§11): лоток при низу, поле — що лишилось, картинка стискається ──
@@ -866,29 +913,31 @@ namespace InkFlow.UI
             if (rect.width < 1f || rect.height < 1f)
                 return;
             var boardMargin = design != null ? design.BoardSideMargin : BoardGeometry.DefaultSideMargin;
-            // Блок картинки = полотно (токен) + запас під найширше гало рідкості з кожного боку.
-            var haloReserve = design != null ? design.RarityHaloReserve : 16f;
-            var pictureSide = design != null ? design.RunPictureSide : RunLayout.PictureHeight - haloReserve * 2f;
-            var layout = RunLayout.For(rect.width / K, rect.height / K, boardMargin, pictureSide + haloReserve * 2f);
+            var canvasMax = design != null ? design.RunCanvasMaxSide : RunLayout.CanvasMaxSide;
+            var haloReserve = design != null ? design.RarityHaloReserve : RunLayout.DefaultHaloReserve;
+            var layout = RunLayout.For(rect.width / K, rect.height / K, boardMargin, canvasMax, haloReserve);
 
             if (pictureRoot != null)
             {
-                pictureRoot.anchorMin = pictureRoot.anchorMax = new Vector2(0.5f, 1f);
-                pictureRoot.pivot = new Vector2(0.5f, 1f);
-                pictureRoot.anchoredPosition = new Vector2(0f, -M(layout.PictureTop));
-                pictureRoot.sizeDelta = new Vector2(M(layout.PictureWidth), M(layout.PictureBlock));
-                pictureRoot.localScale = new Vector3(layout.PictureScale, layout.PictureScale, 1f);
-                // Полотно не ширше за блок мінус гало: світіння не лізе на колонку рахунку.
-                var side = Mathf.Min(pictureSide, layout.PictureBlock - haloReserve * 2f, layout.PictureWidth - haloReserve * 2f);
-                picture?.SetCanvasSide(M(side));
+                // Блок картинки — полотно плюс запас під гало з кожного боку; полотно — врівень із шапкою зліва.
+                pictureRoot.anchorMin = pictureRoot.anchorMax = new Vector2(0f, 1f);
+                pictureRoot.pivot = new Vector2(0f, 1f);
+                pictureRoot.anchoredPosition = new Vector2(M(layout.PictureLeft), -M(layout.PictureTop));
+                pictureRoot.sizeDelta = new Vector2(M(layout.PictureBlock), M(layout.PictureBlock));
+                pictureRoot.localScale = Vector3.one;
+                picture?.SetCanvasSide(M(layout.CanvasSide));
             }
 
             if (statsRoot != null)
             {
-                statsRoot.anchorMin = statsRoot.anchorMax = new Vector2(1f, 1f);
-                statsRoot.pivot = new Vector2(1f, 1f);
-                statsRoot.anchoredPosition = new Vector2(-M(RunLayout.SideMargin), -M(layout.PictureTop + 4f));
-                statsRoot.sizeDelta = new Vector2(M(layout.StatsWidth), M(84f));
+                statsRoot.anchorMin = statsRoot.anchorMax = new Vector2(0f, 1f);
+                statsRoot.pivot = new Vector2(0f, 1f);
+                statsRoot.anchoredPosition = new Vector2(M(layout.StatsLeft), -M(layout.StatsTop));
+                statsRoot.sizeDelta = new Vector2(M(layout.StatsWidth), M(layout.StatsHeight));
+                var group = statsRoot.GetComponent<VerticalLayoutGroup>();
+                if (group != null)
+                    group.spacing = M(RunLayout.StatsRowGap);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(statsRoot);
             }
 
             if (boardRoot != null)
@@ -912,9 +961,12 @@ namespace InkFlow.UI
             if (_session != null)
                 tray?.Show(_session.Tray);
             board?.ApplyGeometry();
+            ShowStats();
+            if (overDialog != null && overDialog.gameObject.activeSelf)
+                FitOverCard();
         }
 
-        /// <summary>Єдина точка, де рахунок і рекорд потрапляють на екран.</summary>
+        /// <summary>Єдина точка, де рахунок і рекорд потрапляють на екран після ходу.</summary>
         private void ApplyStats()
         {
             if (design == null)
@@ -925,9 +977,7 @@ namespace InkFlow.UI
             // Момент перетину рахує LiveRecord — і показане число, і спалах
             // беруться з одного джерела, тож розійтись вони не можуть.
             var crossed = _record.Observe(score);
-
-            ShowStat(scoreNumber, score, design.TextPrimary);
-            ShowStat(recordNumber, _record.Shown, design.AccentGold);
+            ShowStats();
 
             if (crossed && isActiveAndEnabled)
             {
@@ -936,22 +986,48 @@ namespace InkFlow.UI
             }
         }
 
+        /// <summary>Числа в панелях — без спостереження рекорду (перерозкладка, зміна пристрою).</summary>
+        private void ShowStats()
+        {
+            if (design == null)
+                return;
+            ShowStat(scoreNumber, scoreLabel, _session?.Score ?? 0, design.InkText);
+            ShowStat(recordNumber, recordLabel, _record.Shown, design.Record);
+        }
+
         /// <summary>
-        /// §11: число вміщається в колонку для будь-якого значення до 999 999 999 — правило
+        /// §11: число вміщається в панель для будь-якого значення до 999 999 999 — правило
         /// <see cref="ScoreFormat"/>: повний запис, менший шрифт, далі компактний; цифри табличні.
+        /// Найбільший кегль — h1, але не вищий за те, що вміщається під підписом у висоту панелі (SE).
         /// </summary>
-        private void ShowStat(TMP_Text? label, long value, Color color)
+        private void ShowStat(TMP_Text? label, TMP_Text? caption, long value, Color color)
         {
             if (label == null || design == null)
                 return;
-            var column = statsRoot != null && statsRoot.rect.width > 1f
-                ? statsRoot.rect.width
+            var panel = label.transform.parent as RectTransform;
+            var group = panel != null ? panel.GetComponent<HorizontalOrVerticalLayoutGroup>() : null;
+            var column = panel != null && panel.rect.width > 1f
+                ? panel.rect.width - (group != null ? group.padding.horizontal : 0f)
                 : M(RunLayout.StatsMinWidth);
-            var max = design.FontSizeScoreNumber;
+            var max = Mathf.Min(design.UiH1, NumberFontByHeight(label, caption, panel, group));
             var text = ScoreFormat.Fit(value, column, max, max * design.ScoreMinFontScale, out var size);
             label.enableAutoSizing = false;
-            ApplyFont(label, size, color, FontStyles.Bold, 0f);
+            label.fontSize = size;
+            label.color = color;
             label.text = Tabular(text);
+        }
+
+        /// <summary>Кегль числа, при якому підпис і один рядок числа вміщаються у висоту панелі.</summary>
+        private static float NumberFontByHeight(TMP_Text number, TMP_Text? caption, RectTransform? panel,
+            HorizontalOrVerticalLayoutGroup? group)
+        {
+            if (panel == null || panel.rect.height < 1f)
+                return float.MaxValue;
+            var room = panel.rect.height - (group != null ? group.padding.vertical + group.spacing : 0f)
+                       - (caption != null ? caption.preferredHeight : 0f);
+            var face = number.font != null ? number.font.faceInfo : default;
+            var lineEm = face.pointSize > 0f ? (face.ascentLine - face.descentLine) / face.pointSize : 1.364f;
+            return Mathf.Max(1f, room / Mathf.Max(lineEm, 0.5f));
         }
 
         /// <summary>
@@ -1027,17 +1103,14 @@ namespace InkFlow.UI
         private void PrepareComboPop(int lines)
         {
             comboPop.text = $"×{lines}";
-            ApplyFont(comboPop, design.FontSizeComboPop, design.TextPrimary, FontStyles.Bold, 0f);
             comboPop.gameObject.SetActive(true);
         }
 
-        // ── Фінал ──
-
-        // ── Кінець партії: дві фази (§9) ──
+        // ── Кінець партії: дві фази (§9, S02Run_05) ──
 
         /// <summary>
-        /// Програш. Якщо продовжити ще можна і ролик готовий — картка з «Продовжити за ролик»
-        /// і «Завершити», без нагород: рахувати їх зараз означало б платити двічі. Інакше —
+        /// Програш. Якщо продовжити ще можна — діалог із одним чипом продовження (ролик, а коли ролика вже
+        /// не можна — нафта) і «Завершити», без нагород: рахувати їх зараз означало б платити двічі. Інакше —
         /// одразу фінал.
         /// </summary>
         private void OnLost()
@@ -1093,10 +1166,10 @@ namespace InkFlow.UI
                 return;
             }
 
-            // Ролик уже був (або реклами немає) — за нафту. Не вистачає — чип уже тьмяний, тап нічого не робить.
+            // Ролик уже був (або реклами немає) — за нафту. Не вистачає — кнопка вже вимкнена, тап нічого не робить.
             if (_state == null || !_state.TryContinueRun())
             {
-                ShowContinueChip();
+                ShowContinue();
                 return;
             }
             ResumeAfterContinue();
@@ -1106,41 +1179,37 @@ namespace InkFlow.UI
         {
             if (_session == null)
                 return;
-            {
-                var result = _session.ContinueAfterLoss();
-                if (!result.Accepted)
-                    return;
-                HideOver();
-                board?.Bind(_session);
-                tray?.Show(_session.Tray);
-                ShowDanger(immediate: true);
-                if (board != null)
-                    board.Router.Locked = false;
-                _idleSince = Time.time;
-                GameEvents.RaiseSessionStarted(_session);
-            }
+            var result = _session.ContinueAfterLoss();
+            if (!result.Accepted)
+                return;
+            HideOver();
+            board?.Bind(_session);
+            tray?.Show(_session.Tray);
+            ShowDanger(immediate: true);
+            if (board != null)
+                board.Router.Locked = false;
+            _idleSince = Time.time;
+            GameEvents.RaiseSessionStarted(_session);
         }
 
-        /// <summary>Чип «продовжити»: за ролик — просто напис; за нафту — ціна, тьмяний, коли не вистачає.</summary>
-        private void ShowContinueChip()
+        /// <summary>
+        /// Один чип продовження (рішення автора, ContinueOffer): за ролик — «▶ Ролик»; за нафту — «Продовжити» з
+        /// ціною, а коли нафти не вистачає — вимкнена плоска кнопка «Не вистачає нафти» з тією ж ціною.
+        /// </summary>
+        private void ShowContinue()
         {
             if (_session == null || design == null)
                 return;
-            if (ContinueKindNow == ContinueKind.Ad)
-            {
-                if (overContinue != null) overContinue.interactable = true;
-                ApplyFont(overContinueLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
-                if (overContinueLabel != null) overContinueLabel.text = "Продовжити за ролик";
+            var kind = ContinueKindNow;
+            Toggle(overContinueAd, kind == ContinueKind.Ad);
+            Toggle(overContinueOil, kind == ContinueKind.Oil);
+            if (kind != ContinueKind.Oil || overContinueOil == null)
                 return;
-            }
             var cost = _state != null ? _state.ContinueCost : 0;
             var affordable = _state != null && _state.Wallet.OilDrops >= cost;
-            if (overContinue != null) overContinue.interactable = affordable;
-            ApplyFont(overContinueLabel, design.FontSizeOverSecondary, affordable ? design.AccentGold : design.TextDim, FontStyles.Bold, 0f);
-            if (overContinueLabel != null)
-                overContinueLabel.text = affordable
-                    ? $"Продовжити · {Format(cost)} нафти"
-                    : $"Не вистачає нафти · {Format(cost)}";
+            overContinueOil.Text = affordable ? "Продовжити" : "Не вистачає нафти";
+            overContinueOil.Interactable = affordable;
+            ShowPrice(overContinuePrice, cost, affordable);
         }
 
         private void OnDoubleClicked()
@@ -1154,8 +1223,13 @@ namespace InkFlow.UI
                 var bonus = _state.DoubleRunReward(_rewardForScore);
                 _doubled = true;
                 Toggle(overDouble, false);
-                if (bonus > 0 && rewardNumber != null)
-                    rewardNumber.text = $"+{Format(_rewardForScore * 2 + (_lastReward - _rewardForScore))}";
+                if (bonus > 0 && overRewardNumber != null)
+                {
+                    if (_rewardCount != null)
+                        StopCoroutine(_rewardCount);
+                    _rewardCount = null;
+                    overRewardNumber.text = $"+{Format(_lastReward + bonus)}";
+                }
             });
         }
 
@@ -1164,22 +1238,24 @@ namespace InkFlow.UI
         {
             if (_state == null || _session == null || _session.Picture.IsComplete)
                 return;
-            var def = _session.Picture.Picture;
-            if (!_state.TryFinishPicture(def.Rarity, 1f - _session.Picture.FilledFraction))
+            var done = _session.Picture;
+            var def = done.Picture;
+            if (!_state.TryFinishPicture(def.Rarity, 1f - done.FilledFraction))
             {
-                ShowFinishChip();
+                ShowFinish();
                 return;
             }
+            // Модель одразу переходить до наступної картинки — рядок показує ту, що домалювали (її прогрес тепер повний).
             var result = _session.CompletePictureNow();
             if (!result.Accepted)
                 return;
             _state.CollectPicture(def.Id, System.DateTime.UtcNow);
             _state.RewardPicture(def.Rarity);
             picture?.Show(_session.Picture);
-            Toggle(overFinishPicture, false);
+            Toggle(overFinish, false);
+            ShowPictureRow(done);
             ShowCollected();
-            if (overBestLabel != null)
-                overBestLabel.text = $"«{def.Name}» домальовано — у колекції";
+            FitOverCard();
         }
 
         private void OnAgainClicked()
@@ -1205,150 +1281,172 @@ namespace InkFlow.UI
 
         private long _lastReward;
 
+        /// <summary>
+        /// Діалог програшу. До фіналу: «МІСЦЯ БІЛЬШЕ НЕМАЄ», рахунок, рекорд, картинка, що згорить, «ПРОДОВЖИТИ ЗАБІГ»
+        /// з одним чипом і «Завершити». Фінал: той самий діалог — новий рекорд або рекорд, нагорода з «Подвоїти»,
+        /// картинка з «Домалювати» за нафту, зібране за забіг, коралова «Ще раз» і «В меню».
+        /// </summary>
         private void ShowOver(bool final)
         {
-            if (overCard == null || design == null || _session == null)
+            if (overDialog == null || design == null || _session == null)
                 return;
 
             StopAllRoutines();
             pulse?.SetLevelImmediate(DangerLevel.None);
-            overCard.gameObject.SetActive(true);
-            FitOverCard();
+            // Фінал після «Завершити» — той самий відкритий діалог: повторна поява блимнула б затемненням.
+            if (overDialog.IsShown)
+                overDialog.Settle();
+            else
+                overDialog.Show();
 
             var score = _session.Score;
             var newRecord = final && _record.Beaten;
 
-            if (overScrim != null) overScrim.color = design.OverScrim;
-            if (overPanel != null) overPanel.SetGradient(design.OverCardFrom, design.OverCardTo);
-            if (overPanelStroke != null) overPanelStroke.color = design.GlassStroke;
+            if (overKicker != null) overKicker.text = "МІСЦЯ БІЛЬШЕ НЕМАЄ";
+            if (overScore != null) overScore.text = Format(score);
 
-            ApplyFont(overScoreLabel, design.FontSizeOverLabel, design.TextDim,
-                FontStyles.Bold, design.LetterSpacingWide);
-            if (overScoreLabel != null) overScoreLabel.text = "РАХУНОК";
-
-            ApplyFont(overScoreNumber, design.FontSizeOverScore, design.TextPrimary, FontStyles.Bold, 0f);
-            if (overScoreNumber != null) overScoreNumber.text = Format(score);
-
-            Toggle(recordChip, newRecord);
-            if (newRecord && recordChip != null)
-            {
-                recordChip.SetGradient(design.RecordChipFrom, design.RecordChipTo);
-                ApplyFont(recordChipLabel, design.FontSizeRecordChip, design.RecordChipText,
-                    FontStyles.Bold, design.LetterSpacingWide);
-                if (recordChipLabel != null) recordChipLabel.text = "НОВИЙ РЕКОРД";
-            }
+            Toggle(overRecordBadge, newRecord);
+            Toggle(overRecordRow, !newRecord);
+            if (overRecordValue != null) overRecordValue.text = Format(_record.Shown);
 
             var reward = final ? Award(score) : 0;
             _lastReward = reward;
-            Toggle(rewardRow, reward > 0);
-            if (reward > 0 && isActiveAndEnabled)
-                StartCoroutine(CountRewardRoutine(reward));
+            Toggle(overReward, reward > 0);
+            if (overRewardNumber != null) overRewardNumber.text = "+0";
+            if (reward > 0 && isActiveAndEnabled && Application.isPlaying)
+                _rewardCount = StartCoroutine(CountRewardRoutine(reward));
+            else if (overRewardNumber != null)
+                overRewardNumber.text = $"+{Format(reward)}";
+            Toggle(overDouble, final && _ads != null && _ads.IsRewardedReady && !_doubled && _rewardForScore > 0);
 
-            ApplyFont(overBestLabel, design.FontSizeOverBest, design.TextMuted, FontStyles.Bold, 0f);
-            Toggle(overBestLabel, final);
-            if (overBestLabel != null)
-                overBestLabel.text = final && !_session.Picture.IsComplete && _session.Picture.FilledCount > 0
-                    ? $"«{_session.Picture.Picture.Name}» не домальовано — {_session.Picture.FilledCount} / {_session.Picture.Total}"
-                    : $"Рекорд · {Format(_record.Shown)} · ланцюг ×{_session.BestChain}";
+            ShowPictureRow();
 
-            if (overAgainFill != null)
-                overAgainFill.SetGradient(design.AccentTeal, design.AccentBlue);
-            ApplyFont(overAgainLabel, design.FontSizeOverPrimary, design.TextPrimary, FontStyles.Bold, 0f);
-            if (overAgainLabel != null) overAgainLabel.text = final ? "Ще раз" : "Завершити";
+            var showFinish = final && _state != null && !_session.Picture.IsComplete && _session.Picture.FilledCount > 0;
+            Toggle(overFinish, showFinish);
+            if (showFinish)
+                ShowFinish();
 
-            ApplyFont(overMenuLabel, design.FontSizeOverSecondary, design.TextMuted, FontStyles.Bold, 0f);
-            if (overMenuLabel != null) overMenuLabel.text = "В меню";
-            Toggle(overMenu, final);
+            Toggle(overContinueLabel, !final);
+            if (final)
+            {
+                Toggle(overContinueAd, false);
+                Toggle(overContinueOil, false);
+            }
+            else
+                ShowContinue();
 
             if (final)
                 ShowCollected();
             else
-            {
-                Toggle(overCollectedLabel, false);
-                foreach (var thumb in overThumbs)
-                    Toggle(thumb, false);
-            }
+                Toggle(overCollected, false);
 
-            ShowAdChips(final);
+            Toggle(overAgain, final);
+            Toggle(overMenu, final);
+            Toggle(overEnd, !final);
 
-            if (final && _record.Commit() && isActiveAndEnabled)
+            FitOverCard();
+
+            if (final && _record.Commit() && isActiveAndEnabled && Application.isPlaying)
                 _confetti = StartCoroutine(ConfettiRoutine());
         }
 
-        /// <summary>Картка мусить уміститись по висоті на будь-якому екрані: коли не влазить — меншає цілком.</summary>
-        private void FitOverCard()
-        {
-            if (overPanel == null)
-                return;
-            var available = ((RectTransform)transform).rect.height - M(16f);
-            var height = overPanel.rectTransform.rect.height;
-            var scale = height > 1f ? Mathf.Min(1f, available / height) : 1f;
-            overPanel.rectTransform.localScale = new Vector3(scale, scale, 1f);
-        }
-
-        /// <summary>Чип «домалювати одразу» (§13): ціна в нафті; коли не вистачає — приглушений і неактивний.</summary>
-        private void ShowFinishChip()
-        {
-            if (_session == null || _state == null || design == null)
-                return;
-            var cost = _state.FinishPictureCost(_session.Picture.Picture.Rarity, 1f - _session.Picture.FilledFraction);
-            var affordable = _state.Wallet.OilDrops >= cost;
-            if (overFinishPicture != null)
-                overFinishPicture.interactable = affordable;
-            ApplyFont(overFinishPictureLabel, design.FontSizeOverSecondary, affordable ? design.AccentGold : design.TextDim, FontStyles.Bold, 0f);
-            if (overFinishPictureLabel != null) overFinishPictureLabel.fontSizeMax = design.FontSizeOverSecondary;
-            if (overFinishPictureLabel != null)
-                overFinishPictureLabel.text = affordable
-                    ? $"Домалювати одразу · {Format(cost)} нафти"
-                    : $"Не вистачає нафти · {Format(cost)}";
-        }
-
-        /// <summary>Чипи: продовжити (до фіналу), подвоїти за ролик, домалювати за нафту.</summary>
-        private void ShowAdChips(bool final)
+        /// <summary>
+        /// Картинка забігу у вкладеній панелі: «Назва · 55 %» і «Не домалюєш — картинка згорить»; після «Домалювати» —
+        /// «Домальовано — у колекції». Немає намальованого (0 пікселів) — рядка немає: втрачати нічого.
+        /// </summary>
+        private void ShowPictureRow(PictureProgress? shown = null)
         {
             if (_session == null || design == null)
                 return;
-            var adsReady = _ads != null && _ads.IsRewardedReady;
-
-            var showContinue = !final && CanOfferContinue;
-            Toggle(overContinue, showContinue);
-            if (showContinue)
-                ShowContinueChip();
-
-            var showDouble = final && adsReady && !_doubled && _rewardForScore > 0;
-            Toggle(overDouble, showDouble);
-            ApplyFont(overDoubleLabel, design.FontSizeOverSecondary, design.TextPrimary, FontStyles.Bold, 0f);
-            if (overDoubleLabel != null) overDoubleLabel.text = "Подвоїти нафту · ролик";
-
-            var showFinish = final && _state != null && !_session.Picture.IsComplete && _session.Picture.FilledCount > 0;
-            Toggle(overFinishPicture, showFinish);
-            if (showFinish)
-                ShowFinishChip();
+            var progress = shown ?? _session.Picture;
+            var def = progress.Picture;
+            var show = progress.FilledCount > 0;
+            Toggle(overPicture, show);
+            if (!show)
+                return;
+            overPictureFrame?.SetRarity(def.Rarity);
+            if (progress.IsComplete)
+            {
+                overPictureThumb?.ShowCompleted(def, string.Empty);
+                if (overPictureTitle != null) overPictureTitle.text = def.Name;
+                if (overPictureNote != null)
+                {
+                    overPictureNote.text = "Домальовано — у колекції";
+                    overPictureNote.color = design.Teal;
+                }
+                return;
+            }
+            overPictureThumb?.Show(progress);
+            var percent = Mathf.Clamp(Mathf.FloorToInt(progress.FilledFraction * 100f), 0, 99);
+            if (overPictureTitle != null) overPictureTitle.text = $"{def.Name} · {percent}%";
+            if (overPictureNote != null)
+            {
+                overPictureNote.text = "Не домалюєш — картинка згорить";
+                overPictureNote.color = design.Danger;
+            }
         }
 
-        /// <summary>Галерея партії (§11 крок 5): що домальовано цього забігу.</summary>
+        /// <summary>Діалог мусить уміститись по висоті на будь-якому екрані: коли не влазить — меншає цілком.</summary>
+        private void FitOverCard()
+        {
+            if (overPanel == null || overFit == null)
+                return;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(overPanel);
+            var available = ((RectTransform)transform).rect.height - M(16f) * 2f;
+            var height = overPanel.rect.height;
+            var scale = height > 1f ? Mathf.Min(1f, available / height) : 1f;
+            overFit.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        /// <summary>«Домалювати» (§13): ціна в нафті; коли не вистачає — вимкнена плоска «Не вистачає нафти».</summary>
+        private void ShowFinish()
+        {
+            if (_session == null || _state == null || design == null || overFinish == null)
+                return;
+            var cost = _state.FinishPictureCost(_session.Picture.Picture.Rarity, 1f - _session.Picture.FilledFraction);
+            var affordable = _state.Wallet.OilDrops >= cost;
+            overFinish.Text = affordable ? "Домалювати" : "Не вистачає нафти";
+            overFinish.Interactable = affordable;
+            ShowPrice(overFinishPrice, cost, affordable);
+        }
+
+        /// <summary>Число в чипі ціни: на бірюзовій — teal-ink, на вимкненій — приглушене.</summary>
+        private void ShowPrice(TMP_Text? price, long cost, bool affordable)
+        {
+            if (price == null || design == null)
+                return;
+            price.text = ScoreFormat.Full(cost);
+            price.color = affordable ? design.TealInk : design.ButtonOffText;
+        }
+
+        /// <summary>Галерея партії (§11 крок 5): що домальовано цього забігу — підпис і до трьох мініатюр у рамках.</summary>
         private void ShowCollected()
         {
             if (_session == null || design == null)
                 return;
             var collected = _session.PicturesCollected;
             var any = collected.Count > 0;
-            Toggle(overCollectedLabel, any);
-            ApplyFont(overCollectedLabel, design.FontSizeOverCollected, design.TextDim, FontStyles.Bold, design.LetterSpacingWide);
+            Toggle(overCollected, any);
+            if (!any)
+                return;
             if (overCollectedLabel != null)
                 overCollectedLabel.text = collected.Count == 1 ? "ЗІБРАНО КАРТИНКУ" : $"ЗІБРАНО · {collected.Count}";
 
             for (var i = 0; i < overThumbs.Length; i++)
             {
                 var thumb = overThumbs[i];
-                if (thumb == null)
-                    continue;
+                var frame = i < overThumbFrames.Length ? overThumbFrames[i] : null;
                 // Останні зібрані — найцікавіші: показуємо хвіст списку.
                 var index = collected.Count - overThumbs.Length + i;
                 var show = index >= 0 && index < collected.Count;
-                Toggle(thumb, show);
-                if (show)
-                    thumb.ShowCompleted(_session.Library[collected[index]], string.Empty);
+                var holder = frame != null ? frame.transform.parent : thumb != null ? thumb.transform : null;
+                if (holder != null && holder.gameObject.activeSelf != show)
+                    holder.gameObject.SetActive(show);
+                if (!show)
+                    continue;
+                var def = _session.Library[collected[index]];
+                frame?.SetRarity(def.Rarity);
+                thumb?.ShowCompleted(def, string.Empty);
             }
         }
 
@@ -1370,19 +1468,16 @@ namespace InkFlow.UI
 
         private IEnumerator CountRewardRoutine(long reward)
         {
-            ApplyFont(rewardNumber, design.FontSizeRewardNumber, design.RecordChipFrom, FontStyles.Bold, 0f);
-            ApplyFont(rewardSuffix, design.FontSizeOverLabel, design.TextDim, FontStyles.Bold, 0f);
-            if (rewardSuffix != null) rewardSuffix.text = "нагорода";
-
             var duration = design.RewardCountDuration;
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
                 var shown = (long)Mathf.Round(Mathf.Lerp(0f, reward, Mathf.Clamp01(t / duration)));
-                if (rewardNumber != null) rewardNumber.text = $"+{Format(shown)}";
+                if (overRewardNumber != null) overRewardNumber.text = $"+{Format(shown)}";
                 yield return null;
             }
 
-            if (rewardNumber != null) rewardNumber.text = $"+{Format(reward)}";
+            if (overRewardNumber != null) overRewardNumber.text = $"+{Format(reward)}";
+            _rewardCount = null;
         }
 
         /// <summary>Роздає конфеті кольори й стартові точки — до старту корутини.</summary>
@@ -1398,7 +1493,7 @@ namespace InkFlow.UI
                 confetti[i].gameObject.SetActive(true);
                 confetti[i].color = palette != null && palette.Count > 0
                     ? DesignSystem.PaletteColor(palette[i % palette.Count])
-                    : design.AccentGold;
+                    : design.Record;
                 starts[i] = new Vector3(
                     Random.Range(-spread, spread),
                     height * 0.5f + Random.Range(0f, spread),
@@ -1446,15 +1541,15 @@ namespace InkFlow.UI
 
         private void HideOver()
         {
-            if (overCard != null && overCard.gameObject.activeSelf)
-                overCard.gameObject.SetActive(false);
+            if (overDialog != null && overDialog.gameObject.activeSelf)
+                overDialog.Hide();
             foreach (var piece in confetti)
                 if (piece != null && piece.gameObject.activeSelf)
                     piece.gameObject.SetActive(false);
         }
 
 #if UNITY_EDITOR
-        // ── Знімки з редактора (Ink Flow → Debug → Capture Run Screenshots): стани без корутин ──
+        // ── Знімки з редактора (Ink Flow → Debug → Capture Run Screenshots) і UI-тести: стани без корутин ──
 
         /// <summary>Підставляє готову сесію (поле, лоток, картинка) і показує її як є — без картки перед забігом.</summary>
         public void PreviewSession(RunSession session, PlayerState? state)
@@ -1477,7 +1572,7 @@ namespace InkFlow.UI
             drops?.Clear();
             completion?.Hide();
             HideOver();
-            if (introCard != null) introCard.gameObject.SetActive(false);
+            if (introDialog != null) introDialog.gameObject.SetActive(false);
             _loggedDanger = DangerLevel.None;
             ShowDanger(immediate: true);
             ApplyStats();
@@ -1488,8 +1583,8 @@ namespace InkFlow.UI
         {
             if (design == null)
                 return;
-            ShowStat(scoreNumber, score, design.TextPrimary);
-            ShowStat(recordNumber, record, design.AccentGold);
+            ShowStat(scoreNumber, scoreLabel, score, design.InkText);
+            ShowStat(recordNumber, recordLabel, record, design.Record);
         }
 
         public void PreviewPulse(DangerLevel level) => pulse?.SetLevelImmediate(level);
@@ -1502,15 +1597,39 @@ namespace InkFlow.UI
         public bool PreviewIntroShown => _intro != null;
         public string PreviewIntroKicker => introKicker != null ? introKicker.text : string.Empty;
 
-        /// <summary>Картка завершеної картинки без знімка-фону (фон — сам екран).</summary>
+        /// <summary>Картка перед забігом поверх поточної сесії (знімок S02Run_02).</summary>
+        public void PreviewIntro(bool resumed)
+        {
+            _resumed = resumed;
+            ShowIntro();
+        }
+
+        /// <summary>Картка завершеної картинки (S02Run_03): картинка поточної сесії.</summary>
         public void PreviewCompletion()
         {
             if (_session == null || completion == null)
                 return;
-            completion.Show(_session.Picture.Picture, null);
+            _pendingCompletion = -1;
+            completion.Show(_session.Picture.Picture);
         }
 
-        /// <summary>Екран кінця забігу як фінал: нагороди, «Домалювати одразу», галерея.</summary>
+        /// <summary>Картка завершення й «Викинути», як пальцем (Епічна+ — підтвердження S02Run_04).</summary>
+        public void PreviewCompletionDrop()
+        {
+            PreviewCompletion();
+            completion?.PreviewDrop();
+        }
+
+        /// <summary>Програш до фіналу (S02Run_05): один чип продовження за правилом ContinueOffer.</summary>
+        public void PreviewOverContinue()
+        {
+            if (_session == null)
+                return;
+            _finalised = false;
+            ShowOver(final: false);
+        }
+
+        /// <summary>Програш як фінал: нагороди, «Домалювати», галерея, «Ще раз».</summary>
         public void PreviewOver()
         {
             if (_session == null)
@@ -1518,29 +1637,37 @@ namespace InkFlow.UI
             _finalised = false;
             FinishRun();
         }
+
+        /// <summary>Тестам: діалог програшу й те, що в ньому видно.</summary>
+        public bool PreviewOverShown => overDialog != null && overDialog.gameObject.activeSelf;
+        public RectTransform? PreviewOverPanel => overPanel;
+        public float PreviewOverScale => overFit != null ? overFit.localScale.x : 1f;
+        public CandyButton? PreviewContinueAd => overContinueAd;
+        public CandyButton? PreviewContinueOil => overContinueOil;
+        public CandyButton? PreviewFinish => overFinish;
+        public bool PreviewPictureRowShown => overPicture != null && overPicture.gameObject.activeSelf;
+        public string PreviewPictureNote => overPictureNote != null ? overPictureNote.text : string.Empty;
+        public CandyButton? PreviewAgain => overAgain;
+        public Button? PreviewEnd => overEnd;
+        public CompletionCard? PreviewCompletionCard => completion;
+        public RectTransform? PreviewStatsRoot => statsRoot;
+        public RectTransform? PreviewPictureRoot => pictureRoot;
+        public TMP_Text? PreviewScoreNumber => scoreNumber;
+        public TMP_Text? PreviewRecordNumber => recordNumber;
+
+        /// <summary>Тестам: тап «Завершити» в першій фазі.</summary>
+        public void PreviewEndRun() => overEnd?.onClick.Invoke();
 #endif
 
         // ── Дрібне ──
 
-        /// <summary>Тисячі відділяємо вузьким пробілом (§11), цифри табличні: «8 420».</summary>
+        /// <summary>Тисячі відділяємо нерозривним пробілом (§11), цифри табличні: «8 420».</summary>
         private string Format(long value) => Tabular(ScoreFormat.Full(value));
 
         private static void Toggle(Component? target, bool on)
         {
             if (target != null && target.gameObject.activeSelf != on)
                 target.gameObject.SetActive(on);
-        }
-
-        private void ApplyFont(TMP_Text? label, float size, Color color, FontStyles style, float spacing)
-        {
-            if (label == null)
-                return;
-            label.fontSize = size;
-            label.color = color;
-            label.fontStyle = style;
-            label.characterSpacing = spacing;
-            if (design.Font != null)
-                label.font = design.Font;
         }
     }
 }

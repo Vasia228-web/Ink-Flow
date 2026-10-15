@@ -28,7 +28,7 @@ namespace InkFlow.UI.Tests
             var session = rig.Board.Session;
             Assert.IsNotNull(session);
             Assert.IsTrue(rig.Screen.PreviewIntroShown, "новий забіг — картка перед забігом");
-            Assert.IsTrue(rig.Screen.PreviewIntroKicker.StartsWith("ЦЬОГО ЗАБІГУ"), rig.Screen.PreviewIntroKicker);
+            Assert.IsTrue(rig.Screen.PreviewIntroKicker.StartsWith("ЦЕЙ ЗАБІГ"), rig.Screen.PreviewIntroKicker);
 
             // Шестерня: Push(налаштування) → OnExit забігу; «‹» → Pop → OnEnter.
             rig.Screen.OnExit();
@@ -65,7 +65,7 @@ namespace InkFlow.UI.Tests
 
             Assert.AreNotSame(session, rig.Board.Session, "нова сесія");
             Assert.IsTrue(rig.Screen.PreviewIntroShown);
-            Assert.IsTrue(rig.Screen.PreviewIntroKicker.StartsWith("ЦЬОГО ЗАБІГУ"), rig.Screen.PreviewIntroKicker);
+            Assert.IsTrue(rig.Screen.PreviewIntroKicker.StartsWith("ЦЕЙ ЗАБІГ"), rig.Screen.PreviewIntroKicker);
         }
     }
 }

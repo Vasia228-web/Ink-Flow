@@ -156,11 +156,20 @@ namespace InkFlow.Editor
             Debug.Log($"[InkFlow] U1Glaze: {All.Count - missing.Count} спрайтів імпортовано з PPU {PixelsPerUnit:0.00}, атлас {AtlasPath}.");
         }
 
+        /// <summary>Найбільша сторона сторінки атласу (див. <see cref="BuildAtlas"/>).</summary>
+        public const int AtlasMaxSize = 4096;
+
         /// <summary>
         /// Один атлас на всі спрайти U1Glaze: сотня окремих текстур розірвали б батчинг UGUI
         /// (кожна зміна текстури — окремий виклик), а бюджет — ≤ 35 на екран. ASTC 4×4 на
         /// мобільних; у редакторі атлас пакується теж (SpriteAtlasV2), інакше оцінка
         /// батчів у стендах рахувала б кожну текстуру окремо.
+        ///
+        /// Сторінка — до <see cref="AtlasMaxSize"/>: 106 спрайтів 3× займають ≈ 6.3 Мпікс і в 2048² не
+        /// вміщались — пакувальник розкладав їх на ДВІ сторінки навмання, і кожна зміна сторінки між
+        /// сусідніми шарами (тінь панелі на одній, заливка на іншій) ставала окремим викликом: накладки
+        /// забігу давали 39–48 викликів при бюджеті 35 (крок 2). Одна сторінка 4096×2048 — та сама пам'ять,
+        /// що дві 2048² (ASTC 4×4 — 1 байт на піксель, 8 МБ).
         /// </summary>
         public static void BuildAtlas()
         {
@@ -205,14 +214,14 @@ namespace InkFlow.Editor
                 {
                     name = platform,
                     overridden = true,
-                    maxTextureSize = 2048,
+                    maxTextureSize = AtlasMaxSize,
                     format = TextureImporterFormat.ASTC_4x4,
                     compressionQuality = 100
                 });
             importer.SetPlatformSettings(new TextureImporterPlatformSettings
             {
                 name = "DefaultTexturePlatform",
-                maxTextureSize = 2048,
+                maxTextureSize = AtlasMaxSize,
                 format = TextureImporterFormat.Automatic,
                 textureCompression = TextureImporterCompression.Uncompressed
             });

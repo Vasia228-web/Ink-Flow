@@ -32,6 +32,10 @@ namespace InkFlow.UI
         [SerializeField] private RarityHalo halo;
         [SerializeField] private RectTransform canvas;
         [SerializeField] private RawImage pixels;
+
+        [Tooltip("Куди притиснути не квадратну картинку в квадраті полотна: (0.5, 0.5) — по центру; над полем — " +
+                 "(0, 1), вліво-вгору: край картинки врівень із «‹» і верх — із панелями рахунку (U1Glaze, S02Run_01).")]
+        [SerializeField] private Vector2 fitAnchor = new Vector2(0.5f, 0.5f);
         [SerializeField] private Shader darkCanvasShader;
         [SerializeField] private TMP_Text title;
         [SerializeField] private TMP_Text caption;
@@ -444,8 +448,9 @@ namespace InkFlow.UI
         }
 
         /// <summary>
-        /// Над полем розмір полотна задає розкладка (токен <see cref="DesignSystem.RunPictureSide"/>, обмежений
-        /// блоком): полотно й панель-контейнер — квадрат цієї сторони, гало — за ним. На подію, не щокадру.
+        /// Над полем розмір полотна задає розкладка (<see cref="RunLayout"/>, найбільше — токен
+        /// <see cref="DesignSystem.RunCanvasMaxSide"/>): полотно й панель-контейнер — квадрат цієї сторони, гало — за ним.
+        /// На подію, не щокадру.
         /// </summary>
         public void SetCanvasSide(float side)
         {
@@ -472,8 +477,8 @@ namespace InkFlow.UI
             var cw = _picture.Width + margin * 2;
             var ch = _picture.Height + margin * 2;
             var max = Mathf.Max(cw, ch);
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchorMin = rect.anchorMax = fitAnchor;
+            rect.pivot = fitAnchor;
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(side * cw / max, side * ch / max);
         }

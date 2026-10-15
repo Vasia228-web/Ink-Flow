@@ -25,6 +25,9 @@ namespace InkFlow.UI
 
         public bool IsShown => gameObject.activeSelf;
 
+        /// <summary>Прозорість усього діалогу — для власного згасання (картка перед забігом гасне сама).</summary>
+        public CanvasGroup? Group => group;
+
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
 
 #if UNITY_EDITOR
@@ -55,17 +58,19 @@ namespace InkFlow.UI
 
         public void Hide()
         {
+            Settle();
+            gameObject.SetActive(false);
+        }
+
+        /// <summary>Обірвати появу й поставити кінцевий стан (альфа 1, масштаб 1) — перед власним згасанням.</summary>
+        public void Settle()
+        {
             if (_appear != null)
             {
                 StopCoroutine(_appear);
                 _appear = null;
             }
-            Settle();
-            gameObject.SetActive(false);
-        }
 
-        private void Settle()
-        {
             if (group != null) group.alpha = 1f;
             if (panel != null) panel.localScale = Vector3.one;
         }
@@ -82,8 +87,8 @@ namespace InkFlow.UI
                 panel!.localScale = Vector3.one * Mathf.Lerp(from, 1f, k);
                 yield return null;
             }
-            Settle();
             _appear = null;
+            Settle();
         }
     }
 }

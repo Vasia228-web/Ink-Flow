@@ -212,6 +212,10 @@ namespace InkFlow.Editor
             var view = go.AddComponent<PictureView>();
             Wire(view, ("design", design), ("plate", plate), ("canvas", canvas), ("pixels", pixels), ("halo", halo));
             if (shader != null) Wire(view, ("darkCanvasShader", shader));
+            // Не квадратна картинка — вліво-вгору: край врівень із «‹», верх — із панелями рахунку (S02Run_01).
+            var fit = new SerializedObject(view);
+            fit.FindProperty("fitAnchor").vector2Value = new Vector2(0f, 1f);
+            fit.ApplyModifiedPropertiesWithoutUndo();
             view.Apply();
             return view;
         }

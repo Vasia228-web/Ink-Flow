@@ -2,6 +2,7 @@ using System.IO;
 using InkFlow.Core;
 using InkFlow.Gameplay;
 using InkFlow.Meta;
+using InkFlow.Platform;
 using InkFlow.Style;
 using InkFlow.UI;
 using UnityEditor;
@@ -119,6 +120,31 @@ namespace InkFlow.Editor
             Canvas.ForceUpdateCanvases();
             Screen.PreviewSession(session, Player);
             Relayout();
+        }
+
+        /// <summary>Реклама для станів програшу: <see cref="FakeAds"/> — ролик готовий (перше продовження — «▶ Ролик»), null — немає.</summary>
+        public void BindAds(IAdsService? ads) => Screen.BindServices(ads);
+
+        private ConfirmPrompt? _homeConfirm;
+
+        /// <summary>
+        /// «Вийти додому?» поверх забігу (S02Run_06): діалог живе в Main.unity, тож стенд збирає його тією самою фабрикою
+        /// (<see cref="U1.ConfirmPrompt"/>) і показує тим самим <see cref="ConfirmPrompt.ShowHomeConfirm"/>, що й роутер.
+        /// </summary>
+        public ConfirmPrompt ShowHomeConfirm()
+        {
+            if (_homeConfirm == null)
+                _homeConfirm = U1.ConfirmPrompt(Safe.gameObject, Design);
+            _homeConfirm.ShowHomeConfirm(() => { }, null);
+            Relayout();
+            return _homeConfirm;
+        }
+
+        /// <summary>Автоперевірка всього, що зараз на екрані (написи, тапи, сусіди в групах), — як у стендах метаекранів.</summary>
+        public System.Collections.Generic.List<string> Audit()
+        {
+            Canvas.ForceUpdateCanvases();
+            return UiAudit.All(Safe);
         }
 
         /// <summary>Самоперевірка поля (див. <see cref="BoardView.FindLayoutFault"/>): null — усе на місці.</summary>
