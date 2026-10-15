@@ -189,7 +189,15 @@ namespace InkFlow.UI
             if (settings != null)
             {
                 settings.BackRequested += Pop;
-                settings.CollectionRequested += () => Push(collection, new CollectionArgs());
+                // Колекція — ще й вкладка: якщо налаштування відкрито поверх неї, «Колекція» повертає туди,
+                // а не відкриває той самий екземпляр удруге (повторний Push заборонений — кнопка мовчала б).
+                settings.CollectionRequested += () =>
+                {
+                    if (navigation != null && collection != null && navigation.Contains(collection))
+                        navigation.PopTo(collection);
+                    else
+                        Push(collection, new CollectionArgs());
+                };
                 settings.HomeRequested += GoHome;
                 settings.RestartRequested += () =>
                 {

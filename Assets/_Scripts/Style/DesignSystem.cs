@@ -50,6 +50,9 @@ namespace InkFlow.Style
         [Tooltip("Фон екрана: радіальний градієнт bg-top → space-900.")]
         [SerializeField] private Color spaceTop = Hex("#221C52");
         [SerializeField] private Color spaceBottom = Hex("#070718");
+        [Tooltip("Проміжні зупинки фону між spaceTop і spaceBottom (частки змішування для 2…5 кілець радіального " +
+                 "градієнта; 1-ше — spaceTop, 6-те — spaceBottom). Шість кілець замість двох — без бандингу.")]
+        [SerializeField] private Vector4 spaceGradientMix = new Vector4(0.3f, 0.55f, 0.78f, 0.92f);
         [Tooltip("Панель, картка, діалог: градієнт зверху вниз (запечено в спрайтах panel_*; тут — для тонування й тексту).")]
         [SerializeField] private Color panelTop = Hex("#26234F");
         [SerializeField] private Color panelBottom = Hex("#16142F");
@@ -1519,6 +1522,7 @@ namespace InkFlow.Style
 
         // ───────────────────────── U1Glaze: акцесори ─────────────────────────
         public Color SpaceTop => spaceTop;
+        public Vector4 SpaceGradientMix => spaceGradientMix;
         public Color SpaceBottom => spaceBottom;
         public Color PanelTop => panelTop;
         public Color PanelBottom => panelBottom;

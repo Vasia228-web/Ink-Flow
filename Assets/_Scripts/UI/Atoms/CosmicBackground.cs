@@ -53,13 +53,14 @@ namespace InkFlow.UI
             // око ловить межі там, де градієнт міняє нахил.
             var top = design.SpaceTop;
             var bottom = design.SpaceBottom;
+            var mix = design.SpaceGradientMix;
             var colors = new[]
             {
                 top,
-                Color.Lerp(top, bottom, 0.3f),
-                Color.Lerp(top, bottom, 0.55f),
-                Color.Lerp(top, bottom, 0.78f),
-                Color.Lerp(top, bottom, 0.92f),
+                Color.Lerp(top, bottom, mix.x),
+                Color.Lerp(top, bottom, mix.y),
+                Color.Lerp(top, bottom, mix.z),
+                Color.Lerp(top, bottom, mix.w),
                 bottom
             };
             var positions = new[]

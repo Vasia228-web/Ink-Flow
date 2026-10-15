@@ -128,8 +128,9 @@ namespace InkFlow.Editor
         /// <summary>
         /// Оцінка викликів малювання за алгоритмом батчингу UGUI, а не за порядком обходу: кожна графіка отримує
         /// глибину — найбільшу серед тих, що вже намальовані під нею й ПЕРЕКРИВАЮТЬСЯ з нею (+1, якщо в тієї інша
-        /// пара матеріал+текстура); далі графіки сортуються за (глибина, матеріал, текстура), і кожна зміна пари в
-        /// цьому порядку — новий виклик. Тому сусіди, що не перекриваються (іконки в рядку, написи на картці),
+        /// пара матеріал+текстура); у межах глибини графіки однієї пари йдуть одним викликом. Виклики рахуються
+        /// окремо на кожній глибині (сума різних пар по глибинах): UGUI іноді зливає однакову пару на межі двох
+        /// глибин, але це залежить від порядку ідентифікаторів матеріалів — тож оцінка свідомо не зливає (зверху). Тому сусіди, що не перекриваються (іконки в рядку, написи на картці),
         /// батчаться разом, хоч в ієрархії й чергуються. Маски/обрізання не моделюються — на екранах U1Glaze
         /// без масок це не важить; повністю прозорі графіки не рахуються, як і в <see cref="EstimateBatches"/>.
         /// </summary>
@@ -138,9 +139,7 @@ namespace InkFlow.Editor
         /// <summary>Те саме для будь-якого кореня — тест алгоритму на відомих розкладах.</summary>
         public static int SimulateBatches(Transform root)
         {
-            var items = new List<(Rect rect, (Material, Texture) key, int depth, int order)>();
-            // Порядок пар для сортування — за першою появою (ідентифікатор об'єкта в Unity 6.5 застарів).
-            var keyOrder = new Dictionary<(Material, Texture), int>();
+            var items = new List<(Rect rect, (Material, Texture) key, int depth)>();
             var corners = new Vector3[4];
             foreach (var graphic in root.GetComponentsInChildren<Graphic>(false))
             {
@@ -154,8 +153,6 @@ namespace InkFlow.Editor
                     Mathf.Min(corners[0].x, corners[2].x), Mathf.Min(corners[0].y, corners[2].y),
                     Mathf.Max(corners[0].x, corners[2].x), Mathf.Max(corners[0].y, corners[2].y));
                 var key = (graphic.materialForRendering, graphic.mainTexture);
-                if (!keyOrder.ContainsKey(key))
-                    keyOrder[key] = keyOrder.Count;
                 var depth = 0;
                 foreach (var below in items)
                 {
@@ -165,26 +162,12 @@ namespace InkFlow.Editor
                     if (overlaps)
                         depth = Mathf.Max(depth, below.key.Equals(key) ? below.depth : below.depth + 1);
                 }
-                items.Add((rect, key, depth, items.Count));
+                items.Add((rect, key, depth));
             }
-            items.Sort((a, b) =>
-            {
-                var byDepth = a.depth.CompareTo(b.depth);
-                if (byDepth != 0) return byDepth;
-                var byKey = keyOrder[a.key].CompareTo(keyOrder[b.key]);
-                return byKey != 0 ? byKey : a.order.CompareTo(b.order);
-            });
-            var batches = 0;
-            (Material, Texture)? last = null;
+            var perDepth = new HashSet<(int depth, (Material, Texture) key)>();
             foreach (var item in items)
-            {
-                if (last == null || !last.Value.Equals(item.key))
-                {
-                    batches++;
-                    last = item.key;
-                }
-            }
-            return batches;
+                perDepth.Add((item.depth, item.key));
+            return perDepth.Count;
         }
 
         public override void Dispose()

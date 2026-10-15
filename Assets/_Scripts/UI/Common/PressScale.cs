@@ -27,6 +27,19 @@ namespace InkFlow.UI
 
         public void OnPointerUp(PointerEventData eventData) => Press(false);
 
+        /// <summary>
+        /// Екран сховався посеред натиску (тап вкладки чи шестерні веде на інший екран): корутина вмирає на 0.96, і
+        /// елемент повернувся б на екран зменшеним. Повертаємо спокій; поза натиском не чіпаємо нічого (бутстрап).
+        /// </summary>
+        private void OnDisable()
+        {
+            _tween = null;
+            if (_scale == 1f)
+                return;
+            _scale = 1f;
+            transform.localScale = Vector3.one;
+        }
+
         private void Press(bool down)
         {
             if (design == null || !isActiveAndEnabled)

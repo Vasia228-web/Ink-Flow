@@ -21,6 +21,37 @@ namespace InkFlow.Editor
         public const int PanelBorder = 64;
         public const int SlotBorder = 44;
 
+        /// <summary>
+        /// Спрайти U1Glaze, чий м'який хвіст альфи намальовано для змішування в ГАМІ (веб-еталон): у лінійному
+        /// просторі проєкту альфа 2…10 зі 255 світлої фарби на темному фоні дає видимий ступінчастий контур — гало
+        /// планети на заставці читалось диском із краєм. Для них альфа при імпорті стає a^2.2: на темному фоні
+        /// лінійне змішування тоді дає те саме, що гамма-змішування еталона; непрозоре (a = 1) і порожнє не міняються.
+        /// Решта спрайтів (гало кнопок, рамки) на кроці 0 виглядає як треба — їх не чіпаємо.
+        /// </summary>
+        private static readonly string[] GammaAuthoredAlpha = { "home_hero" };
+
+        /// <summary>Показник sRGB-гами, яким гамма-змішування відрізняється від лінійного на темному фоні.</summary>
+        private const float SrgbGamma = 2.2f;
+
+        private void OnPostprocessTexture(Texture2D texture)
+        {
+            if (!assetPath.StartsWith(U1GlazeSprites.Folder))
+                return;
+            var entry = U1GlazeSprites.OfPath(assetPath);
+            if (entry == null || System.Array.IndexOf(GammaAuthoredAlpha, entry.name) < 0)
+                return;
+            var pixels = texture.GetPixels32();
+            for (var i = 0; i < pixels.Length; i++)
+            {
+                var a = pixels[i].a;
+                if (a == 0 || a == 255)
+                    continue;
+                pixels[i].a = (byte)Mathf.RoundToInt(255f * Mathf.Pow(a / 255f, SrgbGamma));
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false);
+        }
+
         private void OnPreprocessTexture()
         {
             if (assetPath.StartsWith(K1Folder))

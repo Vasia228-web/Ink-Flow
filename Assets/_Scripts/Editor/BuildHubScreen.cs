@@ -210,6 +210,8 @@ namespace InkFlow.Editor
             U1.Size(thumbGo, ThumbnailSidePx, ThumbnailSidePx);
             thumbnail = thumbGo.GetComponent<RectTransform>();
             thumbnailFrame = U1.RarityFrame(thumbGo, "Frame", design, big: false, sidePx: ThumbnailSidePx, Rarity.Rare);
+            // На S01Home під мініатюрою міток рідкості немає — рідкість каже колір рамки.
+            thumbnailFrame.transform.Find("Pips").gameObject.SetActive(false);
             var pictureGo = thumbnailFrame.transform.Find("Picture").gameObject;
             thumbnailPicture = PictureViewBuilder.MakeFramedPicture(pictureGo, design, U1.Px(ThumbnailSidePx - 6f));
 

@@ -129,7 +129,14 @@ namespace InkFlow.Tests.UI
 
             var nick = rig.Screen.PreviewNick!;
             nick.ForceMeshUpdate();
-            Assert.IsTrue(nick.isTextTruncated, "довгий нік на 375 — обрізаний «…», а не переповнений");
+            Assert.IsTrue(nick.isTextTruncated, "довгий нік на 375 — обрізаний, а не переповнений");
+            // isTextTruncated — і без крапок (Truncate чи «…» з порожньої сторінки атласа): тому дивимось на сам гліф.
+            var last = nick.textInfo.characterInfo[nick.textInfo.characterCount - 1];
+            if (last.character == '\u0003' && nick.textInfo.characterCount > 1)
+                last = nick.textInfo.characterInfo[nick.textInfo.characterCount - 2];
+            Assert.AreEqual('\u2026', last.character, "останній видимий символ ніка — «…»");
+            Assert.IsTrue(last.isVisible);
+            Assert.AreEqual(0, last.materialReferenceIndex, "«…» малюється тим самим матеріалом, що й нік (одна сторінка атласа)");
             var amount = rig.Safe.GetComponentsInChildren<CurrencyWidget>()[0].GetComponentInChildren<TMPro.TMP_Text>();
             amount.ForceMeshUpdate();
             Assert.AreEqual(1, amount.textInfo.lineCount, "999 999 999 — один рядок");
@@ -159,6 +166,32 @@ namespace InkFlow.Tests.UI
         }
 
         [Test]
+        public void SetRootWith_DoesNotEnterTheHub_UntilBackComesToIt()
+        {
+            // Спостережуване «чи заходили в хаб»: вхід кличе Apply, і той перечитав би нік зі стану. Міняємо нік
+            // без оновлення екрана: під вкладкою хаб мусить лишитись зі старим, після «назад» — показати новий.
+            using var rig = Rig(ScreenRigBase.Mockup);
+            var player = rig.NewPlayer();
+            rig.Enter(player, ScreenArgs.Empty);
+            var before = rig.Screen.PreviewNick!.text;
+            Assert.IsTrue(player.SetNick("Зміна", NickRules.Default, out _));
+            var go = new GameObject("Stack", typeof(RectTransform));
+            try
+            {
+                var stack = go.AddComponent<NavigationStack>();
+                var tab = Screen(go, "Tab");
+                stack.SetRootWith(rig.Screen, tab);
+                Assert.AreEqual(before, rig.Screen.PreviewNick.text, "хаб під вкладкою не заходив — Apply не перечитав нік");
+                stack.Pop();
+                Assert.AreEqual("Зміна", rig.Screen.PreviewNick.text, "«назад» — вхід у хаб, нік перечитано");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void SetRootWith_PutsTheRootUnderTheTab_AndTabsDoNotGrowTheStack()
         {
             // Тестова збірка — лише редактор, а з неї Unity не дає повісити власний MonoBehaviour; тож екрани —
@@ -182,6 +215,16 @@ namespace InkFlow.Tests.UI
                 stack.SetRootWith(hub, collection);
                 Assert.AreEqual(2, stack.Depth, "перемикання вкладок не роздуває стек");
                 Assert.IsFalse(galaxy.gameObject.activeSelf, "попередня вкладка вийшла");
+                Assert.IsTrue(collection.gameObject.activeSelf);
+
+                // Вкладка «Колекція» → ⚙ → «Колекція»: колекція вже в стеку — повертаємось до неї, а не Push удруге.
+                var settings = Screen(go, "Settings");
+                stack.Push(settings);
+                Assert.IsTrue(stack.Contains(collection));
+                stack.PopTo(collection);
+                Assert.AreEqual(2, stack.Depth, "налаштування зняті, колекція знову зверху");
+                Assert.AreSame(collection, stack.Current);
+                Assert.IsFalse(settings.gameObject.activeSelf);
                 Assert.IsTrue(collection.gameObject.activeSelf);
 
                 stack.Pop();

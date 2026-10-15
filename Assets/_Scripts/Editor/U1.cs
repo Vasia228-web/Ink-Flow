@@ -699,6 +699,12 @@ namespace InkFlow.Editor
                 button.targetGraphic = hit;
                 button.transition = Selectable.Transition.None;
                 item.AddComponent<PressScale>().Bind(design); // натиск — на тому, що ловить тап (localScale)
+                // Рівні чверті, як на макеті: preferred 0 і flexible 1 у всіх — інакше ширина вкладки залежала б від
+                // довжини підпису («Грати» вужча за «Галактику»), і центри іконок роз'їжджалися.
+                var share = item.AddComponent<LayoutElement>();
+                share.preferredWidth = 0f;
+                share.minWidth = 0f;
+                share.flexibleWidth = 1f;
                 var col = item.AddComponent<VerticalLayoutGroup>();
                 col.childAlignment = TextAnchor.MiddleCenter;
                 col.spacing = Px(4f);

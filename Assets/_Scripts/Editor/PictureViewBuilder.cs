@@ -226,6 +226,15 @@ namespace InkFlow.Editor
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(DarkCanvasShaderPath);
             if (shader == null) Debug.LogError($"[InkFlow] Немає {DarkCanvasShaderPath}");
 
+            // Підкладка кольору полотна на все вікно рамки: картинки здебільшого не квадратні (стего 33×25…), а
+            // полотно вписується за пропорціями — без неї в смугах збоку просвічувала б картка (кути накриває кільце).
+            var backGo = Child(go, "Back");
+            Stretch(backGo);
+            var back = backGo.AddComponent<Image>();
+            back.sprite = LoadSprite("white-quad");
+            back.color = design.PictureCanvasColor;
+            back.raycastTarget = false;
+
             var plateGo = Child(go, "Plate");
             var plate = plateGo.GetComponent<RectTransform>();
             plate.anchorMin = plate.anchorMax = new Vector2(0.5f, 0.5f);

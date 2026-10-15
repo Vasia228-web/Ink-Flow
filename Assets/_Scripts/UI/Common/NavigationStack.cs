@@ -106,6 +106,29 @@ namespace InkFlow.UI
             screen.OnEnter(top.Args);
         }
 
+        /// <summary>Чи лежить екран у стеку (на будь-якій глибині).</summary>
+        public bool Contains(ScreenBase screen) => IndexOf(screen) >= 0;
+
+        /// <summary>
+        /// Повернутись до екрана, що вже лежить у стеку: знімає все над ним (кожен виходить) і заходить у нього
+        /// з ТИМИ САМИМИ аргументами, з якими його відкрили. Повторний Push того самого екземпляра заборонений —
+        /// це шлях, коли ціль уже десь нижче (вкладка «Колекція» → ⚙ → «Колекція»).
+        /// </summary>
+        public void PopTo(ScreenBase screen)
+        {
+            var index = IndexOf(screen);
+            if (index < 0 || index == _stack.Count - 1)
+                return;
+            for (var i = _stack.Count - 1; i > index; i--)
+            {
+                var top = _stack[i];
+                _stack.RemoveAt(i);
+                top.Screen.OnExit();
+            }
+            var target = _stack[index];
+            target.Screen.OnEnter(target.Args);
+        }
+
         private int IndexOf(ScreenBase screen)
         {
             for (var i = 0; i < _stack.Count; i++)
