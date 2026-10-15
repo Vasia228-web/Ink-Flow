@@ -12,8 +12,9 @@ namespace InkFlow.Tests.Meta
     /// відсутність старого ядра та економіки фарби. У збірках Core і Meta немає типів карти рівнів,
     /// прогресу рівнів і підсумку рівня; у стані, економіці й файлі — членів про рівні, босів і віхи;
     /// у коді гри — файлів екрана, збирача, сцени й префаба; у джерелах нафти — записів старого режиму.
-    /// Картка «Рівні» в хабі лишається й веде на «Скоро» — це єдине, що від режиму є в грі, і маршрут
-    /// у роутері тримає окремий тест (check-navigation перевіряє лише, що подія підписана, не куди).
+    /// 2026-10-15 (рішення автора): картка «Рівні» в хабі й заглушка «Скоро» теж пішли — у запас
+    /// (<c>Reserve/LevelsMode</c>, поза <c>Assets</c>, Unity їх не бачить); повернемо, коли автор скаже
+    /// «інтегруємо». Тоді цей тест зміниться разом із поверненням.
     /// </summary>
     public sealed class LevelsModeAbsenceTests
     {
@@ -46,7 +47,9 @@ namespace InkFlow.Tests.Meta
             "LevelMapScreen", "LevelNodeView", "LevelMap.", "LevelNodeKind", "LevelProgress", "LevelRecord",
             "CompleteLevel", "ForLevel", "ForEndlessRecord", "ForMilestones",
             "BaseLevelReward", "BossMultiplier", "EndlessMilestones", "LevelClear", "BossClear",
-            "FontSizeLevelNode", "LevelMapFocus", "BossSheetFrom", "TrailPassed", "StarPipEmpty"
+            "FontSizeLevelNode", "LevelMapFocus", "BossSheetFrom", "TrailPassed", "StarPipEmpty",
+            // 2026-10-15: картка «Рівні» й «Скоро» — у запасі.
+            "ComingSoonScreen", "LevelsRequested", "levelsCard", "LevelsCard", "Tone.Levels"
         };
 
         [Test]
@@ -103,14 +106,33 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void HubLevelsCard_StillLeadsToComingSoon()
+        public void LevelsCardAndComingSoon_AreInReserve_NotInTheGame()
         {
-            // Граф навігації живе лише в AppRouter (CLAUDE.md), тож маршрут картки перевіряється по його тексту:
-            // підписка є (це бачить і check-navigation) і веде саме на заглушку «Скоро», а не на інший екран.
-            var router = File.ReadAllText(Path.Combine(FindRepoRoot(), "Assets", "_Scripts", "UI", "Common", "AppRouter.cs"));
-            Assert.IsTrue(router.Contains("hub.LevelsRequested += () => Push(comingSoon);"),
-                "картка «Рівні» в хабі має вести на ComingSoonScreen, поки режиму немає");
+            // Граф навігації живе лише в AppRouter (CLAUDE.md): у ньому немає ні маршруту картки, ні екрана «Скоро».
+            var root = FindRepoRoot();
+            var router = File.ReadAllText(Path.Combine(root, "Assets", "_Scripts", "UI", "Common", "AppRouter.cs"));
+            var hub = File.ReadAllText(Path.Combine(root, "Assets", "_Scripts", "UI", "Hub", "HubScreen.cs"));
+            foreach (var word in new[] { "LevelsRequested", "comingSoon", "ComingSoonScreen" })
+                Assert.IsFalse(router.Contains(word), $"AppRouter досі згадує {word} — картка «Рівні» в запасі");
+            foreach (var word in new[] { "levelsCard", "LevelsRequested", "Рівні" })
+                Assert.IsFalse(hub.Contains(word), $"HubScreen досі згадує {word} — картка «Рівні» в запасі");
+
+            // Запас — не смітник: файли лежать у Reserve/LevelsMode з тими самими шляхами, поряд — README з поверненням.
+            foreach (var relative in ReservedFiles)
+            {
+                Assert.IsFalse(File.Exists(Path.Combine(root, relative)), $"{relative} має бути в запасі, а не в грі");
+                Assert.IsTrue(File.Exists(Path.Combine(root, "Reserve", "LevelsMode", relative)), $"{relative} має лежати в Reserve/LevelsMode");
+            }
+            Assert.IsTrue(File.Exists(Path.Combine(root, "Reserve", "LevelsMode", "README.md")), "Reserve/LevelsMode/README.md — як повернути");
+            foreach (var generated in new[] { "Assets/Scenes/ComingSoon.unity", "Assets/_Prefabs/Screens/ComingSoonScreen.prefab" })
+                Assert.IsFalse(File.Exists(Path.Combine(root, generated)), $"{generated} збирає збирач із запасу — у грі його бути не повинно");
         }
+
+        private static readonly string[] ReservedFiles =
+        {
+            "Assets/_Scripts/UI/Common/ComingSoonScreen.cs",
+            "Assets/_Scripts/Editor/BuildComingSoonScreen.cs"
+        };
 
         [Test]
         public void GameScripts_DoNotMentionLevelsModeMembers()

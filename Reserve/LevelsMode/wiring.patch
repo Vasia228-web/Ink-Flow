@@ -1,0 +1,383 @@
+diff --git a/Assets/Tests/EditMode/Meta/LevelsModeAbsenceTests.cs b/Assets/Tests/EditMode/Meta/LevelsModeAbsenceTests.cs
+index 1852376..6f1a30f 100644
+--- a/Assets/Tests/EditMode/Meta/LevelsModeAbsenceTests.cs
++++ b/Assets/Tests/EditMode/Meta/LevelsModeAbsenceTests.cs
+@@ -12,8 +12,9 @@ namespace InkFlow.Tests.Meta
+     /// відсутність старого ядра та економіки фарби. У збірках Core і Meta немає типів карти рівнів,
+     /// прогресу рівнів і підсумку рівня; у стані, економіці й файлі — членів про рівні, босів і віхи;
+     /// у коді гри — файлів екрана, збирача, сцени й префаба; у джерелах нафти — записів старого режиму.
+-    /// Картка «Рівні» в хабі лишається й веде на «Скоро» — це єдине, що від режиму є в грі, і маршрут
+-    /// у роутері тримає окремий тест (check-navigation перевіряє лише, що подія підписана, не куди).
++    /// 2026-10-15 (рішення автора): картка «Рівні» в хабі й заглушка «Скоро» теж пішли — у запас
++    /// (<c>Reserve/LevelsMode</c>, поза <c>Assets</c>, Unity їх не бачить); повернемо, коли автор скаже
++    /// «інтегруємо». Тоді цей тест зміниться разом із поверненням.
+     /// </summary>
+     public sealed class LevelsModeAbsenceTests
+     {
+@@ -46,7 +47,9 @@ public sealed class LevelsModeAbsenceTests
+             "LevelMapScreen", "LevelNodeView", "LevelMap.", "LevelNodeKind", "LevelProgress", "LevelRecord",
+             "CompleteLevel", "ForLevel", "ForEndlessRecord", "ForMilestones",
+             "BaseLevelReward", "BossMultiplier", "EndlessMilestones", "LevelClear", "BossClear",
+-            "FontSizeLevelNode", "LevelMapFocus", "BossSheetFrom", "TrailPassed", "StarPipEmpty"
++            "FontSizeLevelNode", "LevelMapFocus", "BossSheetFrom", "TrailPassed", "StarPipEmpty",
++            // 2026-10-15: картка «Рівні» й «Скоро» — у запасі.
++            "ComingSoonScreen", "LevelsRequested", "levelsCard", "LevelsCard", "Tone.Levels"
+         };
+ 
+         [Test]
+@@ -103,15 +106,34 @@ public void LevelsModeFiles_AreGone()
+         }
+ 
+         [Test]
+-        public void HubLevelsCard_StillLeadsToComingSoon()
++        public void LevelsCardAndComingSoon_AreInReserve_NotInTheGame()
+         {
+-            // Граф навігації живе лише в AppRouter (CLAUDE.md), тож маршрут картки перевіряється по його тексту:
+-            // підписка є (це бачить і check-navigation) і веде саме на заглушку «Скоро», а не на інший екран.
+-            var router = File.ReadAllText(Path.Combine(FindRepoRoot(), "Assets", "_Scripts", "UI", "Common", "AppRouter.cs"));
+-            Assert.IsTrue(router.Contains("hub.LevelsRequested += () => Push(comingSoon);"),
+-                "картка «Рівні» в хабі має вести на ComingSoonScreen, поки режиму немає");
++            // Граф навігації живе лише в AppRouter (CLAUDE.md): у ньому немає ні маршруту картки, ні екрана «Скоро».
++            var root = FindRepoRoot();
++            var router = File.ReadAllText(Path.Combine(root, "Assets", "_Scripts", "UI", "Common", "AppRouter.cs"));
++            var hub = File.ReadAllText(Path.Combine(root, "Assets", "_Scripts", "UI", "Hub", "HubScreen.cs"));
++            foreach (var word in new[] { "LevelsRequested", "comingSoon", "ComingSoonScreen" })
++                Assert.IsFalse(router.Contains(word), $"AppRouter досі згадує {word} — картка «Рівні» в запасі");
++            foreach (var word in new[] { "levelsCard", "LevelsRequested", "Рівні" })
++                Assert.IsFalse(hub.Contains(word), $"HubScreen досі згадує {word} — картка «Рівні» в запасі");
++
++            // Запас — не смітник: файли лежать у Reserve/LevelsMode з тими самими шляхами, поряд — README з поверненням.
++            foreach (var relative in ReservedFiles)
++            {
++                Assert.IsFalse(File.Exists(Path.Combine(root, relative)), $"{relative} має бути в запасі, а не в грі");
++                Assert.IsTrue(File.Exists(Path.Combine(root, "Reserve", "LevelsMode", relative)), $"{relative} має лежати в Reserve/LevelsMode");
++            }
++            Assert.IsTrue(File.Exists(Path.Combine(root, "Reserve", "LevelsMode", "README.md")), "Reserve/LevelsMode/README.md — як повернути");
++            foreach (var generated in new[] { "Assets/Scenes/ComingSoon.unity", "Assets/_Prefabs/Screens/ComingSoonScreen.prefab" })
++                Assert.IsFalse(File.Exists(Path.Combine(root, generated)), $"{generated} збирає збирач із запасу — у грі його бути не повинно");
+         }
+ 
++        private static readonly string[] ReservedFiles =
++        {
++            "Assets/_Scripts/UI/Common/ComingSoonScreen.cs",
++            "Assets/_Scripts/Editor/BuildComingSoonScreen.cs"
++        };
++
+         [Test]
+         public void GameScripts_DoNotMentionLevelsModeMembers()
+         {
+diff --git a/Assets/_Scripts/Editor/BuildHubScreen.cs b/Assets/_Scripts/Editor/BuildHubScreen.cs
+index cb0d8ae..1aebe83 100644
+--- a/Assets/_Scripts/Editor/BuildHubScreen.cs
++++ b/Assets/_Scripts/Editor/BuildHubScreen.cs
+@@ -125,13 +125,13 @@ private static void BuildScene()
+                 out var avatar, out var nameLabel, out var profileButton, out var currency, out var settingsButton);
+             var nav = BuildNavBar(screenGo, design!, font, rounded!, outline!, out var navBar);
+             var middle = BuildMiddle(screenGo, design!, font, rounded!, outline!, glowSprite!, circle!,
+-                header, nav, out var logo, out var tagline, out var levels, out var endless);
++                header, nav, out var logo, out var tagline, out var endless);
+             _ = middle;
+ 
+             Wire(screen,
+                 ("design", design!), ("avatar", avatar), ("playerName", nameLabel),
+                 ("profileButton", profileButton), ("currency", currency), ("settingsButton", settingsButton), ("logo", logo),
+-                ("tagline", tagline), ("levelsCard", levels), ("endlessCard", endless),
++                ("tagline", tagline), ("endlessCard", endless),
+                 ("navBar", navBar));
+ 
+             // Пул краплин — над контентом, щоб краплі падали поверх карток.
+@@ -252,7 +252,7 @@ private static RectTransform BuildHeader(GameObject parent, DesignSystem design,
+ 
+         private static RectTransform BuildMiddle(GameObject parent, DesignSystem design, TMP_FontAsset? font,
+             Sprite rounded, Sprite outline, Sprite glowSprite, Sprite circle, RectTransform header, RectTransform nav,
+-            out TMP_Text logo, out TMP_Text tagline, out ModeCard levels, out ModeCard endless)
++            out TMP_Text logo, out TMP_Text tagline, out ModeCard endless)
+         {
+             var middle = Child(parent, "Middle");
+             var rect = middle.GetComponent<RectTransform>();
+@@ -263,13 +263,13 @@ private static RectTransform BuildMiddle(GameObject parent, DesignSystem design,
+             rect.offsetMax = new Vector2(-M(20f), -header.sizeDelta.y);
+ 
+             var cardH = M(84f);            // 52 плитка + 16×2 padding → 233
+-            var cardGap = M(15f);          // 42
+             var logoH = M(58f * 0.9f);     // line-height .9 → 145
+             var taglineH = M(17f);         // 47
+             var groupGap = M(22f);         // 61
+             var logoTaglineGap = M(6f);    // 17
+ 
+-            var totalH = logoH + logoTaglineGap + taglineH + groupGap + cardH * 2 + cardGap;
++            // Картка одна: «Рівні» в запасі (Reserve/LevelsMode), лишився «Нескінченний».
++            var totalH = logoH + logoTaglineGap + taglineH + groupGap + cardH;
+ 
+             var content = Child(middle, "Content");
+             var contentRect = content.GetComponent<RectTransform>();
+@@ -292,13 +292,7 @@ private static RectTransform BuildMiddle(GameObject parent, DesignSystem design,
+                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+             y -= taglineH + groupGap;
+ 
+-            levels = BuildModeCard(content, "LevelsCard", ModeCard.Tone.Levels, design, font,
+-                rounded, outline, glowSprite, circle, cardH);
+-            Place(levels, new Vector2(0f, y - cardH * 0.5f), new Vector2(M(332f), cardH),
+-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+-            y -= cardH + cardGap;
+-
+-            endless = BuildModeCard(content, "EndlessCard", ModeCard.Tone.Endless, design, font,
++            endless = BuildModeCard(content, "EndlessCard", design, font,
+                 rounded, outline, glowSprite, circle, cardH);
+             Place(endless, new Vector2(0f, y - cardH * 0.5f), new Vector2(M(332f), cardH),
+                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+@@ -307,7 +301,7 @@ private static RectTransform BuildMiddle(GameObject parent, DesignSystem design,
+         }
+ 
+         // Картка: padding 16/18 → 44/50, gap 15 → 42, плитка 52 → 144, шеврон 25 → 69.
+-        private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.Tone tone,
++        private static ModeCard BuildModeCard(GameObject parent, string name,
+             DesignSystem design, TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite glowSprite,
+             Sprite circle, float height)
+         {
+@@ -359,10 +353,7 @@ private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.T
+             tileStroke.type = Image.Type.Sliced;
+             tileStroke.raycastTarget = false;
+ 
+-            if (tone == ModeCard.Tone.Levels)
+-                BuildFourDrops(tile, design, circle);
+-            else
+-                BuildInfinity(tile, design, font);
++            BuildInfinity(tile, design, font);
+ 
+             // Текстовий блок: назва / підзаголовок / статистика, gap 2 → 6.
+             var textX = padX + tileSize + gap;
+@@ -374,18 +365,17 @@ private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.T
+             textRect.anchoredPosition = new Vector2(textX, 0f);
+             textRect.sizeDelta = new Vector2(textW, height);
+ 
+-            var title = Label(text, "Title", "Рівні", design, font,
++            var title = Label(text, "Title", "Нескінченний", design, font,
+                 design.FontSizeTitle, design.TextPrimary, TextAlignmentOptions.Left);
+             Place(title, new Vector2(0f, M(17f)), new Vector2(textW, M(24f)),
+                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+ 
+-            var subtitle = Label(text, "Subtitle", "Скоро", design, font,
++            var subtitle = Label(text, "Subtitle", "Малюй картинки", design, font,
+                 design.FontSizeCardSubtitle, design.TextMuted, TextAlignmentOptions.Left);
+             Place(subtitle, new Vector2(0f, -M(2f)), new Vector2(textW, M(16f)),
+                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+ 
+-            // Режиму «Рівні» ще немає — картка каже «Скоро», без вигаданого рівня й зірок.
+-            var stat = Label(text, "Stat", "Режим у роботі", design, font,
++            var stat = Label(text, "Stat", "Картинок · 0 · рекорд 0", design, font,
+                 design.FontSizeLabel, design.AccentPrimary, TextAlignmentOptions.Left);
+             Place(stat, new Vector2(0f, -M(19f)), new Vector2(textW, M(16f)),
+                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
+@@ -396,10 +386,6 @@ private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.T
+                 new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+ 
+             var component = card.AddComponent<ModeCard>();
+-            var so = new SerializedObject(component);
+-            so.FindProperty("tone").enumValueIndex = (int)tone;
+-            so.ApplyModifiedPropertiesWithoutUndo();
+-
+             Wire(component,
+                 ("design", design), ("background", background), ("stroke", stroke),
+                 ("iconTileFill", tileFill), ("iconTileStroke", tileStroke),
+@@ -409,32 +395,6 @@ private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.T
+             return component;
+         }
+ 
+-        /// <summary>Іконка «Рівні»: 4 краплі 2×2, padding 9 → 25, gap 5 → 14.</summary>
+-        private static void BuildFourDrops(GameObject tile, DesignSystem design, Sprite circle)
+-        {
+-            var pad = M(9f);
+-            var gap = M(5f);
+-            var size = (design.CardIconTileSize - pad * 2f - gap) * 0.5f;
+-            var colors = new[] { InkColor.Magenta, InkColor.Violet, InkColor.Cyan, InkColor.Lime };
+-
+-            for (var i = 0; i < 4; i++)
+-            {
+-                var go = Child(tile, $"Drop{i}");
+-                var rect = go.GetComponent<RectTransform>();
+-                rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+-                rect.pivot = new Vector2(0f, 1f);
+-                var col = i % 2;
+-                var row = i / 2;
+-                rect.anchoredPosition = new Vector2(pad + col * (size + gap), -(pad + row * (size + gap)));
+-                rect.sizeDelta = new Vector2(size, size);
+-
+-                var image = go.AddComponent<Image>();
+-                image.sprite = circle;
+-                image.raycastTarget = false;
+-                image.color = design.Ink(colors[i]);
+-            }
+-        }
+-
+         /// <summary>Іконка «Нескінченний»: ∞ 34/800 бірюзовим.</summary>
+         private static void BuildInfinity(GameObject tile, DesignSystem design, TMP_FontAsset? font)
+         {
+diff --git a/Assets/_Scripts/Editor/BuildMainScene.cs b/Assets/_Scripts/Editor/BuildMainScene.cs
+index 9c9675f..74ae9b9 100644
+--- a/Assets/_Scripts/Editor/BuildMainScene.cs
++++ b/Assets/_Scripts/Editor/BuildMainScene.cs
+@@ -43,7 +43,7 @@ public static class BuildMainScene
+         /// <summary>Імена префабів у порядку, в якому вони лягають у сцену.</summary>
+         private static readonly string[] ScreenNames =
+         {
+-            "HubScreen", "ComingSoonScreen", "EndlessScreen",
++            "HubScreen", "EndlessScreen",
+             "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen",
+             "SettingsScreen"
+         };
+@@ -154,7 +154,6 @@ private static void BuildScene()
+             Wire(router,
+                 ("navigation", navigation),
+                 ("hub", screens["HubScreen"]),
+-                ("comingSoon", screens["ComingSoonScreen"]),
+                 ("endless", screens["EndlessScreen"]),
+                 ("galaxy", screens["GalaxyScreen"]),
+                 ("planet", screens["PlanetScreen"]),
+diff --git a/Assets/_Scripts/Editor/InkFlowBootstrap.cs b/Assets/_Scripts/Editor/InkFlowBootstrap.cs
+index 7cfb9ea..cccb11f 100644
+--- a/Assets/_Scripts/Editor/InkFlowBootstrap.cs
++++ b/Assets/_Scripts/Editor/InkFlowBootstrap.cs
+@@ -13,8 +13,8 @@ namespace InkFlow.Editor
+     ///   Unity -batchmode -quit -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.InkFlowBootstrap.BootstrapAssets
+     ///
+     /// Сцен не будує: кожен екран збирає свій Build*Screen. Рівнів, їхньої Addressables-групи
+-    /// `Levels` і карти рівнів більше немає — режим «Рівні» веде на «Скоро» (документ §10)
+-    /// і буде написаний заново. Тут лишились спільні службові речі, якими збирачі
++    /// `Levels` і карти рівнів більше немає; картка «Рівні» з заглушкою «Скоро» — у запасі
++    /// (`Reserve/LevelsMode`), режим буде написаний заново. Тут лишились спільні службові речі, якими збирачі
+     /// користуються: EnsureEditMode, EnsureFolder.
+     /// </summary>
+     public static class InkFlowBootstrap
+diff --git a/Assets/_Scripts/UI/Common/AppRouter.cs b/Assets/_Scripts/UI/Common/AppRouter.cs
+index 4a5494c..3e135c7 100644
+--- a/Assets/_Scripts/UI/Common/AppRouter.cs
++++ b/Assets/_Scripts/UI/Common/AppRouter.cs
+@@ -23,7 +23,6 @@ public sealed class AppRouter : MonoBehaviour
+ 
+         [Header("Екрани")]
+         [SerializeField] private HubScreen hub;
+-        [SerializeField] private ComingSoonScreen comingSoon;
+         [SerializeField] private EndlessScreen endless;
+         [SerializeField] private GalaxyScreen galaxy;
+         [SerializeField] private PlanetScreen planet;
+@@ -120,7 +119,7 @@ private void HideAll()
+ 
+         private ScreenBase?[] AllScreens() => new ScreenBase?[]
+         {
+-            hub, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile, settings
++            hub, endless, galaxy, planet, collection, shop, rankings, profile, settings
+         };
+ 
+         private void WireGraph()
+@@ -128,10 +127,6 @@ private void WireGraph()
+             // ── Хаб ──
+             if (hub != null)
+             {
+-                // Картка «Рівні» лишається, але веде на заглушку «Скоро» (документ §10):
+-                // режиму ще немає — старий екран карти рівнів видалено, новий напишуть
+-                // на новому ядрі разом із режимом.
+-                hub.LevelsRequested += () => Push(comingSoon);
+                 hub.EndlessRequested += () => Push(endless, new EndlessArgs(_balance));
+                 hub.TabRequested += OnHubTab;
+                 // Блок профілю в шапці веде ТОЧНО тим самим маршрутом, що й
+@@ -140,9 +135,6 @@ private void WireGraph()
+                 hub.ProfileRequested += () => OnHubTab("profile");
+             }
+ 
+-            if (comingSoon != null)
+-                comingSoon.BackRequested += Pop;
+-
+             if (endless != null)
+                 endless.BackRequested += Pop;
+ 
+diff --git a/Assets/_Scripts/UI/Hub/HubScreen.cs b/Assets/_Scripts/UI/Hub/HubScreen.cs
+index 40cb0aa..0f850c4 100644
+--- a/Assets/_Scripts/UI/Hub/HubScreen.cs
++++ b/Assets/_Scripts/UI/Hub/HubScreen.cs
+@@ -34,7 +34,6 @@ public sealed class HubScreen : ScreenBase
+         [SerializeField] private TMP_Text tagline;
+ 
+         [Header("Режими")]
+-        [SerializeField] private ModeCard levelsCard;
+         [SerializeField] private ModeCard endlessCard;
+ 
+         [Header("Навігація")]
+@@ -54,9 +53,6 @@ public sealed class HubScreen : ScreenBase
+         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
+ #endif
+ 
+-        /// <summary>Картка «Рівні».</summary>
+-        public System.Action? LevelsRequested;
+-
+         /// <summary>Картка «Нескінченний».</summary>
+         public System.Action? EndlessRequested;
+ 
+@@ -70,8 +66,6 @@ private void Awake()
+         {
+             WireSettingsButton(settingsButton);
+             // Хаб не знає, куди ведуть його картки — лише повідомляє, що їх натиснули.
+-            if (levelsCard != null)
+-                levelsCard.Clicked += () => LevelsRequested?.Invoke();
+             if (endlessCard != null)
+                 endlessCard.Clicked += () => EndlessRequested?.Invoke();
+             if (navBar != null)
+@@ -154,12 +148,8 @@ public void Apply()
+                     tagline.font = design.Font;
+             }
+ 
+-            // Режиму «Рівні» ще немає (вхід веде на «Скоро»), тож картка чесно каже «Скоро» —
+-            // без вигаданого номера рівня й зірок, яких гравець ніколи не заробляв.
+-            levelsCard?.SetText("Рівні", "Скоро", "Режим у роботі");
+             endlessCard?.SetText("Нескінченний", "Малюй картинки",
+                 $"Картинок · {PicturesLine()} · рекорд {RecordLine():N0}");
+-            levelsCard?.Apply();
+             endlessCard?.Apply();
+ 
+             // Аватар — обраний у профілі (§14), без числа густоти з префаба.
+diff --git a/Assets/_Scripts/UI/Hub/ModeCard.cs b/Assets/_Scripts/UI/Hub/ModeCard.cs
+index b66fea3..f81bf81 100644
+--- a/Assets/_Scripts/UI/Hub/ModeCard.cs
++++ b/Assets/_Scripts/UI/Hub/ModeCard.cs
+@@ -16,17 +16,7 @@ namespace InkFlow.UI
+     /// </summary>
+     public sealed class ModeCard : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+     {
+-        public enum Tone
+-        {
+-            /// <summary>«Рівні»: маджента → фіолет.</summary>
+-            Levels,
+-
+-            /// <summary>«Нескінченний»: бірюза → лайм.</summary>
+-            Endless
+-        }
+-
+         [SerializeField] private DesignSystem design;
+-        [SerializeField] private Tone tone = Tone.Levels;
+ 
+         [Header("Частини")]
+         [SerializeField] private GradientImage background;
+@@ -61,7 +51,9 @@ public void Apply()
+             if (design == null)
+                 return;
+ 
+-            var (accent, secondary) = ToneColors(tone);
++            // Картка одна — «Нескінченний»: бірюза → лайм.
++            var accent = design.AccentTeal;
++            var secondary = design.AccentLime;
+             var ppu = GlassPanel.PixelsPerUnitFor(design.RadiusModeCard);
+ 
+             if (background != null)
+@@ -129,12 +121,6 @@ private static Color Blend(Color glass, Color tone, float amount)
+             return mixed;
+         }
+ 
+-        private (Color accent, Color secondary) ToneColors(Tone value) => value switch
+-        {
+-            Tone.Endless => (design.AccentTeal, design.AccentLime),
+-            _ => (design.AccentPrimary, design.AccentSecondary)
+-        };
+-
+         /// <summary>Картку натиснули. Куди вона веде — вирішує не вона.</summary>
+         public System.Action? Clicked;
+ 

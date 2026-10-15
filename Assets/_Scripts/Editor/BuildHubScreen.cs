@@ -125,13 +125,13 @@ namespace InkFlow.Editor
                 out var avatar, out var nameLabel, out var profileButton, out var currency, out var settingsButton);
             var nav = BuildNavBar(screenGo, design!, font, rounded!, outline!, out var navBar);
             var middle = BuildMiddle(screenGo, design!, font, rounded!, outline!, glowSprite!, circle!,
-                header, nav, out var logo, out var tagline, out var levels, out var endless);
+                header, nav, out var logo, out var tagline, out var endless);
             _ = middle;
 
             Wire(screen,
                 ("design", design!), ("avatar", avatar), ("playerName", nameLabel),
                 ("profileButton", profileButton), ("currency", currency), ("settingsButton", settingsButton), ("logo", logo),
-                ("tagline", tagline), ("levelsCard", levels), ("endlessCard", endless),
+                ("tagline", tagline), ("endlessCard", endless),
                 ("navBar", navBar));
 
             // Пул краплин — над контентом, щоб краплі падали поверх карток.
@@ -252,7 +252,7 @@ namespace InkFlow.Editor
 
         private static RectTransform BuildMiddle(GameObject parent, DesignSystem design, TMP_FontAsset? font,
             Sprite rounded, Sprite outline, Sprite glowSprite, Sprite circle, RectTransform header, RectTransform nav,
-            out TMP_Text logo, out TMP_Text tagline, out ModeCard levels, out ModeCard endless)
+            out TMP_Text logo, out TMP_Text tagline, out ModeCard endless)
         {
             var middle = Child(parent, "Middle");
             var rect = middle.GetComponent<RectTransform>();
@@ -263,13 +263,13 @@ namespace InkFlow.Editor
             rect.offsetMax = new Vector2(-M(20f), -header.sizeDelta.y);
 
             var cardH = M(84f);            // 52 плитка + 16×2 padding → 233
-            var cardGap = M(15f);          // 42
             var logoH = M(58f * 0.9f);     // line-height .9 → 145
             var taglineH = M(17f);         // 47
             var groupGap = M(22f);         // 61
             var logoTaglineGap = M(6f);    // 17
 
-            var totalH = logoH + logoTaglineGap + taglineH + groupGap + cardH * 2 + cardGap;
+            // Картка одна: «Рівні» в запасі (Reserve/LevelsMode), лишився «Нескінченний».
+            var totalH = logoH + logoTaglineGap + taglineH + groupGap + cardH;
 
             var content = Child(middle, "Content");
             var contentRect = content.GetComponent<RectTransform>();
@@ -292,13 +292,7 @@ namespace InkFlow.Editor
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             y -= taglineH + groupGap;
 
-            levels = BuildModeCard(content, "LevelsCard", ModeCard.Tone.Levels, design, font,
-                rounded, outline, glowSprite, circle, cardH);
-            Place(levels, new Vector2(0f, y - cardH * 0.5f), new Vector2(M(332f), cardH),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            y -= cardH + cardGap;
-
-            endless = BuildModeCard(content, "EndlessCard", ModeCard.Tone.Endless, design, font,
+            endless = BuildModeCard(content, "EndlessCard", design, font,
                 rounded, outline, glowSprite, circle, cardH);
             Place(endless, new Vector2(0f, y - cardH * 0.5f), new Vector2(M(332f), cardH),
                 new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
@@ -307,7 +301,7 @@ namespace InkFlow.Editor
         }
 
         // Картка: padding 16/18 → 44/50, gap 15 → 42, плитка 52 → 144, шеврон 25 → 69.
-        private static ModeCard BuildModeCard(GameObject parent, string name, ModeCard.Tone tone,
+        private static ModeCard BuildModeCard(GameObject parent, string name,
             DesignSystem design, TMP_FontAsset? font, Sprite rounded, Sprite outline, Sprite glowSprite,
             Sprite circle, float height)
         {
@@ -359,10 +353,7 @@ namespace InkFlow.Editor
             tileStroke.type = Image.Type.Sliced;
             tileStroke.raycastTarget = false;
 
-            if (tone == ModeCard.Tone.Levels)
-                BuildFourDrops(tile, design, circle);
-            else
-                BuildInfinity(tile, design, font);
+            BuildInfinity(tile, design, font);
 
             // Текстовий блок: назва / підзаголовок / статистика, gap 2 → 6.
             var textX = padX + tileSize + gap;
@@ -374,18 +365,17 @@ namespace InkFlow.Editor
             textRect.anchoredPosition = new Vector2(textX, 0f);
             textRect.sizeDelta = new Vector2(textW, height);
 
-            var title = Label(text, "Title", "Рівні", design, font,
+            var title = Label(text, "Title", "Нескінченний", design, font,
                 design.FontSizeTitle, design.TextPrimary, TextAlignmentOptions.Left);
             Place(title, new Vector2(0f, M(17f)), new Vector2(textW, M(24f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
-            var subtitle = Label(text, "Subtitle", "Скоро", design, font,
+            var subtitle = Label(text, "Subtitle", "Малюй картинки", design, font,
                 design.FontSizeCardSubtitle, design.TextMuted, TextAlignmentOptions.Left);
             Place(subtitle, new Vector2(0f, -M(2f)), new Vector2(textW, M(16f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
 
-            // Режиму «Рівні» ще немає — картка каже «Скоро», без вигаданого рівня й зірок.
-            var stat = Label(text, "Stat", "Режим у роботі", design, font,
+            var stat = Label(text, "Stat", "Картинок · 0 · рекорд 0", design, font,
                 design.FontSizeLabel, design.AccentPrimary, TextAlignmentOptions.Left);
             Place(stat, new Vector2(0f, -M(19f)), new Vector2(textW, M(16f)),
                 new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
@@ -396,10 +386,6 @@ namespace InkFlow.Editor
                 new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
 
             var component = card.AddComponent<ModeCard>();
-            var so = new SerializedObject(component);
-            so.FindProperty("tone").enumValueIndex = (int)tone;
-            so.ApplyModifiedPropertiesWithoutUndo();
-
             Wire(component,
                 ("design", design), ("background", background), ("stroke", stroke),
                 ("iconTileFill", tileFill), ("iconTileStroke", tileStroke),
@@ -407,32 +393,6 @@ namespace InkFlow.Editor
                 ("chevronLabel", chevron));
             component.Apply();
             return component;
-        }
-
-        /// <summary>Іконка «Рівні»: 4 краплі 2×2, padding 9 → 25, gap 5 → 14.</summary>
-        private static void BuildFourDrops(GameObject tile, DesignSystem design, Sprite circle)
-        {
-            var pad = M(9f);
-            var gap = M(5f);
-            var size = (design.CardIconTileSize - pad * 2f - gap) * 0.5f;
-            var colors = new[] { InkColor.Magenta, InkColor.Violet, InkColor.Cyan, InkColor.Lime };
-
-            for (var i = 0; i < 4; i++)
-            {
-                var go = Child(tile, $"Drop{i}");
-                var rect = go.GetComponent<RectTransform>();
-                rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
-                rect.pivot = new Vector2(0f, 1f);
-                var col = i % 2;
-                var row = i / 2;
-                rect.anchoredPosition = new Vector2(pad + col * (size + gap), -(pad + row * (size + gap)));
-                rect.sizeDelta = new Vector2(size, size);
-
-                var image = go.AddComponent<Image>();
-                image.sprite = circle;
-                image.raycastTarget = false;
-                image.color = design.Ink(colors[i]);
-            }
         }
 
         /// <summary>Іконка «Нескінченний»: ∞ 34/800 бірюзовим.</summary>

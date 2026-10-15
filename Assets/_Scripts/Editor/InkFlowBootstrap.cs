@@ -13,8 +13,8 @@ namespace InkFlow.Editor
     ///   Unity -batchmode -quit -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.InkFlowBootstrap.BootstrapAssets
     ///
     /// Сцен не будує: кожен екран збирає свій Build*Screen. Рівнів, їхньої Addressables-групи
-    /// `Levels` і карти рівнів більше немає — режим «Рівні» веде на «Скоро» (документ §10)
-    /// і буде написаний заново. Тут лишились спільні службові речі, якими збирачі
+    /// `Levels` і карти рівнів більше немає; картка «Рівні» з заглушкою «Скоро» — у запасі
+    /// (`Reserve/LevelsMode`), режим буде написаний заново. Тут лишились спільні службові речі, якими збирачі
     /// користуються: EnsureEditMode, EnsureFolder.
     /// </summary>
     public static class InkFlowBootstrap

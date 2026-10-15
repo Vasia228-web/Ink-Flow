@@ -103,7 +103,7 @@ Assets/
                      PictureView, RarityHalo, RarityFrame, RarityNames, DropFlock, CompletionCard, SnapshotBlur
       Planet/        PlanetScreen (+PlanetArgs), PlanetStage, SlotMarker, SlotAtlas
       Collection/    CollectionScreen (+CollectionArgs), CollectionCard
-      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, ComingSoonScreen, NickPrompt, ConfirmPrompt, GameAudio,
+      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NickPrompt, ConfirmPrompt, GameAudio,
                      CurrencyWidget (капсула нафти з «+»), ComponentsShowcase (вітрина U1Glaze), …
       Atoms/         CandyButton, ChipView, RarityFrameView, DialogView (U1Glaze); GlassPanel, NeonButton, DropView, … (старий стиль, до кроку 10)
       Hub/ Galaxy/ Shop/ Rankings/ Profile/ Atoms/

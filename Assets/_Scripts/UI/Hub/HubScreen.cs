@@ -34,7 +34,6 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text tagline;
 
         [Header("Режими")]
-        [SerializeField] private ModeCard levelsCard;
         [SerializeField] private ModeCard endlessCard;
 
         [Header("Навігація")]
@@ -54,9 +53,6 @@ namespace InkFlow.UI
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 #endif
 
-        /// <summary>Картка «Рівні».</summary>
-        public System.Action? LevelsRequested;
-
         /// <summary>Картка «Нескінченний».</summary>
         public System.Action? EndlessRequested;
 
@@ -70,8 +66,6 @@ namespace InkFlow.UI
         {
             WireSettingsButton(settingsButton);
             // Хаб не знає, куди ведуть його картки — лише повідомляє, що їх натиснули.
-            if (levelsCard != null)
-                levelsCard.Clicked += () => LevelsRequested?.Invoke();
             if (endlessCard != null)
                 endlessCard.Clicked += () => EndlessRequested?.Invoke();
             if (navBar != null)
@@ -154,12 +148,8 @@ namespace InkFlow.UI
                     tagline.font = design.Font;
             }
 
-            // Режиму «Рівні» ще немає (вхід веде на «Скоро»), тож картка чесно каже «Скоро» —
-            // без вигаданого номера рівня й зірок, яких гравець ніколи не заробляв.
-            levelsCard?.SetText("Рівні", "Скоро", "Режим у роботі");
             endlessCard?.SetText("Нескінченний", "Малюй картинки",
                 $"Картинок · {PicturesLine()} · рекорд {RecordLine():N0}");
-            levelsCard?.Apply();
             endlessCard?.Apply();
 
             // Аватар — обраний у профілі (§14), без числа густоти з префаба.

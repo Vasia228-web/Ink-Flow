@@ -1,0 +1,43 @@
+# Запас: режим «Рівні» (картка в хабі + заглушка «Скоро»)
+
+**У запасі з 2026-10-15 — рішення автора:** гра виходить без режиму «Рівні»; інтегруємо, коли гра масштабуватиметься і автор скаже «інтегруємо». До того в грі немає ні картки «Рівні», ні екрана «Скоро», ні маршруту між ними.
+
+Самого режиму (карта рівнів, прогрес, нагороди за рівень/боса/віхи) в коді немає ще з 2026-10-10 (коміт `592deb6`) — він пишеться з нуля на новому ядрі. У запасі лежить лише те, що лишалось від нього в грі: вхід у хабі та екран-заглушка.
+
+Останній коміт, де все це працювало в грі: **`7244194`** (U1Glaze, крок 0). Будь-який файл того стану: `git show 7244194:<шлях>`.
+
+## Що в запасі
+
+Файли лежать тут із тими самими шляхами, що були в грі (разом із `.meta` — GUID скриптів збережено):
+
+| Файл | Що робить |
+|---|---|
+| `Assets/_Scripts/UI/Common/ComingSoonScreen.cs` | Екран «Скоро»: шапка «‹» + «РІВНІ» + шестерня, плашка «Скоро» з поясненням «Режим «Рівні» повернеться на новому ядрі. А поки — «Нескінченний» і колекція картин.», подія `BackRequested`. |
+| `Assets/_Scripts/Editor/BuildComingSoonScreen.cs` | Збирач: меню `Ink Flow → Setup → Build Coming Soon Screen` → сцена-майстерня `Assets/Scenes/ComingSoon.unity` + префаб `Assets/_Prefabs/Screens/ComingSoonScreen.prefab` (обидва згенеровані — у запас не копіювались, збирач створить їх знову). |
+| `wiring.patch` | Усе, що прибрано зі спільних файлів гри (роутер, хаб, картка режиму, збирачі, тест), — `git diff` у момент вирізання. |
+
+## Що прибрано зі спільних файлів (точки підключення)
+
+Повний текст — у `wiring.patch`. Коротко:
+
+- **`UI/Common/AppRouter.cs`** — поле `[SerializeField] ComingSoonScreen comingSoon`, екран у `AllScreens()`, маршрут `hub.LevelsRequested += () => Push(comingSoon);` і `comingSoon.BackRequested += Pop;`.
+- **`UI/Hub/HubScreen.cs`** — поле `levelsCard`, подія `LevelsRequested`, підписка на клік картки, тексти картки `("Рівні", "Скоро", "Режим у роботі")` і її `Apply()`.
+- **`UI/Hub/ModeCard.cs`** — `enum Tone { Levels, Endless }` і поле `tone`: тон «Рівні» — маджента → фіолет (`AccentPrimary` → `AccentSecondary`), «Нескінченний» — бірюза → лайм. Зараз картка одна й завжди бірюзова.
+- **`Editor/BuildHubScreen.cs`** — картка `LevelsCard` над `EndlessCard` (висота блоку на дві картки з проміжком 15 px макета), іконка «4 краплі 2×2» (`BuildFourDrops`), запис `tone` у префаб.
+- **`Editor/BuildMainScene.cs`** — `"ComingSoonScreen"` у списку префабів і `("comingSoon", …)` у підв'язці роутера.
+- **`Tests/EditMode/Meta/LevelsModeAbsenceTests.cs`** — тест «картка веде на "Скоро"» замінено тестом «картка й "Скоро" в запасі».
+
+## Вигляд у U1Glaze (на момент вирізання ще не перемальоване)
+
+- Головний (`docs/StyleRef/U1Glaze/preview/S01Home_01.png`): компактна `panel_card` ДРУГОЮ, під «Нескінченний»; скляна плитка 52 з `icon_grid` (ink-muted), «Рівні» `ui-h3`, «Режим готується» `caption`, сірий бейдж `badge_grey` «СКОРО» праворуч, без шеврона. Маршрут на «Скоро» лишається.
+- Екран «Скоро» (`preview/S11SettingsSoon_02.png`, SCREENS.md «Налаштування і «Рівні · Скоро»»).
+- Спрайти (`icon_grid`, `badge_grey`) лишились у наборі `Assets/_Sprites/U1Glaze` — набір дзеркалить еталон цілком.
+
+## Як повернути (чекліст)
+
+1. Скопіювати файли з цієї теки назад у `Assets/…` (разом із `.meta`).
+2. Повернути точки підключення: `git apply -R Reserve/LevelsMode/wiring.patch` — якщо код відтоді не змінився; інакше перенести вручну за списком вище (хаб на той час, найпевніше, уже U1Glaze — картку будувати фабриками `U1` за макетом S01Home_01).
+3. `LevelsModeAbsenceTests`: прибрати тест «у запасі» й слова `ComingSoonScreen`/`LevelsRequested`/`levelsCard`/`LevelsCard`/`Tone.Levels` зі списку заборонених; повернути тест маршруту.
+4. `python3 Tools/check-navigation.py` (подія `LevelsRequested`), `python3 Tools/check-glyphs.py`, `bash Tools/check-compile.sh`, `bash Tools/run-core-tests.sh`.
+5. У редакторі: `Build Coming Soon Screen` → `Build Hub Screen` → `Build Main Scene`; знімки хаба.
+6. Документи: CLAUDE.md (конвенція про «Рівні», статус, команди), майстер-док, архідок; цю теку — видалити.

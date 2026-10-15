@@ -16,17 +16,7 @@ namespace InkFlow.UI
     /// </summary>
     public sealed class ModeCard : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     {
-        public enum Tone
-        {
-            /// <summary>«Рівні»: маджента → фіолет.</summary>
-            Levels,
-
-            /// <summary>«Нескінченний»: бірюза → лайм.</summary>
-            Endless
-        }
-
         [SerializeField] private DesignSystem design;
-        [SerializeField] private Tone tone = Tone.Levels;
 
         [Header("Частини")]
         [SerializeField] private GradientImage background;
@@ -61,7 +51,9 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            var (accent, secondary) = ToneColors(tone);
+            // Картка одна — «Нескінченний»: бірюза → лайм.
+            var accent = design.AccentTeal;
+            var secondary = design.AccentLime;
             var ppu = GlassPanel.PixelsPerUnitFor(design.RadiusModeCard);
 
             if (background != null)
@@ -128,12 +120,6 @@ namespace InkFlow.UI
             mixed.a = glass.a;
             return mixed;
         }
-
-        private (Color accent, Color secondary) ToneColors(Tone value) => value switch
-        {
-            Tone.Endless => (design.AccentTeal, design.AccentLime),
-            _ => (design.AccentPrimary, design.AccentSecondary)
-        };
 
         /// <summary>Картку натиснули. Куди вона веде — вирішує не вона.</summary>
         public System.Action? Clicked;

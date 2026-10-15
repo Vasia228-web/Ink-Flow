@@ -23,7 +23,6 @@ namespace InkFlow.UI
 
         [Header("Екрани")]
         [SerializeField] private HubScreen hub;
-        [SerializeField] private ComingSoonScreen comingSoon;
         [SerializeField] private EndlessScreen endless;
         [SerializeField] private GalaxyScreen galaxy;
         [SerializeField] private PlanetScreen planet;
@@ -120,7 +119,7 @@ namespace InkFlow.UI
 
         private ScreenBase?[] AllScreens() => new ScreenBase?[]
         {
-            hub, comingSoon, endless, galaxy, planet, collection, shop, rankings, profile, settings
+            hub, endless, galaxy, planet, collection, shop, rankings, profile, settings
         };
 
         private void WireGraph()
@@ -128,10 +127,6 @@ namespace InkFlow.UI
             // ── Хаб ──
             if (hub != null)
             {
-                // Картка «Рівні» лишається, але веде на заглушку «Скоро» (документ §10):
-                // режиму ще немає — старий екран карти рівнів видалено, новий напишуть
-                // на новому ядрі разом із режимом.
-                hub.LevelsRequested += () => Push(comingSoon);
                 hub.EndlessRequested += () => Push(endless, new EndlessArgs(_balance));
                 hub.TabRequested += OnHubTab;
                 // Блок профілю в шапці веде ТОЧНО тим самим маршрутом, що й
@@ -139,9 +134,6 @@ namespace InkFlow.UI
                 // розійшлися б аргументами.
                 hub.ProfileRequested += () => OnHubTab("profile");
             }
-
-            if (comingSoon != null)
-                comingSoon.BackRequested += Pop;
 
             if (endless != null)
                 endless.BackRequested += Pop;
