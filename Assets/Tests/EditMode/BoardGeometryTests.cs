@@ -9,8 +9,10 @@ namespace InkFlow.Core.Tests
         public void EightByEight_FitsInsideTheCanvas()
         {
             var g = BoardGeometry.For(8, 8);
-            Assert.AreEqual(374f, g.Canvas, 1e-3, "390 − 2 × 8");
-            Assert.AreEqual(38f, g.Box, 1e-3, "floor((374 − 38 − 28) / 8): блок не менший, ніж був при полотні 358");
+            var canvas = BoardGeometry.ScreenWidth - 2f * BoardGeometry.DefaultSideMargin;
+            Assert.AreEqual(canvas, g.Canvas, 1e-3, "ширина макета − 2 × бічне поле (402 − 16 = 386)");
+            Assert.AreEqual((float)System.Math.Floor((canvas - 2f * BoardGeometry.DefaultPadding - 7f * BoardGeometry.DefaultGap) / 8f), g.Box, 1e-3,
+                "floor((полотно − 2 × відступ − 7 × проміжок) / 8): блок не менший, ніж був при полотні 358");
             var right = g.CenterX(7) + g.Box * 0.5f;
             var bottom = g.CenterY(0) + g.Box * 0.5f;
             Assert.LessOrEqual(right, g.Canvas - g.Padding + 0.01f);
@@ -37,7 +39,8 @@ namespace InkFlow.Core.Tests
             Assert.GreaterOrEqual(now.CornerClearance(panelRadius), 8f, "кутова лунка не тисне на заокруглений кут");
 
             // Стара геометрія (відступ 8 при полотні 358): кут лунки майже торкався дуги (~2 px).
-            var old = BoardGeometry.For(8, 8, 16f, 8f, 5f);
+            var oldMargin = (BoardGeometry.ScreenWidth - 358f) * 0.5f;
+            var old = BoardGeometry.For(8, 8, oldMargin, 8f, 5f);
             Assert.Less(old.CornerClearance(panelRadius), 3f);
 
             // Відступ більший за радіус — запас дорівнює самому відступу.

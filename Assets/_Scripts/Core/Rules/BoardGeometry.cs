@@ -16,8 +16,8 @@ namespace InkFlow.Core
     /// </summary>
     public readonly struct BoardGeometry
     {
-        /// <summary>Ширина макета, px.</summary>
-        public const float ScreenWidth = 390f;
+        /// <summary>Ширина макета, px (402 — полотно U1Glaze; те саме число, що DesignSystem.MockupWidth).</summary>
+        public const float ScreenWidth = 402f;
 
         /// <summary>Бічне поле панелі поля (і лотка) від краю екрана.</summary>
         public const float DefaultSideMargin = 8f;

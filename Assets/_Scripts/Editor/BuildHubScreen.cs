@@ -16,7 +16,7 @@ namespace InkFlow.Editor
     /// Збирає хаб-меню за розміткою макета «Ink Flow v2» (полотно 390×844).
     /// Меню: Ink Flow → Setup → Build Hub Screen.
     ///
-    /// Кожне число нижче — це px макета × K, де K = 1080/390 ≈ 2.769. Джерело значень
+    /// Кожне число нижче — це px макета × K, де K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687. Джерело значень
     /// вказане в коментарі біля кожної групи, щоб при наступній звірці з макетом
     /// не доводилось шукати їх удруге.
     ///
@@ -33,7 +33,7 @@ namespace InkFlow.Editor
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
         // ── Числа макета (px) → reference-одиниці ──
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

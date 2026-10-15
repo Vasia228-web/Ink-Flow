@@ -44,8 +44,16 @@ namespace InkFlow.Editor
             new Device("iphone-se_750x1334", 750, 1334, 40, 0),
             new Device("iphone-15-pro_1179x2556", 1179, 2556, 177, 102),
             new Device("android_1080x2400", 1080, 2400, 0, 66),
-            new Device("ipad_1536x2048", 1536, 2048, 40, 40)
+            new Device("ipad_1536x2048", 1536, 2048, 40, 40),
+            // Полотно макетів U1Glaze — 402×874 pt (iPhone 16 Pro, @3×): еталон порівнюється піксель у піксель.
+            new Device("iphone-16-pro_1206x2622", 1206, 2622, 186, 102)
         };
+
+        /// <summary>Пристрій, на якому макет 402×874 відтворюється 1:1 (контрольні точки U1Glaze).</summary>
+        public static Device Mockup => Devices[4];
+
+        /// <summary>iPhone SE — другий розмір контрольних точок (375×667).</summary>
+        public static Device Small => Devices[0];
 
         public const string CosmicPath = "Assets/_Prefabs/UI/CosmicBackground.prefab";
         public const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
@@ -94,7 +102,7 @@ namespace InkFlow.Editor
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(UIRoot.ReferenceWidth, UIRoot.ReferenceHeight);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = UIRoot.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = UIRoot.MatchFor(device.Width, device.Height);
 
             if (cosmic != null)
             {
@@ -125,6 +133,10 @@ namespace InkFlow.Editor
             Camera.targetTexture = Target;
             if (old != null)
                 Object.DestroyImmediate(old);
+            // Match — за співвідношенням сторін, як у грі (UIRoot): інакше стенд брехав би про розкладку.
+            var scaler = _canvasGo.GetComponent<CanvasScaler>();
+            if (scaler != null)
+                scaler.matchWidthOrHeight = UIRoot.MatchFor(device.Width, device.Height);
             ApplySafeArea(device);
             Relayout();
         }

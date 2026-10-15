@@ -30,8 +30,62 @@ namespace InkFlow.Editor
             "shop", "shop-offline",
             "settings", "settings-run",
             "profile-fresh", "profile",
-            "rankings", "rankings-offline", "galaxy-visitor"
+            "rankings", "rankings-offline", "galaxy-visitor",
+            "components-1", "components-2", "components-3"
         };
+
+        /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase" };
+
+        /// <summary>Лише вітрина компонентів (крок 0 U1Glaze): збірка + знімки на всіх пристроях.</summary>
+        public static void BuildAndCaptureComponents()
+        {
+            BuildComponentsScreen.Build();
+            if (!MetaScreenRig<ScreenBase>.Available("ComponentsShowcase"))
+            {
+                Debug.LogError("[InkFlow] Немає префаба ComponentsShowcase — вітрину не зібрано.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in new[] { "components-1", "components-2", "components-3" })
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Finish(overBudget, audit);
+        }
+
+        private static void Finish(List<string> overBudget, List<string> audit)
+        {
+            var failed = false;
+            if (overBudget.Count > 0)
+            {
+                Debug.LogError($"[InkFlow] Бюджет викликів малювання ({DrawCallBudget}) перевищено:\n  " + string.Join("\n  ", overBudget));
+                failed = true;
+            }
+            if (audit.Count > 0)
+            {
+                Debug.LogError($"[InkFlow] Автоперевірка (переповнені написи, тапи < 44):\n  " + string.Join("\n  ", audit));
+                failed = true;
+            }
+            if (failed && Application.isBatchMode)
+                EditorApplication.Exit(1);
+        }
+
+        /// <summary>Автоперевірка екрана в стенді: для екранів із <see cref="AuditEnforced"/> — у список помилок, для решти — попередження.</summary>
+        private static void Audit(ScreenRigBase rig, string prefabName, string device, string state, List<string> audit)
+        {
+            var problems = UiAudit.All(rig.Safe);
+            if (problems.Count == 0)
+                return;
+            var lines = string.Join("\n  ", problems);
+            if (System.Array.IndexOf(AuditEnforced, prefabName) >= 0)
+                audit.Add($"{device} / {state}:\n  {lines}");
+            else
+                Debug.LogWarning($"[InkFlow] {device} / {state} (ще не на U1Glaze): \n  {lines}");
+        }
 
         public static void BuildAndCapture()
         {
@@ -43,6 +97,7 @@ namespace InkFlow.Editor
             BuildSettingsScreen.Build();
             BuildProfileScreen.Build();
             BuildRankingsScreen.Build();
+            BuildComponentsScreen.Build();
             CaptureAll();
         }
 
@@ -61,27 +116,40 @@ namespace InkFlow.Editor
             Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
             var written = new List<string>();
             var overBudget = new List<string>();
+            var audit = new List<string>();
             foreach (var device in ScreenRigBase.Devices)
                 foreach (var state in States)
                 {
                     var path = Path.Combine(OutputFolder, $"{device.Name}_{state}.png");
-                    Capture(device, state, path, overBudget);
+                    Capture(device, state, path, overBudget, audit);
                     written.Add(path);
                 }
 
             AssetDatabase.Refresh();
             Debug.Log($"[InkFlow] Знімки метагри ({written.Count}) у {OutputFolder}:\n  " + string.Join("\n  ", written));
-            if (overBudget.Count == 0)
-                return;
-            Debug.LogError($"[InkFlow] Бюджет викликів малювання ({DrawCallBudget}) перевищено:\n  " + string.Join("\n  ", overBudget));
-            if (Application.isBatchMode)
-                EditorApplication.Exit(1);
+            Finish(overBudget, audit);
         }
 
-        private static void Capture(ScreenRigBase.Device device, string state, string path, List<string> overBudget)
+        private static void Capture(ScreenRigBase.Device device, string state, string path, List<string> overBudget, List<string> audit)
         {
             switch (state)
             {
+                case "components-1":
+                case "components-2":
+                case "components-3":
+                {
+                    // Вітрина спільних компонентів (S00Components): три сторінки прокрутки.
+                    if (!MetaScreenRig<ScreenBase>.Available("ComponentsShowcase"))
+                        return;
+                    using var rig = MetaScreenRig<ComponentsShowcase>.Create(device, "ComponentsShowcase");
+                    rig.Enter(null, ScreenArgs.Empty);
+                    rig.Screen.PreviewPage(state[^1] - '1');
+                    var distinct = rig.EstimateBatches(out var runs, out var graphics);
+                    Debug.Log($"[InkFlow] {device.Name} / {state}: графік {graphics}, різних пар матеріал+текстура {distinct}, змін пари в порядку обходу {runs}.");
+                    Audit(rig, "ComponentsShowcase", device.Name, state, audit);
+                    rig.SavePng(path);
+                    break;
+                }
                 case "galaxy-fresh":
                 case "galaxy-mid":
                 case "galaxy-second":

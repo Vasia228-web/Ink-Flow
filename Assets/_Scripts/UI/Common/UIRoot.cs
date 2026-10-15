@@ -6,17 +6,37 @@ namespace InkFlow.UI
     /// <summary>
     /// Корінь інтерфейсу (§9): Canvas + CanvasScaler під портрет + стек навігації.
     ///
-    /// Reference 1080×1920, match = 0.5. Саме 0.5, а не 0 чи 1: на вузьких 20:9
-    /// прив'язка лише до ширини роздула б інтерфейс по висоті, а лише до висоти —
-    /// обрізала б по боках. Половина тримає компроміс на всьому діапазоні
-    /// від 4:3 (планшети) до 20:9.
+    /// Reference 1080×1920. Match залежить від співвідношення сторін екрана
+    /// (<see cref="MatchFor(float, float)"/>): на телефонах (9:16 і вужчих) — 0, тобто
+    /// прив'язка до ширини: 1 px макета 402×874 = 1080/402 одиниці на будь-якому телефоні,
+    /// і кнопка 56 px макета має ті самі 56 px на екрані 402 завширшки; на вужчих 20:9 зайва
+    /// висота йде гнучким блокам (заставка, планета, список) — саме так намальовано S12.
+    /// На планшетах (ширше за 9:16) match росте до 1 на 3:4, щоб по висоті вміщалось
+    /// щонайменше 1920 одиниць — інакше на iPad відрізало б низ екрана.
     /// </summary>
     [RequireComponent(typeof(Canvas))]
     public sealed class UIRoot : MonoBehaviour
     {
         public const float ReferenceWidth = 1080f;
         public const float ReferenceHeight = 1920f;
-        public const float MatchWidthOrHeight = 0.5f;
+
+        /// <summary>Співвідношення ширина/висота, до якого (включно) працює чиста прив'язка до ширини.</summary>
+        public const float PhoneAspect = 9f / 16f;
+
+        /// <summary>Співвідношення, на якому прив'язка стає повністю до висоти (iPad 3:4).</summary>
+        public const float TabletAspect = 3f / 4f;
+
+        /// <summary>
+        /// Match для CanvasScaler за розміром екрана: 0 на телефонах, лінійно до 1 між 9:16 і 3:4.
+        /// Одна функція для гри і для стендів знімків — інакше знімки брехали б про розкладку.
+        /// </summary>
+        public static float MatchFor(float screenWidth, float screenHeight)
+        {
+            if (screenWidth <= 0f || screenHeight <= 0f)
+                return 0f;
+            var aspect = screenWidth / screenHeight;
+            return Mathf.Clamp01((aspect - PhoneAspect) / (TabletAspect - PhoneAspect));
+        }
 
         [SerializeField] private Canvas canvas;
         [SerializeField] private CanvasScaler scaler;
@@ -46,7 +66,7 @@ namespace InkFlow.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(ReferenceWidth, ReferenceHeight);
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = MatchFor(Screen.width, Screen.height);
         }
     }
 }

@@ -1,0 +1,127 @@
+using InkFlow.Core;
+using InkFlow.Style;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace InkFlow.UI
+{
+    /// <summary>
+    /// Рамка рідкості U1Glaze навколо картинки: 6 спрайтів 9-slice (великі ≥ 70 px і малі),
+    /// капсула міток 1–6 під нижнім краєм, гало під рамкою для Епічної+, іскри в кутах
+    /// (Легендарна — верхні, Космічна — лівий-верх і правий-низ) і перелив Космічної —
+    /// шейдер <c>InkFlow/UI Sheen</c> через <c>_Time</c>, без C# щокадру.
+    ///
+    /// Сама картинка (атлас чи полотно W4) — дочірній об'єкт, який кладе збирач у виріз;
+    /// рамка лише перемикає спрайти при зміні рідкості.
+    /// </summary>
+    public sealed class RarityFrameView : MonoBehaviour
+    {
+        [SerializeField] private DesignSystem design;
+        [SerializeField] private Image frame;
+        [SerializeField] private Image? pips;
+        [SerializeField] private Image? glow;
+        [SerializeField] private Image[] sparkles = System.Array.Empty<Image>();
+        [SerializeField] private Shader? sheenShader;
+
+        [Header("Спрайти (ставить збирач): 6 рамок, 6 малих, 6 міток, 3 гало (епічна, легендарна, космічна)")]
+        [SerializeField] private Sprite[] frames = System.Array.Empty<Sprite>();
+        [SerializeField] private Sprite[] framesSmall = System.Array.Empty<Sprite>();
+        [SerializeField] private Sprite[] pipSprites = System.Array.Empty<Sprite>();
+        [SerializeField] private Sprite[] glows = System.Array.Empty<Sprite>();
+
+        [SerializeField] private bool big = true;
+        [SerializeField] private Rarity rarity = Rarity.Common;
+
+        private Material? _sheen;
+
+        public Rarity Rarity => rarity;
+        public bool IsBig => big;
+
+        private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+
+#if UNITY_EDITOR
+        private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
+#endif
+
+        private void OnDestroy()
+        {
+            if (_sheen == null)
+                return;
+            // У Edit Mode (стенди, збирачі) Destroy заборонено — лише DestroyImmediate.
+            if (Application.isPlaying) Destroy(_sheen);
+            else DestroyImmediate(_sheen);
+        }
+
+        public void Configure(bool isBig, Sprite[] frameSprites, Sprite[] smallSprites, Sprite[] pipSet, Sprite[] glowSet, Shader? sheen)
+        {
+            big = isBig;
+            frames = frameSprites;
+            framesSmall = smallSprites;
+            pipSprites = pipSet;
+            glows = glowSet;
+            sheenShader = sheen;
+            Apply();
+        }
+
+        public void SetRarity(Rarity value)
+        {
+            rarity = value;
+            Apply();
+        }
+
+        public void Apply()
+        {
+            if (design == null)
+                return;
+            var index = Mathf.Clamp((int)rarity, 0, 5);
+            var set = big ? frames : framesSmall;
+
+            if (frame != null)
+            {
+                if (index < set.Length) frame.sprite = set[index];
+                frame.color = Color.white;
+                frame.material = rarity == Rarity.Cosmic ? Sheen() : null;
+            }
+
+            if (pips != null)
+            {
+                if (index < pipSprites.Length) pips.sprite = pipSprites[index];
+                pips.SetNativeSize();
+                pips.color = Color.white;
+            }
+
+            if (glow != null)
+            {
+                var lit = rarity >= Rarity.Epic && glows.Length >= 3;
+                glow.gameObject.SetActive(lit);
+                if (lit)
+                {
+                    glow.sprite = glows[index - (int)Rarity.Epic];
+                    glow.color = new Color(1f, 1f, 1f, design.FrameGlowAlpha);
+                }
+            }
+
+            // Іскри: Легендарна — два верхні кути (бурштин), Космічна — лівий-верх і правий-низ (рожева).
+            for (var i = 0; i < sparkles.Length; i++)
+            {
+                var sparkle = sparkles[i];
+                if (sparkle == null) continue;
+                var show = rarity == Rarity.Legendary ? i < 2 : rarity == Rarity.Cosmic ? i >= 2 : false;
+                sparkle.gameObject.SetActive(show);
+                if (show)
+                    sparkle.color = rarity == Rarity.Legendary ? design.Amber300 : design.Pink300;
+            }
+        }
+
+        private Material? Sheen()
+        {
+            if (sheenShader == null)
+                return null;
+            if (_sheen == null)
+                _sheen = new Material(sheenShader) { name = "CosmicSheen" };
+            // Період — при застосуванні стилю, не щокадру: далі крутить сам шейдер.
+            _sheen.SetFloat("_Period", design != null ? design.CosmicSheenPeriod : 6f);
+            return _sheen;
+        }
+    }
+}

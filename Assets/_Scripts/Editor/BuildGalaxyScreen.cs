@@ -16,7 +16,7 @@ namespace InkFlow.Editor
     /// Збирає екран огляду галактики за розміткою макета «Ink Flow v2» (полотно 390×844).
     /// Меню: Ink Flow → Setup → Build Galaxy Screen.
     ///
-    /// Кожне число — px макета × K, K = 1080/390 ≈ 2.769. Прив'язки: шапка до верху
+    /// Кожне число — px макета × K, K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687. Прив'язки: шапка до верху
     /// SafeArea, низ (назва, кнопка, пагінація) до низу SafeArea, карусель розтягується
     /// між ними — тому на 4:3 і 20:9 «дихає» простір навколо планети, а не верстка.
     /// </summary>
@@ -29,7 +29,7 @@ namespace InkFlow.Editor
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
         private const string ShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

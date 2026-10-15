@@ -18,7 +18,7 @@ namespace InkFlow.Editor
     /// </summary>
     internal static class PictureViewBuilder
     {
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
         internal const string DarkCanvasShaderPath = "Assets/_Shaders/InkFlowDarkCanvas.shader";
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);

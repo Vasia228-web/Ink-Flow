@@ -218,7 +218,7 @@ namespace InkFlow.Editor
         /// <summary>Діалог ніка — публічна фабрика: UI-тест збирає його так само, як головна сцена.</summary>
         public static NickPrompt BuildNickPrompt(GameObject parent, DesignSystem design)
         {
-            const float k = 1080f / 390f;
+            const float k = DesignSystem.MockupToReference;
             var go = Child(parent, "NickPrompt");
             Stretch(go);
 
@@ -320,7 +320,7 @@ namespace InkFlow.Editor
         /// </summary>
         private static ConfirmPrompt BuildConfirmPrompt(GameObject parent, DesignSystem design)
         {
-            const float k = 1080f / 390f;
+            const float k = DesignSystem.MockupToReference;
             var go = Child(parent, "ConfirmPrompt");
             Stretch(go);
 

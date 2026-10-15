@@ -20,7 +20,7 @@ namespace InkFlow.UI
     /// </summary>
     public sealed class RarityHalo : MonoBehaviour
     {
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         [SerializeField] private DesignSystem design;
         [Tooltip("Прямокутник самої картинки (полотно, вписане за пропорціями) — гало обгортає саме його.")]

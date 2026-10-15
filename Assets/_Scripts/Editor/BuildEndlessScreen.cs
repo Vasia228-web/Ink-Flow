@@ -18,7 +18,7 @@ namespace InkFlow.Editor
     /// поле 8×8 K1Candy (лунки, гало, блоки, блиски), лоток на три фігури, картка перед
     /// забігом і картка фіналу. Меню: Ink Flow → Setup → Build Endless Screen.
     ///
-    /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Геометрію поля й лотка дає
+    /// Числа — px макета × K (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Геометрію поля й лотка дає
     /// <see cref="BoardGeometry"/>: індекс блока = y × 8 + x, і саме так їх читає
     /// <see cref="BoardView"/>.
     /// </summary>
@@ -30,7 +30,7 @@ namespace InkFlow.Editor
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 
@@ -126,7 +126,7 @@ namespace InkFlow.Editor
             // праворуч угорі без фону, лоток при низу, поле — що лишилось. Тут — початкові
             // позиції для сцени-майстерні (полотно 1080×1920 = 390×693 px макета); у грі
             // EndlessScreen.Layout() перераховує їх під фактичний екран.
-            var layout = RunLayout.For(390f, 1920f / K, design!.BoardSideMargin, RunPictureBlock(design!));
+            var layout = RunLayout.For(DesignSystem.MockupWidth, 1920f / K, design!.BoardSideMargin, RunPictureBlock(design!));
             var headerHeight = M(RunLayout.HeaderHeight);
             var blockTop = M(layout.PictureTop);
             var blockHeight = M(layout.PictureBlock);
@@ -573,7 +573,7 @@ namespace InkFlow.Editor
 
             const int slotCount = 3;
             var gap = M(9f);
-            var slotWidth = (M(390f) - margin * 2f - gap * (slotCount - 1)) / slotCount;
+            var slotWidth = (M(DesignSystem.MockupWidth) - margin * 2f - gap * (slotCount - 1)) / slotCount;
             var slots = new PieceView[slotCount];
 
             for (var i = 0; i < slotCount; i++)

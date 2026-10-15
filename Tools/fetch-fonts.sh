@@ -3,7 +3,8 @@
 #
 # Nunito, а не Baloo 2 з макета: у Baloo 2 немає кирилиці, а весь інтерфейс
 # гри українською. Nunito близька за характером (округла, геометрична,
-# важкі накреслення) і має повні 220 кириличних гліфів.
+# важкі накреслення) і має повні 220 кириличних гліфів. Вага 900 (Black) — для
+# заголовків, чисел і кнопок U1Glaze (SPEC: 900 — заголовки, 700–800 — текст).
 #
 # Після цього: Unity → Ink Flow → Setup → Generate Font Assets.
 set -euo pipefail
@@ -17,7 +18,7 @@ trap 'rm -f "$CSS"' EXIT
 
 # Старий User-Agent змушує Google віддати TTF замість woff2.
 curl -sSL --max-time 30 -A "Mozilla/5.0" \
-  "https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap" -o "$CSS"
+  "https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" -o "$CSS"
 
 fetch() {
   local weight="$1" name="$2"
@@ -33,5 +34,6 @@ echo "Качаю Nunito → $OUT"
 fetch 400 Regular
 fetch 700 Bold
 fetch 800 ExtraBold
+fetch 900 Black
 
 echo "Готово. Далі в Unity: Ink Flow → Setup → Generate Font Assets"

@@ -7,21 +7,30 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Лічильник крапель нафти — спільний для всіх екранів метагри (§9).
-    ///
-    /// Валюта в макеті — глянцева чорна крапля з райдужним переливом: сама іконка
-    /// темна, а перелив дає золотий відблиск поверх. Лор простий: з нафти роблять
-    /// усі фарби світу (майстер-док §7).
+    /// Капсула нафти U1Glaze — спільна для всіх екранів метагри (§9): скляна капсула, чорна
+    /// крапля з райдужною плівкою (спрайт oil_drop), число Nunito Black і бірюзова плитка «+»,
+    /// яка відкриває магазин (<see cref="PlusClicked"/>; маршрут — у роутері). Ширина росте за
+    /// вмістом: «999 999 999» уміщається, не переносячись (нерозривний пробіл із ScoreFormat).
     /// </summary>
     public sealed class CurrencyWidget : MonoBehaviour
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private GlassPanel panel;
-        [SerializeField] private Image dropIcon;
-        [SerializeField] private Image dropGloss;
+        [SerializeField] private Image capsule;
+        [SerializeField] private Image drop;
         [SerializeField] private TMP_Text amountLabel;
+        [SerializeField] private Button? plusButton;
+        [SerializeField] private Image? plusIcon;
 
         private Wallet? _wallet;
+
+        /// <summary>Тап по «+» — магазин. Підписує роутер.</summary>
+        public System.Action? PlusClicked;
+
+        private void Awake()
+        {
+            if (plusButton != null)
+                plusButton.onClick.AddListener(() => PlusClicked?.Invoke());
+        }
 
         private void OnEnable()
         {
@@ -52,32 +61,40 @@ namespace InkFlow.UI
             _wallet = null;
         }
 
+        /// <summary>«+» ховається там, де магазин відкривати нема куди (на самому магазині).</summary>
+        public void SetPlusVisible(bool visible)
+        {
+            if (plusButton != null)
+                plusButton.gameObject.SetActive(visible);
+        }
+
         public void Apply()
         {
             if (design == null)
                 return;
 
-            if (dropIcon != null)
-                // Нафта чорна й глянцева — не колір палітри, а майже чорний із теплим підтоном.
-                dropIcon.color = new Color(0.06f, 0.05f, 0.09f, 1f);
-
-            if (dropGloss != null)
-                dropGloss.color = DesignSystem.WithAlpha(design.AccentGold, 0.55f);
+            if (capsule != null)
+                capsule.color = Color.white;
+            if (drop != null)
+                drop.color = Color.white;
 
             if (amountLabel != null)
             {
-                amountLabel.color = design.TextPrimary;
-                amountLabel.fontSize = design.FontSizeLabel;
-                if (design.Font != null)
-                    amountLabel.font = design.Font;
+                amountLabel.color = design.InkText;
+                amountLabel.font = design.FontBlack;
+                amountLabel.fontStyle = FontStyles.Normal;
+                amountLabel.fontSize = design.UiH3;
+                amountLabel.textWrappingMode = TextWrappingModes.NoWrap;
+                amountLabel.overflowMode = TextOverflowModes.Overflow;
             }
 
-            panel?.Apply();
+            if (plusIcon != null)
+                plusIcon.color = design.TealInk;
         }
 
         private void OnChanged(long amount)
         {
-            // Той самий формат, що й рахунок у забігу (§11): розряди вузьким пробілом, без ком культури.
+            // Той самий формат, що й рахунок у забігу (§11): розряди нерозривним пробілом, без ком культури.
             if (amountLabel != null)
                 amountLabel.text = InkFlow.Core.ScoreFormat.Full(amount);
         }

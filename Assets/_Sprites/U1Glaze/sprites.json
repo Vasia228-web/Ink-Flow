@@ -1,0 +1,2033 @@
+[
+ {
+  "name": "panel_card",
+  "file": "sprites/panels/panel_card.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Картка, панель, нижня навігація, рядок «Ти».",
+  "border_px": {
+   "left": 90,
+   "top": 90,
+   "right": 90,
+   "bottom": 90
+  },
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "panel_low",
+  "file": "sprites/panels/panel_low.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Картка нижчого рівня: рядки списків, вкладені блоки.",
+  "border_px": {
+   "left": 90,
+   "top": 90,
+   "right": 90,
+   "bottom": 90
+  },
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "dialog",
+  "file": "sprites/panels/dialog.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Діалог (непрозорий). Під ним Image scrim #05040F, альфа 0.78.",
+  "border_px": {
+   "left": 102,
+   "top": 102,
+   "right": 102,
+   "bottom": 102
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "sheet",
+  "file": "sprites/panels/sheet.png",
+  "size_design": [
+   120,
+   80
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Нижній лист дій (верхні кути 30).",
+  "border_px": {
+   "left": 102,
+   "top": 102,
+   "right": 102,
+   "bottom": 12
+  },
+  "size_px": [
+   360,
+   240
+  ]
+ },
+ {
+  "name": "well",
+  "file": "sprites/panels/well.png",
+  "size_design": [
+   64,
+   64
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Заглиблення: лунки, доріжки, порожні мітки.",
+  "border_px": {
+   "left": 60,
+   "top": 60,
+   "right": 60,
+   "bottom": 60
+  },
+  "size_px": [
+   192,
+   192
+  ]
+ },
+ {
+  "name": "panel_shadow",
+  "file": "sprites/panels/panel_shadow.png",
+  "size_design": [
+   144,
+   144
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "М'яка тінь під картку/діалог (кладеться під панель, трохи нижче).",
+  "border_px": {
+   "left": 144,
+   "top": 144,
+   "right": 144,
+   "bottom": 144
+  },
+  "size_px": [
+   432,
+   432
+  ]
+ },
+ {
+  "name": "field",
+  "file": "sprites/panels/field.png",
+  "size_design": [
+   96,
+   54
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Поле вводу ніка (фокус). Кільце фокусу — field_focus_ring.",
+  "border_px": {
+   "left": 66,
+   "top": 78,
+   "right": 66,
+   "bottom": 78
+  },
+  "size_px": [
+   288,
+   162
+  ]
+ },
+ {
+  "name": "field_error",
+  "file": "sprites/panels/field_error.png",
+  "size_design": [
+   96,
+   54
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Поле вводу з помилкою.",
+  "border_px": {
+   "left": 66,
+   "top": 78,
+   "right": 66,
+   "bottom": 78
+  },
+  "size_px": [
+   288,
+   162
+  ]
+ },
+ {
+  "name": "field_focus_ring",
+  "file": "sprites/panels/field_focus_ring.png",
+  "size_design": [
+   104,
+   62
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Кільце навколо поля (на 4 більше з кожного боку). Тонувати: бірюза 18% / кораловий 18%.",
+  "border_px": {
+   "left": 78,
+   "top": 90,
+   "right": 78,
+   "bottom": 90
+  },
+  "size_px": [
+   312,
+   186
+  ]
+ },
+ {
+  "name": "button_coral",
+  "file": "sprites/buttons/button_coral.png",
+  "size_design": [
+   96,
+   56
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Головна дія (одна на екран). Текст білий з тінню.",
+  "border_px": {
+   "left": 84,
+   "top": 78,
+   "right": 84,
+   "bottom": 84
+  },
+  "size_px": [
+   288,
+   168
+  ]
+ },
+ {
+  "name": "button_coral_small",
+  "file": "sprites/buttons/button_coral_small.png",
+  "size_design": [
+   80,
+   46
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мала кнопка 46.",
+  "border_px": {
+   "left": 66,
+   "top": 63,
+   "right": 66,
+   "bottom": 69
+  },
+  "size_px": [
+   240,
+   138
+  ]
+ },
+ {
+  "name": "button_teal",
+  "file": "sprites/buttons/button_teal.png",
+  "size_design": [
+   96,
+   56
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Підтвердження / позитивна дія. Текст teal-ink.",
+  "border_px": {
+   "left": 84,
+   "top": 78,
+   "right": 84,
+   "bottom": 84
+  },
+  "size_px": [
+   288,
+   168
+  ]
+ },
+ {
+  "name": "button_teal_small",
+  "file": "sprites/buttons/button_teal_small.png",
+  "size_design": [
+   80,
+   46
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мала кнопка 46.",
+  "border_px": {
+   "left": 66,
+   "top": 63,
+   "right": 66,
+   "bottom": 69
+  },
+  "size_px": [
+   240,
+   138
+  ]
+ },
+ {
+  "name": "button_glass",
+  "file": "sprites/buttons/button_glass.png",
+  "size_design": [
+   96,
+   56
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Другорядна дія. Текст ink.",
+  "border_px": {
+   "left": 84,
+   "top": 78,
+   "right": 84,
+   "bottom": 84
+  },
+  "size_px": [
+   288,
+   168
+  ]
+ },
+ {
+  "name": "button_glass_small",
+  "file": "sprites/buttons/button_glass_small.png",
+  "size_design": [
+   80,
+   46
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мала кнопка 46.",
+  "border_px": {
+   "left": 66,
+   "top": 63,
+   "right": 66,
+   "bottom": 69
+  },
+  "size_px": [
+   240,
+   138
+  ]
+ },
+ {
+  "name": "button_off",
+  "file": "sprites/buttons/button_off.png",
+  "size_design": [
+   96,
+   56
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Вимкнена кнопка. Текст #6F71A0.",
+  "border_px": {
+   "left": 84,
+   "top": 78,
+   "right": 84,
+   "bottom": 84
+  },
+  "size_px": [
+   288,
+   168
+  ]
+ },
+ {
+  "name": "button_off_small",
+  "file": "sprites/buttons/button_off_small.png",
+  "size_design": [
+   80,
+   46
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мала кнопка 46.",
+  "border_px": {
+   "left": 66,
+   "top": 63,
+   "right": 66,
+   "bottom": 69
+  },
+  "size_px": [
+   240,
+   138
+  ]
+ },
+ {
+  "name": "button_glow_coral",
+  "file": "sprites/buttons/button_glow_coral.png",
+  "size_design": [
+   140,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Гало під кнопкою (альфа 0.6–0.7).",
+  "border_px": {
+   "left": 132,
+   "top": 132,
+   "right": 132,
+   "bottom": 132
+  },
+  "size_px": [
+   420,
+   300
+  ]
+ },
+ {
+  "name": "button_glow_teal",
+  "file": "sprites/buttons/button_glow_teal.png",
+  "size_design": [
+   140,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Гало під кнопкою (альфа 0.6–0.7).",
+  "border_px": {
+   "left": 132,
+   "top": 132,
+   "right": 132,
+   "bottom": 132
+  },
+  "size_px": [
+   420,
+   300
+  ]
+ },
+ {
+  "name": "oil_price_chip",
+  "file": "sprites/buttons/oil_price_chip.png",
+  "size_design": [
+   60,
+   30
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Підкладка ціни в нафті на кнопці (на бірюзовій — білий 35%: тонувати).",
+  "border_px": {
+   "left": 36,
+   "top": 36,
+   "right": 36,
+   "bottom": 36
+  },
+  "size_px": [
+   180,
+   90
+  ]
+ },
+ {
+  "name": "icon_button",
+  "file": "sprites/controls/icon_button.png",
+  "size_design": [
+   46,
+   46
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Кнопки «назад», «закрити», шестерня.",
+  "border_px": {
+   "left": 54,
+   "top": 54,
+   "right": 54,
+   "bottom": 54
+  },
+  "size_px": [
+   138,
+   138
+  ]
+ },
+ {
+  "name": "capsule",
+  "file": "sprites/controls/capsule.png",
+  "size_design": [
+   80,
+   46
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Капсула нафти: крапля + число + «+».",
+  "border_px": {
+   "left": 69,
+   "top": 66,
+   "right": 69,
+   "bottom": 66
+  },
+  "size_px": [
+   240,
+   138
+  ]
+ },
+ {
+  "name": "capsule_plus",
+  "file": "sprites/controls/capsule_plus.png",
+  "size_design": [
+   32,
+   32
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бірюзова плитка «+» у капсулі (іконка plus поверх, колір teal-ink).",
+  "size_px": [
+   96,
+   96
+  ]
+ },
+ {
+  "name": "nav_active",
+  "file": "sprites/controls/nav_active.png",
+  "size_design": [
+   46,
+   36
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Підкладка активної вкладки навігації.",
+  "border_px": {
+   "left": 48,
+   "top": 48,
+   "right": 48,
+   "bottom": 48
+  },
+  "size_px": [
+   138,
+   108
+  ]
+ },
+ {
+  "name": "chip",
+  "file": "sprites/controls/chip.png",
+  "size_design": [
+   72,
+   40
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Чип фільтра.",
+  "border_px": {
+   "left": 48,
+   "top": 54,
+   "right": 48,
+   "bottom": 54
+  },
+  "size_px": [
+   216,
+   120
+  ]
+ },
+ {
+  "name": "chip_on",
+  "file": "sprites/controls/chip_on.png",
+  "size_design": [
+   72,
+   40
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Вибраний чип.",
+  "border_px": {
+   "left": 48,
+   "top": 54,
+   "right": 48,
+   "bottom": 54
+  },
+  "size_px": [
+   216,
+   120
+  ]
+ },
+ {
+  "name": "segment_track",
+  "file": "sprites/controls/segment_track.png",
+  "size_design": [
+   96,
+   48
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Доріжка сегментного перемикача.",
+  "border_px": {
+   "left": 60,
+   "top": 66,
+   "right": 60,
+   "bottom": 66
+  },
+  "size_px": [
+   288,
+   144
+  ]
+ },
+ {
+  "name": "segment_on",
+  "file": "sprites/controls/segment_on.png",
+  "size_design": [
+   80,
+   40
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Активний сегмент.",
+  "border_px": {
+   "left": 48,
+   "top": 54,
+   "right": 48,
+   "bottom": 54
+  },
+  "size_px": [
+   240,
+   120
+  ]
+ },
+ {
+  "name": "tab_underline",
+  "file": "sprites/controls/tab_underline.png",
+  "size_design": [
+   40,
+   4
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Підкреслення активного табу.",
+  "border_px": {
+   "left": 6,
+   "top": 6,
+   "right": 6,
+   "bottom": 6
+  },
+  "size_px": [
+   120,
+   12
+  ]
+ },
+ {
+  "name": "toggle_track_off",
+  "file": "sprites/controls/toggle_track_off.png",
+  "size_design": [
+   56,
+   34
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Перемикач вимк.",
+  "size_px": [
+   168,
+   102
+  ]
+ },
+ {
+  "name": "toggle_track_on",
+  "file": "sprites/controls/toggle_track_on.png",
+  "size_design": [
+   56,
+   34
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Перемикач увімк.",
+  "size_px": [
+   168,
+   102
+  ]
+ },
+ {
+  "name": "toggle_knob_off",
+  "file": "sprites/controls/toggle_knob_off.png",
+  "size_design": [
+   28,
+   28
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Кружок вимк. (x=3).",
+  "size_px": [
+   84,
+   84
+  ]
+ },
+ {
+  "name": "toggle_knob_on",
+  "file": "sprites/controls/toggle_knob_on.png",
+  "size_design": [
+   28,
+   28
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Кружок увімк. (x=25).",
+  "size_px": [
+   84,
+   84
+  ]
+ },
+ {
+  "name": "progress_track",
+  "file": "sprites/controls/progress_track.png",
+  "size_design": [
+   40,
+   10
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Доріжка прогресу в картці «Ти».",
+  "border_px": {
+   "left": 15,
+   "top": 15,
+   "right": 15,
+   "bottom": 15
+  },
+  "size_px": [
+   120,
+   30
+  ]
+ },
+ {
+  "name": "progress_fill",
+  "file": "sprites/controls/progress_fill.png",
+  "size_design": [
+   40,
+   10
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Заповнення прогресу.",
+  "border_px": {
+   "left": 15,
+   "top": 15,
+   "right": 15,
+   "bottom": 15
+  },
+  "size_px": [
+   120,
+   30
+  ]
+ },
+ {
+  "name": "badge_amber",
+  "file": "sprites/badges/badge_amber.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж (текст 12 900 великими літерами).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_pink",
+  "file": "sprites/badges/badge_pink.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж (текст 12 900 великими літерами).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_teal",
+  "file": "sprites/badges/badge_teal.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж (текст 12 900 великими літерами).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_grey",
+  "file": "sprites/badges/badge_grey.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж (текст 12 900 великими літерами).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_coral",
+  "file": "sprites/badges/badge_coral.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж (текст 12 900 великими літерами).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_rarity_1",
+  "file": "sprites/badges/badge_rarity_1.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж рідкості «Звичайна» (текст #1A1033 + мітки).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_rarity_2",
+  "file": "sprites/badges/badge_rarity_2.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж рідкості «Незвичайна» (текст #1A1033 + мітки).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_rarity_3",
+  "file": "sprites/badges/badge_rarity_3.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж рідкості «Рідкісна» (текст #1A1033 + мітки).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_rarity_4",
+  "file": "sprites/badges/badge_rarity_4.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж рідкості «Епічна» (текст #1A1033 + мітки).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_rarity_5",
+  "file": "sprites/badges/badge_rarity_5.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж рідкості «Легендарна» (текст #1A1033 + мітки).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "badge_rarity_6",
+  "file": "sprites/badges/badge_rarity_6.png",
+  "size_design": [
+   60,
+   26
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бейдж рідкості «Космічна» (текст #1A1033 + мітки).",
+  "border_px": {
+   "left": 39,
+   "top": 39,
+   "right": 39,
+   "bottom": 39
+  },
+  "size_px": [
+   180,
+   78
+  ]
+ },
+ {
+  "name": "medal_1",
+  "file": "sprites/badges/medal_1.png",
+  "size_design": [
+   34,
+   34
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Місце 1 у рейтингу (цифра 17 900 #2A1600 поверх).",
+  "size_px": [
+   102,
+   102
+  ]
+ },
+ {
+  "name": "medal_2",
+  "file": "sprites/badges/medal_2.png",
+  "size_design": [
+   34,
+   34
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Місце 2 у рейтингу (цифра 17 900 #2A1600 поверх).",
+  "size_px": [
+   102,
+   102
+  ]
+ },
+ {
+  "name": "medal_3",
+  "file": "sprites/badges/medal_3.png",
+  "size_design": [
+   34,
+   34
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Місце 3 у рейтингу (цифра 17 900 #2A1600 поверх).",
+  "size_px": [
+   102,
+   102
+  ]
+ },
+ {
+  "name": "frame_rarity_1",
+  "file": "sprites/rarity/frame_rarity_1.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Звичайна» (≥70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 4, кути 14).",
+  "border_px": {
+   "left": 66,
+   "top": 66,
+   "right": 66,
+   "bottom": 66
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "frame_rarity_2",
+  "file": "sprites/rarity/frame_rarity_2.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Незвичайна» (≥70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 4, кути 14).",
+  "border_px": {
+   "left": 66,
+   "top": 66,
+   "right": 66,
+   "bottom": 66
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "frame_rarity_3",
+  "file": "sprites/rarity/frame_rarity_3.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Рідкісна» (≥70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 4, кути 14).",
+  "border_px": {
+   "left": 66,
+   "top": 66,
+   "right": 66,
+   "bottom": 66
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "frame_rarity_4",
+  "file": "sprites/rarity/frame_rarity_4.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Епічна» (≥70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 6, кути 14).",
+  "border_px": {
+   "left": 72,
+   "top": 72,
+   "right": 72,
+   "bottom": 72
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "frame_rarity_5",
+  "file": "sprites/rarity/frame_rarity_5.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Легендарна» (≥70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 6, кути 14).",
+  "border_px": {
+   "left": 72,
+   "top": 72,
+   "right": 72,
+   "bottom": 72
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "frame_rarity_6",
+  "file": "sprites/rarity/frame_rarity_6.png",
+  "size_design": [
+   112,
+   112
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Космічна» (≥70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 6, кути 14).",
+  "border_px": {
+   "left": 72,
+   "top": 72,
+   "right": 72,
+   "bottom": 72
+  },
+  "size_px": [
+   336,
+   336
+  ]
+ },
+ {
+  "name": "frame_rarity_1_small",
+  "file": "sprites/rarity/frame_rarity_1_small.png",
+  "size_design": [
+   52,
+   52
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Звичайна» (<70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 3, кути 9).",
+  "border_px": {
+   "left": 48,
+   "top": 48,
+   "right": 48,
+   "bottom": 48
+  },
+  "size_px": [
+   156,
+   156
+  ]
+ },
+ {
+  "name": "frame_rarity_2_small",
+  "file": "sprites/rarity/frame_rarity_2_small.png",
+  "size_design": [
+   52,
+   52
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Незвичайна» (<70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 3, кути 9).",
+  "border_px": {
+   "left": 48,
+   "top": 48,
+   "right": 48,
+   "bottom": 48
+  },
+  "size_px": [
+   156,
+   156
+  ]
+ },
+ {
+  "name": "frame_rarity_3_small",
+  "file": "sprites/rarity/frame_rarity_3_small.png",
+  "size_design": [
+   52,
+   52
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Рідкісна» (<70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 3, кути 9).",
+  "border_px": {
+   "left": 48,
+   "top": 48,
+   "right": 48,
+   "bottom": 48
+  },
+  "size_px": [
+   156,
+   156
+  ]
+ },
+ {
+  "name": "frame_rarity_4_small",
+  "file": "sprites/rarity/frame_rarity_4_small.png",
+  "size_design": [
+   52,
+   52
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Епічна» (<70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 4, кути 9).",
+  "border_px": {
+   "left": 51,
+   "top": 51,
+   "right": 51,
+   "bottom": 51
+  },
+  "size_px": [
+   156,
+   156
+  ]
+ },
+ {
+  "name": "frame_rarity_5_small",
+  "file": "sprites/rarity/frame_rarity_5_small.png",
+  "size_design": [
+   52,
+   52
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Легендарна» (<70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 4, кути 9).",
+  "border_px": {
+   "left": 51,
+   "top": 51,
+   "right": 51,
+   "bottom": 51
+  },
+  "size_px": [
+   156,
+   156
+  ]
+ },
+ {
+  "name": "frame_rarity_6_small",
+  "file": "sprites/rarity/frame_rarity_6_small.png",
+  "size_design": [
+   52,
+   52
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Рамка «Космічна» (<70 px). Картинка W4DarkCanvas під рамкою, у вирізі (відступ 4, кути 9).",
+  "border_px": {
+   "left": 51,
+   "top": 51,
+   "right": 51,
+   "bottom": 51
+  },
+  "size_px": [
+   156,
+   156
+  ]
+ },
+ {
+  "name": "pips_1",
+  "file": "sprites/rarity/pips_1.png",
+  "size_design": [
+   20,
+   14
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітки рідкості під рамкою (1), по центру нижнього краю, на 8 нижче.",
+  "size_px": [
+   60,
+   42
+  ]
+ },
+ {
+  "name": "pips_2",
+  "file": "sprites/rarity/pips_2.png",
+  "size_design": [
+   29,
+   14
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітки рідкості під рамкою (2), по центру нижнього краю, на 8 нижче.",
+  "size_px": [
+   87,
+   42
+  ]
+ },
+ {
+  "name": "pips_3",
+  "file": "sprites/rarity/pips_3.png",
+  "size_design": [
+   38,
+   14
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітки рідкості під рамкою (3), по центру нижнього краю, на 8 нижче.",
+  "size_px": [
+   114,
+   42
+  ]
+ },
+ {
+  "name": "pips_4",
+  "file": "sprites/rarity/pips_4.png",
+  "size_design": [
+   47,
+   14
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітки рідкості під рамкою (4), по центру нижнього краю, на 8 нижче.",
+  "size_px": [
+   141,
+   42
+  ]
+ },
+ {
+  "name": "pips_5",
+  "file": "sprites/rarity/pips_5.png",
+  "size_design": [
+   56,
+   14
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітки рідкості під рамкою (5), по центру нижнього краю, на 8 нижче.",
+  "size_px": [
+   168,
+   42
+  ]
+ },
+ {
+  "name": "pips_6",
+  "file": "sprites/rarity/pips_6.png",
+  "size_design": [
+   65,
+   14
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітки рідкості під рамкою (6), по центру нижнього краю, на 8 нижче.",
+  "size_px": [
+   195,
+   42
+  ]
+ },
+ {
+  "name": "frame_glow_epic",
+  "file": "sprites/rarity/frame_glow_epic.png",
+  "size_design": [
+   164,
+   164
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Гало навколо рамки (під рамкою).",
+  "border_px": {
+   "left": 156,
+   "top": 156,
+   "right": 156,
+   "bottom": 156
+  },
+  "size_px": [
+   492,
+   492
+  ]
+ },
+ {
+  "name": "frame_glow_legendary",
+  "file": "sprites/rarity/frame_glow_legendary.png",
+  "size_design": [
+   164,
+   164
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Гало навколо рамки (під рамкою).",
+  "border_px": {
+   "left": 156,
+   "top": 156,
+   "right": 156,
+   "bottom": 156
+  },
+  "size_px": [
+   492,
+   492
+  ]
+ },
+ {
+  "name": "frame_glow_cosmic",
+  "file": "sprites/rarity/frame_glow_cosmic.png",
+  "size_design": [
+   164,
+   164
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Гало навколо рамки (під рамкою).",
+  "border_px": {
+   "left": 156,
+   "top": 156,
+   "right": 156,
+   "bottom": 156
+  },
+  "size_px": [
+   492,
+   492
+  ]
+ },
+ {
+  "name": "sparkle",
+  "file": "sprites/rarity/sparkle.png",
+  "size_design": [
+   24,
+   24
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іскра: Легендарна (2 кути), Космічна, «планета ожила».",
+  "size_px": [
+   72,
+   72
+  ]
+ },
+ {
+  "name": "slot_empty",
+  "file": "sprites/slots/slot_empty.png",
+  "size_design": [
+   72,
+   72
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Порожня комірка з «+» (своя планета).",
+  "size_px": [
+   216,
+   216
+  ]
+ },
+ {
+  "name": "slot_empty_readonly",
+  "file": "sprites/slots/slot_empty_readonly.png",
+  "size_design": [
+   72,
+   72
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Порожня комірка без «+» (чужа планета).",
+  "size_px": [
+   216,
+   216
+  ]
+ },
+ {
+  "name": "slot_frame_base",
+  "file": "sprites/slots/slot_frame_base.png",
+  "size_design": [
+   72,
+   72
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Основа заповненої комірки: картинка 64×64 по центру (кути 9).",
+  "size_px": [
+   216,
+   216
+  ]
+ },
+ {
+  "name": "slot_frame_stroke",
+  "file": "sprites/slots/slot_frame_stroke.png",
+  "size_design": [
+   72,
+   72
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Рамка заповненої комірки поверх картинки; тонувати кольором рідкості rarity-1…6.",
+  "size_px": [
+   216,
+   216
+  ]
+ },
+ {
+  "name": "slot_selected",
+  "file": "sprites/slots/slot_selected.png",
+  "size_design": [
+   124,
+   124
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Кільце вибраної комірки з гало (комірка ×1.1).",
+  "size_px": [
+   372,
+   372
+  ]
+ },
+ {
+  "name": "pip_empty",
+  "file": "sprites/slots/pip_empty.png",
+  "size_design": [
+   16,
+   16
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Мітка прогресу: порожня.",
+  "size_px": [
+   48,
+   48
+  ]
+ },
+ {
+  "name": "pip_filled",
+  "file": "sprites/slots/pip_filled.png",
+  "size_design": [
+   16,
+   16
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Мітка прогресу: заповнена — тонувати головним кольором картинки; поверх pip_shine.",
+  "size_px": [
+   48,
+   48
+  ]
+ },
+ {
+  "name": "pip_shine",
+  "file": "sprites/slots/pip_shine.png",
+  "size_design": [
+   16,
+   16
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Блиск поверх pip_filled.",
+  "size_px": [
+   48,
+   48
+  ]
+ },
+ {
+  "name": "icon_back",
+  "file": "sprites/icons/icon_back.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_gear",
+  "file": "sprites/icons/icon_gear.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_planet",
+  "file": "sprites/icons/icon_planet.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_grid",
+  "file": "sprites/icons/icon_grid.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_trophy",
+  "file": "sprites/icons/icon_trophy.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_plus",
+  "file": "sprites/icons/icon_plus.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_lock",
+  "file": "sprites/icons/icon_lock.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_infinity",
+  "file": "sprites/icons/icon_infinity.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_levels",
+  "file": "sprites/icons/icon_levels.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_restore",
+  "file": "sprites/icons/icon_restore.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_chev",
+  "file": "sprites/icons/icon_chev.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_play",
+  "file": "sprites/icons/icon_play.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка «Грати» (залита).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_close",
+  "file": "sprites/icons/icon_close.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка.",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_pencil",
+  "file": "sprites/icons/icon_pencil.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка.",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_check",
+  "file": "sprites/icons/icon_check.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка.",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_wifi_off",
+  "file": "sprites/icons/icon_wifi_off.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка.",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "icon_rotate_left",
+  "file": "sprites/icons/icon_rotate_left.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка.",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "oil_drop",
+  "file": "sprites/oil/oil_drop.png",
+  "size_design": [
+   72,
+   72
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Крапля нафти (для 16/24/30/48/72 — масштабувати).",
+  "size_px": [
+   216,
+   216
+  ]
+ },
+ {
+  "name": "oil_pack_1",
+  "file": "sprites/oil/oil_pack_1.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 1 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "oil_pack_2",
+  "file": "sprites/oil/oil_pack_2.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 10 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "oil_pack_3",
+  "file": "sprites/oil/oil_pack_3.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 100 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "oil_pack_4",
+  "file": "sprites/oil/oil_pack_4.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 500 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "avatar_1",
+  "file": "sprites/avatars/avatar_1.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_2",
+  "file": "sprites/avatars/avatar_2.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_3",
+  "file": "sprites/avatars/avatar_3.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_4",
+  "file": "sprites/avatars/avatar_4.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_5",
+  "file": "sprites/avatars/avatar_5.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_6",
+  "file": "sprites/avatars/avatar_6.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_7",
+  "file": "sprites/avatars/avatar_7.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_8",
+  "file": "sprites/avatars/avatar_8.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Аватар-крапля (масштабувати 36–96).",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_incognito",
+  "file": "sprites/avatars/avatar_incognito.png",
+  "size_design": [
+   96,
+   96
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "«Гравець-інкогніто».",
+  "size_px": [
+   288,
+   288
+  ]
+ },
+ {
+  "name": "avatar_ring_selected",
+  "file": "sprites/avatars/avatar_ring_selected.png",
+  "size_design": [
+   108,
+   108
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Кільце вибраного аватара (відступ 3 від краю).",
+  "size_px": [
+   324,
+   324
+  ]
+ },
+ {
+  "name": "logo_spacepaint",
+  "file": "sprites/brand/logo_spacepaint.png",
+  "size_design": [
+   296,
+   70
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Лого SpacePaint (підпис «Фарбуй галактику» — текстом TMP).",
+  "size_px": [
+   888,
+   210
+  ]
+ },
+ {
+  "name": "home_hero",
+  "file": "sprites/brand/home_hero.png",
+  "size_design": [
+   400,
+   240
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Заставка головного екрана (планета-заглушка з орбітою блоків). Стискається на малих екранах.",
+  "size_px": [
+   1200,
+   720
+  ]
+ }
+]

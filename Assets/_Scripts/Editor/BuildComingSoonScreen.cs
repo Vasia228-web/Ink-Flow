@@ -24,7 +24,7 @@ namespace InkFlow.Editor
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

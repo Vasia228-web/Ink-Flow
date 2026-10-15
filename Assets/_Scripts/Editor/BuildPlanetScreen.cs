@@ -15,7 +15,7 @@ namespace InkFlow.Editor
     /// Збирає екран планети-вітрини (майстер-док §12) за розміткою макета «Ink Flow v2».
     /// Меню: Ink Flow → Setup → Build Planet Screen.
     ///
-    /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Прив'язки: шапка до верху SafeArea,
+    /// Числа — px макета × K (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Прив'язки: шапка до верху SafeArea,
     /// підказка, прогрес і кнопка «Колекція» — до низу, планета центрується в тому, що лишилось.
     /// Слоти — чотири шари під диском (плями, панелі, рамки, пікселі), щоб канвас батчив кожен шар
     /// одним викликом; пул — на найбільшу планету з запасом.
@@ -33,7 +33,7 @@ namespace InkFlow.Editor
         /// <summary>Маркерів у пулі: найбільша планета дефолтної розкладки — 12, конфіг дозволяє до 24.</summary>
         public const int MaxSlots = 24;
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

@@ -73,7 +73,7 @@ namespace InkFlow.UI.Tests
             rig.Show(rig.NewSession(25));
             var canvas = Child(rig, "Picture").GetComponentInChildren<RawImage>(true).rectTransform;
             var root = Child(rig, "Picture");
-            var shownSide = Mathf.Max(canvas.rect.width, canvas.rect.height) * root.localScale.x / (1080f / 390f);
+            var shownSide = Mathf.Max(canvas.rect.width, canvas.rect.height) * root.localScale.x / DesignSystem.MockupToReference;
             Assert.Greater(shownSide, 132f + 10f, $"полотно {shownSide:0} px макета");
         }
 

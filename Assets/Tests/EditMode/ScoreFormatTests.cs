@@ -5,15 +5,20 @@ namespace InkFlow.Core.Tests
 {
     /// <summary>
     /// Документ §11: рахунок і рекорд до 999 999 999 ніколи не налазять на сусідів —
-    /// повний запис із вузьким пробілом, далі менший шрифт, далі компактний формат.
+    /// повний запис із нерозривним пробілом, далі менший шрифт, далі компактний формат.
     /// </summary>
     public sealed class ScoreFormatTests
     {
-        private const string T = " ";
+        private const string T = "\u00A0";
 
         [Test]
-        public void Full_SeparatesThousandsWithAThinSpace()
+        public void Full_SeparatesThousandsWithANoBreakSpace()
         {
+            // U+00A0, не звичайний пробіл і не U+2009: «1 240» мусить лишатись одним словом для TMP.
+            Assert.AreEqual('\u00A0', ScoreFormat.ThousandsSpace);
+            Assert.AreEqual(ScoreFormat.ThousandsSpace, ScoreFormat.Full(999_999_999)[3]);
+            Assert.IsFalse(ScoreFormat.Full(999_999_999).Contains(" "), "звичайного пробілу в числі бути не може");
+
             Assert.AreEqual("0", ScoreFormat.Full(0));
             Assert.AreEqual("999", ScoreFormat.Full(999));
             Assert.AreEqual("1" + T + "000", ScoreFormat.Full(1000));
@@ -58,7 +63,7 @@ namespace InkFlow.Core.Tests
         public void NarrowestColumn_HoldsAnyScoreUpToABillion()
         {
             // Найвужча колонка рахунку — RunLayout.StatsMinWidth px макета при найменшому шрифті 0.55 × 52 одиниць.
-            var column = RunLayout.StatsMinWidth * (1080f / 390f);
+            var column = RunLayout.StatsMinWidth * (1080f / BoardGeometry.ScreenWidth);
             const float max = 52f;
             const float min = max * 0.55f;
             foreach (var value in new long[] { 0, 9, 99, 999, 9_999, 99_999, 999_999, 9_999_999, 99_999_999, 999_999_999, 123_456_789 })

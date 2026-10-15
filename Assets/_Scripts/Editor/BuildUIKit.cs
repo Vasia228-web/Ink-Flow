@@ -27,6 +27,8 @@ namespace InkFlow.Editor
         private const string ScenePath = "Assets/Scenes/UIKit.unity";
         private const string SpriteFolder = "Assets/_Sprites/UI";
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
+        private const string BlackFontPath = GenerateFontAsset.BlackPath;
+        private const string BodyFontPath = GenerateFontAsset.BodyPath;
 
         [MenuItem("Ink Flow/Setup/Build UI Kit")]
         public static void Build()
@@ -46,9 +48,13 @@ namespace InkFlow.Editor
             // Кожен крок в окремому try: виняток в одному не має обривати збірку мовчки —
             // саме так недоступна для читання текстура вбила генерацію шрифтів і префабів.
             Step("UI-спрайти", GenerateUISprites.Generate);
+            Step("Спрайти U1Glaze", U1GlazeSprites.ImportAll);
             Step("TMP-шрифти", GenerateFontAsset.Generate);
             Step("TMP Sprite Asset", GenerateSpriteAsset.Generate);
             EnsureDesignSystem();
+            // Матеріал тіні тексту читає токени DesignSystem — тому після нього, і підв'язка окремо.
+            Step("Матеріал тіні тексту", GenerateFontAsset.EnsureShadowMaterial);
+            WireShadowMaterial();
 
             InkFlowBootstrap.EnsureFolder(PrefabFolder);
             BuildGlassPanel();
@@ -100,20 +106,32 @@ namespace InkFlow.Editor
                 AssetDatabase.CreateAsset(design, DesignSystemPath);
             }
 
-            // Шрифт підв'язуємо тут: значення кольорів і метрик уже стоять
-            // за замовчуванням у самому класі — вони і є витягом із макета.
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
-            if (font != null)
+            // Шрифти підв'язуємо тут: значення кольорів і метрик уже стоять
+            // за замовчуванням у самому класі — вони і є витягом із еталона.
+            // U1Glaze: Black 900 (заголовки, числа, кнопки) і Bold 700 (текст); ExtraBold — старі екрани до кроку 10.
+            var so = new SerializedObject(design);
+            foreach (var (field, path) in new[] { ("font", FontPath), ("fontBlack", BlackFontPath), ("fontBody", BodyFontPath) })
             {
-                var so = new SerializedObject(design);
-                so.FindProperty("font").objectReferenceValue = font;
-                so.ApplyModifiedPropertiesWithoutUndo();
+                var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
+                if (font != null)
+                    so.FindProperty(field).objectReferenceValue = font;
+                else
+                    Debug.LogWarning($"[InkFlow] {path} не знайдено — DesignSystem.{field} лишається порожнім (bash Tools/fetch-fonts.sh → Generate Font Assets).");
             }
-            else
-            {
-                Debug.LogWarning($"[InkFlow] {FontPath} не знайдено — DesignSystem лишається без шрифту.");
-            }
+            so.ApplyModifiedPropertiesWithoutUndo();
 
+            EditorUtility.SetDirty(design);
+        }
+
+        private static void WireShadowMaterial()
+        {
+            var design = LoadDesign();
+            var material = AssetDatabase.LoadAssetAtPath<Material>(GenerateFontAsset.BlackShadowMaterialPath);
+            if (design == null || material == null)
+                return;
+            var so = new SerializedObject(design);
+            so.FindProperty("fontBlackShadow").objectReferenceValue = material;
+            so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(design);
         }
 
@@ -259,48 +277,71 @@ namespace InkFlow.Editor
             finally { Object.DestroyImmediate(root); }
         }
 
+        /// <summary>
+        /// Капсула нафти U1Glaze: 9-slice capsule, крапля oil_drop 24, число Nunito Black і плитка «+»
+        /// (capsule_plus + icon_plus). Ширина росте за вмістом (HorizontalLayoutGroup + fitter):
+        /// «999 999 999» вміщається, не переносячись. Висота — 46 px макета.
+        /// </summary>
         private static void BuildCurrencyWidget()
         {
             var design = LoadDesign();
-            var rounded = LoadSprite("rounded-rect");
-            var circle = LoadSprite("circle-soft");
-            var gloss = LoadSprite("circle-gloss");
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
-
-            var root = NewUIObject("CurrencyWidget", new Vector2(300f, 90f));
+            var height = U1.Px(46f);
+            var root = NewUIObject("CurrencyWidget", new Vector2(U1.Px(118f), height));
             try
             {
-                var fill = AddImage(root, "Fill", rounded, design.GlassFill);
-                var stroke = AddImage(root, "Stroke", LoadSprite("rounded-rect-outline"), design.GlassStroke);
-                var panel = root.AddComponent<GlassPanel>();
-                Wire(panel, ("design", design), ("fill", fill), ("stroke", stroke));
+                var capsule = root.AddComponent<Image>();
+                capsule.sprite = U1.S("capsule");
+                capsule.type = Image.Type.Sliced;
+                capsule.raycastTarget = false;
 
-                var iconGo = NewChild(root, "DropIcon", new Vector2(56f, 56f));
-                iconGo.GetComponent<RectTransform>().anchoredPosition = new Vector2(-95f, 0f);
-                var icon = iconGo.AddComponent<Image>();
-                icon.sprite = circle;
-                icon.raycastTarget = false;
+                var layout = root.AddComponent<HorizontalLayoutGroup>();
+                layout.padding = new RectOffset((int)U1.Px(10f), (int)U1.Px(1f), 0, 0);
+                layout.spacing = U1.Px(6f);
+                layout.childAlignment = TextAnchor.MiddleLeft;
+                layout.childControlWidth = true;
+                layout.childControlHeight = true;
+                layout.childForceExpandWidth = false;
+                layout.childForceExpandHeight = false;
+                root.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+                var element = root.AddComponent<LayoutElement>();
+                element.preferredHeight = height;
+                element.minHeight = height;
 
-                var glossGo = NewChild(iconGo, "Gloss", Vector2.zero, stretch: true);
-                var glossImage = glossGo.AddComponent<Image>();
-                glossImage.sprite = gloss;
-                glossImage.raycastTarget = false;
+                var dropGo = NewChild(root, "Drop", Vector2.zero);
+                var drop = dropGo.AddComponent<Image>();
+                drop.sprite = U1.S("oil_drop");
+                drop.raycastTarget = false;
+                var dropLayout = dropGo.AddComponent<LayoutElement>();
+                dropLayout.preferredWidth = dropLayout.preferredHeight = U1.Px(24f);
 
-                var labelGo = NewChild(root, "Amount", new Vector2(180f, 60f));
-                labelGo.GetComponent<RectTransform>().anchoredPosition = new Vector2(25f, 0f);
-                var label = labelGo.AddComponent<TextMeshProUGUI>();
-                label.text = "1 240";
-                label.alignment = TextAlignmentOptions.Left;
-                label.fontSize = design.FontSizeLabel;
-                label.raycastTarget = false;
-                if (font != null)
-                    label.font = font;
+                var label = U1.Text(root, "Amount", "1\u00A0240", design, U1.Role.H3, design.InkText, TextAlignmentOptions.Left);
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.overflowMode = TextOverflowModes.Overflow;
+
+                // «+»: плитка 32, але зона тапу — 44×46 (SPEC «нічого меншого за 44»): прозора підкладка ловить тап.
+                var plusGo = NewChild(root, "Plus", Vector2.zero);
+                var plusCatcher = plusGo.AddComponent<Image>();
+                plusCatcher.color = Color.clear;
+                var plusLayout = plusGo.AddComponent<LayoutElement>();
+                plusLayout.preferredWidth = design.TapMin;
+                plusLayout.preferredHeight = height;
+                var tileGo = NewChild(plusGo, "Tile", new Vector2(U1.Px(32f), U1.Px(32f)));
+                var plusTile = tileGo.AddComponent<Image>();
+                plusTile.sprite = U1.S("capsule_plus");
+                plusTile.raycastTarget = false;
+                var plusIconGo = NewChild(tileGo, "Icon", new Vector2(U1.Px(16f), U1.Px(16f)));
+                var plusIcon = plusIconGo.AddComponent<Image>();
+                plusIcon.sprite = U1.S("icon_plus");
+                plusIcon.raycastTarget = false;
+                var plusButton = plusGo.AddComponent<Button>();
+                plusButton.targetGraphic = plusTile;
+                plusButton.transition = Selectable.Transition.None;
+                tileGo.AddComponent<PressScale>().Bind(design);
 
                 var widget = root.AddComponent<CurrencyWidget>();
                 Wire(widget,
-                    ("design", design), ("panel", panel), ("dropIcon", icon),
-                    ("dropGloss", glossImage), ("amountLabel", label));
-                panel.Apply();
+                    ("design", design), ("capsule", capsule), ("drop", drop),
+                    ("amountLabel", label), ("plusButton", plusButton), ("plusIcon", plusIcon));
                 widget.Apply();
 
                 SavePrefab(root, "CurrencyWidget");

@@ -31,6 +31,12 @@ DANGER = [
     (r"\.sprite\s*=", "sprite"),
     (r"\.fillAmount\s*=", "fillAmount"),
     (r"\.pixelsPerUnitMultiplier\s*=", "pixelsPerUnitMultiplier"),
+    # Перелив Космічної рамки й подібне: крутити UV чи параметри матеріалу щокадру — перебудова
+    # графіки або розрив батча; час бере сам шейдер із _Time (InkFlow/UI Sheen).
+    (r"\.uvRect\s*=", "uvRect"),
+    (r"\.material\s*=", "material"),
+    (r"material\.Set(?:Float|Color|Texture|Vector|Int)\(", "material.Set*"),
+    (r"\.mainTextureOffset\s*=", "mainTextureOffset"),
     (r"SetAllDirty\(", "SetAllDirty"),
     (r"SetVerticesDirty\(", "SetVerticesDirty"),
     (r"SetLayoutDirty\(", "SetLayoutDirty"),

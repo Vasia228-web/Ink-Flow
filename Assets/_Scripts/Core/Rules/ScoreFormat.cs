@@ -5,7 +5,7 @@ using System.Text;
 namespace InkFlow.Core
 {
     /// <summary>
-    /// Рахунок і рекорд на екрані (документ §11): розряди відділяються вузьким пробілом;
+    /// Рахунок і рекорд на екрані (документ §11): розряди відділяються нерозривним пробілом;
     /// коли повне число не вміщається в колонку навіть найменшим читабельним шрифтом —
     /// компактний формат (1,2 млн · 987 млн · 1,2 млрд). Цифри однакової ширини (табличні),
     /// тож ширина не стрибає під час нарахування; ширину рахує це правило, а не око:
@@ -13,14 +13,18 @@ namespace InkFlow.Core
     /// </summary>
     public static class ScoreFormat
     {
-        /// <summary>Вузький пробіл між розрядами (U+2009). Є в Nunito.</summary>
-        public const char ThinSpace = ' ';
+        /// <summary>
+        /// Нерозривний пробіл між розрядами (U+00A0): «1 240» і «999 999 999» не переносяться
+        /// (SPEC U1Glaze). Один спосіб на проєкт — символ у рядку, без тегів TMP; гліф є в атласі
+        /// шрифту (діапазон Latin-1), TMP трактує його як нерозривний.
+        /// </summary>
+        public const char ThousandsSpace = '\u00A0';
 
         /// <summary>Ширина табличної цифри в em — стільки займає кожна цифра при моноширинному наборі.</summary>
         public const float DigitEm = 0.62f;
 
-        /// <summary>Ширина вузького пробілу в em.</summary>
-        public const float ThinSpaceEm = 0.22f;
+        /// <summary>Ширина пробілу Nunito в em (нерозривний має той самий advance, що й звичайний).</summary>
+        public const float ThousandsSpaceEm = 0.27f;
 
         /// <summary>Ширина літери суфікса («млн», «млрд») в em — з запасом.</summary>
         public const float LetterEm = 0.62f;
@@ -36,7 +40,7 @@ namespace InkFlow.Core
             for (var i = 0; i < digits.Length; i++)
             {
                 if (i > 0 && (digits.Length - i) % 3 == 0)
-                    sb.Append(ThinSpace);
+                    sb.Append(ThousandsSpace);
                 sb.Append(digits[i]);
             }
             return sb.ToString();
@@ -51,8 +55,8 @@ namespace InkFlow.Core
             var sign = value < 0 ? "−" : string.Empty;
             // Одиниця — за ОКРУГЛЕНИМ значенням: 999 999 999 — це «1,0 млрд», а не «1000 млн».
             if (abs + 500_000 < 1_000_000_000)
-                return sign + Scaled(abs, 1_000_000) + ThinSpace + "млн";
-            return sign + Scaled(abs, 1_000_000_000) + ThinSpace + "млрд";
+                return sign + Scaled(abs, 1_000_000) + ThousandsSpace + "млн";
+            return sign + Scaled(abs, 1_000_000_000) + ThousandsSpace + "млрд";
         }
 
         /// <summary>1,2 — одна десяткова до 10; далі ціле (12; 987). Округлення до найближчого.</summary>
@@ -72,7 +76,7 @@ namespace InkFlow.Core
             for (var i = 0; i < text.Length; i++)
             {
                 var c = text[i];
-                if (c == ThinSpace) w += ThinSpaceEm;
+                if (c == ThousandsSpace) w += ThousandsSpaceEm;
                 else if (c >= '0' && c <= '9') w += DigitEm;
                 else if (c == ',') w += 0.3f;
                 else w += LetterEm;

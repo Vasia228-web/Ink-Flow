@@ -46,7 +46,7 @@ namespace InkFlow.Editor
         /// <summary>Рядків карток у пулі: в'юпорт iPhone SE вміщає ~4, запас — два.</summary>
         private const int PoolRows = 6;
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

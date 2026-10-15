@@ -5,9 +5,9 @@ using UnityEngine;
 namespace InkFlow.Style
 {
     /// <summary>
-    /// ЄДИНЕ джерело візуальних значень гри. Витягнуто з макета Claude Design
-    /// («Ink Flow v2», полотно 390×844 px) і перераховано в reference-одиниці UGUI
-    /// 1080×1920 з коефіцієнтом 1080/390 ≈ 2.769.
+    /// ЄДИНЕ джерело візуальних значень гри. Витягнуто з еталона U1Glaze
+    /// (docs/StyleRef/U1Glaze, полотно 402×874 px) і перераховано в reference-одиниці UGUI
+    /// 1080×1920 з коефіцієнтом 1080/402 ≈ 2.687.
     ///
     /// ПРАВИЛО: жодного кольору, радіуса чи тривалості в коді або префабах —
     /// усе читається звідси. Інакше зміна стилю перетворюється на пошук по всьому проєкту.
@@ -16,8 +16,11 @@ namespace InkFlow.Style
     [CreateAssetMenu(fileName = "DesignSystem", menuName = "Ink Flow/Design System")]
     public sealed class DesignSystem : ScriptableObject
     {
-        /// <summary>Ширина полотна макета в px: hint-size="390,844" у Ink Flow v2.dc.html.</summary>
-        public const float MockupWidth = 390f;
+        /// <summary>
+        /// Ширина полотна макета в px — 402×874 (U1Glaze, SCREENS.md). ЄДИНА константа масштабу
+        /// на проєкт: кожен збирач бере <see cref="MockupToReference"/> звідси, а не тримає свою копію.
+        /// </summary>
+        public const float MockupWidth = 402f;
 
         /// <summary>Ширина reference-полотна UGUI.</summary>
         public const float ReferenceWidth = 1080f;
@@ -31,11 +34,141 @@ namespace InkFlow.Style
         /// значеннями. Без цього виправлені токени лишались би тільки в коді, а гра
         /// продовжувала б читати старий асет.
         /// </summary>
-        public const int CurrentTokenVersion = 20;
+        public const int CurrentTokenVersion = 21;
 
         [HideInInspector] [SerializeField] private int tokenVersion = CurrentTokenVersion;
 
         public int TokenVersion => tokenVersion;
+
+
+        // ═════════════════════════ U1Glaze (docs/StyleRef/U1Glaze/tokens.json) ═════════════════════════
+        // Єдине джерело стилю інтерфейсу SpacePaint. Значення — з tokens.json і SPEC.md; розміри —
+        // у reference-одиницях (px макета 402×874 × MockupToReference). Токени старого стилю нижче
+        // по файлу живуть, доки живуть їхні споживачі, і зникають разом із ними на кроці 10.
+
+        [Header("U1Glaze: палітра")]
+        [Tooltip("Фон екрана: радіальний градієнт bg-top → space-900.")]
+        [SerializeField] private Color spaceTop = Hex("#221C52");
+        [SerializeField] private Color spaceBottom = Hex("#070718");
+        [Tooltip("Панель, картка, діалог: градієнт зверху вниз (запечено в спрайтах panel_*; тут — для тонування й тексту).")]
+        [SerializeField] private Color panelTop = Hex("#26234F");
+        [SerializeField] private Color panelBottom = Hex("#16142F");
+        [SerializeField] private Color panelLowTop = Hex("#1F1C44");
+        [SerializeField] private Color panelLowBottom = Hex("#141230");
+        [Tooltip("Скло: кнопки-іконки, капсула нафти, другорядна кнопка, чипи.")]
+        [SerializeField] private Color glassTop = Hex("#2E2A5E");
+        [SerializeField] private Color glassBottom = Hex("#1B1840");
+        [Tooltip("Заглиблення: лунки, доріжки перемикачів і сегментів, порожні мітки.")]
+        [SerializeField] private Color well = Hex("#0C0B26");
+        [Tooltip("Тонкі роздільники рядків у картках (line-700).")]
+        [SerializeField] private Color line = Hex("#262645");
+        [Tooltip("Затемнення під діалогом (альфа — scrimOpacity).")]
+        [SerializeField] private Color scrim = Hex("#05040F");
+
+        [Header("U1Glaze: текст")]
+        [Tooltip("Основний текст (ink у tokens.json; тут InkText, бо Ink(InkColor) — колір чорнила).")]
+        [SerializeField] private Color inkText = Hex("#F2F4FF");
+        [SerializeField] private Color inkMuted = Hex("#A9ABD0");
+        [Tooltip("Лише дрібні допоміжні підписи (4.8:1 на panel-bottom).")]
+        [SerializeField] private Color inkDim = Hex("#7F81AB");
+        [Tooltip("Текст вимкненої (плоскої) кнопки.")]
+        [SerializeField] private Color buttonOffText = Hex("#6F71A0");
+
+        [Header("U1Glaze: акценти")]
+        [Tooltip("Головна дія — коралова цукерка (верх/середина/низ запечено в спрайті).")]
+        [SerializeField] private Color coral = Hex("#F2566F");
+        [SerializeField] private Color coral300 = Hex("#FFA592");
+        [SerializeField] private Color coral700 = Hex("#C9345A");
+        [Tooltip("Підтвердження, активна вкладка, увімкнений перемикач; текст на бірюзовому — tealInk.")]
+        [SerializeField] private Color teal = Hex("#3FD6B8");
+        [SerializeField] private Color teal100 = Hex("#C4FFF3");
+        [SerializeField] private Color teal700 = Hex("#138A76");
+        [SerializeField] private Color tealInk = Hex("#05332D");
+        [Tooltip("Бейдж «Найвигідніше», підкреслення активного табу, рекорд.")]
+        [SerializeField] private Color amber = Hex("#FFB35C");
+        [SerializeField] private Color amber300 = Hex("#FFE9A0");
+        [SerializeField] private Color amberInk = Hex("#4A2400");
+        [Tooltip("Бейдж «Популярне», лого «Space».")]
+        [SerializeField] private Color pink = Hex("#FF7FB5");
+        [SerializeField] private Color pink300 = Hex("#FFC6DC");
+        [SerializeField] private Color pinkInk = Hex("#4A0026");
+        [Tooltip("Рекорд і перше місце (11:1 на panel-bottom).")]
+        [SerializeField] private Color record = Hex("#FFC46B");
+        [Tooltip("Текст помилки й контур поля з помилкою.")]
+        [SerializeField] private Color danger = Hex("#FF8A8A");
+        [SerializeField] private Color dangerLine = Hex("#FF6F7F");
+
+        [Header("U1Glaze: рідкість (рамки, мітки, чипи) — Звичайна … Космічна")]
+        [SerializeField] private Color[] rarityFrames =
+        {
+            Hex("#9A9CC0"), Hex("#58D68D"), Hex("#5FB6FF"), Hex("#B77BFF"), Hex("#FFB35C"), Hex("#FF6FAE")
+        };
+
+        [Header("U1Glaze: типографіка (Nunito 900 — заголовки, числа, кнопки; 700 — текст)")]
+        [Tooltip("Nunito Black 900: ui-display, ui-h1…h3, ui-button, ui-label.")]
+        [SerializeField] private TMPro.TMP_FontAsset? fontBlack;
+        [Tooltip("Nunito Bold 700: ui-body, ui-caption, рядки списків.")]
+        [SerializeField] private TMPro.TMP_FontAsset? fontBody;
+        [Tooltip("Матеріал із тінню тексту для коралової кнопки (Nunito Black SDF - Shadow).")]
+        [SerializeField] private Material? fontBlackShadow;
+        [SerializeField] private float uiDisplay = 145f;      // 54 px — лого, велике число при програші
+        [SerializeField] private float uiH1 = 75f;            // 28 px — назва екрана, планети, діалогу
+        [SerializeField] private float uiH2 = 59f;            // 22 px — заголовки карток, числа статистики
+        [SerializeField] private float uiH3 = 48f;            // 18 px — імена, назви картинок, рядки списків
+        [SerializeField] private float uiButton = 54f;        // 20 px — текст кнопок 56
+        [SerializeField] private float uiButtonSmall = 46f;   // 17 px — текст кнопок 46
+        [SerializeField] private float uiBody = 43f;          // 16 px — пояснення
+        [SerializeField] private float uiLabel = 32f;         // 12 px — підписи розділів великими
+        [SerializeField] private float uiCaption = 35f;       // 13 px — дрібні підписи й лічильники
+        [Tooltip("Розрядка підписів великими літерами: .16em макета (одиниці TMP — соті em).")]
+        [SerializeField] private float uiLabelSpacing = 16f;
+        [Tooltip("Тінь тексту коралової кнопки: 0 −2 #6E0A28 35 % (SPEC).")]
+        [SerializeField] private Color buttonTextShadow = new Color(0.43f, 0.04f, 0.16f, 0.35f);
+        [SerializeField, Range(-1f, 0f)] private float buttonTextShadowOffsetY = -0.35f;
+        [SerializeField, Range(0f, 1f)] private float buttonTextShadowSoftness = 0.2f;
+
+        [Header("U1Glaze: розміри, reference-одиниці (px макета × 2.687)")]
+        [SerializeField] private float headerHeight = 150f;       // 56
+        [SerializeField] private float navHeight = 204f;          // 76
+        [SerializeField] private float buttonHeight = 150f;       // 56
+        [SerializeField] private float buttonSmallHeight = 124f;  // 46
+        [SerializeField] private float iconButtonSize = 124f;     // 46
+        [SerializeField] private float tapMin = 118f;             // 44 — нічого меншого
+        [SerializeField] private float sideGutter = 43f;          // 16 — бічні поля екрана
+        [SerializeField] private float cardGap = 32f;             // 12 — між картками й кнопками
+        [SerializeField] private float listRowHeight = 150f;      // 56 — рядок списку (56–64)
+        [SerializeField] private float navItemTap = 161f;         // 60 — пункт навігації
+
+        [Header("U1Glaze: прозорості й анімації (повзунки)")]
+        [Tooltip("Затемнення під діалогом.")]
+        [SerializeField, Range(0f, 1f)] private float scrimOpacity = 0.78f;
+        [Tooltip("Затемнення під нижнім листом дій.")]
+        [SerializeField, Range(0f, 1f)] private float sheetScrimOpacity = 0.55f;
+        [Tooltip("Недоступний вміст (пакети, коли магазин недоступний).")]
+        [SerializeField, Range(0f, 1f)] private float disabledOpacity = 0.4f;
+        [Tooltip("Сила гало під кнопками (button_glow_*).")]
+        [SerializeField, Range(0f, 1f)] private float buttonGlowAlpha = 0.32f;
+        [Tooltip("Сила гало навколо рамок Епічної+ (frame_glow_*).")]
+        [SerializeField, Range(0f, 1f)] private float frameGlowAlpha = 1f;
+        [Tooltip("Поява діалогу: масштаб від dialogAppearScale до 1 і альфа 0 → 1.")]
+        [SerializeField, Min(0.05f)] private float dialogAppearDuration = 0.2f;
+        [SerializeField, Range(0.5f, 1f)] private float dialogAppearScale = 0.92f;
+        [Tooltip("Наскільки темнішає кнопка під пальцем (частка) і на скільки секунд.")]
+        [SerializeField, Range(0f, 0.6f)] private float pressDarken = 0.18f;
+        [SerializeField, Min(0.02f)] private float pressDarkenDuration = 0.08f;
+        [Tooltip("Один оберт переливу Космічної рамки, сек.")]
+        [SerializeField, Min(0.5f)] private float cosmicSheenPeriod = 6f;
+        [Tooltip("«Планета ожила»: гало 0 → 1, сек.")]
+        [SerializeField, Min(0.1f)] private float planetAliveDuration = 0.6f;
+
+        [Header("U1Glaze: планета — «Сфера» до N комірок, «Горизонт» від N+1")]
+        [Tooltip("До стількох комірок — куля, що крутиться; від наступної — «Горизонт».")]
+        [SerializeField, Range(1, 24)] private int sphereMaxSlots = 8;
+        [Tooltip("Нахил осі кулі до глядача, градуси (globe_slots.py: 16).")]
+        [SerializeField, Range(0f, 45f)] private float sphereAxisTilt = 16f;
+        [Tooltip("«Горизонт»: радіус великої планети, px макета (SPEC: ≈720), і проміжок між комірками в ряду, px.")]
+        [SerializeField, Min(200f)] private float horizonRadius = 720f;
+        [SerializeField, Min(0f)] private float horizonRowGap = 12f;
 
         // ───────────────────────── Палітра чорнила ─────────────────────────
 
@@ -1399,6 +1532,89 @@ namespace InkFlow.Style
         }
 
         /// <summary>Переводить px макета в reference-одиниці UGUI.</summary>
+
+        // ───────────────────────── U1Glaze: акцесори ─────────────────────────
+        public Color SpaceTop => spaceTop;
+        public Color SpaceBottom => spaceBottom;
+        public Color PanelTop => panelTop;
+        public Color PanelBottom => panelBottom;
+        public Color PanelLowTop => panelLowTop;
+        public Color PanelLowBottom => panelLowBottom;
+        public Color GlassTop => glassTop;
+        public Color GlassBottom => glassBottom;
+        public Color Well => well;
+        public Color Line => line;
+        public Color Scrim => scrim;
+        public Color InkText => inkText;
+        public Color InkMuted => inkMuted;
+        public Color InkDim => inkDim;
+        public Color ButtonOffText => buttonOffText;
+        public Color Coral => coral;
+        public Color Coral300 => coral300;
+        public Color Coral700 => coral700;
+        public Color Teal => teal;
+        public Color Teal100 => teal100;
+        public Color Teal700 => teal700;
+        public Color TealInk => tealInk;
+        public Color Amber => amber;
+        public Color Amber300 => amber300;
+        public Color AmberInk => amberInk;
+        public Color Pink => pink;
+        public Color Pink300 => pink300;
+        public Color PinkInk => pinkInk;
+        public Color Record => record;
+        public Color Danger => danger;
+        public Color DangerLine => dangerLine;
+
+        /// <summary>Колір рамки й міток рідкості U1Glaze (rarity-1 … rarity-6).</summary>
+        public Color RarityFrame(Rarity rarity)
+        {
+            var index = (int)rarity;
+            return rarityFrames != null && index >= 0 && index < rarityFrames.Length ? rarityFrames[index] : inkText;
+        }
+
+        public TMPro.TMP_FontAsset? FontBlack => fontBlack != null ? fontBlack : font;
+        public TMPro.TMP_FontAsset? FontBody => fontBody != null ? fontBody : font;
+        public Material? FontBlackShadow => fontBlackShadow;
+        public float UiDisplay => uiDisplay;
+        public float UiH1 => uiH1;
+        public float UiH2 => uiH2;
+        public float UiH3 => uiH3;
+        public float UiButton => uiButton;
+        public float UiButtonSmall => uiButtonSmall;
+        public float UiBody => uiBody;
+        public float UiLabel => uiLabel;
+        public float UiCaption => uiCaption;
+        public float UiLabelSpacing => uiLabelSpacing;
+        public Color ButtonTextShadow => buttonTextShadow;
+        public float ButtonTextShadowOffsetY => buttonTextShadowOffsetY;
+        public float ButtonTextShadowSoftness => buttonTextShadowSoftness;
+        public float HeaderHeight => headerHeight;
+        public float NavHeight => navHeight;
+        public float ButtonHeight => buttonHeight;
+        public float ButtonSmallHeight => buttonSmallHeight;
+        public float IconButtonSize => iconButtonSize;
+        public float TapMin => tapMin;
+        public float SideGutter => sideGutter;
+        public float CardGap => cardGap;
+        public float ListRowHeight => listRowHeight;
+        public float NavItemTap => navItemTap;
+        public float ScrimOpacity => scrimOpacity;
+        public float SheetScrimOpacity => sheetScrimOpacity;
+        public float DisabledOpacity => disabledOpacity;
+        public float ButtonGlowAlpha => buttonGlowAlpha;
+        public float FrameGlowAlpha => frameGlowAlpha;
+        public float DialogAppearDuration => dialogAppearDuration;
+        public float DialogAppearScale => dialogAppearScale;
+        public float PressDarken => pressDarken;
+        public float PressDarkenDuration => pressDarkenDuration;
+        public float CosmicSheenPeriod => cosmicSheenPeriod;
+        public float PlanetAliveDuration => planetAliveDuration;
+        public int SphereMaxSlots => sphereMaxSlots;
+        public float SphereAxisTilt => sphereAxisTilt;
+        public float HorizonRadius => horizonRadius;
+        public float HorizonRowGap => horizonRowGap;
+
         public static float FromMockupPx(float mockupPx) => mockupPx * MockupToReference;
 
         private static Color Hex(string hex)

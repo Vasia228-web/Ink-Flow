@@ -16,7 +16,7 @@ namespace InkFlow.Editor
     /// Збирає рейтинги за розміткою макета «Ink Flow v2».
     /// Меню: Ink Flow → Setup → Build Rankings Screen.
     ///
-    /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Рядки списку створюються тут
+    /// Числа — px макета × K (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Рядки списку створюються тут
     /// один раз і далі рециклюються — під час скролу не інстанціюється нічого.
     /// </summary>
     public static class BuildRankingsScreen
@@ -28,7 +28,7 @@ namespace InkFlow.Editor
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
         private const string PlanetShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

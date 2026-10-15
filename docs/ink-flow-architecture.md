@@ -92,7 +92,7 @@ Assets/
       Random/        IRandomSource, XorShiftRandom
       Galaxy/        PlanetType (дані метагри, що потрібні Core-тестам)
       Rgb            колір у даних без UnityEngine
-    Style/           DesignSystem (усі кольори, радіуси, тривалості), PlanetPalette, RgbExtensions
+    Style/           DesignSystem (усі кольори, радіуси, тривалості; блок U1Glaze зверху), PlanetPalette, RgbExtensions
     Gameplay/        Config/BalanceConfig, EconomyConfig, GalaxyConfig, AppConfig, PictureLibraryAsset — обгортки для інспектора
     Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Shop/ Save/
       Galaxy/        GalaxyLayout (+PlanetLayout), SlotLayout, PlanetSurface (+PlanetSlot), GalaxyProgress, PlayerId
@@ -103,10 +103,13 @@ Assets/
                      PictureView, RarityHalo, RarityFrame, RarityNames, DropFlock, CompletionCard, SnapshotBlur
       Planet/        PlanetScreen (+PlanetArgs), PlanetStage, SlotMarker, SlotAtlas
       Collection/    CollectionScreen (+CollectionArgs), CollectionCard
-      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, ComingSoonScreen, NickPrompt, ConfirmPrompt, GameAudio, …
+      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, ComingSoonScreen, NickPrompt, ConfirmPrompt, GameAudio,
+                     CurrencyWidget (капсула нафти з «+»), ComponentsShowcase (вітрина U1Glaze), …
+      Atoms/         CandyButton, ChipView, RarityFrameView, DialogView (U1Glaze); GlassPanel, NeonButton, DropView, … (старий стиль, до кроку 10)
       Hub/ Galaxy/ Shop/ Rankings/ Profile/ Atoms/
     App/             GameBootstrap, ServiceLocator, DevPanel
-    Editor/          Build*Screen, BuildMainScene, BuildUIKit, GenerateUISprites, GenerateFontAsset, RefreshPictureLibrary,
+    Editor/          Build*Screen, BuildMainScene, BuildUIKit, BuildComponentsScreen, U1 (фабрики U1Glaze), U1GlazeSprites (маніфест, атлас),
+                     UiAudit (переповнення, тапи ≥ 44), GenerateUISprites, GenerateFontAsset, RefreshPictureLibrary,
                      PictureViewBuilder (+A1Layers, K1Sprites), StyleSpriteImporter, ScreenRigBase → RunScreenRig,
                      MetaScreenRig<T>, RunScreenshots, MetaScreenshots, UiBuilder, InkFlowBootstrap, DevMenu, EconomySimulator
   _Pictures/         <тема>/<id>.txt — картинки (формат docs/pictures-format.md), 117 штук
@@ -311,7 +314,7 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 Від `InkFlow.Gameplay` лишились `BalanceConfig`, `EconomyConfig`, `GalaxyConfig`, `AppConfig` і `PictureLibraryAsset` — обгортки для інспектора, які `ToBalanceData()`/`ToEconomyData()`/`ToLayout()`/`ToAppLinks()`/`ToNickRules()`/`ToLibrary()` перетворюють на POCO Core/Meta. Ігрове поле живе в UI: партія — такий самий екран, як магазин чи профіль.
 
-`InkFlow.Style` — `DesignSystem` (усі візуальні числа), `PlanetPalette`, `RgbExtensions` (`Rgb.ToColor()` на межі Core → в'юхи). Відкладене застосування токенів з `OnValidate`/`OnEnable` — `StyleRefresh` у `UI/Common`. Палітри: `InkColor` (інтерфейс і фарби планет, не чіпати), `RarityColor(Rarity)` (шість рідкостей), `BlockTint` для кольорів родин картинки (індекси майстер-палітри Core); `PlanetPalette` — кольори типів планет для галактики.
+`InkFlow.Style` — `DesignSystem` (усі візуальні числа; з Сесії 7 — блок токенів U1Glaze: палітра, типографіка `ui*`, розміри, повзунки; `MockupWidth` 402, `MockupToReference` 1080/402 — єдиний коефіцієнт на проєкт), `PlanetPalette`, `RgbExtensions` (`Rgb.ToColor()` на межі Core → в'юхи). Відкладене застосування токенів з `OnValidate`/`OnEnable` — `StyleRefresh` у `UI/Common`. Палітри: `InkColor` (інтерфейс і фарби планет, не чіпати), `RarityColor(Rarity)` (шість рідкостей), `BlockTint` для кольорів родин картинки (індекси майстер-палітри Core); `PlanetPalette` — кольори типів планет для галактики.
 
 **Композиційний корінь** — `GameBootstrap` у `Main.unity`: читає збереження (`PlayerState` з бібліотекою картинок і балансом), реєструє сервіси в `ServiceLocator` (у редакторі й dev-збірках — `FakeAds`), віддає роутеру стан і сервіси. Залежності передаються полями через `Wire()` у збирачах, не `FindObjectOfType`.
 
@@ -319,7 +322,7 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 ## 9. Шар UI і навігація
 
-**Одна сцена `Main.unity`**, десять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Шестерня (§15) на кожному екрані — подія `ScreenBase.SettingsRequested`, роутер підписує всі екрани циклом і відкриває `SettingsScreen` з `SettingsArgs(InRun)`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
+**Одна сцена `Main.unity`**, десять екранів-префабів під одним `NavigationStack`; граф — в `AppRouter`. Канвас: reference 1080×1920, match за співвідношенням сторін (`UIRoot.MatchFor`: 0 на телефонах ≤ 9:16, до 1 на 3:4) — 1 px макета U1Glaze (402×874) = 2.687 одиниці на будь-якому телефоні. Інтерфейс U1Glaze збирається фабриками `Editor/U1` зі спрайтів `Assets/_Sprites/U1Glaze` (маніфест `sprites.json`, PPU 111.67, один атлас) і атомів `UI/Atoms`; еталон — `docs/StyleRef/U1Glaze`, вітрина — `Build Components Showcase`. Шестерня (§15) на кожному екрані — подія `ScreenBase.SettingsRequested`, роутер підписує всі екрани циклом і відкриває `SettingsScreen` з `SettingsArgs(InRun)`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
 
 Екран забігу (`EndlessScreen`) зверху вниз, px макета (`RunLayout`, Core): шапка 40 → блок 186: по центру лише картинка на полотні W4DarkCanvas (сторона `runPictureSide` 154 + запас під гало рідкості), праворуч колонка РАХУНОК/РЕКОРД 56–92 → поле 374 (панель на всю ширину мінус бічне поле 8; 64 блоки + 64 привиди) → лоток 86 при низу safe area — усе × K (1080/390). Бракує висоти — стискається спершу блок картинки (до 108), поле й лоток ніколи.
 
@@ -450,7 +453,7 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
 | EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v11, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, налаштування й посилання |
 | Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **326 тестів** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
-| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **55 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять), налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
+| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **57 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять), налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
 **Обов'язкові тести-запобіжники:**

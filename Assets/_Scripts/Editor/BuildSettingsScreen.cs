@@ -17,7 +17,7 @@ namespace InkFlow.Editor
     /// три дії («Додому», «Заново», «Колекція»), картка «Інші налаштування» (приховати профіль,
     /// мова — лише з ≥ 2 локалями, політика, підтримка, версія). Меню: Ink Flow → Setup → Build Settings Screen.
     ///
-    /// Кожне число — px макета × K, K = 1080/390. Усе нижче шапки — у вертикальному скролі: на iPhone SE
+    /// Кожне число — px макета × K, K = DesignSystem.MockupToReference (1080/402 ≈ 2.687). Усе нижче шапки — у вертикальному скролі: на iPhone SE
     /// (694 px макета заввишки) усе влазить і так, але зайвий рядок мови чи довший напис не мають
     /// обрізатись мовчки.
     /// </summary>
@@ -29,7 +29,7 @@ namespace InkFlow.Editor
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

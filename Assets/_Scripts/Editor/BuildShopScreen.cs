@@ -17,7 +17,7 @@ namespace InkFlow.Editor
     /// Збирає магазин (майстер-док §13): один екран, чотири пакети нафти сіткою 2×2, без вкладок,
     /// банерів і наборів. Меню: Ink Flow → Setup → Build Shop Screen.
     ///
-    /// Кожне число — px макета × K, K = 1080/390 ≈ 2.769. Картки пакетів: крапля зростає з пакетом
+    /// Кожне число — px макета × K, K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687. Картки пакетів: крапля зростає з пакетом
     /// (токени `oilDropSizes`), на кнопці — ціна зі стору (у префабі риска: ціни в грі немає).
     /// </summary>
     public static class BuildShopScreen
@@ -28,7 +28,7 @@ namespace InkFlow.Editor
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

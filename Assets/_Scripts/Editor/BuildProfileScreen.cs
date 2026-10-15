@@ -17,7 +17,7 @@ namespace InkFlow.Editor
     /// Збирає профіль за майстер-доком §14: візитка (аватар-крапля, нік, олівець), набір аватарів,
     /// вітринна картинка з кнопкою «Обрати з колекції». Меню: Ink Flow → Setup → Build Profile Screen.
     ///
-    /// Числа — px макета × K (K = 1080/390 ≈ 2.769). Екран скролиться цілком, разом із шапкою — так
+    /// Числа — px макета × K (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Екран скролиться цілком, разом із шапкою — так
     /// у макеті. Крапля-аватар висить ПІД верхом картки (півот зверху), а не над ним: стара збірка
     /// ставила півот знизу, крапля стирчала на 94 px над карткою, і маска скролу зрізала їй маківку.
     /// </summary>
@@ -29,7 +29,7 @@ namespace InkFlow.Editor
         private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        private const float K = 1080f / 390f;
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 

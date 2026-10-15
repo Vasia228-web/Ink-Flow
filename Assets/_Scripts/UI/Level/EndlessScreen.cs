@@ -136,8 +136,8 @@ namespace InkFlow.UI
         /// <summary>Екран у стеку навігації: перший OnExit входу — призупинення, другий (SetRoot) — вихід зі стеку.</summary>
         private bool _onStack;
 
-        /// <summary>Коефіцієнт макета (390 px) → reference-одиниці (1080), як у збирачі екрана.</summary>
-        private const float K = 1080f / 390f;
+        /// <summary>Коефіцієнт макета (402 px) → reference-одиниці (1080), як у збирачі екрана.</summary>
+        private const float K = DesignSystem.MockupToReference;
 
         private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
 
@@ -955,23 +955,22 @@ namespace InkFlow.UI
         }
 
         /// <summary>
-        /// Цифри однакової ширини (табличні), щоб ширина не стрибала під час нарахування; вузький
-        /// пробіл між розрядами — тег TMP, а не гліф: у шрифт нічого не треба допікати.
+        /// Цифри однакової ширини (табличні), щоб ширина не стрибала під час нарахування —
+        /// тег <mspace>; розряди розділяє нерозривний пробіл U+00A0 із самого рядка (ScoreFormat),
+        /// він проходить у TMP як є.
         /// </summary>
         private string Tabular(string text)
         {
             var culture = System.Globalization.CultureInfo.InvariantCulture;
             var em = (design != null ? design.ScoreDigitEm : ScoreFormat.DigitEm).ToString("0.00", culture);
-            var thin = ScoreFormat.ThinSpaceEm.ToString("0.00", culture);
-            var sb = new System.Text.StringBuilder(text.Length + 48);
+            var sb = new System.Text.StringBuilder(text.Length + 32);
             var inDigits = false;
             foreach (var c in text)
             {
                 var digit = c >= '0' && c <= '9';
                 if (digit && !inDigits) sb.Append("<mspace=").Append(em).Append("em>");
                 if (!digit && inDigits) sb.Append("</mspace>");
-                if (c == ScoreFormat.ThinSpace) sb.Append("<space=").Append(thin).Append("em>");
-                else sb.Append(c);
+                sb.Append(c);
                 inDigits = digit;
             }
             if (inDigits) sb.Append("</mspace>");

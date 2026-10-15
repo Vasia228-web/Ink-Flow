@@ -33,8 +33,16 @@ namespace InkFlow.Editor
         {
             ("Nunito-Regular", "Nunito Regular SDF"),
             ("Nunito-Bold", "Nunito Bold SDF"),
-            ("Nunito-ExtraBold", "Nunito ExtraBold SDF")
+            ("Nunito-ExtraBold", "Nunito ExtraBold SDF"),
+            // U1Glaze: 900 — заголовки, числа, кнопки.
+            ("Nunito-Black", "Nunito Black SDF")
         };
+
+        public const string BlackPath = FontFolder + "/Nunito Black SDF.asset";
+        public const string BodyPath = FontFolder + "/Nunito Bold SDF.asset";
+
+        /// <summary>Пресет матеріалу з тінню тексту для коралової кнопки (SPEC: 0 −2 #6E0A28 35 %).</summary>
+        public const string BlackShadowMaterialPath = FontFolder + "/Nunito Black SDF - Shadow.mat";
 
         [MenuItem("Ink Flow/Setup/Generate Font Assets")]
         public static void Generate()
@@ -48,8 +56,44 @@ namespace InkFlow.Editor
             foreach (var (file, label) in Weights)
                 BuildOne(file, label, characters);
 
+            EnsureShadowMaterial();
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+        }
+
+        /// <summary>
+        /// Матеріал «Nunito Black SDF - Shadow»: копія матеріалу атласа з увімкненим Underlay —
+        /// білий текст із тінню на кораловій кнопці. Окремий матеріал — окремий батч, тож
+        /// його носить лише коралова кнопка (одна на екран). Числа тіні — токени DesignSystem.
+        /// </summary>
+        public static void EnsureShadowMaterial()
+        {
+            var black = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(BlackPath);
+            if (black == null || black.material == null)
+            {
+                Debug.LogWarning($"[InkFlow] Немає {BlackPath} — пресет тіні тексту не створено.");
+                return;
+            }
+            var design = AssetDatabase.LoadAssetAtPath<InkFlow.Style.DesignSystem>("Assets/_ScriptableObjects/Style/DesignSystem.asset");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(BlackShadowMaterialPath);
+            if (material == null)
+            {
+                material = new Material(black.material) { name = "Nunito Black SDF - Shadow" };
+                AssetDatabase.CreateAsset(material, BlackShadowMaterialPath);
+            }
+            else
+            {
+                material.CopyPropertiesFromMaterial(black.material);
+            }
+            material.EnableKeyword("UNDERLAY_ON");
+            var shadow = design != null ? design.ButtonTextShadow : new Color(0.43f, 0.04f, 0.16f, 0.35f);
+            material.SetColor("_UnderlayColor", shadow);
+            material.SetFloat("_UnderlayOffsetX", 0f);
+            material.SetFloat("_UnderlayOffsetY", design != null ? design.ButtonTextShadowOffsetY : -0.35f);
+            material.SetFloat("_UnderlayDilate", 0f);
+            material.SetFloat("_UnderlaySoftness", design != null ? design.ButtonTextShadowSoftness : 0.2f);
+            EditorUtility.SetDirty(material);
         }
 
         private static void BuildOne(string file, string label, string characters)
