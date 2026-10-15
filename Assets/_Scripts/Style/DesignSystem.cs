@@ -126,6 +126,9 @@ namespace InkFlow.Style
         [SerializeField] private float uiCaption = 35f;       // 13 px — дрібні підписи й лічильники
         [Tooltip("Розрядка підписів великими літерами: .16em макета (одиниці TMP — соті em).")]
         [SerializeField] private float uiLabelSpacing = 16f;
+        [Tooltip("Розрядка напису бейджа (TMP: сотні em): .04em — щільніше за ui-label (.16em). На S01Home «14 КАРТИНОК» " +
+                 "займає ~94 px при 12/900, тобто майже без розрядки; .16em роздувало бейдж на ~20 px.")]
+        [SerializeField] private float uiBadgeSpacing = 4f;
         [Tooltip("Тінь тексту коралової кнопки: 0 −2 #6E0A28 35 % (SPEC).")]
         [SerializeField] private Color buttonTextShadow = new Color(0.43f, 0.04f, 0.16f, 0.35f);
         [SerializeField, Range(-1f, 0f)] private float buttonTextShadowOffsetY = -0.35f;
@@ -1567,6 +1570,7 @@ namespace InkFlow.Style
         public float UiLabel => uiLabel;
         public float UiCaption => uiCaption;
         public float UiLabelSpacing => uiLabelSpacing;
+        public float UiBadgeSpacing => uiBadgeSpacing;
         public Color ButtonTextShadow => buttonTextShadow;
         public float ButtonTextShadowOffsetY => buttonTextShadowOffsetY;
         public float ButtonTextShadowSoftness => buttonTextShadowSoftness;

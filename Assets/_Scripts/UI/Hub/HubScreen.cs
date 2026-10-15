@@ -1,3 +1,4 @@
+using InkFlow.Core;
 using InkFlow.Meta;
 using InkFlow.Style;
 using TMPro;
@@ -7,75 +8,101 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Головний екран гри (хаб-меню). Розкладка зібрана за розміткою макета
-    /// «Ink Flow v2» (полотно 402×874) з коефіцієнтом ×2.687 у reference 1080×1920.
+    /// Головний екран U1Glaze (S01Home): шапка «аватар + нік | капсула нафти | шестерня», лого SpacePaint
+    /// з підписом, заставка (планета з орбітою блоків — стискається першою на малих екранах), картка
+    /// «Нескінченний» (бейджі «N КАРТИНОК» і «РЕКОРД», мініатюра, коралова «Грати») і нижня навігація.
+    /// Розкладку тримають групи (VerticalLayoutGroup зверху вниз), числа — токени й px макета у збирачі.
     ///
-    /// Прив'язки: шапка до верху SafeArea, навігація до низу SafeArea, а лого з картками
-    /// центруються в проміжку між ними. Тому на вищому екрані розтягується порожній
-    /// простір посередині, а не «їде» верстка.
-    ///
-    /// Дані поки мокові — екран нічого не знає про Meta, окрім гаманця.
+    /// Другої картки режиму немає: режим у запасі (Reserve/LevelsMode). «+» на капсулі теж у запасі.
+    /// Екран не знає, куди ведуть кнопки: «Грати» — EndlessRequested, вкладка — TabRequested, аватар з ніком
+    /// (одна кнопка на весь блок) — ProfileRequested, шестерня — SettingsRequested базового екрана.
     /// </summary>
     public sealed class HubScreen : ScreenBase
     {
         [SerializeField] private DesignSystem design;
 
         [Header("Шапка")]
-        [SerializeField] private DropView avatar;
+        [SerializeField] private Image avatar;
+
+        [Tooltip("Аватари avatar_1…8 з набору U1Glaze; номер — ProfileData.AvatarId (поза набором — перший).")]
+        [SerializeField] private Sprite[] avatarSprites = System.Array.Empty<Sprite>();
+
         [SerializeField] private TMP_Text playerName;
 
         /// <summary>Увесь блок «аватар + нік» — кнопка в Профіль.</summary>
         [SerializeField] private Button profileButton;
+
         [SerializeField] private CurrencyWidget currency;
         [SerializeField] private Button settingsButton;
 
-        [Header("Лого")]
-        [SerializeField] private TMP_Text logo;
-        [SerializeField] private TMP_Text tagline;
+        [Header("Нескінченний")]
+        [SerializeField] private TMP_Text picturesBadge;
+        [SerializeField] private TMP_Text recordBadge;
+        [SerializeField] private CandyButton playButton;
 
-        [Header("Режими")]
-        [SerializeField] private ModeCard endlessCard;
+        [Tooltip("Мініатюра праворуч у картці: картинка поточного забігу, інакше вітринна, інакше нічого.")]
+        [SerializeField] private RectTransform thumbnail;
+        [SerializeField] private RarityFrameView thumbnailFrame;
+        [SerializeField] private PictureView thumbnailPicture;
 
         [Header("Навігація")]
         [SerializeField] private NavBar navBar;
 
         [Header("Мокові дані")]
-        // Мокові числа лишаються ТІЛЬКИ для сцени-майстерні Hub.unity: там
-        // стану гравця немає, а порожній екран нічого не показав би про
-        // розкладку. У грі всі вони перекриваються реальними.
-        [SerializeField] private string mockName = "Нова";
-        [SerializeField] private long mockOil = 1250;
-        [SerializeField] private int mockRecord = 8420;
+        // Мокові числа лишаються ТІЛЬКИ для сцени-майстерні Hub.unity: там стану гравця немає, а порожній
+        // екран нічого не показав би про розкладку. У грі всі вони перекриваються реальними.
+        [SerializeField] private string mockName = "Гравець";
+        [SerializeField] private long mockOil = 1240;
+        [SerializeField] private int mockRecord = 7980;
+        [SerializeField] private int mockPictures = 14;
+
+        /// <summary>«Грати» на картці «Нескінченний».</summary>
+        public System.Action? EndlessRequested;
+
+        /// <summary>Вкладка нижньої навігації: <see cref="NavBar.Play"/> / galaxy / collection / ranks.</summary>
+        public System.Action<string>? TabRequested;
+
+        /// <summary>Тап на блок «аватар + нік» у шапці.</summary>
+        public System.Action? ProfileRequested;
+
+        private PixelPicture? _thumbnailShown;
+        private string _thumbnailKey = string.Empty;
 
         private void OnEnable() => ScheduleApply(Apply);
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
+
+        /// <summary>Тести: навігація екрана.</summary>
+        public NavBar? PreviewNavBar => navBar;
+
+        /// <summary>Тести: «Грати», як пальцем.</summary>
+        public void PreviewPlay() => playButton?.GetComponent<Button>()?.onClick.Invoke();
+
+        /// <summary>Тести: тап по блоку профілю.</summary>
+        public void PreviewProfile() => profileButton?.onClick.Invoke();
+
+        public string PreviewPicturesBadge => picturesBadge != null ? picturesBadge.text : string.Empty;
+        public string PreviewRecordBadge => recordBadge != null ? recordBadge.text : string.Empty;
+        public TMP_Text? PreviewNick => playerName;
+        public RectTransform? PreviewAvatar => avatar != null ? avatar.rectTransform : null;
+        public RectTransform? PreviewProfileButton => profileButton != null ? (RectTransform)profileButton.transform : null;
+
+        /// <summary>Тести: яку картинку показує мініатюра (null — схована).</summary>
+        public PixelPicture? PreviewThumbnail => thumbnail != null && thumbnail.gameObject.activeSelf ? _thumbnailShown : null;
 #endif
-
-        /// <summary>Картка «Нескінченний».</summary>
-        public System.Action? EndlessRequested;
-
-        /// <summary>Вкладка нижньої навігації: galaxy / ranks / profile.</summary>
-        public System.Action<string>? TabRequested;
-
-        /// <summary>Тап на блок профілю в шапці.</summary>
-        public System.Action? ProfileRequested;
 
         private void Awake()
         {
             WireSettingsButton(settingsButton);
-            // Хаб не знає, куди ведуть його картки — лише повідомляє, що їх натиснули.
-            if (endlessCard != null)
-                endlessCard.Clicked += () => EndlessRequested?.Invoke();
+            // Хаб не знає, куди ведуть його кнопки — лише повідомляє, що їх натиснули.
+            var play = playButton != null ? playButton.GetComponent<Button>() : null;
+            if (play != null)
+                play.onClick.AddListener(() => EndlessRequested?.Invoke());
             if (navBar != null)
                 navBar.TabSelected += id => TabRequested?.Invoke(id);
             if (profileButton != null)
-            {
                 profileButton.onClick.AddListener(() => ProfileRequested?.Invoke());
-                var press = profileButton.gameObject.AddComponent<PressScale>();
-                press.Bind(design);
-            }
         }
 
         public override void OnEnter(ScreenArgs args)
@@ -94,83 +121,89 @@ namespace InkFlow.UI
             StyleRefresh.Schedule(this, Apply);
         }
 
-        private long RecordLine() =>
-            State != null ? State.Progress.EndlessRecord : mockRecord;
-
-        /// <summary>§8: головний рекорд — скільки різних картинок у колекції.</summary>
-        private int PicturesLine() =>
-            State != null ? State.Collection.Distinct : 0;
-
-
         /// <summary>Перечитати стан без повторного входу на екран.</summary>
-        public void Refresh()
-        {
-            Apply();
-        }
+        public void Refresh() => Apply();
 
         public void Apply()
         {
             if (design == null)
                 return;
 
-            ApplyFont(playerName, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold);
             if (playerName != null)
-            {
-                // Нік — завжди один рядок: авторозмір між стелею кегля і стелею стискання (§14: до 16 символів).
-                playerName.enableAutoSizing = true;
-                playerName.fontSizeMax = design.FontSizeSubtitle;
-                playerName.fontSizeMin = design.FontSizeSubtitle * design.NickMinScale;
                 playerName.text = State?.Nick ?? mockName;
-            }
 
-
-            if (logo != null)
+            if (avatar != null && avatarSprites.Length > 0)
             {
-                logo.fontSize = design.FontSizeLogo;
-                logo.lineSpacing = -10f; // line-height .9 макета
-                logo.characterSpacing = 1f; // letter-spacing .01em
-                // Два кольори одним написом — rich text дешевший за два об'єкти.
-                logo.text =
-                    $"<color=#{ColorUtility.ToHtmlStringRGB(design.AccentPrimary)}>Ink</color> " +
-                    $"<color=#{ColorUtility.ToHtmlStringRGB(design.AccentTeal)}>Flow</color>";
-                if (design.Font != null)
-                    logo.font = design.Font;
+                var id = State?.AvatarId ?? 0;
+                avatar.sprite = avatarSprites[id >= 0 && id < avatarSprites.Length ? id : 0];
             }
 
-            if (tagline != null)
-            {
-                tagline.text = "ФАРБУЙ ГАЛАКТИКУ";
-                tagline.fontSize = design.FontSizeLabel;
-                tagline.color = new Color(1f, 1f, 1f, 0.4f);
-                tagline.characterSpacing = design.LetterSpacingTagline;
-                tagline.fontStyle = FontStyles.Normal;
-                if (design.Font != null)
-                    tagline.font = design.Font;
-            }
+            // §8: головний рекорд — скільки різних картинок у колекції; рекорд забігу — числом з нерозривними пробілами.
+            var pictures = State != null ? State.Collection.Distinct : mockPictures;
+            if (picturesBadge != null)
+                picturesBadge.text = Plural.Count(pictures, "КАРТИНКА", "КАРТИНКИ", "КАРТИНОК");
+            var record = State != null ? State.Progress.EndlessRecord : mockRecord;
+            if (recordBadge != null)
+                recordBadge.text = $"РЕКОРД {ScoreFormat.Full(record)}";
 
-            endlessCard?.SetText("Нескінченний", "Малюй картинки",
-                $"Картинок · {PicturesLine()} · рекорд {RecordLine():N0}");
-            endlessCard?.Apply();
+            ApplyThumbnail();
 
-            // Аватар — обраний у профілі (§14), без числа густоти з префаба.
-            avatar?.Show(AvatarSet.InkOf(State?.AvatarId ?? 0), 0);
-            // У грі валюту показує підписка на гаманець (Bind), у майстерні —
-            // разове число. Друге не має затирати перше.
+            // У грі валюту показує підписка на гаманець (Bind), у майстерні — разове число.
             if (State == null)
                 currency?.SetPreviewAmount(mockOil);
             currency?.Apply();
-            navBar?.Apply();
+            playButton?.Apply();
+            navBar?.SetActive(NavBar.Play);
         }
 
-        private void ApplyFont(TMP_Text? label, float size, Color color, FontStyles style)
+        /// <summary>
+        /// Мініатюра: картинка перерваного забігу з її прогресом («ось що ти малюєш»), інакше вітринна з профілю
+        /// цілком, інакше блок схований — текст картки займає місце. Та сама картинка в тому самому стані не
+        /// перебудовує маску вдруге.
+        /// </summary>
+        private void ApplyThumbnail()
         {
-            if (label == null)
+            if (thumbnail == null)
                 return;
-            label.fontSize = size;
-            label.color = color;
-            label.fontStyle = style;
-            if (design.Font != null)
-                label.font = design.Font;
+            PixelPicture? picture = null;
+            PictureProgress? progress = null;
+            var key = string.Empty;
+            var run = State?.SavedRun;
+            if (run != null && State != null)
+            {
+                picture = State.Library.Find(run.PictureId);
+                if (picture != null)
+                {
+                    progress = new PictureProgress(picture, State.Library.IndexOf(picture.Id));
+                    progress.Restore(run.FilledSteps);
+                    key = $"run:{picture.Id}:{progress.FilledCount}";
+                }
+            }
+            if (picture == null && State != null && State.ShowcasePictureId is { } showcaseId)
+            {
+                picture = State.Library.Find(showcaseId);
+                key = picture != null ? $"showcase:{picture.Id}" : string.Empty;
+            }
+
+            var visible = picture != null;
+            if (thumbnail.gameObject.activeSelf != visible)
+                thumbnail.gameObject.SetActive(visible);
+            if (picture == null)
+            {
+                _thumbnailShown = null;
+                _thumbnailKey = string.Empty;
+                return;
+            }
+
+            thumbnailFrame?.SetRarity(picture.Rarity);
+            if (key == _thumbnailKey || thumbnailPicture == null)
+                return;
+            if (progress != null)
+                thumbnailPicture.Show(progress);
+            else
+                thumbnailPicture.ShowCompleted(picture, string.Empty);
+            _thumbnailShown = picture;
+            _thumbnailKey = key;
         }
     }
 }

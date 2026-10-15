@@ -113,16 +113,11 @@ namespace InkFlow.Editor
         {
             var section = Section(content, "ШАПКА");
 
-            var main = Row(section, "Main", 8f);
-            var avatar = Img(main, "Avatar", "avatar_1", 44f);
-            _ = avatar;
-            var nick = U1.Text(main, "Nick", "Космічний_Маляр2", design, U1.Role.H3, design.InkText, TextAlignmentOptions.Left);
-            nick.textWrappingMode = TextWrappingModes.NoWrap;
-            nick.overflowMode = TextOverflowModes.Ellipsis;
-            Fix(nick.gameObject, 60f, 44f);
-            Spacer(main);
-            Capsule(main, 999_999_999);
-            IconButton(main, "Gear", "icon_gear");
+            // Та сама фабрика, що й на головному екрані: аватар з ніком — одна кнопка профілю, нік забирає залишок.
+            var main = U1.MainHeader(section, design, out _, out var nick, out _, out var capsule, out _);
+            main.name = "Main";
+            nick.text = "Космічний_Маляр2";
+            capsule?.SetPreviewAmount(999_999_999);
             Caption(section, "головний: аватар, нік (обрізається «…»), нафта до 999\u00A0999\u00A0999, шестерня");
 
             var tab = Row(section, "Tab", 8f);
@@ -361,9 +356,9 @@ namespace InkFlow.Editor
         private static void Navigation(GameObject content)
         {
             var section = Section(content, "НИЖНЯ НАВІГАЦІЯ");
-            NavBar(section, "NavPlay", 0);
+            U1.NavBar(section, "NavPlay", design, InkFlow.UI.NavBar.Play);
             Caption(section, "4 вкладки, активна — бірюзова цукерка");
-            NavBar(section, "NavRanks", 3);
+            U1.NavBar(section, "NavRanks", design, InkFlow.UI.NavBar.Ranks);
         }
 
         private static void Slots(GameObject content)
@@ -538,45 +533,6 @@ namespace InkFlow.Editor
             col.childForceExpandHeight = false;
             panel.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             return panel;
-        }
-
-        private static void NavBar(GameObject parent, string name, int active)
-        {
-            var bar = U1.Panel(parent, name, "panel_card");
-            Fix(bar, 0f, 76f, flexWidth: true);
-            var row = bar.AddComponent<HorizontalLayoutGroup>();
-            row.childAlignment = TextAnchor.MiddleCenter;
-            row.childControlWidth = true;
-            row.childControlHeight = true;
-            row.childForceExpandWidth = true;
-            row.childForceExpandHeight = true;
-            var items = new[] { ("Грати", "icon_play"), ("Галактика", "icon_planet"), ("Колекція", "icon_grid"), ("Рейтинги", "icon_trophy") };
-            for (var i = 0; i < items.Length; i++)
-            {
-                var (label, icon) = items[i];
-                var item = Child(bar, label);
-                var col = item.AddComponent<VerticalLayoutGroup>();
-                col.childAlignment = TextAnchor.MiddleCenter;
-                col.spacing = U1.Px(4f);
-                col.childControlWidth = true;
-                col.childControlHeight = true;
-                col.childForceExpandWidth = false;
-                col.childForceExpandHeight = false;
-                var tileGo = Child(item, "Tile");
-                var tile = tileGo.AddComponent<Image>();
-                tile.sprite = U1.S("nav_active");
-                tile.type = Image.Type.Sliced;
-                tile.enabled = i == active;
-                Fix(tileGo, 46f, 36f);
-                var iconGo = Img(tileGo, "Icon", icon, 24f);
-                iconGo.GetComponent<LayoutElement>().ignoreLayout = true;
-                var iconImage = iconGo.GetComponent<Image>();
-                iconImage.color = i == active ? design.TealInk : design.InkMuted;
-                Place(iconImage, Vector2.zero, new Vector2(U1.Px(24f), U1.Px(24f)), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-                var text = U1.Text(item, "Label", label, design, U1.Role.Caption, i == active ? design.InkText : design.InkMuted);
-                text.font = design.FontBlack;
-                text.textWrappingMode = TextWrappingModes.NoWrap;
-            }
         }
 
         private static void FilledSlot(GameObject row, string name, Rarity rarity, bool selected)

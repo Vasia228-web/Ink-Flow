@@ -334,6 +334,7 @@ namespace InkFlow.Editor
 
             var label = Text(go, "Label", text, design, Role.Label, textColor);
             label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.characterSpacing = design.UiBadgeSpacing; // великими, але щільніше за підпис (S01Home, S00)
             return label;
         }
 
@@ -583,6 +584,155 @@ namespace InkFlow.Editor
             layout.childForceExpandHeight = false;
             content.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             return go;
+        }
+
+        // ───────────────────────── Шапка й навігація ─────────────────────────
+
+        /// <summary>LayoutElement із фіксованими px макета (preferred = min); 0 — не задавати.</summary>
+        internal static LayoutElement Size(GameObject go, float widthPx, float heightPx)
+        {
+            var element = go.GetComponent<LayoutElement>() ?? go.AddComponent<LayoutElement>();
+            if (widthPx > 0f)
+                element.preferredWidth = element.minWidth = Px(widthPx);
+            if (heightPx > 0f)
+                element.preferredHeight = element.minHeight = Px(heightPx);
+            return element;
+        }
+
+        /// <summary>
+        /// Шапка головного екрана (S00 «головний», S01): «аватар 44 + нік» — ОДНА кнопка профілю на весь блок
+        /// (аватар — Image без власного обробника, тап по кулі теж веде в профіль), капсула нафти шириною за
+        /// вмістом, шестерня icon_button 46. Висота 56. Нік забирає залишок і обрізається «…»: блок профілю має
+        /// preferred 0 і flexible 1, тож група спершу дає капсулі її повну ширину («999 999 999» ніколи не
+        /// стискається), а нікові — що лишилось.
+        /// </summary>
+        internal static GameObject MainHeader(GameObject parent, DesignSystem design, out Image avatar, out TMP_Text nick,
+            out UnityEngine.UI.Button profile, out CurrencyWidget capsule, out UnityEngine.UI.Button gear)
+        {
+            var row = Child(parent, "Header");
+            var layout = row.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = Px(8f);
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+            Size(row, 0f, 56f);
+
+            var profileGo = Child(row, "Profile");
+            var hit = profileGo.AddComponent<Image>();
+            hit.color = Color.clear; // зона тапу на весь блок «аватар + нік»
+            profile = profileGo.AddComponent<UnityEngine.UI.Button>();
+            profile.targetGraphic = hit;
+            profile.transition = Selectable.Transition.None;
+            var profileLayout = profileGo.AddComponent<HorizontalLayoutGroup>();
+            profileLayout.spacing = Px(12f);
+            profileLayout.childAlignment = TextAnchor.MiddleLeft;
+            profileLayout.childControlWidth = profileLayout.childControlHeight = true;
+            profileLayout.childForceExpandWidth = profileLayout.childForceExpandHeight = false;
+            var profileSize = profileGo.AddComponent<LayoutElement>();
+            profileSize.preferredWidth = 0f;
+            profileSize.minWidth = Px(44f);
+            profileSize.flexibleWidth = 1f;
+            profileSize.preferredHeight = profileSize.minHeight = Px(46f);
+
+            var avatarGo = Child(profileGo, "Avatar");
+            avatar = avatarGo.AddComponent<Image>();
+            avatar.sprite = S("avatar_1");
+            avatar.preserveAspect = true;
+            avatar.raycastTarget = false;
+            Size(avatarGo, 44f, 44f);
+
+            nick = Text(profileGo, "Nick", "Гравець", design, Role.H3, design.InkText, TextAlignmentOptions.Left);
+            nick.textWrappingMode = TextWrappingModes.NoWrap;
+            nick.overflowMode = TextOverflowModes.Ellipsis;
+            nick.raycastTarget = false;
+            var nickSize = nick.gameObject.AddComponent<LayoutElement>();
+            nickSize.preferredWidth = 0f;
+            nickSize.minWidth = 0f;
+            nickSize.flexibleWidth = 1f;
+
+            capsule = Capsule(row, new Vector2(0.5f, 0.5f), Vector2.zero);
+            if (capsule != null)
+                Size(capsule.gameObject, 0f, 46f);
+
+            gear = IconButton(row, "Settings", design, "icon_gear", new Vector2(0.5f, 0.5f), Vector2.zero);
+            Size(gear.gameObject, 46f, 46f);
+            return row;
+        }
+
+        /// <summary>
+        /// Нижня навігація (S00, S01): капсула panel_card 76 з тінню, чотири вкладки Грати · Галактика · Колекція ·
+        /// Рейтинги. У вкладки — прозора зона тапу на всю чверть (≥ 60), плитка nav_active 46×36 (вимкнена в
+        /// неактивної — місце лишається), іконка 24 і підпис caption 900. Підсвічує <see cref="NavBar"/>.
+        /// </summary>
+        internal static NavBar NavBar(GameObject parent, string name, DesignSystem design, string activeId)
+        {
+            var bar = Panel(parent, name, "panel_card");
+            // flexibleHeight 0 явно: ряд вкладок із childForceExpandHeight робить групу гнучкою по висоті (flexible
+            // дітей = 1), і без цього панель ділила б залишок стовпчика із заставкою — на 402×874 росла до пів екрана.
+            Size(bar, 0f, 76f).flexibleHeight = 0f;
+            var row = bar.AddComponent<HorizontalLayoutGroup>();
+            row.childAlignment = TextAnchor.MiddleCenter;
+            row.padding = new RectOffset((int)Px(6f), (int)Px(6f), 0, 0);
+            row.childControlWidth = row.childControlHeight = true;
+            row.childForceExpandWidth = row.childForceExpandHeight = true;
+
+            var items = new[]
+            {
+                (InkFlow.UI.NavBar.Play, "Грати", "icon_play"),
+                (InkFlow.UI.NavBar.Galaxy, "Галактика", "icon_planet"),
+                (InkFlow.UI.NavBar.Collection, "Колекція", "icon_grid"),
+                (InkFlow.UI.NavBar.Ranks, "Рейтинги", "icon_trophy")
+            };
+            var component = bar.AddComponent<InkFlow.UI.NavBar>();
+            var so = new SerializedObject(component);
+            so.FindProperty("design").objectReferenceValue = design;
+            so.FindProperty("activeId").stringValue = activeId;
+            var tabs = so.FindProperty("tabs");
+            tabs.arraySize = items.Length;
+            for (var i = 0; i < items.Length; i++)
+            {
+                var (id, title, iconName) = items[i];
+                var item = Child(bar, $"Tab_{id}");
+                var hit = item.AddComponent<Image>();
+                hit.color = Color.clear;
+                var button = item.AddComponent<UnityEngine.UI.Button>();
+                button.targetGraphic = hit;
+                button.transition = Selectable.Transition.None;
+                item.AddComponent<PressScale>().Bind(design); // натиск — на тому, що ловить тап (localScale)
+                var col = item.AddComponent<VerticalLayoutGroup>();
+                col.childAlignment = TextAnchor.MiddleCenter;
+                col.spacing = Px(4f);
+                col.childControlWidth = col.childControlHeight = true;
+                col.childForceExpandWidth = col.childForceExpandHeight = false;
+
+                var tileGo = Child(item, "Tile");
+                var tile = tileGo.AddComponent<Image>();
+                tile.sprite = S("nav_active");
+                tile.type = Image.Type.Sliced;
+                tile.raycastTarget = false;
+                Size(tileGo, 46f, 36f);
+
+                var iconGo = Child(tileGo, "Icon");
+                var icon = iconGo.AddComponent<Image>();
+                icon.sprite = S(iconName);
+                icon.raycastTarget = false;
+                Place(icon, Vector2.zero, new Vector2(Px(24f), Px(24f)), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+                var label = Text(item, "Label", title, design, Role.Caption, design.InkMuted);
+                label.font = design.FontBlack;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.raycastTarget = false;
+
+                var entry = tabs.GetArrayElementAtIndex(i);
+                entry.FindPropertyRelative("id").stringValue = id;
+                entry.FindPropertyRelative("button").objectReferenceValue = button;
+                entry.FindPropertyRelative("tile").objectReferenceValue = tile;
+                entry.FindPropertyRelative("icon").objectReferenceValue = icon;
+                entry.FindPropertyRelative("label").objectReferenceValue = label;
+            }
+            so.ApplyModifiedPropertiesWithoutUndo();
+            component.Apply();
+            return component;
         }
 
         // ───────────────────────── Капсула нафти ─────────────────────────

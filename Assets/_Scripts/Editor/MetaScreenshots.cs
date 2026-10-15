@@ -25,7 +25,7 @@ namespace InkFlow.Editor
 
         public static readonly string[] States =
         {
-            "hub",
+            "hub", "hub-long", "hub-fresh",
             "galaxy-fresh", "galaxy-mid", "galaxy-second",
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
             "collection-browse", "collection-pick", "collection-empty",
@@ -35,7 +35,7 @@ namespace InkFlow.Editor
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen" };
 
         /// <summary>Лише вітрина компонентів (крок 0 U1Glaze): збірка + знімки на всіх пристроях.</summary>
         public static void BuildAndCaptureComponents()
@@ -93,8 +93,9 @@ namespace InkFlow.Editor
         }
 
         /// <summary>
-        /// Batch: лише хаб на всіх пристроях (стан «hub») — швидка перевірка головного екрана без повного
-        /// проходу метагри. Хаб ще старого стилю, тож автоперевірка для нього — попередження, не помилка.
+        /// Batch: лише хаб на всіх пристроях (стани hub / hub-long / hub-fresh — S01Home_01, S01Home_02, новий
+        /// гравець) — швидка перевірка головного екрана без повного проходу метагри. Хаб на U1Glaze, тож
+        /// автоперевірка для нього — помилка batch (<see cref="AuditEnforced"/>).
         /// </summary>
         public static void BuildAndCaptureHub()
         {
@@ -109,7 +110,8 @@ namespace InkFlow.Editor
             var overBudget = new List<string>();
             var audit = new List<string>();
             foreach (var device in ScreenRigBase.Devices)
-                Capture(device, "hub", Path.Combine(OutputFolder, $"{device.Name}_hub.png"), overBudget, audit);
+                foreach (var state in new[] { "hub", "hub-long", "hub-fresh" })
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
             AssetDatabase.Refresh();
             Finish(overBudget, audit);
         }
@@ -194,12 +196,37 @@ namespace InkFlow.Editor
             switch (state)
             {
                 case "hub":
+                case "hub-long":
+                case "hub-fresh":
                 {
-                    // Головний: аватар, нік, нафта (без «+»), лого, одна картка «Нескінченний», три вкладки.
+                    // Головний (S01Home): hub — 14 картинок, рекорд 7 980, вітринна Рідкісна в мініатюрі (як S01Home_01);
+                    // hub-long — нік на межі правил і 999 999 999 нафти (S01Home_02); hub-fresh — новий гравець.
                     using var rig = MetaScreenRig<HubScreen>.Create(device, "HubScreen");
                     var player = rig.NewPlayer();
-                    player.Wallet.Add(1240, RewardSource.Debug);
+                    if (state != "hub-fresh")
+                    {
+                        var now = System.DateTime.UtcNow;
+                        string? rare = null;
+                        for (var i = 0; i < 14; i++)
+                        {
+                            var picture = rig.Library[(i * 7) % rig.Library.Count];
+                            player.CollectPicture(picture.Id, now);
+                            if (rare == null && picture.Rarity == InkFlow.Core.Rarity.Rare)
+                                rare = picture.Id;
+                        }
+                        player.SetShowcasePicture(rare ?? rig.Library[0].Id);
+                        player.Progress.EndlessRecord = 7980;
+                        player.Wallet.Add(state == "hub-long" ? 999_999_999 : 1240, RewardSource.Debug);
+                        if (state == "hub-long")
+                            player.SetNick("Космічний_Маляр2", NickRules.Default, out _);
+                    }
                     rig.Enter(player, ScreenArgs.Empty);
+                    var distinct = rig.EstimateBatches(out var runs, out var graphics);
+                    var batches = rig.SimulateBatches();
+                    Debug.Log($"[InkFlow] {device.Name} / {state}: графік {graphics}, різних пар матеріал+текстура {distinct}, " +
+                              $"змін пари в порядку обходу {runs}, викликів за батчингом UGUI {batches}.");
+                    if (batches > DrawCallBudget)
+                        overBudget.Add($"{device.Name} / {state}: {batches} викликів (батчинг UGUI) > {DrawCallBudget}");
                     Audit(rig, "HubScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;

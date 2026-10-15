@@ -215,6 +215,44 @@ namespace InkFlow.Editor
             view.Apply();
             return view;
         }
+
+        /// <summary>
+        /// Картинка всередині рамки рідкості U1Glaze (мініатюра на головному, далі — картки й комірки): лише
+        /// полотно W4DarkCanvas по центру квадрата <paramref name="canvasSide"/>, без панелі, назви й гало —
+        /// рідкість каже рамка (<see cref="RarityFrameView"/>), а не світло з-під полотна.
+        /// </summary>
+        internal static PictureView MakeFramedPicture(GameObject go, DesignSystem design, float canvasSide)
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(DarkCanvasShaderPath);
+            if (shader == null) Debug.LogError($"[InkFlow] Немає {DarkCanvasShaderPath}");
+
+            var plateGo = Child(go, "Plate");
+            var plate = plateGo.GetComponent<RectTransform>();
+            plate.anchorMin = plate.anchorMax = new Vector2(0.5f, 0.5f);
+            plate.pivot = new Vector2(0.5f, 0.5f);
+            plate.anchoredPosition = Vector2.zero;
+            plate.sizeDelta = new Vector2(canvasSide, canvasSide);
+
+            var canvasGo = Child(plateGo, "Canvas");
+            var canvas = canvasGo.GetComponent<RectTransform>();
+            canvas.anchorMin = canvas.anchorMax = new Vector2(0.5f, 0.5f);
+            canvas.pivot = new Vector2(0.5f, 0.5f);
+            canvas.anchoredPosition = Vector2.zero;
+            canvas.sizeDelta = new Vector2(canvasSide, canvasSide);
+
+            var pixelsGo = Child(canvasGo, "Pixels");
+            var pixels = pixelsGo.AddComponent<RawImage>();
+            pixels.raycastTarget = false;
+            pixels.color = Color.white;
+            Place(pixels, Vector2.zero, new Vector2(canvasSide, canvasSide),
+                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+
+            var view = go.AddComponent<PictureView>();
+            Wire(view, ("design", design), ("plate", plate), ("canvas", canvas), ("pixels", pixels));
+            if (shader != null) Wire(view, ("darkCanvasShader", shader));
+            view.Apply();
+            return view;
+        }
     }
 
     /// <summary>

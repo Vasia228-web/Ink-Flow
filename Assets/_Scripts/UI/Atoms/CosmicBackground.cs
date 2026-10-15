@@ -7,7 +7,9 @@ namespace InkFlow.UI
     /// <summary>
     /// Спільний фон усіх екранів: радіальний градієнт «космос» + два шари зір.
     ///
-    /// Макет: `radial-gradient(130% 90% at 50% -12%, #2A1E56, #1A1338 34%, #0C0820 68%, #070512)`.
+    /// U1Glaze (SPEC «Палітра», з кроку 1): радіальний градієнт `bg-top` #221c52 угорі → `space-900` #070718
+    /// (токени spaceTop/spaceBottom); геометрія — як у макеті v2 (центр 50% / −12%, радіус 130% × 90%,
+    /// позиції зупинок — токен backgroundStops).
     /// Зорі — два шари з мерехтінням 7 s і 11 s (reverse).
     ///
     /// Градієнт малюємо мешем на CanvasRenderer, а не текстурою: чотири зупинки
@@ -49,14 +51,16 @@ namespace InkFlow.UI
             // Шість зупинок замість чотирьох: між кожною парою макета вставляємо
             // проміжну. Чотири зупинки на весь екран давали видимий бандинг —
             // око ловить межі там, де градієнт міняє нахил.
+            var top = design.SpaceTop;
+            var bottom = design.SpaceBottom;
             var colors = new[]
             {
-                design.BackgroundInner,
-                Color.Lerp(design.BackgroundInner, design.BackgroundMid, 0.55f),
-                design.BackgroundMid,
-                Color.Lerp(design.BackgroundMid, design.BackgroundOuter, 0.5f),
-                design.BackgroundOuter,
-                design.BackgroundEdge
+                top,
+                Color.Lerp(top, bottom, 0.3f),
+                Color.Lerp(top, bottom, 0.55f),
+                Color.Lerp(top, bottom, 0.78f),
+                Color.Lerp(top, bottom, 0.92f),
+                bottom
             };
             var positions = new[]
             {

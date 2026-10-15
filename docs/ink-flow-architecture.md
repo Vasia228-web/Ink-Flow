@@ -103,10 +103,11 @@ Assets/
                      PictureView, RarityHalo, RarityFrame, RarityNames, DropFlock, CompletionCard, SnapshotBlur
       Planet/        PlanetScreen (+PlanetArgs), PlanetStage, SlotMarker, SlotAtlas
       Collection/    CollectionScreen (+CollectionArgs), CollectionCard
-      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NickPrompt, ConfirmPrompt, GameAudio,
+      Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NickPrompt, ConfirmPrompt, GameAudio, NavBar (нижня навігація U1Glaze),
                      CurrencyWidget (капсула нафти; «+» — у запасі), ComponentsShowcase (вітрина U1Glaze), …
       Atoms/         CandyButton, ChipView, RarityFrameView, DialogView (U1Glaze); GlassPanel, NeonButton, DropView, … (старий стиль, до кроку 10)
-      Hub/ Galaxy/ Rankings/ Profile/ Atoms/
+      Hub/           HubScreen (головний U1Glaze, крок 1)
+      Galaxy/ Rankings/ Profile/
     App/             GameBootstrap, ServiceLocator, DevPanel
     Editor/          Build*Screen, BuildMainScene, BuildUIKit, BuildComponentsScreen, U1 (фабрики U1Glaze), U1GlazeSprites (маніфест, атлас),
                      UiAudit (переповнення, тапи ≥ 44), GenerateUISprites, GenerateFontAsset, RefreshPictureLibrary,
@@ -322,7 +323,7 @@ PictureLibrary.asset  → PictureLibraryAsset (Gameplay): TextAsset[] з Assets/
 
 ## 9. Шар UI і навігація
 
-**Одна сцена `Main.unity`**, вісім екранів-префабів (з 2026-10-15 «Скоро» й магазин — у запасі) під одним `NavigationStack`; граф — в `AppRouter`. Канвас: reference 1080×1920, match за співвідношенням сторін (`UIRoot.MatchFor`: 0 на телефонах ≤ 9:16, 1 — ширше; канвас ніколи не менший за 1080×1920, перерахунок при зміні розміру вікна) — 1 px макета U1Glaze (402×874) = 2.687 одиниці на будь-якому телефоні. Інтерфейс U1Glaze збирається фабриками `Editor/U1` зі спрайтів `Assets/_Sprites/U1Glaze` (маніфест `sprites.json`, PPU 111.67, один атлас) і атомів `UI/Atoms`; еталон — `docs/StyleRef/U1Glaze`, вітрина — `Build Components Showcase`. Шестерня (§15) на кожному екрані — подія `ScreenBase.SettingsRequested`, роутер підписує всі екрани циклом і відкриває `SettingsScreen` з `SettingsArgs(InRun)`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання.
+**Одна сцена `Main.unity`**, вісім екранів-префабів (з 2026-10-15 «Скоро» й магазин — у запасі) під одним `NavigationStack`; граф — в `AppRouter`. Канвас: reference 1080×1920, match за співвідношенням сторін (`UIRoot.MatchFor`: 0 на телефонах ≤ 9:16, 1 — ширше; канвас ніколи не менший за 1080×1920, перерахунок при зміні розміру вікна) — 1 px макета U1Glaze (402×874) = 2.687 одиниці на будь-якому телефоні. Інтерфейс U1Glaze збирається фабриками `Editor/U1` зі спрайтів `Assets/_Sprites/U1Glaze` (маніфест `sprites.json`, PPU 111.67, один атлас) і атомів `UI/Atoms`; еталон — `docs/StyleRef/U1Glaze`, вітрина — `Build Components Showcase`. Шестерня (§15) на кожному екрані — подія `ScreenBase.SettingsRequested`, роутер підписує всі екрани циклом і відкриває `SettingsScreen` з `SettingsArgs(InRun)`. Кожен `Build*Screen` зберігає свій префаб у `_Prefabs/Screens/`, `Build Main Scene` складає з них застосунок і ставить сцену в Build Settings — тому вона завжди остання. Нижня навігація (U1Glaze, крок 1) — Грати · Галактика · Колекція · Рейтинги (`NavBar`); вкладка — корінь: `NavigationStack.SetRootWith(hub, вкладка, args)` — стек «хаб → вкладка» одним кроком, без входу в хаб і без другого `OnExit` попереднього екрана; профіль — підекран (тап по аватару з ніком).
 
 Екран забігу (`EndlessScreen`) зверху вниз, px макета (`RunLayout`, Core): шапка 40 → блок 186: по центру лише картинка на полотні W4DarkCanvas (сторона `runPictureSide` 154 + запас під гало рідкості), праворуч колонка РАХУНОК/РЕКОРД 56–92 → поле 386 (панель на всю ширину мінус бічне поле 8; 64 блоки + 64 привиди) → лоток 86 при низу safe area — усе × K (1080/402). Бракує висоти — стискається спершу блок картинки (до 108), поле й лоток ніколи.
 

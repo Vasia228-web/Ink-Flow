@@ -84,6 +84,28 @@ namespace InkFlow.UI
             Push(screen, args);
         }
 
+        /// <summary>
+        /// Вкладка нижньої навігації (U1Glaze): стек стає «корінь → вкладка» одним кроком. Корінь лягає під
+        /// вкладку БЕЗ входу й виходу — він лише чекає, поки «назад» (Pop) поверне на нього; заходити в хаб, щоб
+        /// одразу з нього вийти, означало б зайвий Apply і другий OnExit екрана, з якого прийшли (у забігу
+        /// OnExit пише зліпок). Якщо вкладка й є коренем — це просто <see cref="SetRoot"/>.
+        /// </summary>
+        public void SetRootWith(ScreenBase root, ScreenBase screen, ScreenArgs? args = null)
+        {
+            if (ReferenceEquals(root, screen))
+            {
+                SetRoot(root, args);
+                return;
+            }
+            foreach (var entry in _stack)
+                entry.Screen.OnExit();
+            _stack.Clear();
+            _stack.Add(new Entry(root, ScreenArgs.Empty));
+            var top = new Entry(screen, args ?? ScreenArgs.Empty);
+            _stack.Add(top);
+            screen.OnEnter(top.Args);
+        }
+
         private int IndexOf(ScreenBase screen)
         {
             for (var i = 0; i < _stack.Count; i++)

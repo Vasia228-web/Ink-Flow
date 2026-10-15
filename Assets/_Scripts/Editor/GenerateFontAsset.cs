@@ -26,7 +26,15 @@ namespace InkFlow.Editor
         private const int SamplingPointSize = 90;
 
         private const int AtlasPadding = 9;
-        private const int AtlasWidth = 1024;
+
+        /// <summary>
+        /// Одна сторінка 2048×1024 на шрифт (Alpha8, 2 МБ — стільки ж, скільки дві сторінки 1024², що були).
+        /// 303 гліфи при семплюванні 90 у 1024² не вміщались і розлітались на ДВІ сторінки, і це ламало два
+        /// місця: кожен напис із гліфами з обох сторінок малювався двома мешами (зайвий виклик на кириличних
+        /// написах), а еліпсис TMP малюється спецсимволом матеріалом першої сторінки — якщо «…» опинявся на
+        /// другій, обрізаний нік лишався без крапок. Тест <c>FontAssets_FitOnOneAtlasPage</c>.
+        /// </summary>
+        private const int AtlasWidth = 2048;
         private const int AtlasHeight = 1024;
 
         private static readonly (string file, string label)[] Weights =
@@ -125,6 +133,13 @@ namespace InkFlow.Editor
 
             // Static: атлас заморожено, у білд іде лише текстура, а не TTF.
             fontAsset.atlasPopulationMode = AtlasPopulationMode.Static;
+            var pages = 0;
+            foreach (var texture in fontAsset.atlasTextures)
+                if (texture != null && texture.width > 1)
+                    pages++;
+            if (pages > 1)
+                Debug.LogError($"[InkFlow] {label}: гліфи розлетілись на {pages} сторінки атласа {AtlasWidth}×{AtlasHeight} — " +
+                               "еліпсис («…» нікa) зникне, а кириличні написи малюватимуться двома мешами. Збільш атлас.");
 
             AssetDatabase.CreateAsset(fontAsset, assetPath);
 

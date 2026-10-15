@@ -125,11 +125,9 @@ namespace InkFlow.UI
             if (hub != null)
             {
                 hub.EndlessRequested += () => Push(endless, new EndlessArgs(_balance));
-                hub.TabRequested += OnHubTab;
-                // Блок профілю в шапці веде ТОЧНО тим самим маршрутом, що й
-                // вкладка внизу — інакше два входи в один екран рано чи пізно
-                // розійшлися б аргументами.
-                hub.ProfileRequested += () => OnHubTab("profile");
+                hub.TabRequested += OnTab;
+                // Профіль — підекран: тап по аватару з ніком (вкладки «Профіль» в U1Glaze немає).
+                hub.ProfileRequested += () => Push(profile);
             }
 
             if (endless != null)
@@ -266,23 +264,44 @@ namespace InkFlow.UI
             });
         }
 
-        private void OnHubTab(string id)
+        /// <summary>
+        /// Нижня навігація (U1Glaze): Грати · Галактика · Колекція · Рейтинги. Вкладка — корінь: стек стає
+        /// «хаб → вкладка» (<see cref="NavigationStack.SetRootWith"/>), тож «Додому» з будь-якої вкладки — це
+        /// «Грати» або «назад», і стек не росте від перемикань. «Грати» на хабі нічого не робить.
+        /// </summary>
+        private void OnTab(string id)
         {
             switch (id)
             {
-                case "galaxy":
-                    Push(galaxy, GalaxyArgs.Own);
+                case NavBar.Play:
+                    if (navigation != null && !ReferenceEquals(navigation.Current, hub))
+                        ResetToHub();
                     break;
-                case "ranks":
-                    Push(rankings);
+                case NavBar.Galaxy:
+                    OpenTab(galaxy, GalaxyArgs.Own);
                     break;
-                case "profile":
-                    Push(profile);
+                case NavBar.Collection:
+                    OpenTab(collection, new CollectionArgs());
+                    break;
+                case NavBar.Ranks:
+                    OpenTab(rankings);
                     break;
                 default:
                     Debug.LogWarning($"[InkFlow] Невідома вкладка навігації: {id}");
                     break;
             }
+        }
+
+        private void OpenTab(ScreenBase? screen, ScreenArgs? args = null)
+        {
+            if (screen == null || hub == null || navigation == null)
+            {
+                Debug.LogError("[InkFlow] Вкладка в непідв'язаний екран — перевір посилання в AppRouter.");
+                return;
+            }
+            if (ReferenceEquals(navigation.Current, screen))
+                return;
+            navigation.SetRootWith(hub, screen, args);
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
