@@ -278,9 +278,11 @@ namespace InkFlow.Editor
         }
 
         /// <summary>
-        /// Капсула нафти U1Glaze: 9-slice capsule, крапля oil_drop 24, число Nunito Black і плитка «+»
-        /// (capsule_plus + icon_plus). Ширина росте за вмістом (HorizontalLayoutGroup + fitter):
-        /// «999 999 999» вміщається, не переносячись. Висота — 46 px макета.
+        /// Капсула нафти U1Glaze: 9-slice capsule, крапля oil_drop 24 і число Nunito Black. Ширина росте
+        /// за вмістом (HorizontalLayoutGroup + fitter): «999 999 999» вміщається, не переносячись. Висота —
+        /// 46 px макета. Бірюзової плитки «+» (вхід у магазин) немає — покупка нафти в запасі
+        /// (Reserve/OilShop); у макеті «+» стоїть впритул до правого краю, тож без нього праворуч
+        /// відступ 14 замість 1 — число не впирається в заокруглення.
         /// </summary>
         private static void BuildCurrencyWidget()
         {
@@ -295,7 +297,7 @@ namespace InkFlow.Editor
                 capsule.raycastTarget = false;
 
                 var layout = root.AddComponent<HorizontalLayoutGroup>();
-                layout.padding = new RectOffset((int)U1.Px(10f), (int)U1.Px(1f), 0, 0);
+                layout.padding = new RectOffset((int)U1.Px(10f), (int)U1.Px(14f), 0, 0);
                 layout.spacing = U1.Px(6f);
                 layout.childAlignment = TextAnchor.MiddleLeft;
                 layout.childControlWidth = true;
@@ -318,30 +320,10 @@ namespace InkFlow.Editor
                 label.textWrappingMode = TextWrappingModes.NoWrap;
                 label.overflowMode = TextOverflowModes.Overflow;
 
-                // «+»: плитка 32, але зона тапу — 44×46 (SPEC «нічого меншого за 44»): прозора підкладка ловить тап.
-                var plusGo = NewChild(root, "Plus", Vector2.zero);
-                var plusCatcher = plusGo.AddComponent<Image>();
-                plusCatcher.color = Color.clear;
-                var plusLayout = plusGo.AddComponent<LayoutElement>();
-                plusLayout.preferredWidth = design.TapMin;
-                plusLayout.preferredHeight = height;
-                var tileGo = NewChild(plusGo, "Tile", new Vector2(U1.Px(32f), U1.Px(32f)));
-                var plusTile = tileGo.AddComponent<Image>();
-                plusTile.sprite = U1.S("capsule_plus");
-                plusTile.raycastTarget = false;
-                var plusIconGo = NewChild(tileGo, "Icon", new Vector2(U1.Px(16f), U1.Px(16f)));
-                var plusIcon = plusIconGo.AddComponent<Image>();
-                plusIcon.sprite = U1.S("icon_plus");
-                plusIcon.raycastTarget = false;
-                var plusButton = plusGo.AddComponent<Button>();
-                plusButton.targetGraphic = plusTile;
-                plusButton.transition = Selectable.Transition.None;
-                tileGo.AddComponent<PressScale>().Bind(design);
-
                 var widget = root.AddComponent<CurrencyWidget>();
                 Wire(widget,
                     ("design", design), ("capsule", capsule), ("drop", drop),
-                    ("amountLabel", label), ("plusButton", plusButton), ("plusIcon", plusIcon));
+                    ("amountLabel", label));
                 widget.Apply();
 
                 SavePrefab(root, "CurrencyWidget");
@@ -453,7 +435,7 @@ namespace InkFlow.Editor
 
             // Кнопки трьох тонів
             var tones = new[] { NeonButton.Tone.Primary, NeonButton.Tone.Cool, NeonButton.Tone.Warm };
-            var titles = new[] { "Рівні", "Нескінченний", "Магазин" };
+            var titles = new[] { "Галактика", "Нескінченний", "Колекція" };
             for (var i = 0; i < tones.Length; i++)
             {
                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(button, safeGo.transform);

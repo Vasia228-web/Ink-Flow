@@ -441,10 +441,11 @@ namespace InkFlow.Editor
             so.FindProperty("capsuleStroke").objectReferenceValue = stroke;
             so.FindProperty("design").objectReferenceValue = design;
 
-            var titles = new[] { "Галактика", "Магазин", "Рейтинги", "Профіль" };
-            var ids = new[] { "galaxy", "shop", "ranks", "profile" };
-            var iconFiles = new[] { "icon-galaxy", "icon-shop", "icon-ranks", "icon-profile" };
-            var accents = new[] { design.AccentSecondary, design.AccentPrimary, design.AccentGold, design.TextMuted };
+            // Вкладки «Магазин» немає: покупка нафти — у запасі (Reserve/OilShop).
+            var titles = new[] { "Галактика", "Рейтинги", "Профіль" };
+            var ids = new[] { "galaxy", "ranks", "profile" };
+            var iconFiles = new[] { "icon-galaxy", "icon-ranks", "icon-profile" };
+            var accents = new[] { design.AccentSecondary, design.AccentGold, design.TextMuted };
 
             var tabs = so.FindProperty("tabs");
             tabs.arraySize = titles.Length;
@@ -453,8 +454,8 @@ namespace InkFlow.Editor
             {
                 var tab = Child(nav, $"Tab_{ids[i]}");
                 var tabRect = tab.GetComponent<RectTransform>();
-                tabRect.anchorMin = new Vector2(i / 4f, 0f);
-                tabRect.anchorMax = new Vector2((i + 1) / 4f, 1f);
+                tabRect.anchorMin = new Vector2(i / (float)titles.Length, 0f);
+                tabRect.anchorMax = new Vector2((i + 1) / (float)titles.Length, 1f);
                 tabRect.offsetMin = Vector2.zero;
                 tabRect.offsetMax = Vector2.zero;
 
@@ -494,7 +495,7 @@ namespace InkFlow.Editor
 
                 // Кольорові деталі поверх силуету: саме вони роблять іконку живою,
                 // а не монохромним знаком.
-                var accentLayers = BuildIconAccents(icon, i, design);
+                var accentLayers = BuildIconAccents(icon, ids[i], design);
 
                 var label = Label(tab, "Label", titles[i], design, font,
                     design.FontSizeCaption,
@@ -587,13 +588,13 @@ namespace InkFlow.Editor
         /// Кольорові шари іконки вкладки. У макеті кожна іконка складена з кількох
         /// фігур із власними кольорами — відтворюємо це накладанням дрібних спрайтів.
         /// </summary>
-        private static Graphic[] BuildIconAccents(GameObject icon, int tabIndex, DesignSystem design)
+        private static Graphic[] BuildIconAccents(GameObject icon, string tabId, DesignSystem design)
         {
             var circle = LoadSprite("circle-soft");
 
-            switch (tabIndex)
+            switch (tabId)
             {
-                case 0:
+                case "galaxy":
                     // Плями, кільце й глянець тепер намальовані в самому
                     // спрайті: іконка кольорова, і накладати їх окремими
                     // кружечками більше не треба. Саме ці «кружечки» й
@@ -601,32 +602,7 @@ namespace InkFlow.Editor
                     // circle-soft, а не були її частиною.
                     return System.Array.Empty<Graphic>();
 
-                case 1: // Магазин — маджентова фарба у відрі з відблиском
-                {
-                    var paintGo = Child(icon, "Paint");
-                    var paintRect = paintGo.GetComponent<RectTransform>();
-                    paintRect.anchorMin = paintRect.anchorMax = new Vector2(0.5f, 0.5f);
-                    paintRect.anchoredPosition = new Vector2(0f, M(2f));
-                    paintRect.sizeDelta = new Vector2(M(13f), M(5f));
-                    var paint = paintGo.AddComponent<Image>();
-                    paint.sprite = circle;
-                    paint.raycastTarget = false;
-                    paint.color = design.AccentPrimary;
-
-                    var shineGo = Child(icon, "Shine");
-                    var shineRect = shineGo.GetComponent<RectTransform>();
-                    shineRect.anchorMin = shineRect.anchorMax = new Vector2(0.5f, 0.5f);
-                    shineRect.anchoredPosition = new Vector2(-M(3f), M(3f));
-                    shineRect.sizeDelta = new Vector2(M(4f), M(2.5f));
-                    var shine = shineGo.AddComponent<Image>();
-                    shine.sprite = circle;
-                    shine.raycastTarget = false;
-                    shine.color = new Color(1f, 1f, 1f, 0.55f);
-
-                    return new Graphic[] { paint, shine };
-                }
-
-                case 2: // Рейтинги — тепле світло в чаші кубка
+                case "ranks": // Рейтинги — тепле світло в чаші кубка
                 {
                     var lightGo = Child(icon, "CupLight");
                     var lightRect = lightGo.GetComponent<RectTransform>();

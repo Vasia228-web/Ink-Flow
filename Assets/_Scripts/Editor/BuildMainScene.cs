@@ -16,19 +16,19 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Складає ЗАСТОСУНОК: один канвас, один <see cref="NavigationStack"/>,
-    /// дев'ять екранів із префабів і <see cref="AppRouter"/> між ними.
+    /// вісім екранів із префабів і <see cref="AppRouter"/> між ними.
     /// Меню: Ink Flow → Setup → Build Main Scene.
     ///
     /// Це ТОЧКА ВХОДУ гри — саме `Main.unity` стоїть у Build Settings, і саме тут
     /// живе `GameBootstrap` із сервісами й збереженням. Окремі сцени екранів
-    /// (`Hub.unity`, `Shop.unity`…) лишаються майстернею: на них зручно правити
+    /// (`Hub.unity`, `Galaxy.unity`…) лишаються майстернею: на них зручно правити
     /// один екран, не піднімаючи весь застосунок.
     ///
     /// Розкладки тут немає жодної — усе приходить префабами з Build*Screen.
-    /// Тому перед цією командою треба зібрати всі дев'ять екранів.
+    /// Тому перед цією командою треба зібрати всі вісім екранів.
     ///
-    /// У збереженій сцені активний лише хаб: решта вісім лежать згаслими. Інакше
-    /// дев'ять розтягнутих на весь канвас екранів накладаються один на одного
+    /// У збереженій сцені активний лише хаб: решта сім лежать згаслими. Інакше
+    /// вісім розтягнутих на весь канвас екранів накладаються один на одного
     /// й у Scene, і в Game.
     /// </summary>
     public static class BuildMainScene
@@ -44,7 +44,7 @@ namespace InkFlow.Editor
         private static readonly string[] ScreenNames =
         {
             "HubScreen", "EndlessScreen",
-            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen",
+            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen", "ProfileScreen",
             "SettingsScreen"
         };
 
@@ -158,7 +158,6 @@ namespace InkFlow.Editor
                 ("galaxy", screens["GalaxyScreen"]),
                 ("planet", screens["PlanetScreen"]),
                 ("collection", screens["CollectionScreen"]),
-                ("shop", screens["ShopScreen"]),
                 ("rankings", screens["RankingsScreen"]),
                 ("profile", screens["ProfileScreen"]),
                 ("settings", screens["SettingsScreen"]),

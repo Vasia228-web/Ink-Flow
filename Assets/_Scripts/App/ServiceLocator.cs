@@ -51,7 +51,6 @@ namespace InkFlow.App
     {
         public static bool SocialEnabled { get; set; }
         public static bool AdsEnabled { get; set; }
-        public static bool IapEnabled { get; set; }
         public static bool AnalyticsEnabled { get; set; } = true;
     }
 }

@@ -24,8 +24,7 @@ namespace InkFlow.Meta
             int rewardAdMultiplier = 2,
             long[]? finishPictureCosts = null,
             float finishPictureMinShare = 0.25f,
-            long continueCost = 120,
-            IReadOnlyList<OilPack>? oilPacks = null)
+            long continueCost = 120)
         {
             FinishPictureCosts = finishPictureCosts ?? DefaultFinishPictureCosts();
             if (FinishPictureCosts.Length != Core.Rarities.Count)
@@ -38,9 +37,6 @@ namespace InkFlow.Meta
             if (continueCost <= 0)
                 throw new ArgumentOutOfRangeException(nameof(continueCost), "Ціна «продовжити» мусить бути додатною.");
             ContinueCost = continueCost;
-            OilPacks = oilPacks ?? OilPack.Defaults();
-            if (OilPacks.Count == 0)
-                throw new ArgumentException("Магазин без пакетів нафти.", nameof(oilPacks));
             if (interstitialEveryRuns < 0)
                 throw new ArgumentOutOfRangeException(nameof(interstitialEveryRuns));
             if (rewardAdMultiplier < 1)
@@ -109,20 +105,6 @@ namespace InkFlow.Meta
         /// ніж домалювати епічну.
         /// </summary>
         public long ContinueCost { get; }
-
-        /// <summary>§13: пакети нафти магазину; ціни — зі стору, тут лише кількості й бейджі.</summary>
-        public IReadOnlyList<OilPack> OilPacks { get; }
-
-        /// <summary>Пакет за ідентифікатором товару; null — такого немає.</summary>
-        public OilPack? FindOilPack(string productId)
-        {
-            if (productId is null)
-                return null;
-            for (var i = 0; i < OilPacks.Count; i++)
-                if (string.Equals(OilPacks[i].Id, productId, StringComparison.Ordinal))
-                    return OilPacks[i];
-            return null;
-        }
 
         /// <summary>§9, §12: інтерстиціал раз на стільки забігів; 0 — ніколи. «Частіше — видаляють гру».</summary>
         public int InterstitialEveryRuns { get; }

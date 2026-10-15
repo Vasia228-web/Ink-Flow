@@ -39,7 +39,7 @@ namespace InkFlow.Editor
             Debug.Log(
                 $"[InkFlow] Економіка за {profile.Days} днів × {profile.RunsPerDay} забігів: " +
                 $"дохід {report.OilPerRun:0} нафти за забіг; епічна наполовину = {report.EpicCostInRuns:0.0} забігу, " +
-                $"продовжити = {report.ContinueCostInRuns:0.00} забігу, найменший пакет = {report.SmallestPackInRuns:0.0} забігу; " +
+                $"продовжити = {report.ContinueCostInRuns:0.00} забігу; " +
                 $"домальовано {report.Finishes} з {report.FinishesWanted} бажаних, продовжень {report.Continues} з {report.ContinuesWanted}; " +
                 $"залишок {report.FinalBalance}. Звіт: Tools/economy-report.csv");
         }

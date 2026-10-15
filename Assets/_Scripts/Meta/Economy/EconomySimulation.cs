@@ -74,9 +74,6 @@ namespace InkFlow.Meta
         /// <summary>Скільки забігів доходу коштує «продовжити».</summary>
         public double ContinueCostInRuns;
 
-        /// <summary>Скільком забігам доходу дорівнює найменший пакет магазину.</summary>
-        public double SmallestPackInRuns;
-
         /// <summary>Яку частку бажаних домальовувань гравець міг собі дозволити.</summary>
         public double FinishAffordability => FinishesWanted > 0 ? Finishes / (double)FinishesWanted : 1.0;
     }
@@ -88,7 +85,8 @@ namespace InkFlow.Meta
     /// лише друкувало звіт.
     ///
     /// Питання, на які вона відповідає: чи може гравець домалювати епічну «раз на кілька забігів, не
-    /// щозабігу», чи не дорожче «продовжити» за цілий забіг, і скільки забігів «коштує» найменший пакет.
+    /// щозабігу» і чи не дорожче «продовжити» за цілий забіг. (Скільки забігів «коштує» найменший пакет
+    /// магазину — питання покупки нафти; воно в запасі разом із магазином, `Reserve/OilShop`.)
     /// </summary>
     public static class EconomySimulation
     {
@@ -164,10 +162,6 @@ namespace InkFlow.Meta
             {
                 report.EpicCostInRuns = economy.FinishPictureCost(Rarity.Epic, 0.5f) / perRun;
                 report.ContinueCostInRuns = economy.ContinueCost / perRun;
-                var smallest = long.MaxValue;
-                for (var i = 0; i < economy.OilPacks.Count; i++)
-                    smallest = Math.Min(smallest, economy.OilPacks[i].Amount);
-                report.SmallestPackInRuns = smallest / perRun;
             }
             return report;
         }

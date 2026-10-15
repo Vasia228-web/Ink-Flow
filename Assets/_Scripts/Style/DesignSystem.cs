@@ -1010,26 +1010,15 @@ namespace InkFlow.Style
         [SerializeField] private Color youCardFillTo = Hex("#1A1338");
         [SerializeField] private Color youCardText = Hex("#FFD0E6");
 
-        [Header("Магазин")]
+        [Header("Спільні токени з колишнього магазину (магазин — у запасі, Reserve/OilShop)")]
         [Tooltip("Назва фарби й напис на кнопці картки: 13.5 px макета.")]
         [SerializeField] private float fontSizeShopCard = 37f;
-
-        [Tooltip("Ціна на картці: 14.5 px макета.")]
-        [SerializeField] private float fontSizeShopPrice = 40f;
 
         [Tooltip("Розрядка «МАГАЗИН»: .18em макета.")]
         [SerializeField] private float letterSpacingShopTitle = 18f;
 
-        [Tooltip("Текст на світлій заливці: на «Персику» чи «М'яті» білий зникає.")]
-        [SerializeField] private Color shopOnLightText = Hex("#1C0F33");
-
-        [SerializeField, Range(0f, 0.6f)] private float shopHotGlowAlpha = 0.22f;
-
         [SerializeField] private Color shopTabActiveFrom = new Color(1f, 0.176f, 0.541f, 0.92f);
         [SerializeField] private Color shopTabActiveTo = new Color(0.616f, 0.302f, 1f, 0.9f);
-
-        [Tooltip("Крапля на картці пакета нафти, px макета, від найменшого пакета до найбільшого: розмір — головний сигнал «більший пакет».")]
-        [SerializeField] private float[] oilDropSizes = { 46f, 58f, 72f, 88f };
 
         [Header("Фарбування планети")]
         [Tooltip("Назва планети в шапці: 15 px макета, ls .04em.")]
@@ -1329,21 +1318,9 @@ namespace InkFlow.Style
         }
 
         public float FontSizeShopCard => fontSizeShopCard;
-        public float FontSizeShopPrice => fontSizeShopPrice;
         public float LetterSpacingShopTitle => letterSpacingShopTitle;
-        public Color ShopOnLightText => shopOnLightText;
-        public float ShopHotGlowAlpha => shopHotGlowAlpha;
         public Color ShopTabActiveFrom => shopTabActiveFrom;
         public Color ShopTabActiveTo => shopTabActiveTo;
-
-        /// <summary>Крапля пакета нафти №<paramref name="index"/> в одиницях канваса; за межами списку — найбільша.</summary>
-        public float OilDropSize(int index)
-        {
-            if (oilDropSizes == null || oilDropSizes.Length == 0)
-                return 0f;
-            var i = Mathf.Clamp(index, 0, oilDropSizes.Length - 1);
-            return oilDropSizes[i] * MockupToReference;
-        }
         public float FontSizePaintTitle => fontSizePaintTitle;
         public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
         public float FontSizeCompletion => fontSizeCompletion;

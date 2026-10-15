@@ -160,7 +160,7 @@ namespace InkFlow.Editor
             Capsule(capsules, 1240);
             var wide = Row(section, "CapsuleWide", 10f);
             Capsule(wide, 999_999_999);
-            Caption(section, "капсула: «+» відкриває магазин; ширина росте за вмістом");
+            Caption(section, "капсула: крапля й число; ширина росте за вмістом");
         }
 
         private static void Buttons(GameObject content)

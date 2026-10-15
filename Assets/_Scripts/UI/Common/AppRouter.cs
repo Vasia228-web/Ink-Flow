@@ -27,7 +27,6 @@ namespace InkFlow.UI
         [SerializeField] private GalaxyScreen galaxy;
         [SerializeField] private PlanetScreen planet;
         [SerializeField] private CollectionScreen collection;
-        [SerializeField] private ShopScreen shop;
         [SerializeField] private RankingsScreen rankings;
         [SerializeField] private ProfileScreen profile;
         [SerializeField] private SettingsScreen settings;
@@ -49,7 +48,7 @@ namespace InkFlow.UI
         /// нічого не знає.
         ///
         /// Роздаємо ОДИН екземпляр стану всім екранам: кожен, хто зробив би собі
-        /// копію, показував би застарілі числа після покупки в сусідньому екрані.
+        /// копію, показував би застарілі числа після витрати нафти в сусідньому екрані.
         /// </summary>
         public void Configure(BalanceData balance, PlayerState state, AppLinks? links = null, NickRules? nickRules = null)
         {
@@ -66,7 +65,6 @@ namespace InkFlow.UI
             galaxy?.BindState(state);
             planet?.BindState(state);
             collection?.BindState(state);
-            shop?.BindState(state);
             rankings?.BindState(state);
             profile?.BindState(state);
             endless?.BindState(state);
@@ -74,12 +72,11 @@ namespace InkFlow.UI
         }
 
         /// <summary>Платформні сервіси для кнопок §9 — лише туди, де вони потрібні.</summary>
-        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap,
+        public void BindServices(InkFlow.Platform.IAdsService? ads,
             InkFlow.Platform.ILeaderboardService? leaderboards = null, InkFlow.Platform.IShowcaseService? showcases = null,
             InkFlow.Platform.IIdentityService? identity = null, int leaderboardPageSize = 50)
         {
             endless?.BindServices(ads);
-            shop?.BindServices(iap);
             rankings?.BindServices(leaderboards, showcases, identity, leaderboardPageSize);
         }
 
@@ -107,7 +104,7 @@ namespace InkFlow.UI
 
         /// <summary>
         /// Гасимо всі екрани перед стартом. Вони лежать у сцені активними, щоб
-        /// бутстрап міг застосувати стиль, — але показувати одразу дев'ять
+        /// бутстрап міг застосувати стиль, — але показувати одразу всі
         /// не можна.
         /// </summary>
         private void HideAll()
@@ -119,7 +116,7 @@ namespace InkFlow.UI
 
         private ScreenBase?[] AllScreens() => new ScreenBase?[]
         {
-            hub, endless, galaxy, planet, collection, shop, rankings, profile, settings
+            hub, endless, galaxy, planet, collection, rankings, profile, settings
         };
 
         private void WireGraph()
@@ -170,9 +167,6 @@ namespace InkFlow.UI
             }
 
             // ── Решта вкладок ──
-            if (shop != null)
-                shop.BackRequested += Pop;
-
             if (rankings != null)
             {
                 rankings.BackRequested += Pop;
@@ -278,9 +272,6 @@ namespace InkFlow.UI
             {
                 case "galaxy":
                     Push(galaxy, GalaxyArgs.Own);
-                    break;
-                case "shop":
-                    Push(shop);
                     break;
                 case "ranks":
                     Push(rankings);

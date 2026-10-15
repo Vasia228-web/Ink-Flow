@@ -1,0 +1,949 @@
+diff --git a/Assets/Tests/EditMode/Meta/EconomySimulationTests.cs b/Assets/Tests/EditMode/Meta/EconomySimulationTests.cs
+index 96af961..2114101 100644
+--- a/Assets/Tests/EditMode/Meta/EconomySimulationTests.cs
++++ b/Assets/Tests/EditMode/Meta/EconomySimulationTests.cs
+@@ -33,8 +33,6 @@ public void Defaults_MakeAnEpicCostAFewRunsNotOne()
+             Assert.LessOrEqual(report.EpicCostInRuns, 4.0, "…і не раз на тиждень");
+             Assert.LessOrEqual(report.ContinueCostInRuns, 1.0, "продовжити — дешевше за один забіг");
+             Assert.GreaterOrEqual(report.ContinueCostInRuns, 0.3, "…але не дрібниця");
+-            Assert.GreaterOrEqual(report.SmallestPackInRuns, 4.0, "найменший пакет — кілька вечорів гри");
+-            Assert.LessOrEqual(report.SmallestPackInRuns, 14.0);
+         }
+ 
+         [Test]
+diff --git a/Assets/_Scripts/App/GameBootstrap.cs b/Assets/_Scripts/App/GameBootstrap.cs
+index ac17c23..17fe5dc 100644
+--- a/Assets/_Scripts/App/GameBootstrap.cs
++++ b/Assets/_Scripts/App/GameBootstrap.cs
+@@ -79,7 +79,7 @@ private void BindRankings()
+             _rankings = new RankingsSync(_state, identity, leaderboards, showcases);
+             _rankings.Start();
+             // Екран дістає id гравця з сервісу тотожності в момент запиту, а не знімком: вхід асинхронний.
+-            router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>(),
++            router.BindServices(ServiceLocator.Get<IAdsService>(),
+                 leaderboards, showcases, identity, appConfig != null ? appConfig.LeaderboardPageSize : 50);
+         }
+ 
+@@ -126,11 +126,6 @@ private void RegisterPlatformServices()
+             ServiceLocator.Register<IAdsService>(new FakeAds());
+ #else
+             ServiceLocator.Register<IAdsService>(new NullAds());
+-#endif
+-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+-            ServiceLocator.Register<IIapService>(new FakeIap());
+-#else
+-            ServiceLocator.Register<IIapService>(new NullIap());
+ #endif
+             ServiceLocator.Register<IReviewService>(new NullReview());
+             ServiceLocator.Register<INotificationService>(new NullNotifications());
+diff --git a/Assets/_Scripts/App/ServiceLocator.cs b/Assets/_Scripts/App/ServiceLocator.cs
+index 692151a..ea6d349 100644
+--- a/Assets/_Scripts/App/ServiceLocator.cs
++++ b/Assets/_Scripts/App/ServiceLocator.cs
+@@ -51,7 +51,6 @@ public static class FeatureFlags
+     {
+         public static bool SocialEnabled { get; set; }
+         public static bool AdsEnabled { get; set; }
+-        public static bool IapEnabled { get; set; }
+         public static bool AnalyticsEnabled { get; set; } = true;
+     }
+ }
+diff --git a/Assets/_Scripts/Editor/BuildComponentsScreen.cs b/Assets/_Scripts/Editor/BuildComponentsScreen.cs
+index 4dd3812..b98bf4d 100644
+--- a/Assets/_Scripts/Editor/BuildComponentsScreen.cs
++++ b/Assets/_Scripts/Editor/BuildComponentsScreen.cs
+@@ -160,7 +160,7 @@ private static void Oil(GameObject content)
+             Capsule(capsules, 1240);
+             var wide = Row(section, "CapsuleWide", 10f);
+             Capsule(wide, 999_999_999);
+-            Caption(section, "капсула: «+» відкриває магазин; ширина росте за вмістом");
++            Caption(section, "капсула: крапля й число; ширина росте за вмістом");
+         }
+ 
+         private static void Buttons(GameObject content)
+diff --git a/Assets/_Scripts/Editor/BuildHubScreen.cs b/Assets/_Scripts/Editor/BuildHubScreen.cs
+index 1aebe83..abdb08f 100644
+--- a/Assets/_Scripts/Editor/BuildHubScreen.cs
++++ b/Assets/_Scripts/Editor/BuildHubScreen.cs
+@@ -441,10 +441,11 @@ private static RectTransform BuildNavBar(GameObject parent, DesignSystem design,
+             so.FindProperty("capsuleStroke").objectReferenceValue = stroke;
+             so.FindProperty("design").objectReferenceValue = design;
+ 
+-            var titles = new[] { "Галактика", "Магазин", "Рейтинги", "Профіль" };
+-            var ids = new[] { "galaxy", "shop", "ranks", "profile" };
+-            var iconFiles = new[] { "icon-galaxy", "icon-shop", "icon-ranks", "icon-profile" };
+-            var accents = new[] { design.AccentSecondary, design.AccentPrimary, design.AccentGold, design.TextMuted };
++            // Вкладки «Магазин» немає: покупка нафти — у запасі (Reserve/OilShop).
++            var titles = new[] { "Галактика", "Рейтинги", "Профіль" };
++            var ids = new[] { "galaxy", "ranks", "profile" };
++            var iconFiles = new[] { "icon-galaxy", "icon-ranks", "icon-profile" };
++            var accents = new[] { design.AccentSecondary, design.AccentGold, design.TextMuted };
+ 
+             var tabs = so.FindProperty("tabs");
+             tabs.arraySize = titles.Length;
+@@ -453,8 +454,8 @@ private static RectTransform BuildNavBar(GameObject parent, DesignSystem design,
+             {
+                 var tab = Child(nav, $"Tab_{ids[i]}");
+                 var tabRect = tab.GetComponent<RectTransform>();
+-                tabRect.anchorMin = new Vector2(i / 4f, 0f);
+-                tabRect.anchorMax = new Vector2((i + 1) / 4f, 1f);
++                tabRect.anchorMin = new Vector2(i / (float)titles.Length, 0f);
++                tabRect.anchorMax = new Vector2((i + 1) / (float)titles.Length, 1f);
+                 tabRect.offsetMin = Vector2.zero;
+                 tabRect.offsetMax = Vector2.zero;
+ 
+@@ -494,7 +495,7 @@ private static RectTransform BuildNavBar(GameObject parent, DesignSystem design,
+ 
+                 // Кольорові деталі поверх силуету: саме вони роблять іконку живою,
+                 // а не монохромним знаком.
+-                var accentLayers = BuildIconAccents(icon, i, design);
++                var accentLayers = BuildIconAccents(icon, ids[i], design);
+ 
+                 var label = Label(tab, "Label", titles[i], design, font,
+                     design.FontSizeCaption,
+@@ -587,13 +588,13 @@ private static void BuildLogoDrips(GameObject parent, DesignSystem design, DripP
+         /// Кольорові шари іконки вкладки. У макеті кожна іконка складена з кількох
+         /// фігур із власними кольорами — відтворюємо це накладанням дрібних спрайтів.
+         /// </summary>
+-        private static Graphic[] BuildIconAccents(GameObject icon, int tabIndex, DesignSystem design)
++        private static Graphic[] BuildIconAccents(GameObject icon, string tabId, DesignSystem design)
+         {
+             var circle = LoadSprite("circle-soft");
+ 
+-            switch (tabIndex)
++            switch (tabId)
+             {
+-                case 0:
++                case "galaxy":
+                     // Плями, кільце й глянець тепер намальовані в самому
+                     // спрайті: іконка кольорова, і накладати їх окремими
+                     // кружечками більше не треба. Саме ці «кружечки» й
+@@ -601,32 +602,7 @@ private static Graphic[] BuildIconAccents(GameObject icon, int tabIndex, DesignS
+                     // circle-soft, а не були її частиною.
+                     return System.Array.Empty<Graphic>();
+ 
+-                case 1: // Магазин — маджентова фарба у відрі з відблиском
+-                {
+-                    var paintGo = Child(icon, "Paint");
+-                    var paintRect = paintGo.GetComponent<RectTransform>();
+-                    paintRect.anchorMin = paintRect.anchorMax = new Vector2(0.5f, 0.5f);
+-                    paintRect.anchoredPosition = new Vector2(0f, M(2f));
+-                    paintRect.sizeDelta = new Vector2(M(13f), M(5f));
+-                    var paint = paintGo.AddComponent<Image>();
+-                    paint.sprite = circle;
+-                    paint.raycastTarget = false;
+-                    paint.color = design.AccentPrimary;
+-
+-                    var shineGo = Child(icon, "Shine");
+-                    var shineRect = shineGo.GetComponent<RectTransform>();
+-                    shineRect.anchorMin = shineRect.anchorMax = new Vector2(0.5f, 0.5f);
+-                    shineRect.anchoredPosition = new Vector2(-M(3f), M(3f));
+-                    shineRect.sizeDelta = new Vector2(M(4f), M(2.5f));
+-                    var shine = shineGo.AddComponent<Image>();
+-                    shine.sprite = circle;
+-                    shine.raycastTarget = false;
+-                    shine.color = new Color(1f, 1f, 1f, 0.55f);
+-
+-                    return new Graphic[] { paint, shine };
+-                }
+-
+-                case 2: // Рейтинги — тепле світло в чаші кубка
++                case "ranks": // Рейтинги — тепле світло в чаші кубка
+                 {
+                     var lightGo = Child(icon, "CupLight");
+                     var lightRect = lightGo.GetComponent<RectTransform>();
+diff --git a/Assets/_Scripts/Editor/BuildMainScene.cs b/Assets/_Scripts/Editor/BuildMainScene.cs
+index 74ae9b9..2082ac0 100644
+--- a/Assets/_Scripts/Editor/BuildMainScene.cs
++++ b/Assets/_Scripts/Editor/BuildMainScene.cs
+@@ -16,19 +16,19 @@ namespace InkFlow.Editor
+ {
+     /// <summary>
+     /// Складає ЗАСТОСУНОК: один канвас, один <see cref="NavigationStack"/>,
+-    /// дев'ять екранів із префабів і <see cref="AppRouter"/> між ними.
++    /// вісім екранів із префабів і <see cref="AppRouter"/> між ними.
+     /// Меню: Ink Flow → Setup → Build Main Scene.
+     ///
+     /// Це ТОЧКА ВХОДУ гри — саме `Main.unity` стоїть у Build Settings, і саме тут
+     /// живе `GameBootstrap` із сервісами й збереженням. Окремі сцени екранів
+-    /// (`Hub.unity`, `Shop.unity`…) лишаються майстернею: на них зручно правити
++    /// (`Hub.unity`, `Galaxy.unity`…) лишаються майстернею: на них зручно правити
+     /// один екран, не піднімаючи весь застосунок.
+     ///
+     /// Розкладки тут немає жодної — усе приходить префабами з Build*Screen.
+-    /// Тому перед цією командою треба зібрати всі дев'ять екранів.
++    /// Тому перед цією командою треба зібрати всі вісім екранів.
+     ///
+-    /// У збереженій сцені активний лише хаб: решта вісім лежать згаслими. Інакше
+-    /// дев'ять розтягнутих на весь канвас екранів накладаються один на одного
++    /// У збереженій сцені активний лише хаб: решта сім лежать згаслими. Інакше
++    /// вісім розтягнутих на весь канвас екранів накладаються один на одного
+     /// й у Scene, і в Game.
+     /// </summary>
+     public static class BuildMainScene
+@@ -44,7 +44,7 @@ public static class BuildMainScene
+         private static readonly string[] ScreenNames =
+         {
+             "HubScreen", "EndlessScreen",
+-            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "RankingsScreen", "ProfileScreen",
++            "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen", "ProfileScreen",
+             "SettingsScreen"
+         };
+ 
+@@ -158,7 +158,6 @@ private static void BuildScene()
+                 ("galaxy", screens["GalaxyScreen"]),
+                 ("planet", screens["PlanetScreen"]),
+                 ("collection", screens["CollectionScreen"]),
+-                ("shop", screens["ShopScreen"]),
+                 ("rankings", screens["RankingsScreen"]),
+                 ("profile", screens["ProfileScreen"]),
+                 ("settings", screens["SettingsScreen"]),
+diff --git a/Assets/_Scripts/Editor/BuildUIKit.cs b/Assets/_Scripts/Editor/BuildUIKit.cs
+index df372d1..13e03a6 100644
+--- a/Assets/_Scripts/Editor/BuildUIKit.cs
++++ b/Assets/_Scripts/Editor/BuildUIKit.cs
+@@ -278,9 +278,11 @@ private static void BuildDropView()
+         }
+ 
+         /// <summary>
+-        /// Капсула нафти U1Glaze: 9-slice capsule, крапля oil_drop 24, число Nunito Black і плитка «+»
+-        /// (capsule_plus + icon_plus). Ширина росте за вмістом (HorizontalLayoutGroup + fitter):
+-        /// «999 999 999» вміщається, не переносячись. Висота — 46 px макета.
++        /// Капсула нафти U1Glaze: 9-slice capsule, крапля oil_drop 24 і число Nunito Black. Ширина росте
++        /// за вмістом (HorizontalLayoutGroup + fitter): «999 999 999» вміщається, не переносячись. Висота —
++        /// 46 px макета. Бірюзової плитки «+» (вхід у магазин) немає — покупка нафти в запасі
++        /// (Reserve/OilShop); у макеті «+» стоїть впритул до правого краю, тож без нього праворуч
++        /// відступ 14 замість 1 — число не впирається в заокруглення.
+         /// </summary>
+         private static void BuildCurrencyWidget()
+         {
+@@ -295,7 +297,7 @@ private static void BuildCurrencyWidget()
+                 capsule.raycastTarget = false;
+ 
+                 var layout = root.AddComponent<HorizontalLayoutGroup>();
+-                layout.padding = new RectOffset((int)U1.Px(10f), (int)U1.Px(1f), 0, 0);
++                layout.padding = new RectOffset((int)U1.Px(10f), (int)U1.Px(14f), 0, 0);
+                 layout.spacing = U1.Px(6f);
+                 layout.childAlignment = TextAnchor.MiddleLeft;
+                 layout.childControlWidth = true;
+@@ -318,30 +320,10 @@ private static void BuildCurrencyWidget()
+                 label.textWrappingMode = TextWrappingModes.NoWrap;
+                 label.overflowMode = TextOverflowModes.Overflow;
+ 
+-                // «+»: плитка 32, але зона тапу — 44×46 (SPEC «нічого меншого за 44»): прозора підкладка ловить тап.
+-                var plusGo = NewChild(root, "Plus", Vector2.zero);
+-                var plusCatcher = plusGo.AddComponent<Image>();
+-                plusCatcher.color = Color.clear;
+-                var plusLayout = plusGo.AddComponent<LayoutElement>();
+-                plusLayout.preferredWidth = design.TapMin;
+-                plusLayout.preferredHeight = height;
+-                var tileGo = NewChild(plusGo, "Tile", new Vector2(U1.Px(32f), U1.Px(32f)));
+-                var plusTile = tileGo.AddComponent<Image>();
+-                plusTile.sprite = U1.S("capsule_plus");
+-                plusTile.raycastTarget = false;
+-                var plusIconGo = NewChild(tileGo, "Icon", new Vector2(U1.Px(16f), U1.Px(16f)));
+-                var plusIcon = plusIconGo.AddComponent<Image>();
+-                plusIcon.sprite = U1.S("icon_plus");
+-                plusIcon.raycastTarget = false;
+-                var plusButton = plusGo.AddComponent<Button>();
+-                plusButton.targetGraphic = plusTile;
+-                plusButton.transition = Selectable.Transition.None;
+-                tileGo.AddComponent<PressScale>().Bind(design);
+-
+                 var widget = root.AddComponent<CurrencyWidget>();
+                 Wire(widget,
+                     ("design", design), ("capsule", capsule), ("drop", drop),
+-                    ("amountLabel", label), ("plusButton", plusButton), ("plusIcon", plusIcon));
++                    ("amountLabel", label));
+                 widget.Apply();
+ 
+                 SavePrefab(root, "CurrencyWidget");
+@@ -453,7 +435,7 @@ private static void BuildTestScene()
+ 
+             // Кнопки трьох тонів
+             var tones = new[] { NeonButton.Tone.Primary, NeonButton.Tone.Cool, NeonButton.Tone.Warm };
+-            var titles = new[] { "Рівні", "Нескінченний", "Магазин" };
++            var titles = new[] { "Галактика", "Нескінченний", "Колекція" };
+             for (var i = 0; i < tones.Length; i++)
+             {
+                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(button, safeGo.transform);
+diff --git a/Assets/_Scripts/Editor/EconomySimulator.cs b/Assets/_Scripts/Editor/EconomySimulator.cs
+index 75ec58e..c957b71 100644
+--- a/Assets/_Scripts/Editor/EconomySimulator.cs
++++ b/Assets/_Scripts/Editor/EconomySimulator.cs
+@@ -39,7 +39,7 @@ public static void Simulate()
+             Debug.Log(
+                 $"[InkFlow] Економіка за {profile.Days} днів × {profile.RunsPerDay} забігів: " +
+                 $"дохід {report.OilPerRun:0} нафти за забіг; епічна наполовину = {report.EpicCostInRuns:0.0} забігу, " +
+-                $"продовжити = {report.ContinueCostInRuns:0.00} забігу, найменший пакет = {report.SmallestPackInRuns:0.0} забігу; " +
++                $"продовжити = {report.ContinueCostInRuns:0.00} забігу; " +
+                 $"домальовано {report.Finishes} з {report.FinishesWanted} бажаних, продовжень {report.Continues} з {report.ContinuesWanted}; " +
+                 $"залишок {report.FinalBalance}. Звіт: Tools/economy-report.csv");
+         }
+diff --git a/Assets/_Scripts/Editor/GenerateUISprites.cs b/Assets/_Scripts/Editor/GenerateUISprites.cs
+index 321f2a4..ddd14d3 100644
+--- a/Assets/_Scripts/Editor/GenerateUISprites.cs
++++ b/Assets/_Scripts/Editor/GenerateUISprites.cs
+@@ -118,14 +118,13 @@ public static void Generate()
+             // малюємо ті самі силуети процедурно — білими, колір задає DesignSystem.
+             // Виняток — «Галактика»: вона кольорова, див. CreateGalaxyIcon.
+             WriteSprite("icon-galaxy.png", CreateGalaxyIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+-            WriteSprite("icon-shop.png", CreateShopIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+             WriteSprite("icon-ranks.png", CreateRanksIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+             WriteSprite("icon-profile.png", CreateProfileIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
+ 
+             AssetDatabase.Refresh();
+             Debug.Log($"[InkFlow] UI-спрайти згенеровано в {Folder}: circle-soft, circle-gloss, nebula, " +
+                       "rounded-rect + outline (9-slice), glow (9-slice), white-quad, circle-outline, icon-star, icon-retry, " +
+-                      "icon-galaxy, icon-shop, icon-ranks, icon-profile.");
++                      "icon-galaxy, icon-ranks, icon-profile.");
+         }
+ 
+         // ───────────────────────── Малювання ─────────────────────────
+@@ -705,23 +704,6 @@ private static Color Blend(Color under, Color over, float coverage)
+             return new Color(r, g, b, a);
+         }
+ 
+-        /// <summary>Відро з фарбою — вкладка «Магазин».</summary>
+-        private static Texture2D CreateShopIcon() => DrawIcon((u, v) =>
+-        {
+-            // Корпус — трапеція, звужена донизу.
+-            var top = 0.66f;
+-            var bottom = 0.16f;
+-            var t = Mathf.InverseLerp(bottom, top, v);
+-            var halfWidth = Mathf.Lerp(0.20f, 0.28f, t);
+-            var body = v >= bottom && v <= top ? Cover((halfWidth - Mathf.Abs(u - 0.5f)) * 4f) : 0f;
+-
+-            // Ручка — дуга над відром.
+-            var hd = Mathf.Abs(Dist(u, v, 0.5f, top) - 0.24f);
+-            var handle = v > top ? Cover((0.035f - hd) * 6f) : 0f;
+-
+-            return Mathf.Max(body, handle);
+-        });
+-
+         /// <summary>Кубок — вкладка «Рейтинги».</summary>
+         private static Texture2D CreateRanksIcon() => DrawIcon((u, v) =>
+         {
+diff --git a/Assets/_Scripts/Editor/MetaScreenshots.cs b/Assets/_Scripts/Editor/MetaScreenshots.cs
+index 5df2df1..66cad34 100644
+--- a/Assets/_Scripts/Editor/MetaScreenshots.cs
++++ b/Assets/_Scripts/Editor/MetaScreenshots.cs
+@@ -27,7 +27,6 @@ public static class MetaScreenshots
+             "galaxy-fresh", "galaxy-mid", "galaxy-second",
+             "planet-empty", "planet-half", "planet-full", "planet-sheet",
+             "collection-browse", "collection-pick", "collection-empty",
+-            "shop", "shop-offline",
+             "settings", "settings-run",
+             "profile-fresh", "profile",
+             "rankings", "rankings-offline", "galaxy-visitor",
+@@ -93,7 +92,6 @@ public static void BuildAndCapture()
+             BuildGalaxyScreen.Build();
+             BuildPlanetScreen.Build();
+             BuildCollectionScreen.Build();
+-            BuildShopScreen.Build();
+             BuildSettingsScreen.Build();
+             BuildProfileScreen.Build();
+             BuildRankingsScreen.Build();
+@@ -106,7 +104,7 @@ public static void CaptureAll()
+         {
+             if (!InkFlowBootstrap.EnsureEditMode())
+                 return;
+-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
++            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
+                 if (!MetaScreenRig<ScreenBase>.Available(name))
+                 {
+                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
+@@ -254,20 +252,6 @@ private static void Capture(ScreenRigBase.Device device, string state, string pa
+                     rig.SavePng(path);
+                     break;
+                 }
+-                case "shop":
+-                case "shop-offline":
+-                {
+-                    // Зі стором (FakeIap: ціни §13 рядками) і без нього (NullIap: кнопки сплять, екран каже чому).
+-                    using var rig = MetaScreenRig<ShopScreen>.Create(device, "ShopScreen");
+-                    var player = rig.NewPlayer();
+-                    player.Wallet.Add(1240, RewardSource.Debug);
+-                    rig.Screen.BindServices(state == "shop"
+-                        ? new InkFlow.Platform.FakeIap()
+-                        : new InkFlow.Platform.NullIap());
+-                    rig.Enter(player, ScreenArgs.Empty);
+-                    rig.SavePng(path);
+-                    break;
+-                }
+                 default:
+                 {
+                     using var rig = MetaScreenRig<CollectionScreen>.Create(device, "CollectionScreen");
+diff --git a/Assets/_Scripts/Gameplay/Config/EconomyConfig.cs b/Assets/_Scripts/Gameplay/Config/EconomyConfig.cs
+index 901d2c2..0a8a960 100644
+--- a/Assets/_Scripts/Gameplay/Config/EconomyConfig.cs
++++ b/Assets/_Scripts/Gameplay/Config/EconomyConfig.cs
+@@ -1,5 +1,3 @@
+-using System;
+-using System.Collections.Generic;
+ using InkFlow.Meta;
+ using UnityEngine;
+ 
+@@ -11,24 +9,12 @@ namespace InkFlow.Gameplay
+     ///
+     /// Стартовий стан навмисно нульовий, і це рішення, а не заглушка: нафту заробляють
+     /// забігом, і гравець бачить зв'язок «граю → заробляю → витрачаю». Грант розірвав би його.
+-    /// Ціни дій і пакети підбирає `Ink Flow → Simulate → Economy (30 days)` (§13, §19).
++    /// Ціни дій підбирає `Ink Flow → Simulate → Economy (30 days)` (§13, §19). Пакети магазину
++    /// (покупка нафти за гроші) — у запасі з 2026-10-15: `Reserve/OilShop`.
+     /// </summary>
+     [CreateAssetMenu(fileName = "EconomyConfig", menuName = "Ink Flow/Economy Config")]
+     public sealed class EconomyConfig : ScriptableObject
+     {
+-        [Serializable]
+-        public sealed class OilPackEntry
+-        {
+-            [Tooltip("Ідентифікатор товару в сторах: oil_1000, oil_10000, oil_100000, oil_500000.")]
+-            public string id = string.Empty;
+-            [Tooltip("Скільки нафти дає покупка.")]
+-            [Min(1)] public long amount = 1000;
+-            [Tooltip("Бейдж на картці; порожньо — без бейджа.")]
+-            public string badge = string.Empty;
+-            [Tooltip("«Гарячий» пакет світиться теплим.")]
+-            public bool hot;
+-        }
+-
+         [Header("Стартовий стан нового гравця")]
+         [Tooltip("Нафта на старті. 0 — гравець заробляє її першим же забігом.")]
+         [SerializeField, Min(0)] private long starterOil;
+@@ -56,10 +42,6 @@ public sealed class OilPackEntry
+         [Tooltip("«Продовжити після програшу» за нафту, коли ролик уже використано. Менше за забіг доходу; нуль заборонено — безплатне продовження дає ролик.")]
+         [SerializeField, Min(1)] private long continueCost = 120;
+ 
+-        [Header("Магазин (майстер-док §13): лише нафта")]
+-        [Tooltip("Чотири пакети; ціни — зі стору, тут лише кількості. Ідентифікатори мають збігатись із товарами в сторах.")]
+-        [SerializeField] private List<OilPackEntry> oilPacks = DefaultPacks();
+-
+         [Header("Реклама (§9)")]
+         [Tooltip("Інтерстиціал раз на стільки забігів. 0 — ніколи.")]
+         [SerializeField, Min(0)] private int interstitialEveryRuns = 4;
+@@ -77,34 +59,6 @@ public sealed class OilPackEntry
+             rewardAdMultiplier,
+             finishPictureCosts,
+             finishPictureMinShare,
+-            continueCost,
+-            ToPacks());
+-
+-        private IReadOnlyList<OilPack> ToPacks()
+-        {
+-            var list = new List<OilPack>(oilPacks?.Count ?? 0);
+-            if (oilPacks != null)
+-                foreach (var entry in oilPacks)
+-                {
+-                    if (entry is null || entry.id is null || entry.id.Length == 0 || entry.amount <= 0)
+-                        continue;
+-                    list.Add(new OilPack(entry.id, entry.amount, entry.badge, entry.hot));
+-                }
+-            if (list.Count == 0)
+-            {
+-                // Порожній або зіпсований список не має ронити гру: голосно в консоль і дефолтні пакети.
+-                Debug.LogError("[InkFlow] EconomyConfig без пакетів нафти — беру чотири пакети за замовчуванням.");
+-                return OilPack.Defaults();
+-            }
+-            return list;
+-        }
+-
+-        private static List<OilPackEntry> DefaultPacks()
+-        {
+-            var list = new List<OilPackEntry>();
+-            foreach (var pack in OilPack.Defaults())
+-                list.Add(new OilPackEntry { id = pack.Id, amount = pack.Amount, badge = pack.Badge ?? string.Empty, hot = pack.Hot });
+-            return list;
+-        }
++            continueCost);
+     }
+ }
+diff --git a/Assets/_Scripts/Meta/Economy/EconomyData.cs b/Assets/_Scripts/Meta/Economy/EconomyData.cs
+index 405b9c7..3e4a3dd 100644
+--- a/Assets/_Scripts/Meta/Economy/EconomyData.cs
++++ b/Assets/_Scripts/Meta/Economy/EconomyData.cs
+@@ -24,8 +24,7 @@ public EconomyData(
+             int rewardAdMultiplier = 2,
+             long[]? finishPictureCosts = null,
+             float finishPictureMinShare = 0.25f,
+-            long continueCost = 120,
+-            IReadOnlyList<OilPack>? oilPacks = null)
++            long continueCost = 120)
+         {
+             FinishPictureCosts = finishPictureCosts ?? DefaultFinishPictureCosts();
+             if (FinishPictureCosts.Length != Core.Rarities.Count)
+@@ -38,9 +37,6 @@ public EconomyData(
+             if (continueCost <= 0)
+                 throw new ArgumentOutOfRangeException(nameof(continueCost), "Ціна «продовжити» мусить бути додатною.");
+             ContinueCost = continueCost;
+-            OilPacks = oilPacks ?? OilPack.Defaults();
+-            if (OilPacks.Count == 0)
+-                throw new ArgumentException("Магазин без пакетів нафти.", nameof(oilPacks));
+             if (interstitialEveryRuns < 0)
+                 throw new ArgumentOutOfRangeException(nameof(interstitialEveryRuns));
+             if (rewardAdMultiplier < 1)
+@@ -110,20 +106,6 @@ public long FinishPictureCost(Core.Rarity rarity, float remainingFraction)
+         /// </summary>
+         public long ContinueCost { get; }
+ 
+-        /// <summary>§13: пакети нафти магазину; ціни — зі стору, тут лише кількості й бейджі.</summary>
+-        public IReadOnlyList<OilPack> OilPacks { get; }
+-
+-        /// <summary>Пакет за ідентифікатором товару; null — такого немає.</summary>
+-        public OilPack? FindOilPack(string productId)
+-        {
+-            if (productId is null)
+-                return null;
+-            for (var i = 0; i < OilPacks.Count; i++)
+-                if (string.Equals(OilPacks[i].Id, productId, StringComparison.Ordinal))
+-                    return OilPacks[i];
+-            return null;
+-        }
+-
+         /// <summary>§9, §12: інтерстиціал раз на стільки забігів; 0 — ніколи. «Частіше — видаляють гру».</summary>
+         public int InterstitialEveryRuns { get; }
+ 
+diff --git a/Assets/_Scripts/Meta/Economy/EconomySimulation.cs b/Assets/_Scripts/Meta/Economy/EconomySimulation.cs
+index 2cae2c1..d7cfd62 100644
+--- a/Assets/_Scripts/Meta/Economy/EconomySimulation.cs
++++ b/Assets/_Scripts/Meta/Economy/EconomySimulation.cs
+@@ -74,9 +74,6 @@ public sealed class EconomyReport
+         /// <summary>Скільки забігів доходу коштує «продовжити».</summary>
+         public double ContinueCostInRuns;
+ 
+-        /// <summary>Скільком забігам доходу дорівнює найменший пакет магазину.</summary>
+-        public double SmallestPackInRuns;
+-
+         /// <summary>Яку частку бажаних домальовувань гравець міг собі дозволити.</summary>
+         public double FinishAffordability => FinishesWanted > 0 ? Finishes / (double)FinishesWanted : 1.0;
+     }
+@@ -88,7 +85,8 @@ public sealed class EconomyReport
+     /// лише друкувало звіт.
+     ///
+     /// Питання, на які вона відповідає: чи може гравець домалювати епічну «раз на кілька забігів, не
+-    /// щозабігу», чи не дорожче «продовжити» за цілий забіг, і скільки забігів «коштує» найменший пакет.
++    /// щозабігу» і чи не дорожче «продовжити» за цілий забіг. (Скільки забігів «коштує» найменший пакет
++    /// магазину — питання покупки нафти; воно в запасі разом із магазином, `Reserve/OilShop`.)
+     /// </summary>
+     public static class EconomySimulation
+     {
+@@ -164,10 +162,6 @@ public static EconomyReport Run(EconomyData economy, EconomyProfile? profile = n
+             {
+                 report.EpicCostInRuns = economy.FinishPictureCost(Rarity.Epic, 0.5f) / perRun;
+                 report.ContinueCostInRuns = economy.ContinueCost / perRun;
+-                var smallest = long.MaxValue;
+-                for (var i = 0; i < economy.OilPacks.Count; i++)
+-                    smallest = Math.Min(smallest, economy.OilPacks[i].Amount);
+-                report.SmallestPackInRuns = smallest / perRun;
+             }
+             return report;
+         }
+diff --git a/Assets/_Scripts/Meta/Economy/Wallet.cs b/Assets/_Scripts/Meta/Economy/Wallet.cs
+index f63d077..1a8e7e6 100644
+--- a/Assets/_Scripts/Meta/Economy/Wallet.cs
++++ b/Assets/_Scripts/Meta/Economy/Wallet.cs
+@@ -5,7 +5,6 @@ namespace InkFlow.Meta
+     /// <summary>Звідки прийшла нафта — для аналітики й антифроду.</summary>
+     public enum RewardSource
+     {
+-        Purchase,
+         Debug,
+ 
+         /// <summary>Майстер-док §10: очки забігу → нафта.</summary>
+diff --git a/Assets/_Scripts/Meta/PlayerState.cs b/Assets/_Scripts/Meta/PlayerState.cs
+index 456ee6b..83fa128 100644
+--- a/Assets/_Scripts/Meta/PlayerState.cs
++++ b/Assets/_Scripts/Meta/PlayerState.cs
+@@ -14,7 +14,7 @@ namespace InkFlow.Meta
+     ///
+     /// Правило: РАНТАЙМ — джерело правди, файл — його зліпок. <see cref="Persist"/>
+     /// згортає живі об'єкти назад у файл і пише його, і робиться це в кількох
+-    /// чітких точках (кінець забігу, покупка, слот планети, згортання застосунку),
++    /// чітких точках (кінець забігу, витрата нафти, слот планети, згортання застосунку),
+     /// а не «десь після зміни».
+     /// </summary>
+     public sealed class PlayerState
+@@ -432,20 +432,6 @@ public bool TryContinueRun()
+             return true;
+         }
+ 
+-        /// <summary>§13: пакети нафти магазину — з конфігу; ціни приходять зі стору.</summary>
+-        public System.Collections.Generic.IReadOnlyList<OilPack> OilPacks => Economy.OilPacks;
+-
+-        /// <summary>
+-        /// §13: стор підтвердив покупку пакета — нафта в гаманець і одразу у файл: закрити гру
+-        /// після покупки не має коштувати гравцю куплених крапель.
+-        /// </summary>
+-        public void GrantPurchasedOil(OilPack pack)
+-        {
+-            if (pack is null) throw new ArgumentNullException(nameof(pack));
+-            Wallet.Add(pack.Amount, RewardSource.Purchase);
+-            Persist();
+-        }
+-
+         /// <summary>§9: інтерстиціал раз на N забігів — після забігу з номером, кратним N.</summary>
+         public bool ShouldShowInterstitial =>
+             Economy.InterstitialEveryRuns > 0 && Progress.RunsPlayed > 0 &&
+diff --git a/Assets/_Scripts/Platform/Null/NullServices.cs b/Assets/_Scripts/Platform/Null/NullServices.cs
+index 53cfe65..a31fcc4 100644
+--- a/Assets/_Scripts/Platform/Null/NullServices.cs
++++ b/Assets/_Scripts/Platform/Null/NullServices.cs
+@@ -67,59 +67,6 @@ public void ShowInterstitial(Action done)
+         }
+     }
+ 
+-    /// <summary>
+-    /// Стор без SDK (реліз до підключення Unity IAP): цін немає, купити нічого не можна — магазин
+-    /// показує пакети з неактивними кнопками й каже, що стор недоступний.
+-    /// </summary>
+-    public sealed class NullIap : IIapService
+-    {
+-        public bool IsAvailable => false;
+-
+-        public void Query(IReadOnlyList<string> productIds, Action<IReadOnlyList<StoreProduct>> done) =>
+-            done?.Invoke(Array.Empty<StoreProduct>());
+-
+-        public void Buy(string productId, Action<PurchaseResult> done) =>
+-            done?.Invoke(new PurchaseResult(false, productId, "Магазин недоступний"));
+-    }
+-
+-    /// <summary>
+-    /// Стор «навмання» для редактора й dev-збірок: ціни чотирьох пакетів майстер-доку §13 рядками,
+-    /// покупка вдається миттєво. Так магазин можна пройти руками до підключення SDK; у релізі —
+-    /// <see cref="NullIap"/> або справжній.
+-    /// </summary>
+-    public sealed class FakeIap : IIapService
+-    {
+-        private static readonly Dictionary<string, string> Prices = new Dictionary<string, string>(StringComparer.Ordinal)
+-        {
+-            ["oil_1000"] = "$5",
+-            ["oil_10000"] = "$25",
+-            ["oil_100000"] = "$50",
+-            ["oil_500000"] = "$100"
+-        };
+-
+-        public bool IsAvailable => true;
+-
+-        public void Query(IReadOnlyList<string> productIds, Action<IReadOnlyList<StoreProduct>> done)
+-        {
+-            var products = new List<StoreProduct>(productIds?.Count ?? 0);
+-            for (var i = 0; productIds != null && i < productIds.Count; i++)
+-                if (Prices.TryGetValue(productIds[i], out var price))
+-                    products.Add(new StoreProduct(productIds[i], price));
+-            done?.Invoke(products);
+-        }
+-
+-        public void Buy(string productId, Action<PurchaseResult> done)
+-        {
+-            if (!Prices.ContainsKey(productId))
+-            {
+-                done?.Invoke(new PurchaseResult(false, productId, "Невідомий товар"));
+-                return;
+-            }
+-            Debug.Log($"[iap] fake purchase '{productId}' — зараховано без білінгу");
+-            done?.Invoke(new PurchaseResult(true, productId));
+-        }
+-    }
+-
+     public sealed class NullReview : IReviewService
+     {
+         public void RequestReview() { }
+diff --git a/Assets/_Scripts/Platform/PlatformServices.cs b/Assets/_Scripts/Platform/PlatformServices.cs
+index 26db8b5..02aee62 100644
+--- a/Assets/_Scripts/Platform/PlatformServices.cs
++++ b/Assets/_Scripts/Platform/PlatformServices.cs
+@@ -35,49 +35,6 @@ public interface IAdsService
+         void ShowInterstitial(Action done);
+     }
+ 
+-    /// <summary>Товар зі стору: ідентифікатор і ЛОКАЛІЗОВАНА ціна рядком — її показують, не рахують (§13).</summary>
+-    public readonly struct StoreProduct
+-    {
+-        public StoreProduct(string id, string localizedPrice)
+-        {
+-            Id = id;
+-            LocalizedPrice = localizedPrice;
+-        }
+-
+-        public string Id { get; }
+-        public string LocalizedPrice { get; }
+-    }
+-
+-    public readonly struct PurchaseResult
+-    {
+-        public bool Success { get; }
+-        public string ProductId { get; }
+-        public string? Error { get; }
+-
+-        public PurchaseResult(bool success, string productId, string? error = null)
+-        {
+-            Success = success;
+-            ProductId = productId;
+-            Error = error;
+-        }
+-    }
+-
+-    /// <summary>
+-    /// Покупки за реальні гроші (майстер-док §13). Ціна на кнопці магазину — з <see cref="Query"/>,
+-    /// не з гри: стор знає валюту й податки гравця, гра — ні. Без стору (<c>IsAvailable</c> false)
+-    /// магазин показує пакети без цін і з неактивними кнопками — гра лишається грабельною.
+-    /// </summary>
+-    public interface IIapService
+-    {
+-        /// <summary>Чи підключений стор. false — Null-реалізація або SDK не ініціалізувався.</summary>
+-        bool IsAvailable { get; }
+-
+-        /// <summary>Ціни товарів зі стору. Невідомі ідентифікатори у відповіді відсутні; без стору — порожній список.</summary>
+-        void Query(IReadOnlyList<string> productIds, Action<IReadOnlyList<StoreProduct>> done);
+-
+-        void Buy(string productId, Action<PurchaseResult> done);
+-    }
+-
+     public interface IReviewService
+     {
+         void RequestReview();
+diff --git a/Assets/_Scripts/Style/DesignSystem.cs b/Assets/_Scripts/Style/DesignSystem.cs
+index 9e3168a..ce149a8 100644
+--- a/Assets/_Scripts/Style/DesignSystem.cs
++++ b/Assets/_Scripts/Style/DesignSystem.cs
+@@ -1010,27 +1010,16 @@ public struct InkSwatch
+         [SerializeField] private Color youCardFillTo = Hex("#1A1338");
+         [SerializeField] private Color youCardText = Hex("#FFD0E6");
+ 
+-        [Header("Магазин")]
++        [Header("Спільні токени з колишнього магазину (магазин — у запасі, Reserve/OilShop)")]
+         [Tooltip("Назва фарби й напис на кнопці картки: 13.5 px макета.")]
+         [SerializeField] private float fontSizeShopCard = 37f;
+ 
+-        [Tooltip("Ціна на картці: 14.5 px макета.")]
+-        [SerializeField] private float fontSizeShopPrice = 40f;
+-
+         [Tooltip("Розрядка «МАГАЗИН»: .18em макета.")]
+         [SerializeField] private float letterSpacingShopTitle = 18f;
+ 
+-        [Tooltip("Текст на світлій заливці: на «Персику» чи «М'яті» білий зникає.")]
+-        [SerializeField] private Color shopOnLightText = Hex("#1C0F33");
+-
+-        [SerializeField, Range(0f, 0.6f)] private float shopHotGlowAlpha = 0.22f;
+-
+         [SerializeField] private Color shopTabActiveFrom = new Color(1f, 0.176f, 0.541f, 0.92f);
+         [SerializeField] private Color shopTabActiveTo = new Color(0.616f, 0.302f, 1f, 0.9f);
+ 
+-        [Tooltip("Крапля на картці пакета нафти, px макета, від найменшого пакета до найбільшого: розмір — головний сигнал «більший пакет».")]
+-        [SerializeField] private float[] oilDropSizes = { 46f, 58f, 72f, 88f };
+-
+         [Header("Фарбування планети")]
+         [Tooltip("Назва планети в шапці: 15 px макета, ls .04em.")]
+         [SerializeField] private float fontSizePaintTitle = 42f;
+@@ -1329,21 +1318,9 @@ public Color Medal(int place)
+         }
+ 
+         public float FontSizeShopCard => fontSizeShopCard;
+-        public float FontSizeShopPrice => fontSizeShopPrice;
+         public float LetterSpacingShopTitle => letterSpacingShopTitle;
+-        public Color ShopOnLightText => shopOnLightText;
+-        public float ShopHotGlowAlpha => shopHotGlowAlpha;
+         public Color ShopTabActiveFrom => shopTabActiveFrom;
+         public Color ShopTabActiveTo => shopTabActiveTo;
+-
+-        /// <summary>Крапля пакета нафти №<paramref name="index"/> в одиницях канваса; за межами списку — найбільша.</summary>
+-        public float OilDropSize(int index)
+-        {
+-            if (oilDropSizes == null || oilDropSizes.Length == 0)
+-                return 0f;
+-            var i = Mathf.Clamp(index, 0, oilDropSizes.Length - 1);
+-            return oilDropSizes[i] * MockupToReference;
+-        }
+         public float FontSizePaintTitle => fontSizePaintTitle;
+         public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
+         public float FontSizeCompletion => fontSizeCompletion;
+diff --git a/Assets/_Scripts/UI/Common/AppRouter.cs b/Assets/_Scripts/UI/Common/AppRouter.cs
+index 3e135c7..c44bcbc 100644
+--- a/Assets/_Scripts/UI/Common/AppRouter.cs
++++ b/Assets/_Scripts/UI/Common/AppRouter.cs
+@@ -27,7 +27,6 @@ public sealed class AppRouter : MonoBehaviour
+         [SerializeField] private GalaxyScreen galaxy;
+         [SerializeField] private PlanetScreen planet;
+         [SerializeField] private CollectionScreen collection;
+-        [SerializeField] private ShopScreen shop;
+         [SerializeField] private RankingsScreen rankings;
+         [SerializeField] private ProfileScreen profile;
+         [SerializeField] private SettingsScreen settings;
+@@ -49,7 +48,7 @@ public sealed class AppRouter : MonoBehaviour
+         /// нічого не знає.
+         ///
+         /// Роздаємо ОДИН екземпляр стану всім екранам: кожен, хто зробив би собі
+-        /// копію, показував би застарілі числа після покупки в сусідньому екрані.
++        /// копію, показував би застарілі числа після витрати нафти в сусідньому екрані.
+         /// </summary>
+         public void Configure(BalanceData balance, PlayerState state, AppLinks? links = null, NickRules? nickRules = null)
+         {
+@@ -66,7 +65,6 @@ public void Configure(BalanceData balance, PlayerState state, AppLinks? links =
+             galaxy?.BindState(state);
+             planet?.BindState(state);
+             collection?.BindState(state);
+-            shop?.BindState(state);
+             rankings?.BindState(state);
+             profile?.BindState(state);
+             endless?.BindState(state);
+@@ -74,12 +72,11 @@ public void Configure(BalanceData balance, PlayerState state, AppLinks? links =
+         }
+ 
+         /// <summary>Платформні сервіси для кнопок §9 — лише туди, де вони потрібні.</summary>
+-        public void BindServices(InkFlow.Platform.IAdsService? ads, InkFlow.Platform.IIapService? iap,
++        public void BindServices(InkFlow.Platform.IAdsService? ads,
+             InkFlow.Platform.ILeaderboardService? leaderboards = null, InkFlow.Platform.IShowcaseService? showcases = null,
+             InkFlow.Platform.IIdentityService? identity = null, int leaderboardPageSize = 50)
+         {
+             endless?.BindServices(ads);
+-            shop?.BindServices(iap);
+             rankings?.BindServices(leaderboards, showcases, identity, leaderboardPageSize);
+         }
+ 
+@@ -107,7 +104,7 @@ private void Start()
+ 
+         /// <summary>
+         /// Гасимо всі екрани перед стартом. Вони лежать у сцені активними, щоб
+-        /// бутстрап міг застосувати стиль, — але показувати одразу дев'ять
++        /// бутстрап міг застосувати стиль, — але показувати одразу всі
+         /// не можна.
+         /// </summary>
+         private void HideAll()
+@@ -119,7 +116,7 @@ private void HideAll()
+ 
+         private ScreenBase?[] AllScreens() => new ScreenBase?[]
+         {
+-            hub, endless, galaxy, planet, collection, shop, rankings, profile, settings
++            hub, endless, galaxy, planet, collection, rankings, profile, settings
+         };
+ 
+         private void WireGraph()
+@@ -170,9 +167,6 @@ private void WireGraph()
+             }
+ 
+             // ── Решта вкладок ──
+-            if (shop != null)
+-                shop.BackRequested += Pop;
+-
+             if (rankings != null)
+             {
+                 rankings.BackRequested += Pop;
+@@ -279,9 +273,6 @@ private void OnHubTab(string id)
+                 case "galaxy":
+                     Push(galaxy, GalaxyArgs.Own);
+                     break;
+-                case "shop":
+-                    Push(shop);
+-                    break;
+                 case "ranks":
+                     Push(rankings);
+                     break;
+diff --git a/Assets/_Scripts/UI/Common/CurrencyWidget.cs b/Assets/_Scripts/UI/Common/CurrencyWidget.cs
+index eeda7f7..d7c73a6 100644
+--- a/Assets/_Scripts/UI/Common/CurrencyWidget.cs
++++ b/Assets/_Scripts/UI/Common/CurrencyWidget.cs
+@@ -8,9 +8,9 @@ namespace InkFlow.UI
+ {
+     /// <summary>
+     /// Капсула нафти U1Glaze — спільна для всіх екранів метагри (§9): скляна капсула, чорна
+-    /// крапля з райдужною плівкою (спрайт oil_drop), число Nunito Black і бірюзова плитка «+»,
+-    /// яка відкриває магазин (<see cref="PlusClicked"/>; маршрут — у роутері). Ширина росте за
++    /// крапля з райдужною плівкою (спрайт oil_drop) і число Nunito Black. Ширина росте за
+     /// вмістом: «999 999 999» уміщається, не переносячись (нерозривний пробіл із ScoreFormat).
++    /// Бірюзової плитки «+» (вхід у магазин) немає: покупка нафти — у запасі (Reserve/OilShop).
+     /// </summary>
+     public sealed class CurrencyWidget : MonoBehaviour
+     {
+@@ -18,20 +18,9 @@ public sealed class CurrencyWidget : MonoBehaviour
+         [SerializeField] private Image capsule;
+         [SerializeField] private Image drop;
+         [SerializeField] private TMP_Text amountLabel;
+-        [SerializeField] private Button? plusButton;
+-        [SerializeField] private Image? plusIcon;
+ 
+         private Wallet? _wallet;
+ 
+-        /// <summary>Тап по «+» — магазин. Підписує роутер.</summary>
+-        public System.Action? PlusClicked;
+-
+-        private void Awake()
+-        {
+-            if (plusButton != null)
+-                plusButton.onClick.AddListener(() => PlusClicked?.Invoke());
+-        }
+-
+         private void OnEnable()
+         {
+             StyleRefresh.Schedule(this, Apply);
+@@ -61,13 +50,6 @@ private void Unbind()
+             _wallet = null;
+         }
+ 
+-        /// <summary>«+» ховається там, де магазин відкривати нема куди (на самому магазині).</summary>
+-        public void SetPlusVisible(bool visible)
+-        {
+-            if (plusButton != null)
+-                plusButton.gameObject.SetActive(visible);
+-        }
+-
+         public void Apply()
+         {
+             if (design == null)
+@@ -87,9 +69,6 @@ public void Apply()
+                 amountLabel.textWrappingMode = TextWrappingModes.NoWrap;
+                 amountLabel.overflowMode = TextOverflowModes.Overflow;
+             }
+-
+-            if (plusIcon != null)
+-                plusIcon.color = design.TealInk;
+         }
+ 
+         private void OnChanged(long amount)
+diff --git a/Assets/_Scripts/UI/Common/ScreenBase.cs b/Assets/_Scripts/UI/Common/ScreenBase.cs
+index 5c4a920..cbffce3 100644
+--- a/Assets/_Scripts/UI/Common/ScreenBase.cs
++++ b/Assets/_Scripts/UI/Common/ScreenBase.cs
+@@ -21,7 +21,7 @@ public abstract class ScreenBase : MonoBehaviour
+         /// у цьому режимі він показує мокові дані й НІЧОГО не зберігає.
+         ///
+         /// Екземпляр один на застосунок: якби кожен екран зробив собі копію,
+-        /// після покупки в магазині сусідній екран показував би старі числа.
++        /// після витрати нафти сусідній екран показував би старі числа.
+         /// </summary>
+         protected PlayerState? State { get; private set; }
+ 
+diff --git a/Assets/_Scripts/UI/Hub/HubScreen.cs b/Assets/_Scripts/UI/Hub/HubScreen.cs
+index 0f850c4..a154012 100644
+--- a/Assets/_Scripts/UI/Hub/HubScreen.cs
++++ b/Assets/_Scripts/UI/Hub/HubScreen.cs
+@@ -56,7 +56,7 @@ public sealed class HubScreen : ScreenBase
+         /// <summary>Картка «Нескінченний».</summary>
+         public System.Action? EndlessRequested;
+ 
+-        /// <summary>Вкладка нижньої навігації: galaxy / shop / ranks / profile.</summary>
++        /// <summary>Вкладка нижньої навігації: galaxy / ranks / profile.</summary>
+         public System.Action<string>? TabRequested;
+ 
+         /// <summary>Тап на блок профілю в шапці.</summary>
+diff --git a/Assets/_Scripts/UI/Hub/NavBar.cs b/Assets/_Scripts/UI/Hub/NavBar.cs
+index f32a0d1..55897d9 100644
+--- a/Assets/_Scripts/UI/Hub/NavBar.cs
++++ b/Assets/_Scripts/UI/Hub/NavBar.cs
+@@ -8,7 +8,7 @@
+ namespace InkFlow.UI
+ {
+     /// <summary>
+-    /// Нижня навігація хаба: скляна капсула з чотирма вкладками (іконка над підписом).
++    /// Нижня навігація хаба: скляна капсула з вкладками (іконка над підписом).
+     ///
+     /// Числа з макета: left/right 16→44, радіус 30→83, padding 10/8→28/22,
+     /// gap іконка-підпис 6→17, підпис 10→28. Заливка rgba(18,12,34,.55) — темніша
+@@ -34,7 +34,7 @@ public sealed class Tab
+             /// </summary>
+             public bool colorful;
+ 
+-            [Tooltip("Кольорові шари іконки (плями на планеті, фарба у відрі). " +
++            [Tooltip("Кольорові шари іконки (світло в кубку, скляне коло профілю). " +
+                      "Гаснуть разом із вкладкою, але не до сірого.")]
+             public Graphic[] accents = System.Array.Empty<Graphic>();
+ 

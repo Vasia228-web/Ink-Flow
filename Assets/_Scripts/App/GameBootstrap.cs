@@ -79,7 +79,7 @@ namespace InkFlow.App
             _rankings = new RankingsSync(_state, identity, leaderboards, showcases);
             _rankings.Start();
             // Екран дістає id гравця з сервісу тотожності в момент запиту, а не знімком: вхід асинхронний.
-            router.BindServices(ServiceLocator.Get<IAdsService>(), ServiceLocator.Get<IIapService>(),
+            router.BindServices(ServiceLocator.Get<IAdsService>(),
                 leaderboards, showcases, identity, appConfig != null ? appConfig.LeaderboardPageSize : 50);
         }
 
@@ -126,11 +126,6 @@ namespace InkFlow.App
             ServiceLocator.Register<IAdsService>(new FakeAds());
 #else
             ServiceLocator.Register<IAdsService>(new NullAds());
-#endif
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            ServiceLocator.Register<IIapService>(new FakeIap());
-#else
-            ServiceLocator.Register<IIapService>(new NullIap());
 #endif
             ServiceLocator.Register<IReviewService>(new NullReview());
             ServiceLocator.Register<INotificationService>(new NullNotifications());

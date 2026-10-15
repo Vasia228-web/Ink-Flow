@@ -27,7 +27,6 @@ namespace InkFlow.Editor
             "galaxy-fresh", "galaxy-mid", "galaxy-second",
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
             "collection-browse", "collection-pick", "collection-empty",
-            "shop", "shop-offline",
             "settings", "settings-run",
             "profile-fresh", "profile",
             "rankings", "rankings-offline", "galaxy-visitor",
@@ -93,7 +92,6 @@ namespace InkFlow.Editor
             BuildGalaxyScreen.Build();
             BuildPlanetScreen.Build();
             BuildCollectionScreen.Build();
-            BuildShopScreen.Build();
             BuildSettingsScreen.Build();
             BuildProfileScreen.Build();
             BuildRankingsScreen.Build();
@@ -106,7 +104,7 @@ namespace InkFlow.Editor
         {
             if (!InkFlowBootstrap.EnsureEditMode())
                 return;
-            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "ShopScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
+            foreach (var name in new[] { "GalaxyScreen", "PlanetScreen", "CollectionScreen", "SettingsScreen", "ProfileScreen", "RankingsScreen" })
                 if (!MetaScreenRig<ScreenBase>.Available(name))
                 {
                     Debug.LogError($"[InkFlow] Знімки метагри: немає {MetaScreenRig<ScreenBase>.PrefabPathOf(name)} — спершу Build {name}.");
@@ -250,20 +248,6 @@ namespace InkFlow.Editor
                         player.SetAvatar(3);
                         player.SetShowcasePicture(rig.Library[22 % rig.Library.Count].Id);
                     }
-                    rig.Enter(player, ScreenArgs.Empty);
-                    rig.SavePng(path);
-                    break;
-                }
-                case "shop":
-                case "shop-offline":
-                {
-                    // Зі стором (FakeIap: ціни §13 рядками) і без нього (NullIap: кнопки сплять, екран каже чому).
-                    using var rig = MetaScreenRig<ShopScreen>.Create(device, "ShopScreen");
-                    var player = rig.NewPlayer();
-                    player.Wallet.Add(1240, RewardSource.Debug);
-                    rig.Screen.BindServices(state == "shop"
-                        ? new InkFlow.Platform.FakeIap()
-                        : new InkFlow.Platform.NullIap());
                     rig.Enter(player, ScreenArgs.Empty);
                     rig.SavePng(path);
                     break;

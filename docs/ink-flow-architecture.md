@@ -4,7 +4,7 @@
 >
 > **Головний принцип архітектури:** ігрова логіка не знає, що існує Unity. Усе, що можна протестувати без редактора, тестується без редактора.
 >
-> Переписано 2026-09-24 після переробки ядра (Сесія 2); оновлено 2026-10-10 (Сесія 6, прибирання «Рівнів»). Старе ядро — краплі, густота, вибухи, бос — скасоване повністю; баків, змішувача, зон і спроб Сесії 2 теж більше немає — картинка піксельна, кроки заповнюються з ліній, забіг зберігається зліпком. Сироти режиму «Рівні» (карта, прогрес, віхи) прибрано 2026-10-10 — `docs/implementation-notes.md` (Decisions Сесії 6).
+> Переписано 2026-09-24 після переробки ядра (Сесія 2); оновлено 2026-10-10 (Сесія 6, прибирання «Рівнів») і 2026-10-15 (картка «Рівні» й покупка нафти — у запасі, `Reserve/`). Старе ядро — краплі, густота, вибухи, бос — скасоване повністю; баків, змішувача, зон і спроб Сесії 2 теж більше немає — картинка піксельна, кроки заповнюються з ліній, забіг зберігається зліпком. Сироти режиму «Рівні» (карта, прогрес, віхи) прибрано 2026-10-10 — `docs/implementation-notes.md` (Decisions Сесії 6).
 
 ---
 
@@ -94,7 +94,7 @@ Assets/
       Rgb            колір у даних без UnityEngine
     Style/           DesignSystem (усі кольори, радіуси, тривалості; блок U1Glaze зверху), PlanetPalette, RgbExtensions
     Gameplay/        Config/BalanceConfig, EconomyConfig, GalaxyConfig, AppConfig, PictureLibraryAsset — обгортки для інспектора
-    Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Shop/ Save/
+    Meta/            PlayerState, Economy/ Collection/ Profile/ Rankings/ Save/
       Galaxy/        GalaxyLayout (+PlanetLayout), SlotLayout, PlanetSurface (+PlanetSlot), GalaxyProgress, PlayerId
       Progress/      GalaxyState (слоти)
     Platform/        PlatformServices (інтерфейси), Null/ (Null*, Fake*, LogAnalytics), Ugs/ (UgsIdentity, UgsLeaderboards, UgsShowcase — лише з INKFLOW_UGS)
@@ -106,7 +106,7 @@ Assets/
       Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NickPrompt, ConfirmPrompt, GameAudio,
                      CurrencyWidget (капсула нафти з «+»), ComponentsShowcase (вітрина U1Glaze), …
       Atoms/         CandyButton, ChipView, RarityFrameView, DialogView (U1Glaze); GlassPanel, NeonButton, DropView, … (старий стиль, до кроку 10)
-      Hub/ Galaxy/ Shop/ Rankings/ Profile/ Atoms/
+      Hub/ Galaxy/ Rankings/ Profile/ Atoms/
     App/             GameBootstrap, ServiceLocator, DevPanel
     Editor/          Build*Screen, BuildMainScene, BuildUIKit, BuildComponentsScreen, U1 (фабрики U1Glaze), U1GlazeSprites (маніфест, атлас),
                      UiAudit (переповнення, тапи ≥ 44), GenerateUISprites, GenerateFontAsset, RefreshPictureLibrary,
@@ -294,7 +294,7 @@ BalanceConfig.asset   → BalanceData:   поле 8×8, лоток 3, мішок
                                         rarityStepTargets ± stepTolerance), родини 4–6, небезпека (dangerTightFits /
                                         WarnShapes / CalmShapes / StrongShapes), ContinuesPerRun, HintIdleSeconds
 EconomyConfig.asset   → EconomyData:   ScorePerOil, PictureRewards[6], FinishPictureCosts[6] + FinishPictureMinShare,
-                                        ContinueCost, OilPacks[4] (id стору, кількість, бейдж; ціни — зі стору),
+                                        ContinueCost,
                                         InterstitialEveryRuns, RewardAdMultiplier; числа витрат підбирає
                                         EconomySimulation (Meta) — меню Ink Flow → Simulate → Economy (30 days)
 GalaxyConfig.asset    → GalaxyLayout:  планети по черзі (тип = ідентифікатор у файлі, назва, слоти 4 … 12, місяці,
@@ -355,7 +355,6 @@ public sealed class PlayerState {                  // рантайм — пра�
     long FinishPictureCost(Rarity, float remaining); bool TryFinishPicture(Rarity, float remaining);   // §13, за нафту
     long ContinueCost; bool TryContinueRun();        // §13: продовжити після програшу за нафту
     // чим продовжувати — ContinueOffer.Decide(continuesUsed, continuesPerRun, adReady, hasWallet) → None/Ad/Oil (Meta, без Unity)
-    IReadOnlyList<OilPack> OilPacks; void GrantPurchasedOil(OilPack);   // §13: магазин — стор підтвердив, нафта у файл
     SettingsData Settings; event SettingsChanged; void SetSound/SetMusic/SetVibration/SetProfileHidden(bool);   // §15, одразу у файл
     int AvatarId; void SetAvatar(int); bool SetNick(raw, NickRules, out NickVerdict);                 // §14, одразу у файл; відмова лишає старий нік
     string? ShowcasePictureId; bool SetShowcasePicture(id); event ProfileChanged;                    // обрана, поки в колекції; інакше остання зібрана
@@ -375,7 +374,7 @@ public sealed class PlayerState {                  // рантайм — пра�
 - **Колекція** — `id → (скільки разів, коли вперше)`; рекорд колекції = різних (§8). У рейтингах метрики «Колекція» немає (§16).
 - **Слоти планет (§12)** — список «галактика + планета + слот + картинка + коли» (`GalaxyData.Slots`); одна зібрана копія — один слот; стани планет і галактик — похідні (`GalaxyState`, `GalaxyProgress.FromSave`). Планета відкрита, якщо вона перша, одразу за ожилою або з картинками (`GalaxyState.IsPlanetOpen`). Записи, яких розкладка не адресує (слоти чи планети, яких уже немає в `GalaxyConfig`), у файлі лишаються, але в прогресі й зайнятих копіях не рахуються (`IsAddressed`): усе, що каже «скільки зайнято», бере розкладку.
 - **Ідентифікатори у файлі — назви, не індекси** (картинки, планети): бібліотека росте темами.
-- **Нафта витрачається лише на дві дії** (§13): «домалювати одразу» і «продовжити після програшу»; магазин продає лише нафту, ціна — зі стору (`IIapService.Query`), у грі немає жодного числа-ціни.
+- **Нафта витрачається лише на дві дії** (§13): «домалювати одразу» і «продовжити після програшу». Купити нафту за гроші в грі не можна: магазин, пакети й стор (`IIapService`) — у запасі з 2026-10-15 (`Reserve/OilShop`; `OilPurchaseAbsenceTests`).
 
 ### Збереження — з міграціями з першого дня
 
@@ -392,8 +391,7 @@ public interface IHapticService      { void Light(); void Medium(); void Heavy()
 public interface IAnalyticsService   { void Track(string evt, IDictionary<string,object>? props = null); }
 public interface IAdsService         { bool IsRewardedReady; void ShowRewarded(Action<bool> done);
                                        bool IsInterstitialReady; void ShowInterstitial(Action done); }
-public interface IIapService         { bool IsAvailable; void Query(IReadOnlyList<string> ids, Action<IReadOnlyList<StoreProduct>> done);
-                                       void Buy(string productId, Action<PurchaseResult> done); }   // StoreProduct: id + локалізована ціна рядком
+// IIapService (стор, StoreProduct, PurchaseResult, NullIap/FakeIap) — у запасі з 2026-10-15: Reserve/OilShop/Assets/_Scripts/Platform/IapServices.cs
 public interface IReviewService      { void RequestReview(); }
 public interface INotificationService{ void Schedule(...); void CancelAll(); }
 // §16 — рейтинги; DTO (RankMetric, RankPeriod, LeaderboardPage/Entry, LeaderboardStatus, PublicShowcase, MockRankings) живуть у Core
@@ -409,7 +407,7 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 | Haptics | `Vibrator` + `VibrationEffect` | Core Haptics | `NullHaptics` |
 | Analytics | UGS / Firebase | те саме | `LogAnalytics` |
 | Ads | Unity Ads | Unity Ads + **ATT-запит** | `NullAds` (реліз) / `FakeAds` (редактор, dev) |
-| IAP | Unity IAP | Unity IAP | `FakeIap` (редактор, dev: ціни §13 рядками, покупка вдається) / `NullIap` (реліз без SDK: цін немає, кнопки сплять) |
+| IAP | — | — | у запасі з 2026-10-15 (`Reserve/OilShop`): `FakeIap` / `NullIap` повернуться разом із магазином |
 | Review | In-App Review | `SKStoreReviewController` | `NullReview` |
 | Identity | UGS Authentication (анонімно) | те саме | `FakeIdentity` (редактор, dev) / `NullIdentity` (реліз без UGS) |
 | Leaderboards | UGS Leaderboards: `planets_week`/`planets_all`/`galaxies_week`/`galaxies_all` (ідентифікатори в `AppConfig`; тижневі — зі скиданням щопонеділка 00:00 UTC; метадані нік/аватар/інкогніто) | те саме | `FakeLeaderboards` (таблиця макета, `Offline`) / `NullLeaderboards` («не підключені») |
@@ -451,9 +449,9 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 | Рівень | Де | Що покриває |
 |---|---|---|
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
-| EditMode | `InkFlow.Meta.Tests` | економіка забігу й магазину, симуляція економіки, колекція, слоти, ліміти, міграції v1→v11, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, налаштування й посилання |
+| EditMode | `InkFlow.Meta.Tests` | економіка забігу, витрати нафти, симуляція економіки, колекція, слоти, ліміти, міграції v1→v11, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, режиму «Рівні» й покупки нафти (і цілість `Reserve/`), налаштування й посилання |
 | Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **326 тестів** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
-| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **57 тестів** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, магазин (ціна — рядок стору, покупка через стор зараховує пакет, без стору кнопки сплять), налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
+| EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **54 тести** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 4 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета зі слотами (порожня, половина, фінальна з 12 картинками — бюджет викликів малювання, завершена галактика без листа, невідома картинка як зайнятий слот), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
 **Обов'язкові тести-запобіжники:**
@@ -506,11 +504,12 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 | **1. Фундамент картинок** | ✅ майстер-палітра, `PixelPicture`, бібліотека 117, колода «невидані першими», збереження з міграціями, контактний аркуш |
 | **2. Забіг** | ✅ кольори з картинки, кроки з ліній, зв'язне проявлення, перефарбування, завершення зі свайпом; вигляд K1Candy + W4DarkCanvas + A1Breathe, над полем лише картинка (Сесії 3–5) |
 | **3. Галактика-вітрина** | ✅ слоти планет замість фарбування зон (Фаза 3, Сесія 6): `GalaxyConfig`, цикли галактик (завершені — вітрина, стрілками в шапці), колекція окремим екраном, v8; літри повернуто нафтою; ревізія закрита |
-| **4. Магазин — лише нафта** | ✅ чотири пакети з `EconomyConfig`, ціна зі стору через `IIapService` (`FakeIap`/`NullIap`), нафта лише на «домалювати» й «продовжити», `EconomySimulation`, v9 без полів фарби, `PaintEconomyAbsenceTests` (Фаза 4, Сесія 6) |
+| **4. Магазин — лише нафта** | ✅ чотири пакети з `EconomyConfig`, ціна зі стору через `IIapService` (`FakeIap`/`NullIap`), нафта лише на «домалювати» й «продовжити», `EconomySimulation`, v9 без полів фарби, `PaintEconomyAbsenceTests` (Фаза 4, Сесія 6). 🗄 2026-10-15: магазин, пакети й стор — у запас (`Reserve/OilShop`), витрати нафти лишились |
 | **5. Налаштування** | ✅ шестерня на всіх екранах (`ScreenBase.SettingsRequested`), `SettingsScreen`, перемикачі реально керують `GameAudio` і `SettingsGatedHaptics`, «Додому» з підтвердженням, «Заново» лише в забігу, `AppConfig`/`AppLinks`; ревізія Фаз 4–5 закрита — забіг переживає налаштування без перезапуску (Фаза 5, Сесія 6) |
 | **6. Профіль** | ✅ аватар із набору крапель (`AvatarSet`), нік за `NickRules` з `AppConfig` (3–16, фільтр коренів), вітринна картинка з колекції (`ShowcasePictureId`, `CollectionArgs.ForShowcase`); драбину, статистику, палітру, бейджі й вітрину планет видалено; старі баги аватара закриті UI-тестами (Фаза 6, Сесія 6) |
 | **7. Рейтинги на справжніх даних** | ✅ інтерфейси Platform (`IIdentityService`, `ILeaderboardService`, `IShowcaseService`) з Null/Fake і UGS-адаптером за define, `RankingsSync` (у хмару лише вітрина й два числа), база тижня v10, екран «Світ» з двома метриками й станом «немає з'єднання», чужа галактика з вітрини, інкогніто (Фаза 7, Сесія 6). Підключення UGS у проєкті — ручні кроки автора |
 | **Прибирання сиріт «Рівнів»** | ✅ 2026-10-10: карту рівнів, прогрес рівнів, нагороди за рівень/боса/віхи, токени, Addressables-групу `Levels` і тести видалено; збереження v11; запобіжник `LevelsModeAbsenceTests`. Режим «Рівні» = картка в хабі → «Скоро», пишеться з нуля |
+| **Запас: «Рівні» й покупка нафти** | 🗄 2026-10-15 (рішення автора): картка «Рівні» й екран «Скоро» — `Reserve/LevelsMode`; магазин, пакети, `IIapService`, вкладка «Магазин», «+» на капсулі й спрайти магазину — `Reserve/OilShop`. README + `wiring.patch` + `sprites-entries.json` у кожній теці; `LevelsModeAbsenceTests`, `OilPurchaseAbsenceTests` |
 | **Реліз** | ⛔ Platform-реалізації (реклама, IAP, гаптика), приватність, білди |
 
 ---

@@ -56,7 +56,7 @@ namespace InkFlow.UI
         /// <summary>Картка «Нескінченний».</summary>
         public System.Action? EndlessRequested;
 
-        /// <summary>Вкладка нижньої навігації: galaxy / shop / ranks / profile.</summary>
+        /// <summary>Вкладка нижньої навігації: galaxy / ranks / profile.</summary>
         public System.Action<string>? TabRequested;
 
         /// <summary>Тап на блок профілю в шапці.</summary>

@@ -1,0 +1,92 @@
+[
+ {
+  "name": "capsule_plus",
+  "file": "sprites/controls/capsule_plus.png",
+  "size_design": [
+   32,
+   32
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Бірюзова плитка «+» у капсулі (іконка plus поверх, колір teal-ink).",
+  "size_px": [
+   96,
+   96
+  ]
+ },
+ {
+  "name": "icon_restore",
+  "file": "sprites/icons/icon_restore.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ },
+ {
+  "name": "oil_pack_1",
+  "file": "sprites/oil/oil_pack_1.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 1 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "oil_pack_2",
+  "file": "sprites/oil/oil_pack_2.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 10 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "oil_pack_3",
+  "file": "sprites/oil/oil_pack_3.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 100 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ },
+ {
+  "name": "oil_pack_4",
+  "file": "sprites/oil/oil_pack_4.png",
+  "size_design": [
+   136,
+   100
+  ],
+  "scale": 3,
+  "tint": false,
+  "use": "Ілюстрація пакета 500 000.",
+  "size_px": [
+   408,
+   300
+  ]
+ }
+]

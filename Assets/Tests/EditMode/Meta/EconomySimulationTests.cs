@@ -33,8 +33,6 @@ namespace InkFlow.Tests.Meta
             Assert.LessOrEqual(report.EpicCostInRuns, 4.0, "…і не раз на тиждень");
             Assert.LessOrEqual(report.ContinueCostInRuns, 1.0, "продовжити — дешевше за один забіг");
             Assert.GreaterOrEqual(report.ContinueCostInRuns, 0.3, "…але не дрібниця");
-            Assert.GreaterOrEqual(report.SmallestPackInRuns, 4.0, "найменший пакет — кілька вечорів гри");
-            Assert.LessOrEqual(report.SmallestPackInRuns, 14.0);
         }
 
         [Test]

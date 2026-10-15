@@ -14,6 +14,7 @@
 |---|---|
 | `Assets/_Scripts/UI/Common/ComingSoonScreen.cs` | Екран «Скоро»: шапка «‹» + «РІВНІ» + шестерня, плашка «Скоро» з поясненням «Режим «Рівні» повернеться на новому ядрі. А поки — «Нескінченний» і колекція картин.», подія `BackRequested`. |
 | `Assets/_Scripts/Editor/BuildComingSoonScreen.cs` | Збирач: меню `Ink Flow → Setup → Build Coming Soon Screen` → сцена-майстерня `Assets/Scenes/ComingSoon.unity` + префаб `Assets/_Prefabs/Screens/ComingSoonScreen.prefab` (обидва згенеровані — у запас не копіювались, збирач створить їх знову). |
+| `Assets/_Sprites/U1Glaze/icons/icon_levels.png` + `sprites-entries.json` | Іконка «Рівні» з набору U1Glaze і її запис маніфесту: атлас пакує всю теку, тож у грі вона їхала б у збірку невидимою (вирізано 2026-10-15 разом із покупкою нафти). |
 | `wiring.patch` | Усе, що прибрано зі спільних файлів гри (роутер, хаб, картка режиму, збирачі, тест), — `git diff` у момент вирізання. |
 
 ## Що прибрано зі спільних файлів (точки підключення)
@@ -31,11 +32,11 @@
 
 - Головний (`docs/StyleRef/U1Glaze/preview/S01Home_01.png`): компактна `panel_card` ДРУГОЮ, під «Нескінченний»; скляна плитка 52 з `icon_grid` (ink-muted), «Рівні» `ui-h3`, «Режим готується» `caption`, сірий бейдж `badge_grey` «СКОРО» праворуч, без шеврона. Маршрут на «Скоро» лишається.
 - Екран «Скоро» (`preview/S11SettingsSoon_02.png`, SCREENS.md «Налаштування і «Рівні · Скоро»»).
-- Спрайти (`icon_grid`, `badge_grey`) лишились у наборі `Assets/_Sprites/U1Glaze` — набір дзеркалить еталон цілком.
+- Спрайти картки (`icon_grid`, `badge_grey`) загальні — лишились у наборі гри; `icon_levels` — у цій теці.
 
 ## Як повернути (чекліст)
 
-1. Скопіювати файли з цієї теки назад у `Assets/…` (разом із `.meta`).
+1. Скопіювати файли з цієї теки назад у `Assets/…` (разом із `.meta`); запис із `sprites-entries.json` — назад у `Assets/_Sprites/U1Glaze/sprites.json`.
 2. Повернути точки підключення: `git apply -R Reserve/LevelsMode/wiring.patch` — якщо код відтоді не змінився; інакше перенести вручну за списком вище (хаб на той час, найпевніше, уже U1Glaze — картку будувати фабриками `U1` за макетом S01Home_01).
 3. `LevelsModeAbsenceTests`: прибрати тест «у запасі» й слова `ComingSoonScreen`/`LevelsRequested`/`levelsCard`/`LevelsCard`/`Tone.Levels` зі списку заборонених; повернути тест маршруту.
 4. `python3 Tools/check-navigation.py` (подія `LevelsRequested`), `python3 Tools/check-glyphs.py`, `bash Tools/check-compile.sh`, `bash Tools/run-core-tests.sh`.

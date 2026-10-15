@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using InkFlow.Meta;
 using UnityEngine;
 
@@ -11,24 +9,12 @@ namespace InkFlow.Gameplay
     ///
     /// Стартовий стан навмисно нульовий, і це рішення, а не заглушка: нафту заробляють
     /// забігом, і гравець бачить зв'язок «граю → заробляю → витрачаю». Грант розірвав би його.
-    /// Ціни дій і пакети підбирає `Ink Flow → Simulate → Economy (30 days)` (§13, §19).
+    /// Ціни дій підбирає `Ink Flow → Simulate → Economy (30 days)` (§13, §19). Пакети магазину
+    /// (покупка нафти за гроші) — у запасі з 2026-10-15: `Reserve/OilShop`.
     /// </summary>
     [CreateAssetMenu(fileName = "EconomyConfig", menuName = "Ink Flow/Economy Config")]
     public sealed class EconomyConfig : ScriptableObject
     {
-        [Serializable]
-        public sealed class OilPackEntry
-        {
-            [Tooltip("Ідентифікатор товару в сторах: oil_1000, oil_10000, oil_100000, oil_500000.")]
-            public string id = string.Empty;
-            [Tooltip("Скільки нафти дає покупка.")]
-            [Min(1)] public long amount = 1000;
-            [Tooltip("Бейдж на картці; порожньо — без бейджа.")]
-            public string badge = string.Empty;
-            [Tooltip("«Гарячий» пакет світиться теплим.")]
-            public bool hot;
-        }
-
         [Header("Стартовий стан нового гравця")]
         [Tooltip("Нафта на старті. 0 — гравець заробляє її першим же забігом.")]
         [SerializeField, Min(0)] private long starterOil;
@@ -56,10 +42,6 @@ namespace InkFlow.Gameplay
         [Tooltip("«Продовжити після програшу» за нафту, коли ролик уже використано. Менше за забіг доходу; нуль заборонено — безплатне продовження дає ролик.")]
         [SerializeField, Min(1)] private long continueCost = 120;
 
-        [Header("Магазин (майстер-док §13): лише нафта")]
-        [Tooltip("Чотири пакети; ціни — зі стору, тут лише кількості. Ідентифікатори мають збігатись із товарами в сторах.")]
-        [SerializeField] private List<OilPackEntry> oilPacks = DefaultPacks();
-
         [Header("Реклама (§9)")]
         [Tooltip("Інтерстиціал раз на стільки забігів. 0 — ніколи.")]
         [SerializeField, Min(0)] private int interstitialEveryRuns = 4;
@@ -77,34 +59,6 @@ namespace InkFlow.Gameplay
             rewardAdMultiplier,
             finishPictureCosts,
             finishPictureMinShare,
-            continueCost,
-            ToPacks());
-
-        private IReadOnlyList<OilPack> ToPacks()
-        {
-            var list = new List<OilPack>(oilPacks?.Count ?? 0);
-            if (oilPacks != null)
-                foreach (var entry in oilPacks)
-                {
-                    if (entry is null || entry.id is null || entry.id.Length == 0 || entry.amount <= 0)
-                        continue;
-                    list.Add(new OilPack(entry.id, entry.amount, entry.badge, entry.hot));
-                }
-            if (list.Count == 0)
-            {
-                // Порожній або зіпсований список не має ронити гру: голосно в консоль і дефолтні пакети.
-                Debug.LogError("[InkFlow] EconomyConfig без пакетів нафти — беру чотири пакети за замовчуванням.");
-                return OilPack.Defaults();
-            }
-            return list;
-        }
-
-        private static List<OilPackEntry> DefaultPacks()
-        {
-            var list = new List<OilPackEntry>();
-            foreach (var pack in OilPack.Defaults())
-                list.Add(new OilPackEntry { id = pack.Id, amount = pack.Amount, badge = pack.Badge ?? string.Empty, hot = pack.Hot });
-            return list;
-        }
+            continueCost);
     }
 }

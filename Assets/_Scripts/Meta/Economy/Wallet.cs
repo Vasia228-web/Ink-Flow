@@ -5,7 +5,6 @@ namespace InkFlow.Meta
     /// <summary>Звідки прийшла нафта — для аналітики й антифроду.</summary>
     public enum RewardSource
     {
-        Purchase,
         Debug,
 
         /// <summary>Майстер-док §10: очки забігу → нафта.</summary>

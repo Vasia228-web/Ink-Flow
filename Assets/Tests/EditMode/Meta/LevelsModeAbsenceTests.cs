@@ -124,6 +124,11 @@ namespace InkFlow.Tests.Meta
                 Assert.IsTrue(File.Exists(Path.Combine(root, "Reserve", "LevelsMode", relative)), $"{relative} має лежати в Reserve/LevelsMode");
             }
             Assert.IsTrue(File.Exists(Path.Combine(root, "Reserve", "LevelsMode", "README.md")), "Reserve/LevelsMode/README.md — як повернути");
+            // Атлас U1Glaze збирає всю теку: іконка режиму в маніфесті гри поїхала б у збірку невидимою.
+            var manifest = File.ReadAllText(Path.Combine(root, "Assets", "_Sprites", "U1Glaze", "sprites.json"));
+            Assert.IsFalse(manifest.Contains("\"icon_levels\""), "icon_levels — у запасі, не в маніфесті гри");
+            Assert.IsTrue(File.ReadAllText(Path.Combine(root, "Reserve", "LevelsMode", "sprites-entries.json")).Contains("\"icon_levels\""),
+                "запис маніфесту icon_levels має лежати в Reserve/LevelsMode/sprites-entries.json");
             foreach (var generated in new[] { "Assets/Scenes/ComingSoon.unity", "Assets/_Prefabs/Screens/ComingSoonScreen.prefab" })
                 Assert.IsFalse(File.Exists(Path.Combine(root, generated)), $"{generated} збирає збирач із запасу — у грі його бути не повинно");
         }
@@ -131,7 +136,8 @@ namespace InkFlow.Tests.Meta
         private static readonly string[] ReservedFiles =
         {
             "Assets/_Scripts/UI/Common/ComingSoonScreen.cs",
-            "Assets/_Scripts/Editor/BuildComingSoonScreen.cs"
+            "Assets/_Scripts/Editor/BuildComingSoonScreen.cs",
+            "Assets/_Sprites/U1Glaze/icons/icon_levels.png"
         };
 
         [Test]

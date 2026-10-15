@@ -118,14 +118,13 @@ namespace InkFlow.Editor
             // малюємо ті самі силуети процедурно — білими, колір задає DesignSystem.
             // Виняток — «Галактика»: вона кольорова, див. CreateGalaxyIcon.
             WriteSprite("icon-galaxy.png", CreateGalaxyIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
-            WriteSprite("icon-shop.png", CreateShopIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
             WriteSprite("icon-ranks.png", CreateRanksIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
             WriteSprite("icon-profile.png", CreateProfileIcon(), pixelsPerUnit: IconSize, border: Vector4.zero);
 
             AssetDatabase.Refresh();
             Debug.Log($"[InkFlow] UI-спрайти згенеровано в {Folder}: circle-soft, circle-gloss, nebula, " +
                       "rounded-rect + outline (9-slice), glow (9-slice), white-quad, circle-outline, icon-star, icon-retry, " +
-                      "icon-galaxy, icon-shop, icon-ranks, icon-profile.");
+                      "icon-galaxy, icon-ranks, icon-profile.");
         }
 
         // ───────────────────────── Малювання ─────────────────────────
@@ -704,23 +703,6 @@ namespace InkFlow.Editor
             var b = (over.b * coverage + under.b * under.a * (1f - coverage)) / a;
             return new Color(r, g, b, a);
         }
-
-        /// <summary>Відро з фарбою — вкладка «Магазин».</summary>
-        private static Texture2D CreateShopIcon() => DrawIcon((u, v) =>
-        {
-            // Корпус — трапеція, звужена донизу.
-            var top = 0.66f;
-            var bottom = 0.16f;
-            var t = Mathf.InverseLerp(bottom, top, v);
-            var halfWidth = Mathf.Lerp(0.20f, 0.28f, t);
-            var body = v >= bottom && v <= top ? Cover((halfWidth - Mathf.Abs(u - 0.5f)) * 4f) : 0f;
-
-            // Ручка — дуга над відром.
-            var hd = Mathf.Abs(Dist(u, v, 0.5f, top) - 0.24f);
-            var handle = v > top ? Cover((0.035f - hd) * 6f) : 0f;
-
-            return Mathf.Max(body, handle);
-        });
 
         /// <summary>Кубок — вкладка «Рейтинги».</summary>
         private static Texture2D CreateRanksIcon() => DrawIcon((u, v) =>

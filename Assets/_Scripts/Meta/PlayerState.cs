@@ -14,7 +14,7 @@ namespace InkFlow.Meta
     ///
     /// Правило: РАНТАЙМ — джерело правди, файл — його зліпок. <see cref="Persist"/>
     /// згортає живі об'єкти назад у файл і пише його, і робиться це в кількох
-    /// чітких точках (кінець забігу, покупка, слот планети, згортання застосунку),
+    /// чітких точках (кінець забігу, витрата нафти, слот планети, згортання застосунку),
     /// а не «десь після зміни».
     /// </summary>
     public sealed class PlayerState
@@ -430,20 +430,6 @@ namespace InkFlow.Meta
                 return false;
             Persist();
             return true;
-        }
-
-        /// <summary>§13: пакети нафти магазину — з конфігу; ціни приходять зі стору.</summary>
-        public System.Collections.Generic.IReadOnlyList<OilPack> OilPacks => Economy.OilPacks;
-
-        /// <summary>
-        /// §13: стор підтвердив покупку пакета — нафта в гаманець і одразу у файл: закрити гру
-        /// після покупки не має коштувати гравцю куплених крапель.
-        /// </summary>
-        public void GrantPurchasedOil(OilPack pack)
-        {
-            if (pack is null) throw new ArgumentNullException(nameof(pack));
-            Wallet.Add(pack.Amount, RewardSource.Purchase);
-            Persist();
         }
 
         /// <summary>§9: інтерстиціал раз на N забігів — після забігу з номером, кратним N.</summary>

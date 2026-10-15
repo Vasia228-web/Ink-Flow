@@ -8,9 +8,9 @@ namespace InkFlow.UI
 {
     /// <summary>
     /// Капсула нафти U1Glaze — спільна для всіх екранів метагри (§9): скляна капсула, чорна
-    /// крапля з райдужною плівкою (спрайт oil_drop), число Nunito Black і бірюзова плитка «+»,
-    /// яка відкриває магазин (<see cref="PlusClicked"/>; маршрут — у роутері). Ширина росте за
+    /// крапля з райдужною плівкою (спрайт oil_drop) і число Nunito Black. Ширина росте за
     /// вмістом: «999 999 999» уміщається, не переносячись (нерозривний пробіл із ScoreFormat).
+    /// Бірюзової плитки «+» (вхід у магазин) немає: покупка нафти — у запасі (Reserve/OilShop).
     /// </summary>
     public sealed class CurrencyWidget : MonoBehaviour
     {
@@ -18,19 +18,8 @@ namespace InkFlow.UI
         [SerializeField] private Image capsule;
         [SerializeField] private Image drop;
         [SerializeField] private TMP_Text amountLabel;
-        [SerializeField] private Button? plusButton;
-        [SerializeField] private Image? plusIcon;
 
         private Wallet? _wallet;
-
-        /// <summary>Тап по «+» — магазин. Підписує роутер.</summary>
-        public System.Action? PlusClicked;
-
-        private void Awake()
-        {
-            if (plusButton != null)
-                plusButton.onClick.AddListener(() => PlusClicked?.Invoke());
-        }
 
         private void OnEnable()
         {
@@ -61,13 +50,6 @@ namespace InkFlow.UI
             _wallet = null;
         }
 
-        /// <summary>«+» ховається там, де магазин відкривати нема куди (на самому магазині).</summary>
-        public void SetPlusVisible(bool visible)
-        {
-            if (plusButton != null)
-                plusButton.gameObject.SetActive(visible);
-        }
-
         public void Apply()
         {
             if (design == null)
@@ -87,9 +69,6 @@ namespace InkFlow.UI
                 amountLabel.textWrappingMode = TextWrappingModes.NoWrap;
                 amountLabel.overflowMode = TextOverflowModes.Overflow;
             }
-
-            if (plusIcon != null)
-                plusIcon.color = design.TealInk;
         }
 
         private void OnChanged(long amount)

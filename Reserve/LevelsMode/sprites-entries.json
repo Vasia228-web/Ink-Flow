@@ -1,0 +1,17 @@
+[
+ {
+  "name": "icon_levels",
+  "file": "sprites/icons/icon_levels.png",
+  "size_design": [
+   48,
+   48
+  ],
+  "scale": 3,
+  "tint": true,
+  "use": "Іконка 24 у макеті (тут 48 для запасу).",
+  "size_px": [
+   144,
+   144
+  ]
+ }
+]

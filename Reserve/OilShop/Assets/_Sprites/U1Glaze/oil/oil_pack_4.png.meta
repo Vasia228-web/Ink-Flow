@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 2082abd52b96f4024aae4ef7d353bf6e
+guid: 98cde314772434a19ba95267b9ab8aea
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7847467850767531788
-    second: icon-shop_0
+      213: -8368569337026417645
+    second: oil_pack_4_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -48,12 +48,12 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 1
   spriteExtrude: 1
-  spriteMeshType: 1
+  spriteMeshType: 0
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 128
+  spritePixelsToUnits: 111.66667
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
-  spriteGenerateFallbackPhysicsShape: 1
+  spriteGenerateFallbackPhysicsShape: 0
   alphaUsage: 1
   alphaIsTransparency: 1
   spriteTessellationDetail: -1
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: icon-shop_0
+      name: oil_pack_4_0
       rect:
         serializedVersion: 2
-        x: 27
-        y: 19
-        width: 74
-        height: 102
+        x: 43
+        y: 7
+        width: 323
+        height: 259
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 4f004b04191381390800000000000000
-      internalID: -7847467850767531788
+      spriteID: 31c605cc68edcdb80800000000000000
+      internalID: -8368569337026417645
       vertices: []
       indices: 
       edges: []
@@ -160,8 +160,7 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable:
-      icon-shop_0: -7847467850767531788
+    nameFileIdTable: {}
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
