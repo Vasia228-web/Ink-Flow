@@ -57,8 +57,12 @@
 
 ## Як повернути (чекліст)
 
-1. Скопіювати файли з цієї теки назад у `Assets/…` (з `.meta`), записи з `sprites-entries.json` — назад у `Assets/_Sprites/U1Glaze/sprites.json` (порядок не важить), далі `Import U1Glaze Sprites`. `IapServices.cs` — цілим у `Assets/_Scripts/Platform/` або розкласти назад по `PlatformServices.cs` / `Null/NullServices.cs` (headless-раннер компілює `PlatformServices.cs` явним шляхом — інтерфейс має бути або там, або файл треба додати в `Tools/CoreTestRunner/CoreTestRunner.csproj`).
-2. Точки підключення: `git apply -R Reserve/OilShop/wiring.patch` — якщо код відтоді не змінився; інакше вручну за списком вище. Навігація на той час, найпевніше, уже U1Glaze (Грати · Галактика · Колекція · Рейтинги) — тоді вкладку «Магазин» НЕ повертати, а вхід зробити «+» на капсулі.
+1. Скопіювати файли з цієї теки назад у `Assets/…` (з `.meta`) — **крім `IapServices.cs`**, записи з `sprites-entries.json` — назад у `Assets/_Sprites/U1Glaze/sprites.json` (порядок не важить), далі `Import U1Glaze Sprites`.
+2. Точки підключення — **один із двох способів, не обидва** (інакше кожен тип стору буде оголошено двічі, CS0101):
+   - **`git apply -R Reserve/OilShop/wiring.patch`.** Патч знято на коміті `f334731` і відкочується чисто саме там; на пізнішому HEAD — `git apply -R --3way` (конфлікти розв'язати руками) або другий спосіб. Патч сам повертає `StoreProduct`/`PurchaseResult`/`IIapService` у `PlatformServices.cs` і `NullIap`/`FakeIap` у `Null/NullServices.cs` — `IapServices.cs` тоді не потрібен.
+   - **Вручну за списком «Що прибрано» вище**, а стор — покласти `IapServices.cs` цілим у `Assets/_Scripts/Platform/` (та сама збірка `InkFlow.Platform`).
+   У `Tools/CoreTestRunner/CoreTestRunner.csproj` нічого не додавати: headless-кодові `IIapService` не потрібен, а `IapServices.cs` тягне `UnityEngine.Debug` — раннер без Unity на ньому впаде.
+   Навігація на той час, найпевніше, уже U1Glaze (Грати · Галактика · Колекція · Рейтинги) — тоді вкладку «Магазин» НЕ повертати, а вхід зробити «+» на капсулі.
 3. Магазин перемалювати в U1Glaze фабриками `U1` за S07Shop (старий `BuildShopScreen` — стиль v2), додати в `MetaScreenshots.AuditEnforced`.
 4. Тести: прибрати `OilPurchaseAbsenceTests`; повернути `OilShopTests`, `ShopScreenTests`, межі `SmallestPackInRuns` в `EconomySimulationTests`.
 5. `bash Tools/check-compile.sh`, `bash Tools/run-core-tests.sh`, `python3 Tools/check-navigation.py`, `check-glyphs.py`, `check-ui-animation.py`.

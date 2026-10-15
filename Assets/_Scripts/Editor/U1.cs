@@ -468,7 +468,9 @@ namespace InkFlow.Editor
             var pips = pipsGo.AddComponent<Image>();
             pips.sprite = S("pips_1");
             pips.raycastTarget = false;
-            Place(pips, new Vector2(0f, -Px(8f)), new Vector2(Px(20f), Px(14f)), new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
+            // Центр міток на 8 px нижче низу рамки (SPEC); під малою рамкою мітки менші — і зсув пропорційно.
+            var pipsScale = big ? 1f : design.RarityPipsSmallScale;
+            Place(pips, new Vector2(0f, -Px(8f) * pipsScale), new Vector2(Px(20f), Px(14f)), new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
 
             var sparkles = new Image[4];
             var corners = new[] { new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f), new Vector2(1f, 0f) };
@@ -519,10 +521,16 @@ namespace InkFlow.Editor
             scrim.sprite = LoadSprite("white-quad");
             scrim.color = DesignSystem.WithAlpha(design.Scrim, design.ScrimOpacity);
 
+            // Як у Panel: тінь — перший дочірній, непрозора заливка — другий, обидва поза розкладкою. Графіка на
+            // самому корені панелі малювалась би ПІД дітьми, і тінь лягала б поверх діалогу (ревізія кроку 0).
             panel = Child(go, "Panel");
-            var image = panel.AddComponent<Image>();
+            Shadow(panel, Px(24f), -Px(12f));
+            var fillGo = Child(panel, "Fill");
+            var image = fillGo.AddComponent<Image>();
             image.sprite = S("dialog");
             image.type = Image.Type.Sliced;
+            Stretch(fillGo);
+            fillGo.AddComponent<LayoutElement>().ignoreLayout = true;
             var rect = panel.GetComponent<RectTransform>();
             rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
@@ -537,7 +545,6 @@ namespace InkFlow.Editor
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             panel.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            Shadow(panel, Px(24f), -Px(12f));
 
             var view = go.AddComponent<DialogView>();
             Wire(view, ("design", design), ("group", group), ("scrim", scrim), ("panel", rect));

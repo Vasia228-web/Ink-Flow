@@ -115,6 +115,16 @@ namespace InkFlow.UI
         public void PreviewShiftGalaxy(int delta) => ShiftGalaxy(delta);
 #endif
 
+        /// <summary>
+        /// Капсула в шапці показує справжній гаманець: без цього вона назавжди лишалась із числом-заглушкою
+        /// з префаба (ревізія кроку 0; доти правильний баланс показував лише магазин, а він тепер у запасі).
+        /// </summary>
+        public override void BindState(PlayerState state)
+        {
+            base.BindState(state);
+            currency?.Bind(state.Wallet);
+        }
+
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);

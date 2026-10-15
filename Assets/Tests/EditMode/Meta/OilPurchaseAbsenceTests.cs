@@ -23,7 +23,8 @@ namespace InkFlow.Tests.Meta
         {
             "ShopScreen", "OilPack", "IIapService", "StoreProduct", "PurchaseResult", "NullIap", "FakeIap", "IapEnabled",
             "GrantPurchasedOil", "FindOilPack", "SmallestPackInRuns", "RewardSource.Purchase", "OilDropSize",
-            "PlusClicked", "SetPlusVisible", "capsule_plus", "icon_plus", "icon-shop", "BuildShopScreen",
+            // icon_plus не забороняємо: це загальна іконка набору, вона знадобиться не лише магазину.
+            "PlusClicked", "SetPlusVisible", "capsule_plus", "icon-shop", "BuildShopScreen",
             "oil_1000", "\"shop\""
         };
 

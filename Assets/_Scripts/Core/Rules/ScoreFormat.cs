@@ -23,8 +23,14 @@ namespace InkFlow.Core
         /// <summary>Ширина табличної цифри в em — стільки займає кожна цифра при моноширинному наборі.</summary>
         public const float DigitEm = 0.62f;
 
-        /// <summary>Ширина пробілу Nunito в em (нерозривний має той самий advance, що й звичайний).</summary>
-        public const float ThousandsSpaceEm = 0.27f;
+        /// <summary>
+        /// Ширина розряду на екрані в em: advance пробілу Nunito ExtraBold 25.11/90 ≈ 0.279 (нерозривний —
+        /// той самий) плюс 0.07 штучного жирного TMP (стат забігу набрано з FontStyles.Bold, а пробіл поза
+        /// &lt;mspace&gt; отримує boldSpacing). Спершу стояло 0.27 — Fit недооцінював кожен розряд на ~0.08 em
+        /// і на найвужчій колонці число могло вилізти (ревізія кроку 0). Перевірити на кроці 2, коли стат
+        /// перейде на Nunito Black без штучного жирного.
+        /// </summary>
+        public const float ThousandsSpaceEm = 0.35f;
 
         /// <summary>Ширина літери суфікса («млн», «млрд») в em — з запасом.</summary>
         public const float LetterEm = 0.62f;

@@ -23,32 +23,42 @@ namespace InkFlow.UI
 
         private void OnEnable()
         {
+            // Число перечитує Apply (відкладено — OnEnable не чіпає графіку синхронно): поки капсула була
+            // схована, гаманець міг змінитись. Підписка — знову, але без дубля.
             StyleRefresh.Schedule(this, Apply);
             if (_wallet != null)
+            {
+                _wallet.Changed -= OnChanged;
                 _wallet.Changed += OnChanged;
+            }
         }
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 #endif
 
+        /// <summary>
+        /// Підв'язати гаманець. Гаманець лишається за капсулою й тоді, коли екран ховається: OnDisable лише
+        /// відписується, OnEnable підписується знову. (Спершу OnDisable забував гаманець — і після першого ж
+        /// SetActive(false) роутера капсула в грі більше не оновлювалась.)
+        /// </summary>
         public void Bind(Wallet wallet)
         {
-            Unbind();
+            if (_wallet != null)
+                _wallet.Changed -= OnChanged;
             _wallet = wallet;
-            _wallet.Changed += OnChanged;
+            if (isActiveAndEnabled)
+                _wallet.Changed += OnChanged;
             OnChanged(_wallet.OilDrops);
         }
 
-        private void OnDisable() => Unbind();
-
-        private void Unbind()
+        private void OnDisable()
         {
-            if (_wallet == null)
-                return;
-            _wallet.Changed -= OnChanged;
-            _wallet = null;
+            if (_wallet != null)
+                _wallet.Changed -= OnChanged;
         }
+
+        private void OnDestroy() => OnDisable();
 
         public void Apply()
         {
@@ -69,6 +79,10 @@ namespace InkFlow.UI
                 amountLabel.textWrappingMode = TextWrappingModes.NoWrap;
                 amountLabel.overflowMode = TextOverflowModes.Overflow;
             }
+
+            // Поки капсула була схована, гаманець міг змінитись — число з нього, а не з останньої події.
+            if (_wallet != null)
+                OnChanged(_wallet.OilDrops);
         }
 
         private void OnChanged(long amount)

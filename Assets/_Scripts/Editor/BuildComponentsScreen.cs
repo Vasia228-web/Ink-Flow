@@ -387,28 +387,37 @@ namespace InkFlow.Editor
         private static void Frames(GameObject content)
         {
             var section = Section(content, "6 РАМОК РІДКОСТІ");
-            var big = Row(section, "Big", 8f);
-            var names = Row(section, "Names", 8f);
-            for (var r = 0; r < 6; r++)
+            // Великі — по три в ряд, 70 px, як в еталоні: шість у ряд на 402 стискались до 58 px, назви — до різних
+            // кеглів, і назви налазили на мітки (мітки сидять поза розкладкою, на 8 px нижче рамки).
+            for (var half = 0; half < 2; half++)
             {
-                var frame = U1.RarityFrame(big, $"Frame{r + 1}", design, big: true, sidePx: 58f, (Rarity)r);
-                Fix(frame.gameObject, 58f, 58f);
-                Placeholder(frame);
-                var label = U1.Text(names, $"Name{r + 1}", RarityNames.Of((Rarity)r), design, U1.Role.Caption, design.InkMuted);
-                label.enableAutoSizing = true;
-                label.fontSizeMax = design.UiCaption;
-                label.fontSizeMin = design.UiCaption * 0.6f;
-                label.textWrappingMode = TextWrappingModes.NoWrap;
-                var element = label.gameObject.AddComponent<LayoutElement>();
-                element.preferredWidth = element.minWidth = U1.Px(58f);
+                var big = Row(section, $"Big{half + 1}", 8f);
+                for (var r = half * 3; r < half * 3 + 3; r++)
+                {
+                    var cell = Child(big, $"Cell{r + 1}");
+                    var column = cell.AddComponent<VerticalLayoutGroup>();
+                    column.spacing = U1.Px(18f); // місце під мітки: центр на 8 нижче + пів висоти 14 + повітря
+                    column.childAlignment = TextAnchor.UpperCenter;
+                    column.childControlWidth = column.childControlHeight = true;
+                    column.childForceExpandWidth = column.childForceExpandHeight = false;
+                    Fix(cell, 116f, 70f + 18f + 20f);
+                    var frame = U1.RarityFrame(cell, $"Frame{r + 1}", design, big: true, sidePx: 70f, (Rarity)r);
+                    Fix(frame.gameObject, 70f, 70f);
+                    Placeholder(frame);
+                    var name = RarityNames.Of((Rarity)r);
+                    var label = U1.Text(cell, $"Name{r + 1}", name.Substring(0, 1) + name.Substring(1).ToLowerInvariant(),
+                        design, U1.Role.Caption, design.InkMuted, TextAlignmentOptions.Center);
+                    label.textWrappingMode = TextWrappingModes.NoWrap;
+                }
             }
-            var small = Row(section, "Small", 8f);
+            var small = Row(section, "Small", 12f);
             for (var r = 0; r < 6; r++)
             {
                 var frame = U1.RarityFrame(small, $"Small{r + 1}", design, big: false, sidePx: 40f, (Rarity)r);
                 Fix(frame.gameObject, 40f, 40f);
                 Placeholder(frame);
             }
+            Fix(Child(section, "PipsRoom"), 1f, 12f); // мітки малих рамок — під рядом, підпис не має на них лізти
             Caption(section, "Розрізняються не лише кольором: товщина, подвійна лінія (Епічна), іскри (Легендарна), перелив (Космічна) та мітки 1–6.");
         }
 

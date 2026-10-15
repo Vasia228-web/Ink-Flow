@@ -26,8 +26,17 @@ namespace InkFlow.Editor
                 if (text.overflowMode == TextOverflowModes.Ellipsis || text.overflowMode == TextOverflowModes.Truncate)
                     continue;
                 text.ForceMeshUpdate();
-                if (text.isTextOverflowing)
-                    problems.Add($"{Path(text.transform)}: «{Shorten(text.text)}» переповнює {text.rectTransform.rect.width:0}×{text.rectTransform.rect.height:0}");
+                var rect = text.rectTransform.rect;
+                // isTextOverflowing — лише по вертикалі (TMP рахує рядки, що не влізли у висоту); однорядковий
+                // NoWrap-напис, ширший за свій прямокутник, він не бачить — тому окремо міряємо ширину.
+                // Міряємо видимі гліфи, а не textBounds: у межі TMP входить і розрядка після останньої літери
+                // (ярлики з розрядкою .16em «виходили» на 5 одиниць, хоча за край не вилазить жоден піксель).
+                var available = rect.width - text.margin.x - text.margin.z;
+                var inkWidth = VisibleWidth(text);
+                var tooWide = inkWidth > available + 0.5f * DesignSystem.MockupToReference;
+                if (text.isTextOverflowing || tooWide)
+                    problems.Add($"{Path(text.transform)}: «{Shorten(text.text)}» переповнює {rect.width:0}×{rect.height:0}" +
+                                 (tooWide ? $" (ширина тексту {inkWidth:0})" : string.Empty));
             }
             return problems;
         }
@@ -55,8 +64,10 @@ namespace InkFlow.Editor
 
         /// <summary>
         /// Сусіди в горизонтальній чи вертикальній групі, що налазять один на одного більше ніж на пів px
-        /// макета. Порядок — за положенням, не за індексом (групи бувають з reverseArrangement); групи з
-        /// від'ємним проміжком (накладання навмисне) і елементи поза розкладкою (тіні, гало) не рахуються.
+        /// макета, і горизонтальний ряд, чий вміст ширший за сам ряд (діти виїжджають за край — так ряд із
+        /// шести рамок рідкості вилазив за екран). Порядок — за положенням, не за індексом (групи бувають з
+        /// reverseArrangement); групи з від'ємним проміжком (накладання навмисне) і елементи поза
+        /// розкладкою (тіні, гало) не рахуються.
         /// </summary>
         public static List<string> OverlappingSiblings(Transform root)
         {
@@ -81,6 +92,13 @@ namespace InkFlow.Editor
                     items.Add((rect, Rect.MinMaxRect(min.x, min.y, max.x, max.y)));
                 }
                 items.Sort((a, b) => horizontal ? a.box.xMin.CompareTo(b.box.xMin) : b.box.yMax.CompareTo(a.box.yMax));
+                if (horizontal && items.Count > 0)
+                {
+                    var bounds = space.rect;
+                    var outside = Mathf.Max(bounds.xMin - items[0].box.xMin, items[items.Count - 1].box.xMax - bounds.xMax);
+                    if (outside > eps)
+                        problems.Add($"{Path(space)}: ряд ширший за себе — діти виходять за край на {outside / DesignSystem.MockupToReference:0} px макета");
+                }
                 for (var i = 1; i < items.Count; i++)
                 {
                     var overlap = horizontal ? items[i - 1].box.xMax - items[i].box.xMin : items[i].box.yMax - items[i - 1].box.yMin;
@@ -98,6 +116,23 @@ namespace InkFlow.Editor
             problems.AddRange(SmallTapTargets(root));
             problems.AddRange(OverlappingSiblings(root));
             return problems;
+        }
+
+        /// <summary>Ширина від лівого краю першого до правого краю останнього видимого гліфа, в одиницях напису.</summary>
+        private static float VisibleWidth(TMP_Text text)
+        {
+            var info = text.textInfo;
+            var min = float.MaxValue;
+            var max = float.MinValue;
+            for (var i = 0; i < info.characterCount; i++)
+            {
+                var c = info.characterInfo[i];
+                if (!c.isVisible)
+                    continue;
+                min = Mathf.Min(min, c.bottomLeft.x);
+                max = Mathf.Max(max, c.topRight.x);
+            }
+            return max > min ? max - min : 0f;
         }
 
         private static string Path(Transform t)

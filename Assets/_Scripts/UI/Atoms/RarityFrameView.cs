@@ -87,6 +87,8 @@ namespace InkFlow.UI
             {
                 if (index < pipSprites.Length) pips.sprite = pipSprites[index];
                 pips.SetNativeSize();
+                // Під малою рамкою мітки менші (токен): розмір похідний — тож localScale, не sizeDelta.
+                pips.rectTransform.localScale = Vector3.one * (big ? 1f : design.RarityPipsSmallScale);
                 pips.color = Color.white;
             }
 

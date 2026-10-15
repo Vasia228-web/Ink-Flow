@@ -41,6 +41,7 @@ namespace InkFlow.UI
 
         private Coroutine? _press;
         private float _scale = 1f;
+        private bool _pressed;
 
         public Button Button => button;
         public Tone CurrentTone => tone;
@@ -64,6 +65,30 @@ namespace InkFlow.UI
         }
 
         private void OnEnable() => StyleRefresh.Schedule(this, Apply);
+
+        /// <summary>
+        /// Екран сховався посеред натиску (тап, що веде на інший екран): корутину вбито на масштабі 0.96 з
+        /// темним тілом, і кнопка повернулась би на екран притиснутою. Повертаємо спокій одразу.
+        /// </summary>
+        private void OnDisable() => ResetPress();
+
+        /// <summary>Спокій кнопки: масштаб 1 і світле тіло. Також коли кнопку вимкнули посеред натиску.</summary>
+        private void ResetPress()
+        {
+            if (_press != null && isActiveAndEnabled)
+                StopCoroutine(_press);
+            _press = null;
+            // Поза натиском нічого не чіпаємо: OnDisable й Apply приходять і з бутстрапа в Edit Mode.
+            if (!_pressed && _scale == 1f)
+                return;
+            _pressed = false;
+            _scale = 1f;
+            transform.localScale = Vector3.one;
+            if (body != null)
+                body.canvasRenderer.SetColor(Color.white);
+            if (glow != null)
+                glow.canvasRenderer.SetColor(Color.white);
+        }
 
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
@@ -92,6 +117,8 @@ namespace InkFlow.UI
                 return;
 
             var active = Interactable && tone != Tone.Off;
+            if (!Interactable)
+                ResetPress();   // вимкнули посеред натиску — не лишати притиснутою
             if (body != null)
             {
                 // Підміна спрайта — при зміні стану, не щокадру.
@@ -152,6 +179,7 @@ namespace InkFlow.UI
             var to = down ? style.PressScale : 1f;
             var duration = down ? style.PressDarkenDuration : style.PressReleaseDuration;
             var dark = new Color(1f - style.PressDarken, 1f - style.PressDarken, 1f - style.PressDarken, 1f);
+            _pressed = down || _pressed;
             if (down)
             {
                 body.canvasRenderer.SetColor(dark);
@@ -170,6 +198,7 @@ namespace InkFlow.UI
             transform.localScale = Vector3.one * _scale;
             if (!down)
             {
+                _pressed = false;
                 body.canvasRenderer.SetColor(Color.white);
                 if (glow != null && glow.gameObject.activeSelf) glow.canvasRenderer.SetColor(Color.white);
             }

@@ -9,8 +9,9 @@ using UnityEngine;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Знімки екранів метагри (Фази 3–7) з редактора, без Play Mode: чотири роздільності × стани
-    /// галактики, планети, колекції, магазину й налаштувань. Меню: Ink Flow → Debug → Capture Meta Screenshots.
+    /// Знімки екранів метагри з редактора, без Play Mode: п'ять роздільностей (<see cref="ScreenRigBase.Devices"/>)
+    /// × стани хаба, галактики, планети, колекції, налаштувань, профілю й рейтингів, плюс сторінки вітрини
+    /// компонентів U1Glaze. Меню: Ink Flow → Debug → Capture Meta Screenshots.
     /// Пише PNG у docs/screenshots/meta/. Для планети з усіма слотами логує оцінку викликів
     /// малювання (бюджет iPhone SE ≤ 35, архідок §12); перевищення в batch — код виходу 1.
     /// Batch: Unity -batchmode -projectPath &lt;root&gt; -executeMethod InkFlow.Editor.MetaScreenshots.BuildAndCapture -quit
@@ -30,8 +31,7 @@ namespace InkFlow.Editor
             "collection-browse", "collection-pick", "collection-empty",
             "settings", "settings-run",
             "profile-fresh", "profile",
-            "rankings", "rankings-offline", "galaxy-visitor",
-            "components-1", "components-2", "components-3"
+            "rankings", "rankings-offline", "galaxy-visitor"
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
@@ -51,10 +51,45 @@ namespace InkFlow.Editor
             var overBudget = new List<string>();
             var audit = new List<string>();
             foreach (var device in ScreenRigBase.Devices)
-                foreach (var state in new[] { "components-1", "components-2", "components-3" })
-                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+                CaptureComponents(device, audit, null);
             AssetDatabase.Refresh();
             Finish(overBudget, audit);
+        }
+
+        /// <summary>
+        /// Вітрина компонентів (S00Components) — сторінками прокрутки <c>components-N</c>. На двох пристроях
+        /// контрольної точки (402×874 і 375×667) — УСІ сторінки, щоб у знімках було видно кожен компонент
+        /// (спершу знімались три фіксовані, і діалог, рамки рідкості й навігація в кадр не потрапляли); на решті —
+        /// лише перша, для масштабу. Автоперевірка — по всьому дереву вітрини, на кожному пристрої.
+        /// Старі знімки сторінок, яких тепер немає, видаляються.
+        /// </summary>
+        private static void CaptureComponents(ScreenRigBase.Device device, List<string> audit, List<string>? written)
+        {
+            if (!MetaScreenRig<ScreenBase>.Available("ComponentsShowcase"))
+                return;
+            using var rig = MetaScreenRig<ComponentsShowcase>.Create(device, "ComponentsShowcase");
+            rig.Enter(null, ScreenArgs.Empty);
+            Canvas.ForceUpdateCanvases();
+            var distinct = rig.EstimateBatches(out var runs, out var graphics);
+            Debug.Log($"[InkFlow] {device.Name} / components: графік {graphics}, різних пар матеріал+текстура {distinct}, змін пари в порядку обходу {runs}.");
+            Audit(rig, "ComponentsShowcase", device.Name, "components", audit);
+
+            var checkpoint = device.Name == ScreenRigBase.Mockup.Name || device.Name == ScreenRigBase.Small.Name;
+            var pages = checkpoint ? rig.Screen.Pages : 1;
+            for (var page = 0; page < pages; page++)
+            {
+                var path = Path.Combine(OutputFolder, $"{device.Name}_components-{page + 1}.png");
+                rig.Screen.PreviewPage(page);
+                rig.SavePng(path);
+                written?.Add(path);
+            }
+            for (var stale = pages + 1; ; stale++)
+            {
+                var path = Path.GetFullPath(Path.Combine(OutputFolder, $"{device.Name}_components-{stale}.png"));
+                if (!File.Exists(path))
+                    break;
+                File.Delete(path);
+            }
         }
 
         /// <summary>
@@ -146,6 +181,8 @@ namespace InkFlow.Editor
                     Capture(device, state, path, overBudget, audit);
                     written.Add(path);
                 }
+            foreach (var device in ScreenRigBase.Devices)
+                CaptureComponents(device, audit, written);
 
             AssetDatabase.Refresh();
             Debug.Log($"[InkFlow] Знімки метагри ({written.Count}) у {OutputFolder}:\n  " + string.Join("\n  ", written));
@@ -156,22 +193,6 @@ namespace InkFlow.Editor
         {
             switch (state)
             {
-                case "components-1":
-                case "components-2":
-                case "components-3":
-                {
-                    // Вітрина спільних компонентів (S00Components): три сторінки прокрутки.
-                    if (!MetaScreenRig<ScreenBase>.Available("ComponentsShowcase"))
-                        return;
-                    using var rig = MetaScreenRig<ComponentsShowcase>.Create(device, "ComponentsShowcase");
-                    rig.Enter(null, ScreenArgs.Empty);
-                    rig.Screen.PreviewPage(state[^1] - '1');
-                    var distinct = rig.EstimateBatches(out var runs, out var graphics);
-                    Debug.Log($"[InkFlow] {device.Name} / {state}: графік {graphics}, різних пар матеріал+текстура {distinct}, змін пари в порядку обходу {runs}.");
-                    Audit(rig, "ComponentsShowcase", device.Name, state, audit);
-                    rig.SavePng(path);
-                    break;
-                }
                 case "hub":
                 {
                     // Головний: аватар, нік, нафта (без «+»), лого, одна картка «Нескінченний», три вкладки.

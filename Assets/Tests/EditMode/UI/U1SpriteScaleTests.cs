@@ -60,6 +60,40 @@ namespace InkFlow.Tests.UI
         }
 
         [Test]
+        public void WidthAudit_CatchesAWideSingleLine_ButNotTrailingLetterSpacing()
+        {
+            // isTextOverflowing — лише по вертикалі; однорядковий NoWrap-напис, ширший за прямокутник, ловить
+            // окрема міра ширини. Розрядка після останньої літери (ярлики .16em) переповненням не вважається.
+            var font = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>("Assets/_Fonts/Nunito Bold SDF.asset");
+            Assert.IsNotNull(font, "Nunito Bold SDF — спершу Generate Font Assets");
+            var root = new GameObject("AuditCanvas", typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                var go = new GameObject("Label", typeof(RectTransform));
+                go.transform.SetParent(root.transform, false);
+                var label = go.AddComponent<TMPro.TextMeshProUGUI>();
+                label.font = font;
+                label.fontSize = 40f;
+                label.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+                label.overflowMode = TMPro.TextOverflowModes.Overflow;
+                label.characterSpacing = 16f;
+                label.text = "НЕЗВИЧАЙНА";
+
+                label.rectTransform.sizeDelta = new Vector2(label.GetPreferredValues().x, 60f);
+                Assert.AreEqual(0, UiAudit.OverflowingTexts(root.transform).Count, "напис рівно у свій preferred-розмір — не переповнення");
+
+                label.rectTransform.sizeDelta = new Vector2(100f, 60f);
+                var problems = UiAudit.OverflowingTexts(root.transform);
+                Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
+                StringAssert.Contains("ширина тексту", problems[0]);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void OverlapAudit_CatchesSiblingsThatRunIntoEachOther_AndPassesANormalRow()
         {
             // Регресія до перевірки: на вітрині кроку 0 три бейджі рідкості в ряд на 402 налізали один на одного,
@@ -93,6 +127,14 @@ namespace InkFlow.Tests.UI
                 var problems = UiAudit.OverlappingSiblings(root.transform);
                 Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
                 StringAssert.Contains("налазить на «A»", problems[0]);
+
+                // Ряд, вужчий за дітей: без накладань, але діти виїжджають за край — теж вада.
+                b.localPosition = a.localPosition + new Vector3(a.rect.width + 20f, 0f, 0f);
+                rowRect.sizeDelta = new Vector2(500f, 100f);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rowRect);
+                var tooNarrow = UiAudit.OverlappingSiblings(root.transform);
+                Assert.AreEqual(1, tooNarrow.Count, string.Join("\n", tooNarrow));
+                StringAssert.Contains("ряд ширший", tooNarrow[0]);
             }
             finally
             {

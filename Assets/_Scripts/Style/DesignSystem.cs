@@ -104,6 +104,10 @@ namespace InkFlow.Style
             Hex("#9A9CC0"), Hex("#58D68D"), Hex("#5FB6FF"), Hex("#B77BFF"), Hex("#FFB35C"), Hex("#FF6FAE")
         };
 
+        [Tooltip("Мітки 1–6 під МАЛОЮ рамкою (< 70 px) — частка від натурального розміру спрайта pips_N. " +
+                 "У натуральному розмірі мітки Космічної (65 px) ширші за малу рамку й налазять на сусідні.")]
+        [SerializeField, Range(0.3f, 1f)] private float rarityPipsSmallScale = 0.6f;
+
         [Header("U1Glaze: типографіка (Nunito 900 — заголовки, числа, кнопки; 700 — текст)")]
         [Tooltip("Nunito Black 900: ui-display, ui-h1…h3, ui-button, ui-label.")]
         [SerializeField] private TMPro.TMP_FontAsset? fontBlack;
@@ -144,7 +148,7 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float scrimOpacity = 0.78f;
         [Tooltip("Затемнення під нижнім листом дій.")]
         [SerializeField, Range(0f, 1f)] private float sheetScrimOpacity = 0.55f;
-        [Tooltip("Недоступний вміст (пакети, коли магазин недоступний).")]
+        [Tooltip("Недоступний вміст (вимкнені рядки й елементи).")]
         [SerializeField, Range(0f, 1f)] private float disabledOpacity = 0.4f;
         [Tooltip("Сила гало під кнопками (button_glow_*).")]
         [SerializeField, Range(0f, 1f)] private float buttonGlowAlpha = 0.32f;
@@ -1581,6 +1585,7 @@ namespace InkFlow.Style
         public float DisabledOpacity => disabledOpacity;
         public float ButtonGlowAlpha => buttonGlowAlpha;
         public float FrameGlowAlpha => frameGlowAlpha;
+        public float RarityPipsSmallScale => rarityPipsSmallScale;
         public float DialogAppearDuration => dialogAppearDuration;
         public float DialogAppearScale => dialogAppearScale;
         public float PressDarken => pressDarken;

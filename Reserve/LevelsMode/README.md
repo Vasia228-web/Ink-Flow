@@ -37,7 +37,7 @@
 ## Як повернути (чекліст)
 
 1. Скопіювати файли з цієї теки назад у `Assets/…` (разом із `.meta`); запис із `sprites-entries.json` — назад у `Assets/_Sprites/U1Glaze/sprites.json`.
-2. Повернути точки підключення: `git apply -R Reserve/LevelsMode/wiring.patch` — якщо код відтоді не змінився; інакше перенести вручну за списком вище (хаб на той час, найпевніше, уже U1Glaze — картку будувати фабриками `U1` за макетом S01Home_01).
+2. Повернути точки підключення: `git apply -R Reserve/LevelsMode/wiring.patch` — патч знято на коміті `b9d6379` і відкочується чисто саме там (уже наступний коміт із магазином змінив ті самі файли); на пізнішому HEAD — `git apply -R --3way` з ручним розв'язанням конфліктів або перенести вручну за списком вище (хаб на той час, найпевніше, уже U1Glaze — картку будувати фабриками `U1` за макетом S01Home_01).
 3. `LevelsModeAbsenceTests`: прибрати тест «у запасі» й слова `ComingSoonScreen`/`LevelsRequested`/`levelsCard`/`LevelsCard`/`Tone.Levels` зі списку заборонених; повернути тест маршруту.
 4. `python3 Tools/check-navigation.py` (подія `LevelsRequested`), `python3 Tools/check-glyphs.py`, `bash Tools/check-compile.sh`, `bash Tools/run-core-tests.sh`.
 5. У редакторі: `Build Coming Soon Screen` → `Build Hub Screen` → `Build Main Scene`; знімки хаба.
