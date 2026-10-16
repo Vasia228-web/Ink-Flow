@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using InkFlow.Style;
+using InkFlow.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,7 +9,8 @@ namespace InkFlow.Editor
 {
     /// <summary>
     /// Автоперевірка екрана в стенді (промт U1Glaze, «Самоперевірка»): жоден напис без Ellipsis
-    /// не переповнений (TMP <c>isTextOverflowing</c>), жодна кнопка не менша за 44 px макета і жоден
+    /// не переповнений (TMP <c>isTextOverflowing</c>), жодна кнопка не менша за 44 px макета, жодна
+    /// кнопка-цукерка не вища за свою висоту макета і жоден
     /// сусід у розкладці не налазить на інший (ряд, що не вміщається, група стискає до мінімуму —
     /// написи налізають один на одного, а переповнення тексту цього не бачить).
     /// Міряє в одиницях канваса стенда — тих самих, що й порівняння з еталоном.
@@ -58,6 +60,32 @@ namespace InkFlow.Editor
                 var h = rect.rect.height * scale;
                 if (w < min || h < min)
                     problems.Add($"{Path(rect)}: зона тапу {w / DesignSystem.MockupToReference:0}×{h / DesignSystem.MockupToReference:0} px макета (< {minPx})");
+            }
+            return problems;
+        }
+
+        /// <summary>
+        /// Кнопки-цукерки, вищі за свою висоту макета (56 / 46) більше ніж на пів px: ряд із
+        /// <c>childForceExpandHeight</c> робить групу гнучкою по висоті, і стовпчик віддає кнопці частку
+        /// залишку — «Відкрити» галактики так виросла на пів екрана (крок 3), а NavBar хаба — на кроці 1.
+        /// Переповнення й накладання цього не бачать: напис у кнопці вміщається, сусіди не налазять.
+        /// </summary>
+        public static List<string> OversizedButtons(Transform root)
+        {
+            var problems = new List<string>();
+            var canvas = root.GetComponentInParent<Canvas>();
+            var canvasScale = canvas != null ? canvas.transform.lossyScale.x : 1f;
+            var eps = 0.5f * DesignSystem.MockupToReference;
+            foreach (var button in root.GetComponentsInChildren<CandyButton>(false))
+            {
+                var nominal = button.PreviewNominalHeight;
+                if (nominal <= 0f || !button.gameObject.activeInHierarchy)
+                    continue;
+                var rect = (RectTransform)button.transform;
+                var scale = canvasScale > 0f ? rect.lossyScale.y / canvasScale : 1f;
+                var h = rect.rect.height * scale;
+                if (h > nominal + eps)
+                    problems.Add($"{Path(rect)}: кнопка {h / DesignSystem.MockupToReference:0} px макета заввишки (макет — {nominal / DesignSystem.MockupToReference:0})");
             }
             return problems;
         }
@@ -114,6 +142,7 @@ namespace InkFlow.Editor
         {
             var problems = OverflowingTexts(root);
             problems.AddRange(SmallTapTargets(root));
+            problems.AddRange(OversizedButtons(root));
             problems.AddRange(OverlappingSiblings(root));
             return problems;
         }
@@ -129,8 +158,14 @@ namespace InkFlow.Editor
                 var c = info.characterInfo[i];
                 if (!c.isVisible)
                     continue;
-                min = Mathf.Min(min, c.bottomLeft.x);
-                max = Mathf.Max(max, c.topRight.x);
+                // Чорнило гліфа — але не далі за його власну клітинку [origin, xAdvance]: «ніжка» «Д» чи «Л» у Nunito
+                // Black виступає лівіше за початок літери на ~1 px (бічний виступ шрифту), і напис рівно в preferred-
+                // розмір інакше «переповнював» себе («Далі», «Летіти» — крок 3). Розрядка після останньої літери теж
+                // не рахується: чорнило закінчується раніше за xAdvance.
+                var left = c.xAdvance > c.origin ? Mathf.Max(c.bottomLeft.x, c.origin) : c.bottomLeft.x;
+                var right = c.xAdvance > c.origin ? Mathf.Min(c.topRight.x, c.xAdvance) : c.topRight.x;
+                min = Mathf.Min(min, left);
+                max = Mathf.Max(max, right);
             }
             return max > min ? max - min : 0f;
         }

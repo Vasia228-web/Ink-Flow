@@ -26,7 +26,7 @@ namespace InkFlow.Editor
         public static readonly string[] States =
         {
             "hub", "hub-long", "hub-fresh",
-            "galaxy-fresh", "galaxy-mid", "galaxy-second",
+            "galaxy-fresh", "galaxy-mid", "galaxy-done", "galaxy-locked", "galaxy-complete", "galaxy-reveal", "galaxy-second",
             "planet-empty", "planet-half", "planet-full", "planet-sheet",
             "collection-browse", "collection-pick", "collection-empty",
             "settings", "settings-run",
@@ -35,7 +35,13 @@ namespace InkFlow.Editor
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen" };
+
+        /// <summary>Стани галактики (крок 3 U1Glaze): S03_01 … S03_05, нова порожня галактика зі стрілками, гість S09_01.</summary>
+        public static readonly string[] GalaxyStates =
+        {
+            "galaxy-fresh", "galaxy-mid", "galaxy-done", "galaxy-locked", "galaxy-complete", "galaxy-reveal", "galaxy-second", "galaxy-visitor"
+        };
 
         /// <summary>Лише вітрина компонентів (крок 0 U1Glaze): збірка + знімки на всіх пристроях.</summary>
         public static void BuildAndCaptureComponents()
@@ -114,6 +120,40 @@ namespace InkFlow.Editor
                     Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
             AssetDatabase.Refresh();
             Finish(overBudget, audit);
+        }
+
+        /// <summary>
+        /// Batch: лише галактика на всіх пристроях (<see cref="GalaxyStates"/>) з автоперевіркою й бюджетом викликів —
+        /// контрольна точка кроку 3 без повного проходу метагри.
+        /// </summary>
+        public static void BuildAndCaptureGalaxy()
+        {
+            RefreshPictureLibrary.Refresh();
+            BuildGalaxyScreen.Build();
+            if (!MetaScreenRig<ScreenBase>.Available("GalaxyScreen"))
+            {
+                Debug.LogError("[InkFlow] Немає префаба GalaxyScreen — галактику не зібрано.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in GalaxyStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Finish(overBudget, audit);
+        }
+
+        /// <summary>Виклики малювання (симуляція батчингу UGUI) у лог і в список перевищень.</summary>
+        private static void Budget(ScreenRigBase rig, string device, string state, List<string> overBudget)
+        {
+            rig.Render();
+            var batches = rig.SimulateBatches();
+            Debug.Log($"[InkFlow] {device} / {state}: викликів за батчингом UGUI {batches}.");
+            if (batches > DrawCallBudget)
+                overBudget.Add($"{device} / {state}: {batches} викликів (батчинг UGUI) > {DrawCallBudget}");
         }
 
         private static void Finish(List<string> overBudget, List<string> audit)
@@ -233,18 +273,41 @@ namespace InkFlow.Editor
                 }
                 case "galaxy-fresh":
                 case "galaxy-mid":
+                case "galaxy-done":
+                case "galaxy-locked":
+                case "galaxy-complete":
+                case "galaxy-reveal":
                 case "galaxy-second":
                 {
+                    // S03_01 — три ожилі й поточна з трьома картинками (фокус на ній); S03_02/03 — той самий гравець,
+                    // фокус на ожилій і на замкненій; S03_04/05 — щойно ожила остання планета галактики (діалог і
+                    // нова галактика); galaxy-second — та сама нова галактика без святкування, зі стрілками циклів.
                     using var rig = MetaScreenRig<GalaxyScreen>.Create(device, "GalaxyScreen");
                     var player = rig.NewPlayer();
-                    if (state == "galaxy-mid")
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    var everything = state == "galaxy-second" || state == "galaxy-complete" || state == "galaxy-reveal";
+                    if (everything)
+                        for (var p = 0; p < player.Layout.Planets.Count; p++) rig.FillPlanet(player, p, pictureOffset: p * 9);
+                    else if (state != "galaxy-fresh")
                     {
                         for (var p = 0; p < 3; p++) rig.FillPlanet(player, p, pictureOffset: p * 7);
                         rig.FillPlanet(player, 3, count: 3, pictureOffset: 30);
                     }
-                    else if (state == "galaxy-second")
-                        for (var p = 0; p < player.Layout.Planets.Count; p++) rig.FillPlanet(player, p, pictureOffset: p * 9);
-                    rig.Enter(player, GalaxyArgs.Own);
+                    var args = GalaxyArgs.OwnEntry();
+                    rig.Enter(player, args);
+                    if (state == "galaxy-done")
+                        rig.Screen.PreviewSetFocus(2);
+                    else if (state == "galaxy-locked")
+                        rig.Screen.PreviewSetFocus(4);
+                    else if (state == "galaxy-complete" || state == "galaxy-reveal")
+                    {
+                        rig.Screen.PreviewGalaxyJustCompleted(args);
+                        if (state == "galaxy-reveal")
+                            rig.Screen.PreviewNext();
+                    }
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "GalaxyScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }
@@ -304,7 +367,7 @@ namespace InkFlow.Editor
                 }
                 case "galaxy-visitor":
                 {
-                    // Чужа галактика з вітрини: планети по порядку, картка гостя з вітринною картинкою.
+                    // Чужа галактика з вітрини (S09_01): планети по порядку, картка гостя під шапкою, «‹» замість назви.
                     using var rig = MetaScreenRig<GalaxyScreen>.Create(device, "GalaxyScreen");
                     var player = rig.NewPlayer();
                     var layout = player.Layout;
@@ -312,9 +375,18 @@ namespace InkFlow.Editor
                     var slots = new List<int>();
                     foreach (var planet in layout.Planets) { ids.Add(planet.Id); slots.Add(planet.Slots); }
                     var mock = InkFlow.Core.MockRankings.ShowcaseFor(InkFlow.Core.MockRankings.PlayerIdOf(1), ids, slots);
+                    // Мок кладе в слоти заглушки (бібліотеки Core не знає) — мітки вийшли б нейтральними; справжня
+                    // вітрина несе назви картинок, тож і тут — картинки бібліотеки, щоб мітки мали свої кольори (S09_01).
+                    var visitorSlots = new List<InkFlow.Core.ShowcaseSlot>();
+                    for (var k = 0; k < mock.Slots.Count; k++)
+                        visitorSlots.Add(new InkFlow.Core.ShowcaseSlot(mock.Slots[k].PlanetId, mock.Slots[k].Slot,
+                            rig.Library[(k * 7) % rig.Library.Count].Id));
                     var visitor = new InkFlow.Core.PublicShowcase(mock.PlayerId, mock.Nick, mock.AvatarId, false, rig.Library[22 % rig.Library.Count].Id,
-                        mock.PlanetsDone, mock.GalaxiesDone, mock.Galaxy, mock.Slots, mock.UpdatedUtc);
+                        mock.PlanetsDone, mock.GalaxiesDone, mock.Galaxy, visitorSlots, mock.UpdatedUtc);
+                    player.Wallet.Add(1240, RewardSource.Debug);
                     rig.Enter(player, GalaxyArgs.ForVisitor(visitor));
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "GalaxyScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }

@@ -779,6 +779,63 @@ namespace InkFlow.Editor
         }
 
         /// <summary>
+        /// Шапка екрана 56 (S00 «вкладка» і «підекран із нафтою», S03, S09): «‹» icon_button 46 (видно, коли екран —
+        /// підекран), назва h1 зліва (вкладка; забирає залишок і обрізається «…»), капсула нафти шириною за вмістом,
+        /// шестерня. Що показувати — вирішує екран: «‹» вмикає/вимикає, назву робить порожньою.
+        /// </summary>
+        internal static GameObject ScreenHeader(GameObject parent, DesignSystem design, out UnityEngine.UI.Button back,
+            out TMP_Text title, out CurrencyWidget capsule, out UnityEngine.UI.Button gear)
+        {
+            var row = Child(parent, "Header");
+            var layout = row.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = Px(10f);
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+            Size(row, 0f, 56f);
+
+            back = IconButton(row, "Back", design, "icon_back", new Vector2(0.5f, 0.5f), Vector2.zero);
+            Size(back.gameObject, 46f, 46f);
+
+            title = Text(row, "Title", "Галактика", design, Role.H1, design.InkText, TextAlignmentOptions.Left);
+            title.textWrappingMode = TextWrappingModes.NoWrap;
+            title.overflowMode = TextOverflowModes.Ellipsis;
+            var titleSize = title.gameObject.AddComponent<LayoutElement>();
+            titleSize.preferredWidth = 0f;
+            titleSize.minWidth = 0f;
+            titleSize.flexibleWidth = 1f;
+
+            capsule = Capsule(row, new Vector2(0.5f, 0.5f), Vector2.zero);
+            if (capsule != null)
+                Size(capsule.gameObject, 0f, 46f);
+
+            gear = IconButton(row, "Settings", design, "icon_gear", new Vector2(0.5f, 0.5f), Vector2.zero);
+            Size(gear.gameObject, 46f, 46f);
+            return row;
+        }
+
+        /// <summary>
+        /// Мітка прогресу (S00, S03): заповнена — pip_filled кольору картинки з блиском pip_shine поверх, порожня —
+        /// pip_empty. Повертає саму мітку й блиск (екран перемикає спрайт і блиск на подію).
+        /// </summary>
+        internal static (Image pip, Image shine) Pip(GameObject parent, string name, bool filled, Color color, float sidePx = 16f)
+        {
+            var go = Child(parent, name);
+            var pip = go.AddComponent<Image>();
+            pip.sprite = S(filled ? "pip_filled" : "pip_empty");
+            pip.color = filled ? color : Color.white;
+            pip.raycastTarget = false;
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(Px(sidePx), Px(sidePx));
+            var shineGo = Child(go, "Shine");
+            var shine = shineGo.AddComponent<Image>();
+            shine.sprite = S("pip_shine");
+            shine.raycastTarget = false;
+            Stretch(shineGo);
+            shineGo.SetActive(filled);
+            return (pip, shine);
+        }
+
+        /// <summary>
         /// Нижня навігація (S00, S01): капсула panel_card 76 з тінню, чотири вкладки Грати · Галактика · Колекція ·
         /// Рейтинги. У вкладки — прозора зона тапу на всю чверть (≥ 60), плитка nav_active 46×36 (вимкнена в
         /// неактивної — місце лишається), іконка 24 і підпис caption 900. Підсвічує <see cref="NavBar"/>.

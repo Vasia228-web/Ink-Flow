@@ -138,6 +138,8 @@ namespace InkFlow.UI
             {
                 galaxy.BackRequested += Pop;
                 galaxy.OpenRequested += (galaxyIndex, planetIndex) => Push(planet, new PlanetArgs(galaxyIndex, planetIndex));
+                // Своя галактика — вкладка (U1Glaze крок 3): її навігація веде туди ж, що й хаба.
+                galaxy.TabRequested += OnTab;
             }
 
             if (planet != null)
@@ -288,7 +290,8 @@ namespace InkFlow.UI
                         ResetToHub();
                     break;
                 case NavBar.Galaxy:
-                    OpenTab(galaxy, GalaxyArgs.Own);
+                    // Свіжі аргументи на кожен вхід: так екран відрізняє вкладку (поточна галактика) від Pop.
+                    OpenTab(galaxy, GalaxyArgs.OwnEntry());
                     break;
                 case NavBar.Collection:
                     OpenTab(collection, new CollectionArgs());

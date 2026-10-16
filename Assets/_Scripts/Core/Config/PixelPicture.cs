@@ -138,6 +138,12 @@ namespace InkFlow.Core
         /// <summary>Родини (ігрові кольори) за спаданням кількості кроків.</summary>
         public IReadOnlyList<byte> FillColors => _fillColors;
 
+        /// <summary>
+        /// Головний колір картинки — родина з найбільшою кількістю кроків (перша в <see cref="FillColors"/>; картинка
+        /// без заливки не створюється, тож він є завжди). Ним тонується мітка заповненої комірки на галактиці (U1Glaze).
+        /// </summary>
+        public byte MainColor => _fillColors[0];
+
         /// <summary>Скільки кроків у родини.</summary>
         public int CountOf(byte color) => color < _stepsByColor.Length ? _stepsByColor[color] : 0;
 

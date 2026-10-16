@@ -16,19 +16,23 @@ namespace InkFlow.UI
     /// Щокадру рухаються лише localPosition, localScale і альфа CanvasRenderer.
     /// Перепризначення слота на іншу планету (єдине місце, що чіпає графіку)
     /// стається кілька разів за свайп, а не щокадру.
+    ///
+    /// Розмір планети під екран (U1Glaze S03/S12) — масштаб доріжки <see cref="SetFit"/>, який екран ставить на зміну
+    /// розкладки, а не щокадру; рух пальця переводиться в одиниці доріжки, тож свайп однаковий на будь-якій ширині.
+    /// Мітки комірок і бейдж (<see cref="PlanetView.FocusOnly"/>) гаснуть, поки планета їде з центру.
     /// </summary>
     public sealed class PlanetCarousel : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
         [SerializeField] private DesignSystem design;
+        [Tooltip("Межа відсікання — увесь екран (не карусель у стовпчику з полями: планети малюються й на полях).")]
         [SerializeField] private RectTransform viewport;
+        [Tooltip("Доріжка зі слотами: її localScale — розмір планети під висоту каруселі.")]
+        [SerializeField] private RectTransform track;
         [SerializeField] private PlanetView[] slots = Array.Empty<PlanetView>();
-        [SerializeField] private RectTransform? nextGalaxyPreview;
-
-        /// <summary>Скільки індексів пробігає палець на всю ширину екрана.</summary>
-        private const float DragReferenceWidth = 1080f;
 
         private GalaxyProgress? _galaxy;
         private bool _readOnly;
+        private Func<string, Color>? _pictureColor;
 
         private float _scroll;
         private float _target;
@@ -38,51 +42,64 @@ namespace InkFlow.UI
         private bool _dragging;
         private int _windowCenter = int.MinValue;
         private int _focus = -1;
+        private float _fit = 1f;
 
         // Рендерери кешуємо один раз: GetComponentsInChildren щокадру алокував би
         // масив на кожен слот — рівно те, чого в каруселі бути не повинно.
         private CanvasRenderer[][] _slotRenderers = Array.Empty<CanvasRenderer[]>();
-        private CanvasRenderer[] _previewRenderers = Array.Empty<CanvasRenderer>();
+        private CanvasRenderer[][] _focusRenderers = Array.Empty<CanvasRenderer[]>();
 
         /// <summary>Фокус змінився: екран оновлює назву, підпис, кнопку й пагінацію.</summary>
         public event Action<int>? FocusChanged;
 
-        /// <summary>Індекс планети в центрі. Дорівнює кількості планет, якщо це прев'ю наступної галактики.</summary>
+        /// <summary>Індекс планети в центрі.</summary>
         public int Focus => _focus;
 
-        /// <summary>Чи стоїть у центрі прев'ю наступної галактики.</summary>
-        public bool OnPreview => _galaxy != null && _focus >= _galaxy.Planets.Count;
+        /// <summary>Масштаб доріжки (1 — планета розміру токена planetSize).</summary>
+        public float Fit => _fit;
 
 #if UNITY_EDITOR
-        /// <summary>Стенд і тести: чи видно прев'ю наступної галактики (у режимі перегляду його немає).</summary>
-        public bool PreviewShown => nextGalaxyPreview != null && nextGalaxyPreview.gameObject.activeSelf;
+        /// <summary>Тести: в'юха планети з цим індексом, якщо вона зараз у вікні.</summary>
+        public PlanetView? PreviewViewOf(int index)
+        {
+            foreach (var slot in slots)
+                if (slot != null && slot.gameObject.activeSelf && slot.Planet != null && _galaxy != null &&
+                    index >= 0 && index < _galaxy.Planets.Count && ReferenceEquals(slot.Planet, _galaxy.Planets[index]))
+                    return slot;
+            return null;
+        }
 #endif
 
         private void Start() => CacheRenderers();
 
         /// <summary>Знімає рендерери разом із неактивними: слоти вмикають і вимикають
-        /// шари (кільце, замок, серпанок), і після кешування нові не з'являються.</summary>
+        /// шари (кільце, замок, серпанок, мітки), і після кешування нові не з'являються.</summary>
         private void CacheRenderers()
         {
             if (_slotRenderers.Length == slots.Length && slots.Length > 0)
                 return;
 
             _slotRenderers = new CanvasRenderer[slots.Length][];
+            _focusRenderers = new CanvasRenderer[slots.Length][];
             for (var i = 0; i < slots.Length; i++)
+            {
                 _slotRenderers[i] = slots[i] != null
                     ? slots[i].GetComponentsInChildren<CanvasRenderer>(true)
                     : Array.Empty<CanvasRenderer>();
-
-            _previewRenderers = nextGalaxyPreview != null
-                ? nextGalaxyPreview.GetComponentsInChildren<CanvasRenderer>(true)
-                : Array.Empty<CanvasRenderer>();
+                var focusOnly = slots[i] != null ? slots[i].FocusOnly : null;
+                _focusRenderers[i] = focusOnly != null
+                    ? focusOnly.GetComponentsInChildren<CanvasRenderer>(true)
+                    : Array.Empty<CanvasRenderer>();
+            }
         }
 
-        public void Bind(GalaxyProgress galaxy, bool readOnly, int startIndex)
+        /// <param name="pictureColor">Колір мітки заповненої комірки за назвою картинки.</param>
+        public void Bind(GalaxyProgress galaxy, bool readOnly, int startIndex, Func<string, Color>? pictureColor = null)
         {
             CacheRenderers();
             _galaxy = galaxy;
             _readOnly = readOnly;
+            _pictureColor = pictureColor;
             _scroll = Mathf.Clamp(startIndex, 0, MaxIndex);
             _target = _scroll;
             _dragVelocity = 0f;
@@ -93,19 +110,20 @@ namespace InkFlow.UI
         }
 
         /// <summary>
-        /// Останній допустимий індекс. Прев'ю наступної галактики — це зайвий
-        /// «віртуальний» індекс у кінці, і його немає в режимі перегляду чужої
-        /// галактики: там нема чого відкривати.
+        /// Розмір планети під екран: масштаб доріжки. Ставить екран на зміну розкладки (не щокадру) — localScale,
+        /// а не sizeDelta, тож графіка не перебудовується.
         /// </summary>
-        private int MaxIndex
+        public void SetFit(float scale)
         {
-            get
-            {
-                if (_galaxy == null)
-                    return 0;
-                return _readOnly ? _galaxy.Planets.Count - 1 : _galaxy.Planets.Count;
-            }
+            _fit = Mathf.Max(0.05f, scale);
+            if (track != null)
+                track.localScale = new Vector3(_fit, _fit, 1f);
+            if (_galaxy != null)
+                Layout();
         }
+
+        /// <summary>Останній допустимий індекс — остання планета. Прев'ю наступної галактики більше немає (S03_05 — окремий стан).</summary>
+        private int MaxIndex => _galaxy == null ? 0 : Mathf.Max(0, _galaxy.Planets.Count - 1);
 
         public void OnBeginDrag(PointerEventData eventData)
         {
@@ -116,16 +134,20 @@ namespace InkFlow.UI
 
         public void OnDrag(PointerEventData eventData)
         {
-            if (_galaxy == null || design == null)
+            if (_galaxy == null || design == null || track == null)
                 return;
 
             var perIndex = design.PlanetCarouselStep;
             if (perIndex <= 0.001f)
                 return;
 
-            // Переводимо рух пальця в екранних пікселях у reference-одиниці канваса.
-            var scale = DragReferenceWidth / Mathf.Max(1f, Screen.width);
-            var delta = -eventData.delta.x * scale / perIndex;
+            // Рух пальця — у одиниці доріжки: так свайп однаковий і при match 1 (iPad, канвас ширший за 1080),
+            // і при будь-якому масштабі планети.
+            var camera = eventData.pressEventCamera;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(track, eventData.position, camera, out var now) ||
+                !RectTransformUtility.ScreenPointToLocalPointInRectangle(track, eventData.position - eventData.delta, camera, out var before))
+                return;
+            var delta = -(now.x - before.x) / perIndex;
 
             _scroll += delta;
             _lastDragDelta = delta;
@@ -189,7 +211,8 @@ namespace InkFlow.UI
             }
 
             var step = design.PlanetCarouselStep;
-            var halfViewport = viewport != null ? viewport.rect.width * 0.5f : DragReferenceWidth * 0.5f;
+            // Межа кадру — у одиницях доріжки: доріжка масштабована під екран.
+            var halfViewport = (viewport != null ? viewport.rect.width * 0.5f : 540f) / _fit;
 
             for (var i = 0; i < slots.Length; i++)
             {
@@ -197,6 +220,7 @@ namespace InkFlow.UI
                 if (slot == null)
                     continue;
 
+                // Індекс поза галактикою — слот вимкнений (і не «привид» попередньої планети).
                 var index = _windowCenter - HalfWindow + i;
                 if (index < 0 || index > MaxIndex)
                 {
@@ -213,8 +237,11 @@ namespace InkFlow.UI
                     1f - Mathf.Abs(d) * design.PlanetCarouselAlphaFalloff);
 
                 // Планета цілком за краєм — вимикаємо: за межами кадру її шейдер
-                // усе одно виконувався б для кожного пікселя квада.
-                var halfWidth = design.PlanetSizeFinale * scale * 0.5f;
+                // усе одно виконувався б для кожного пікселя квада. Межа — найширша частина (кільце, серпанок),
+                // а не сама куля: інакше хвіст кільця й гало зникав би на екрані посеред свайпу.
+                // Два аргументи, не params: Mathf.Max(a, b, c) виділяв би масив на кожен кадр свайпу.
+                var widest = Mathf.Max(Mathf.Max(design.PlanetRingWidthScale, design.PlanetAtmosphereScale), 1f);
+                var halfWidth = design.PlanetSizeFinale * widest * scale * 0.5f;
                 var visible = Mathf.Abs(x) - halfWidth <= halfViewport;
                 if (slot.gameObject.activeSelf != visible)
                     slot.gameObject.SetActive(visible);
@@ -225,48 +252,15 @@ namespace InkFlow.UI
                 t.localPosition = new Vector3(x, 0f, 0f);
                 t.localScale = new Vector3(scale, scale, 1f);
                 SetAlpha(_slotRenderers[i], alpha);
+                // Мітки комірок і бейдж — лише в центрі: гаснуть, поки планета їде вбік.
+                SetAlpha(_focusRenderers[i], alpha * Mathf.Clamp01(1f - Mathf.Abs(d) * design.GalaxyFocusFade));
             }
-
-            LayoutPreview(step, halfViewport);
 
             var focus = Mathf.Clamp(center, 0, MaxIndex);
             if (focus == _focus)
                 return;
             _focus = focus;
             FocusChanged?.Invoke(focus);
-        }
-
-        private void LayoutPreview(float step, float halfViewport)
-        {
-            if (nextGalaxyPreview == null)
-                return;
-
-            // Прев'ю живе на «зайвому» індексі за останньою планетою.
-            var show = !_readOnly && _galaxy != null;
-            if (!show)
-            {
-                if (nextGalaxyPreview.gameObject.activeSelf)
-                    nextGalaxyPreview.gameObject.SetActive(false);
-                return;
-            }
-
-            var index = _galaxy!.Planets.Count;
-            var d = index - _scroll;
-            var x = d * step;
-            var scale = Mathf.Max(design.PlanetCarouselMinScale,
-                1f - Mathf.Abs(d) * design.PlanetCarouselScaleFalloff);
-            var alpha = Mathf.Max(design.PlanetCarouselMinAlpha,
-                1f - Mathf.Abs(d) * design.PlanetCarouselAlphaFalloff);
-
-            var visible = Mathf.Abs(x) - design.PlanetSizeFinale * scale * 0.5f <= halfViewport;
-            if (nextGalaxyPreview.gameObject.activeSelf != visible)
-                nextGalaxyPreview.gameObject.SetActive(visible);
-            if (!visible)
-                return;
-
-            nextGalaxyPreview.localPosition = new Vector3(x, 0f, 0f);
-            nextGalaxyPreview.localScale = new Vector3(scale, scale, 1f);
-            SetAlpha(_previewRenderers, alpha);
         }
 
         /// <summary>Скільки слотів по кожен бік від центрального.</summary>
@@ -288,7 +282,7 @@ namespace InkFlow.UI
                 }
 
                 slot.gameObject.SetActive(true);
-                slot.Bind(_galaxy.Planets[index], index == center, _readOnly);
+                slot.Bind(_galaxy.Planets[index], index == center, _readOnly, _pictureColor);
             }
         }
 

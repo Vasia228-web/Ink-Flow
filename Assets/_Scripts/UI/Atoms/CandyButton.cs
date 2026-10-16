@@ -50,6 +50,11 @@ namespace InkFlow.UI
         public Tone CurrentTone => tone;
         public bool IsSmall => small;
 
+#if UNITY_EDITOR
+        /// <summary>Автоперевірка: висота макета (56 велика, 46 мала) в reference-одиницях; 0 — без дизайн-системи.</summary>
+        public float PreviewNominalHeight => design == null ? 0f : small ? design.ButtonSmallHeight : design.ButtonHeight;
+#endif
+
         /// <summary>Скляна кнопка руйнівної дії: напис coral-300 (S02Run_03/04 «Викинути»). Ставить збирач.</summary>
         public bool Destructive
         {

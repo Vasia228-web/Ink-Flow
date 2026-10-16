@@ -86,6 +86,22 @@ namespace InkFlow.Tests.UI
                 var problems = UiAudit.OverflowingTexts(root.transform);
                 Assert.AreEqual(1, problems.Count, string.Join("\n", problems));
                 StringAssert.Contains("ширина тексту", problems[0]);
+
+                // Бічний виступ гліфа («ніжка» «Д» у Nunito Black) — не переповнення: напис у свій preferred-розмір чистий.
+                var black = UnityEditor.AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>("Assets/_Fonts/Nunito Black SDF.asset");
+                Assert.IsNotNull(black, "Nunito Black SDF — спершу Generate Font Assets");
+                label.font = black;
+                label.characterSpacing = 0f;
+                label.fontSize = 54f;
+                foreach (var word in new[] { "Далі", "Летіти" })
+                {
+                    label.text = word;
+                    label.rectTransform.sizeDelta = new Vector2(label.GetPreferredValues().x, 80f);
+                    var clean = UiAudit.OverflowingTexts(root.transform);
+                    Assert.AreEqual(0, clean.Count, $"«{word}» рівно у свій preferred-розмір:\n" + string.Join("\n", clean));
+                    label.rectTransform.sizeDelta = new Vector2(label.GetPreferredValues().x * 0.8f, 80f);
+                    Assert.AreEqual(1, UiAudit.OverflowingTexts(root.transform).Count, $"«{word}» у 80 % ширини — переповнення");
+                }
             }
             finally
             {
@@ -139,6 +155,60 @@ namespace InkFlow.Tests.UI
             finally
             {
                 Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void ButtonAudit_CatchesAButtonThatGrewWithTheColumn_AndPassesAPinnedRow()
+        {
+            // Регресія кроку 3: ряд «Відкрити» з childForceExpandHeight став гнучким по висоті, і стовпчик віддав
+            // кнопці пів залишку — 56 px макета виросли до двохсот. Ні переповнення, ні накладання цього не бачать.
+            var design = ScriptableObject.CreateInstance<DesignSystem>();
+            var root = new GameObject("AuditCanvas", typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                var column = new GameObject("Column", typeof(RectTransform), typeof(VerticalLayoutGroup));
+                column.transform.SetParent(root.transform, false);
+                var columnRect = (RectTransform)column.transform;
+                columnRect.sizeDelta = new Vector2(1000f, 2000f);
+                var col = column.GetComponent<VerticalLayoutGroup>();
+                col.childControlWidth = col.childControlHeight = true;
+                col.childForceExpandWidth = true;
+                col.childForceExpandHeight = false;
+
+                var area = new GameObject("Carousel", typeof(RectTransform), typeof(LayoutElement));
+                area.transform.SetParent(column.transform, false);
+                area.GetComponent<LayoutElement>().flexibleHeight = 1f;
+
+                var row = new GameObject("OpenRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+                row.transform.SetParent(column.transform, false);
+                var rowGroup = row.GetComponent<HorizontalLayoutGroup>();
+                rowGroup.childControlWidth = rowGroup.childControlHeight = true;
+                rowGroup.childForceExpandWidth = rowGroup.childForceExpandHeight = true;
+                var rowSize = row.GetComponent<LayoutElement>();
+                rowSize.preferredHeight = design.ButtonHeight;
+
+                var buttonGo = new GameObject("Open", typeof(RectTransform), typeof(LayoutElement));
+                buttonGo.transform.SetParent(row.transform, false);
+                buttonGo.GetComponent<LayoutElement>().flexibleWidth = 1f;
+                var button = buttonGo.AddComponent<CandyButton>();
+                var so = new UnityEditor.SerializedObject(button);
+                so.FindProperty("design").objectReferenceValue = design;
+                so.ApplyModifiedPropertiesWithoutUndo();
+
+                LayoutRebuilder.ForceRebuildLayoutImmediate(columnRect);
+                var grown = UiAudit.OversizedButtons(root.transform);
+                Assert.AreEqual(1, grown.Count, "ряд без flexibleHeight 0 ділить залишок із каруселлю");
+                StringAssert.Contains("кнопка", grown[0]);
+
+                rowSize.flexibleHeight = 0f;
+                LayoutRebuilder.ForceRebuildLayoutImmediate(columnRect);
+                Assert.AreEqual(0, UiAudit.OversizedButtons(root.transform).Count, "прибитий ряд — кнопка висоти макета");
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+                Object.DestroyImmediate(design);
             }
         }
     }

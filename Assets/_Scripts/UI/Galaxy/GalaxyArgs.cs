@@ -32,8 +32,8 @@ namespace InkFlow.UI
         public PlayerId Owner { get; }
 
         /// <summary>
-        /// Тільки перегляд: ховаються кнопка «Відкрити» й пагінація.
-        /// Гортати чужу галактику можна, змінювати — ні.
+        /// Тільки перегляд: ховаються «Відкрити», навігація й стрілки циклів. Гортати чужу галактику можна,
+        /// змінювати — ні.
         /// </summary>
         public bool ReadOnly { get; }
 
@@ -41,6 +41,13 @@ namespace InkFlow.UI
         public PublicShowcase? Visitor { get; }
 
         public static readonly GalaxyArgs Own = new GalaxyArgs(PlayerId.Self, false);
+
+        /// <summary>
+        /// Свіжий вхід у свою галактику (вкладка навігації): НОВИЙ екземпляр щоразу. Екран відрізняє новий вхід
+        /// (поточна галактика) від повернення через Pop (ті самі аргументи — лишитись у галактиці, яку гортав)
+        /// саме за посиланням на аргументи; спільний <see cref="Own"/> такого не дозволив би.
+        /// </summary>
+        public static GalaxyArgs OwnEntry() => new GalaxyArgs(PlayerId.Self, false);
 
         /// <summary>Чужа галактика з Рейтингів (§16): лише перегляд, дані — з вітрини.</summary>
         public static GalaxyArgs ForVisitor(PublicShowcase visitor) => new GalaxyArgs(visitor);

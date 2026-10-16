@@ -123,7 +123,6 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(0, galaxy.DoneCount);
             Assert.AreEqual(0, galaxy.CurrentIndex, "перша планета — поточна");
             Assert.AreEqual(Layout.NameOf(0), galaxy.Name);
-            Assert.AreEqual(Layout.NameOf(1), galaxy.NextName);
 
             var locked = 0;
             foreach (var planet in galaxy.Planets)
@@ -230,6 +229,48 @@ namespace InkFlow.Tests.Meta
             var first = GalaxyProgress.FromSave(data, Layout, 0);
             Assert.IsTrue(first.IsComplete);
             Assert.AreEqual(Layout.Planets.Count, first.DoneCount);
+        }
+
+        [Test]
+        public void FromSave_CarriesThePictureOfEverySlot_ByIndex_WithinTheLayout()
+        {
+            // Мітки комірок на галактиці (U1Glaze S03) — по одній на слот за номером: заповнені не «на початку»,
+            // а там, куди гравець поставив картинку.
+            var data = new GalaxyData();
+            var planet = Layout.Planets[0];
+            GalaxyState.Set(data, 0, planet.Id, 0, "first", Now);
+            GalaxyState.Set(data, 0, planet.Id, 2, "third", Now);
+            GalaxyState.Set(data, 0, planet.Id, planet.Slots + 3, "beyond", Now); // поза розкладкою — не рахується
+
+            var progress = GalaxyProgress.FromSave(data, Layout, 0).Planets[0];
+            Assert.AreEqual(planet.Slots, progress.SlotPictures.Count, "по одному запису на слот розкладки");
+            Assert.AreEqual("first", progress.SlotPictures[0]);
+            Assert.IsNull(progress.SlotPictures[1]);
+            Assert.AreEqual("third", progress.SlotPictures[2]);
+            Assert.AreEqual(2, progress.FilledSlots, "лічильник і список узгоджені");
+            foreach (var id in progress.SlotPictures)
+                Assert.AreNotEqual("beyond", id);
+
+            // Чужа галактика — те саме з вітрини.
+            var showcase = new PublicShowcase("p", "Гелій", 1, false, null, 0, 0, 0,
+                new[] { new ShowcaseSlot(planet.Id, 1, "second") }, string.Empty);
+            var visitor = GalaxyProgress.FromShowcase(showcase, Layout).Planets[0];
+            Assert.AreEqual("second", visitor.SlotPictures[1]);
+            Assert.IsNull(visitor.SlotPictures[0]);
+        }
+
+        [Test]
+        public void Layout_TitleCase_AndTheBiggestPlanet()
+        {
+            // «Галактика II · Туманна» (S03_05) — те саме ім'я, що NameOf, звичайним регістром.
+            var title = Layout.TitleOf(1);
+            Assert.IsTrue(title.StartsWith("Галактика II · ", StringComparison.Ordinal), title);
+            var upper = Layout.NameOf(1);
+            Assert.AreEqual(upper, title.ToUpperInvariant(), "те саме ім'я");
+            var name = title.Substring("Галактика II · ".Length);
+            Assert.AreEqual(char.ToUpperInvariant(name[0]), name[0], "ім'я з великої");
+            Assert.AreEqual(name.Substring(1).ToLowerInvariant(), name.Substring(1), "решта — малими");
+            Assert.AreEqual(12, Layout.MaxSlots, "найбільша планета — 12 слотів");
         }
 
         [Test]

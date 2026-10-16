@@ -120,11 +120,12 @@ namespace InkFlow.Editor
             capsule?.SetPreviewAmount(999_999_999);
             Caption(section, "головний: аватар, нік (обрізається «…»), нафта до 999\u00A0999\u00A0999, шестерня");
 
-            var tab = Row(section, "Tab", 8f);
-            var title = U1.Text(tab, "Title", "Колекція", design, U1.Role.H1, design.InkText, TextAlignmentOptions.Left);
-            Flex(title.gameObject);
-            Capsule(tab, 1240);
-            IconButton(tab, "Gear", "icon_gear");
+            // Та сама фабрика, що в галактиці: вкладка — назва зліва; підекран — «‹» замість назви.
+            var tab = U1.ScreenHeader(section, design, out var tabBack, out var tabTitle, out var tabCapsule, out _);
+            tab.name = "Tab";
+            tabBack.gameObject.SetActive(false);
+            tabTitle.text = "Колекція";
+            tabCapsule?.SetPreviewAmount(1240);
             Caption(section, "вкладка: назва зліва");
 
             var sub = Row(section, "Sub", 8f);
@@ -134,11 +135,10 @@ namespace InkFlow.Editor
             Fix(Child(sub, "Spacer"), 46f, 46f);
             Caption(section, "підекран: «назад», назва по центру");
 
-            var subOil = Row(section, "SubOil", 8f);
-            IconButton(subOil, "Back", "icon_back");
-            Spacer(subOil);
-            Capsule(subOil, 1240);
-            IconButton(subOil, "Gear", "icon_gear");
+            var subOil = U1.ScreenHeader(section, design, out _, out var subOilTitle, out var subOilCapsule, out _);
+            subOil.name = "SubOil";
+            subOilTitle.text = string.Empty;
+            subOilCapsule?.SetPreviewAmount(1240);
             Caption(section, "підекран із нафтою");
         }
 
@@ -372,10 +372,9 @@ namespace InkFlow.Editor
 
             var pips = Row(section, "Pips", 4f);
             var colors = new[] { design.Pink, design.InkText, design.Coral300, design.Teal, design.Amber, design.Pink300, design.Teal100, design.Coral };
-            for (var i = 0; i < 8; i++)
-                Img(pips, $"Filled{i}", "pip_filled", 16f).GetComponent<Image>().color = colors[i];
-            for (var i = 0; i < 8; i++)
-                Img(pips, $"Empty{i}", "pip_empty", 16f);
+            // Та сама фабрика, що в кільці міток галактики: заповнена — з блиском pip_shine поверх.
+            for (var i = 0; i < 16; i++)
+                U1.Size(U1.Pip(pips, i < 8 ? $"Filled{i}" : $"Empty{i - 8}", i < 8, i < 8 ? colors[i] : Color.white).pip.gameObject, 16f, 16f);
             Caption(section, "мітки прогресу: заповнена — колір картинки");
         }
 

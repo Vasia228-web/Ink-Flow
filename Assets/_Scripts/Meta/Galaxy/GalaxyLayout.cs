@@ -116,6 +116,38 @@ namespace InkFlow.Meta
             return $"ГАЛАКТИКА {Roman(galaxy + 1)} · {GalaxyNames[galaxy % GalaxyNames.Count]}";
         }
 
+        /// <summary>
+        /// Та сама назва звичайним регістром для заголовків (U1Glaze S03_05): «Галактика II · Туманна» — кожне слово
+        /// з великої, римське число як є. У конфігу імена лежать великими, тож це лише форматування.
+        /// </summary>
+        public string TitleOf(int galaxy)
+        {
+            if (galaxy < 0)
+                galaxy = 0;
+            return $"Галактика {Roman(galaxy + 1)} · {Capitalize(GalaxyNames[galaxy % GalaxyNames.Count])}";
+        }
+
+        /// <summary>Найбільше слотів на одній планеті розкладки («до 12 комірок на планеті»).</summary>
+        public int MaxSlots
+        {
+            get
+            {
+                var max = 0;
+                for (var i = 0; i < Planets.Count; i++)
+                    max = Math.Max(max, Planets[i].Slots);
+                return max;
+            }
+        }
+
+        private static string Capitalize(string name)
+        {
+            var words = name.Trim().ToLowerInvariant().Split(' ');
+            for (var i = 0; i < words.Length; i++)
+                if (words[i].Length > 0)
+                    words[i] = char.ToUpperInvariant(words[i][0]) + words[i].Substring(1);
+            return string.Join(" ", words);
+        }
+
         /// <summary>Римський запис додатного числа: 1 → I, 4 → IV, 12 → XII, 2026 → MMXXVI.</summary>
         public static string Roman(int number)
         {

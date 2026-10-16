@@ -36,6 +36,7 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(2, picture.FillColors.Count, "дві родини: помаранч і небо");
             Assert.AreEqual(9, picture.FillColors[0]);
             Assert.AreEqual(16, picture.FillColors[1]);
+            Assert.AreEqual(picture.FillColors[0], picture.MainColor, "головний колір — родина з найбільшою кількістю кроків");
             Assert.AreEqual(7, picture.ToneCount, "o O p W b B c");
             Assert.AreEqual(36, picture.FillPixelCount);
             Assert.AreEqual(18, picture.CountOf(9), "помаранч: три рядки по шість");

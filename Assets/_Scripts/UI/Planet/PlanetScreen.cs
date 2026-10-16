@@ -335,13 +335,11 @@ namespace InkFlow.UI
         {
             if (_surface == null)
                 return;
-            // Остання планета галактики робить ожилою всю галактику — інша картка й інша кнопка.
-            var galaxyDone = State != null && GalaxyState.IsGalaxyComplete(State.Galaxy, _galaxy, Layout);
-            if (completionKicker != null) completionKicker.text = galaxyDone ? "ГАЛАКТИКА ЗАВЕРШЕНА" : "ПЛАНЕТА ОЖИЛА";
-            if (completionTitle != null) completionTitle.text = galaxyDone
-                ? $"{Layout.NameOf(_galaxy)}: усі планети ожили!"
-                : $"{_surface.Name} ожила!";
-            if (nextPlanetLabel != null) nextPlanetLabel.text = galaxyDone ? "Наступна галактика" : "Наступна планета";
+            // «Галактику завершено» з U1Glaze кроку 3 показує екран галактики (S03_04 → S03_05); тут — лише
+            // «планета ожила» і повернення до галактики, інакше святкували б двічі.
+            if (completionKicker != null) completionKicker.text = "ПЛАНЕТА ОЖИЛА";
+            if (completionTitle != null) completionTitle.text = $"{_surface.Name} ожила!";
+            if (nextPlanetLabel != null) nextPlanetLabel.text = "До галактики";
         }
 
         private void OnDisable()

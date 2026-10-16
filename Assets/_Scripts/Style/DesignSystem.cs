@@ -180,6 +180,47 @@ namespace InkFlow.Style
         [SerializeField, Min(200f)] private float horizonRadius = 720f;
         [SerializeField, Min(0f)] private float horizonRowGap = 12f;
 
+        [Header("U1Glaze: галактика (S03) — частки діаметра планети, px макета там, де сказано")]
+        [Tooltip("Найбільший діаметр планети у фокусі, px макета (S03Galaxy_01: 225). Менше — коли каруселі бракує висоти.")]
+        [SerializeField, Range(120f, 300f)] private float galaxyPlanetSide = 225f;
+        [Tooltip("Кільце міток комірок: радіус до центру мітки й сторона мітки — частки діаметра (137/225 і 16/225).")]
+        [SerializeField, Range(0.5f, 0.8f)] private float galaxyPipRing = 0.609f;
+        [SerializeField, Range(0.03f, 0.12f)] private float galaxyPipSize = 0.071f;
+        [Tooltip("Бейдж-галочка ожилої планети: сторона й зсув центру від центру планети по x і y (44/225 і 81/225).")]
+        [SerializeField, Range(0.1f, 0.3f)] private float galaxyBadgeSize = 0.196f;
+        [SerializeField, Range(0.2f, 0.5f)] private float galaxyBadgeOffset = 0.36f;
+        [Tooltip("Галочка в бейджі — частка діаметра (30/225).")]
+        [SerializeField, Range(0.05f, 0.25f)] private float galaxyBadgeIcon = 0.133f;
+        [Tooltip("Плитка із замком замкненої планети й іконка в ній (60/225 і 30/225).")]
+        [SerializeField, Range(0.15f, 0.4f)] private float galaxyLockTile = 0.267f;
+        [SerializeField, Range(0.08f, 0.2f)] private float galaxyLockIcon = 0.133f;
+        [Tooltip("Мітки й бейдж видно лише у фокусі: гаснуть як 1 − |зсув|·k, поки планета їде з центру.")]
+        [SerializeField, Range(1f, 6f)] private float galaxyFocusFade = 2.5f;
+        [Tooltip("Пагінація: крапка, активна пігулка, проміжок — px макета (S03: 8, 22, 6).")]
+        [SerializeField, Min(2f)] private float galaxyDot = 8f;
+        [SerializeField, Min(4f)] private float galaxyDotActive = 22f;
+        [SerializeField, Min(0f)] private float galaxyDotGap = 6f;
+        [Tooltip("Нова галактика (S03_05): гало планети-героя — частка діаметра (≈ 370/221).")]
+        [SerializeField, Range(1.1f, 2.2f)] private float galaxyRevealHaze = 1.68f;
+        [Tooltip("«Галактику завершено» (S03_04): дуга планет — радіус і діаметр планети, px макета, і розмах дуги, градуси.")]
+        [SerializeField, Min(40f)] private float galaxyArcRadius = 120f;
+        [SerializeField, Min(10f)] private float galaxyArcPlanet = 35f;
+        [SerializeField, Range(60f, 180f)] private float galaxyArcSpread = 140f;
+        [Tooltip("«Галактику завершено»: проміжок від найнижчих планет дуги до напису «ГАЛАКТИКА …», px макета (S03_04 ≈ 61 разом зі spacing панелі).")]
+        [SerializeField, Min(0f)] private float galaxyArcBottomGap = 32f;
+        [Tooltip("Ритм під планетою, px макета (S03_01, S12_04): підпис → «Відкрити», «Відкрити» → крапки, крапки → навігація.")]
+        [SerializeField, Min(0f)] private float galaxyOpenGap = 14f;
+        [SerializeField, Min(0f)] private float galaxyDotsGapTop = 18f;
+        [SerializeField, Min(0f)] private float galaxyDotsGapBottom = 16f;
+        [Tooltip("Бейдж-галочка: світлий обідок навколо бірюзового кола, px макета (S03_02).")]
+        [SerializeField, Range(0f, 6f)] private float galaxyBadgeRim = 2.5f;
+        [Tooltip("Неактивна крапка пагінації: тон кружка toggle_knob_off (≈ #73759E) — на екрані ≈ #454552, як на S03. " +
+                 "Непрозорий: альфа в лінійному просторі змішувалась би вдвічі яскравіше за CSS макета.")]
+        [SerializeField] private Color galaxyDotInactive = new Color(0.60f, 0.59f, 0.52f, 1f);
+        [Tooltip("Орбіта місяця — частка діаметра. Усередині кільця міток (galaxyPipRing − пів мітки − пів місяця), " +
+                 "інакше на Аквілі місяць ховався під мітки о 3-й і 9-й.")]
+        [SerializeField, Range(0.3f, 0.6f)] private float galaxyMoonOrbit = 0.52f;
+
         // ───────────────────────── Палітра чорнила ─────────────────────────
 
         [Serializable]
@@ -633,17 +674,9 @@ namespace InkFlow.Style
         [Tooltip("Заголовок галактики і підпис зон: 13 px макета.")]
         [SerializeField] private float fontSizeGalaxyTitle = 36f;
 
-        [Tooltip("Назва наступної галактики у прев'ю: 16 px макета.")]
-        [SerializeField] private float fontSizeNextGalaxy = 44f;
-
-        [Tooltip("Напис на кнопці «Відкрити» в галактиці й «Колекція» на планеті: 18 px макета.")]
+        [Tooltip("Напис на кнопці «Колекція» на планеті (старий стиль, до кроку 4 U1Glaze): 18 px макета.")]
         [SerializeField] private float fontSizePaintButton = 50f;
 
-        [Tooltip("Розрядка заголовка галактики: .1em макета (проти .14em у хабі).")]
-        [SerializeField] private float letterSpacingGalaxyTitle = 10f;
-
-        [Tooltip("До якої частки розміру назва галактики стискається, щоб влізти в шапку (між стрілками циклів — без розрядки).")]
-        [SerializeField, Range(0.4f, 1f)] private float galaxyTitleMinScale = 0.5f;
 
         [Header("Налаштування (§15)")]
         [Tooltip("Доріжка перемикача, коли ввімкнено.")]
@@ -690,24 +723,14 @@ namespace InkFlow.Style
         [Tooltip("Серпанок атмосфери відносно діаметра планети (макет: 1.24).")]
         [SerializeField] private float planetAtmosphereScale = 1.24f;
 
-        [Tooltip("Кільце прогресу по орбіті (макет: 1.15).")]
-        [SerializeField] private float planetProgressRingScale = 1.15f;
-
         [SerializeField] private float planetRingWidthScale = 1.9f;
         [SerializeField] private float planetRingHeightScale = 0.6f;
 
-        [SerializeField] private float planetMoonOrbitScale = 0.62f;
         [SerializeField, Min(1f)] private float planetMoonPeriod = 8f;
 
-        [Tooltip("Назва планети внизу екрана: 25 px макета.")]
-        [SerializeField] private float fontSizePlanetName = 69f;
 
-        [Tooltip("Крапка пагінації: 7 px макета, активна — 18 завширшки.")]
-        [SerializeField] private float paginationDotSize = 19f;
-        [SerializeField] private float paginationDotActiveWidth = 50f;
-        [SerializeField] private Color paginationDotInactive = new Color(1f, 1f, 1f, 0.28f);
-
-        [Tooltip("Заливка неактивної кнопки: rgba(255,255,255,.06) макета.")]
+        [Tooltip("Заливка неактивної кнопки: rgba(255,255,255,.06) макета. Галактика з кроку 3 U1Glaze — button_off; " +
+                 "лишається для запасу (Reserve/OilShop, картка пакета).")]
         [SerializeField] private Color buttonDisabledFill = new Color(1f, 1f, 1f, 0.06f);
 
         [Tooltip("Палітри поверхонь, СТРОГО в порядку PlanetType. " +
@@ -1291,10 +1314,7 @@ namespace InkFlow.Style
         public float PaintConfettiSpread => paintConfettiSpread;
 
         public float FontSizeGalaxyTitle => fontSizeGalaxyTitle;
-        public float FontSizeNextGalaxy => fontSizeNextGalaxy;
         public float FontSizePaintButton => fontSizePaintButton;
-        public float LetterSpacingGalaxyTitle => letterSpacingGalaxyTitle;
-        public float GalaxyTitleMinScale => galaxyTitleMinScale;
         public Color ToggleOnFill => toggleOnFill;
         public Color ToggleOffFill => toggleOffFill;
         public Color ToggleKnob => toggleKnob;
@@ -1311,15 +1331,9 @@ namespace InkFlow.Style
         public float PlanetCarouselSnapTime => planetCarouselSnapTime;
         public float PlanetCarouselFlickVelocity => planetCarouselFlickVelocity;
         public float PlanetAtmosphereScale => planetAtmosphereScale;
-        public float PlanetProgressRingScale => planetProgressRingScale;
         public float PlanetRingWidthScale => planetRingWidthScale;
         public float PlanetRingHeightScale => planetRingHeightScale;
-        public float PlanetMoonOrbitScale => planetMoonOrbitScale;
         public float PlanetMoonPeriod => planetMoonPeriod;
-        public float FontSizePlanetName => fontSizePlanetName;
-        public float PaginationDotSize => paginationDotSize;
-        public float PaginationDotActiveWidth => paginationDotActiveWidth;
-        public Color PaginationDotInactive => paginationDotInactive;
         public Color ButtonDisabledFill => buttonDisabledFill;
 
         /// <summary>
@@ -1524,6 +1538,29 @@ namespace InkFlow.Style
         public float SphereAxisTilt => sphereAxisTilt;
         public float HorizonRadius => horizonRadius;
         public float HorizonRowGap => horizonRowGap;
+        public float GalaxyPlanetSide => galaxyPlanetSide;
+        public float GalaxyPipRing => galaxyPipRing;
+        public float GalaxyPipSize => galaxyPipSize;
+        public float GalaxyBadgeSize => galaxyBadgeSize;
+        public float GalaxyBadgeOffset => galaxyBadgeOffset;
+        public float GalaxyBadgeIcon => galaxyBadgeIcon;
+        public float GalaxyLockTile => galaxyLockTile;
+        public float GalaxyLockIcon => galaxyLockIcon;
+        public float GalaxyFocusFade => galaxyFocusFade;
+        public float GalaxyDot => galaxyDot;
+        public float GalaxyDotActive => galaxyDotActive;
+        public float GalaxyDotGap => galaxyDotGap;
+        public float GalaxyRevealHaze => galaxyRevealHaze;
+        public float GalaxyArcRadius => galaxyArcRadius;
+        public float GalaxyArcPlanet => galaxyArcPlanet;
+        public float GalaxyArcSpread => galaxyArcSpread;
+        public float GalaxyArcBottomGap => galaxyArcBottomGap;
+        public float GalaxyOpenGap => galaxyOpenGap;
+        public float GalaxyDotsGapTop => galaxyDotsGapTop;
+        public float GalaxyDotsGapBottom => galaxyDotsGapBottom;
+        public float GalaxyBadgeRim => galaxyBadgeRim;
+        public Color GalaxyDotInactive => galaxyDotInactive;
+        public float GalaxyMoonOrbit => galaxyMoonOrbit;
 
         public static float FromMockupPx(float mockupPx) => mockupPx * MockupToReference;
 

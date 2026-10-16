@@ -25,6 +25,7 @@ Shader "InkFlow/Planet"
         _Seed ("Seed", Float) = 0
         _Painted ("Painted fraction", Range(0,1)) = 1
         _Locked ("Locked", Range(0,1)) = 0
+        _Rim ("Haze peak (quad radius)", Range(0.3,0.95)) = 0.8
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0
@@ -104,7 +105,16 @@ Shader "InkFlow/Planet"
             float _Seed;
             float _Painted;
             float _Locked;
+            float _Rim;
             float4 _ClipRect;
+
+            // Замкнена планета — знебарвлена світла куля (U1Glaze S03_03), а не темна: затінення лишається, колір іде
+            // в лавандово-сірий камінь. Одна функція на кулю й кільце — інакше сіра куля сиділа б у бежевому кільці.
+            float3 LockedStone(float3 c)
+            {
+                float lum = dot(c, float3(0.299, 0.587, 0.114));
+                return lum * 0.6 + float3(0.28, 0.27, 0.34);
+            }
 
             v2f vert (appdata_t v)
             {
@@ -273,7 +283,7 @@ Shader "InkFlow/Planet"
                     float rim = smoothstep(0.80, 1.0, r) * diff;
                     col += atmo3 * rim * 0.55;
 
-                    col = lerp(col, float3(0.024, 0.016, 0.063), _Locked * 0.62);
+                    col = lerp(col, LockedStone(col), _Locked);
 
                     outColor = fixed4(col, edge);
                 }
@@ -293,6 +303,7 @@ Shader "InkFlow/Planet"
                     // Поперек кільця — світліше в центрі, прозоріше до країв.
                     float across = 1.0 - smoothstep(0.0, 0.94, abs(p.x));
                     float3 col = lerp(atmo3, base3 * 1.2, across * 0.6);
+                    col = lerp(col, LockedStone(col), _Locked);
                     float a = band * lerp(0.0, 0.95, across) * lerp(0.95, 0.4, _Locked);
                     outColor = fixed4(col, a);
                 }
@@ -316,7 +327,9 @@ Shader "InkFlow/Planet"
                 {
                     // ── Атмосферний серпанок ──
                     // Оболонка, а не купол: усередині прозоро, світиться сам край.
-                    float shell = smoothstep(0.62, 0.80, r) * (1.0 - smoothstep(0.80, 1.0, r));
+                    // Пік — на ободі кулі (_Rim у радіусах квада): ширше гало героя (S03_05) лишається
+                    // прилиплим до планети, а не відривається бубликом. 0.8 — звичайний серпанок ×1.24.
+                    float shell = smoothstep(_Rim * 0.775, _Rim, r) * (1.0 - smoothstep(_Rim, 1.0, r));
                     if (shell <= 0.0) discard;
                     outColor = fixed4(atmo3, shell * 0.5);
                 }

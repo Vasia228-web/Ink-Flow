@@ -6,6 +6,8 @@ namespace InkFlow.Meta
     /// <summary>Одна планета в галактиці: ідентичність і прогрес слотів, без жодного кольору.</summary>
     public sealed class PlanetProgress
     {
+        private static readonly string?[] NoPictures = System.Array.Empty<string?>();
+
         public PlanetProgress(PlanetType type, string name, int totalSlots)
         {
             Type = type;
@@ -32,23 +34,26 @@ namespace InkFlow.Meta
         public bool IsFinale { get; set; }
 
         public float Fraction => TotalSlots > 0 ? (float)FilledSlots / TotalSlots : 0f;
+
+        /// <summary>
+        /// Картинка в кожному слоті за номером (null — порожній), довжиною <see cref="TotalSlots"/> або порожній список,
+        /// коли даних немає (мок). Похідне від збереження чи вітрини — лише читання: мітки комірок на галактиці
+        /// тонуються головним кольором картинки свого слота (U1Glaze S03).
+        /// </summary>
+        public IReadOnlyList<string?> SlotPictures { get; set; } = NoPictures;
     }
 
-    /// <summary>Галактика на екрані: назва, планети зі станами, назва наступної для прев'ю.</summary>
+    /// <summary>Галактика на екрані: назва, планети зі станами, номер циклу.</summary>
     public sealed class GalaxyProgress
     {
-        public GalaxyProgress(string name, string nextName, IReadOnlyList<PlanetProgress> planets, int index = 0)
+        public GalaxyProgress(string name, IReadOnlyList<PlanetProgress> planets, int index = 0)
         {
             Name = name;
-            NextName = nextName;
             Planets = planets;
             Index = index;
         }
 
         public string Name { get; }
-
-        /// <summary>Назва наступної галактики — для затемненого прев'ю в кінці каруселі.</summary>
-        public string NextName { get; }
 
         public IReadOnlyList<PlanetProgress> Planets { get; }
 
@@ -110,17 +115,23 @@ namespace InkFlow.Meta
                 else if (GalaxyState.IsPlanetOpen(data, galaxy, layout, i))
                     state = PlanetState.Current;
 
+                // Картинки по слотах — у межах розкладки, як і лічильник: запис поза нею не рахується ніде.
+                var pictures = new string?[source.Slots];
+                for (var s = 0; s < source.Slots; s++)
+                    pictures[s] = GalaxyState.PictureAt(data, galaxy, source.Id, s);
+
                 planets.Add(new PlanetProgress(source.Type, source.Name, source.Slots)
                 {
                     FilledSlots = filled,
                     State = state,
                     HasMoons = source.HasMoons,
                     HasRing = source.HasRing,
-                    IsFinale = source.IsFinale
+                    IsFinale = source.IsFinale,
+                    SlotPictures = pictures
                 });
             }
 
-            return new GalaxyProgress(layout.NameOf(galaxy), layout.NameOf(galaxy + 1), planets, galaxy);
+            return new GalaxyProgress(layout.NameOf(galaxy), planets, galaxy);
         }
 
         /// <summary>
@@ -145,7 +156,7 @@ namespace InkFlow.Meta
                 });
             }
 
-            return new GalaxyProgress(layout.NameOf(0), layout.NameOf(1), planets, 0);
+            return new GalaxyProgress(layout.NameOf(0), planets, 0);
         }
 
         /// <summary>
