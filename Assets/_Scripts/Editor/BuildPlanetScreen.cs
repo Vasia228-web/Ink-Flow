@@ -12,30 +12,30 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Збирає екран планети-вітрини (майстер-док §12) за розміткою макета «Ink Flow v2».
+    /// Збирає екран планети U1Glaze (S04PlanetSphere, S05PlanetHorizon, S12SmallScreen_05/06) фабриками <see cref="U1"/>:
+    /// стовпчик (VerticalLayoutGroup) — шапка 56 («‹», нафта, шестерня) → назва планети h1 → підпис галактики →
+    /// [«Горизонт»: рядок міток і лічильник] → гнучка ділянка планети → [«Сфера»: лічильник] → коралова
+    /// «Поставити картинку» → підказка; на місці низу — панель «планета ожила». Поверх — лист зайнятої комірки.
+    /// Обидві розкладки живуть у префабі; яку показати, вирішує екран за порогом <c>sphereMaxSlots</c>.
+    /// Планети — шейдер InkFlow/Planet (SPEC: планети на макетах — заглушки), комірки, мітки, іскри — спрайти U1Glaze.
     /// Меню: Ink Flow → Setup → Build Planet Screen.
-    ///
-    /// Числа — px макета × K (K = DesignSystem.MockupToReference, 1080/402 ≈ 2.687). Прив'язки: шапка до верху SafeArea,
-    /// підказка, прогрес і кнопка «Колекція» — до низу, планета центрується в тому, що лишилось.
-    /// Слоти — чотири шари під диском (плями, панелі, рамки, пікселі), щоб канвас батчив кожен шар
-    /// одним викликом; пул — на найбільшу планету з запасом.
     /// </summary>
     public static class BuildPlanetScreen
     {
         private const string ScenePath = "Assets/Scenes/Planet.unity";
         private const string PrefabFolder = "Assets/_Prefabs/UI";
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
-        private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
-        private const string PlanetShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
-        private const string ZoneShaderPath = "Assets/_Shaders/InkFlowZone.shader";
+        private const string ShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
 
-        /// <summary>Маркерів у пулі: найбільша планета дефолтної розкладки — 12, конфіг дозволяє до 24.</summary>
-        public const int MaxSlots = 24;
+        /// <summary>Комірок і міток у пулі: стеля слотів у GalaxyConfig ([Range(1, 24)]).</summary>
+        private const int SlotPool = 24;
 
-        private const float K = DesignSystem.MockupToReference;
+        /// <summary>Діаметр кулі за масштабу 1, px макета (S04: 291.5); під екран її масштабує PlanetScreen.</summary>
+        private const float GlobePx = 291.5f;
 
-        private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
+        /// <summary>Бокс комірки за масштабу 1, px макета (спрайти слота — 72); розмір у розкладці — масштабом.</summary>
+        private const float CellPx = 72f;
 
         [MenuItem("Ink Flow/Setup/Build Planet Screen")]
         public static void Build()
@@ -58,33 +58,19 @@ namespace InkFlow.Editor
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // Асети — строго після NewScene (див. коментар у InkFlowBootstrap).
+            // Асети — строго після NewScene: закриття сцени вивантажує незакорінені асети.
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             IconSprites = AssetDatabase.LoadAssetAtPath<TMP_SpriteAsset>(SpriteAssetPath);
-
-            var rounded = LoadSprite("rounded-rect");
-            var outline = LoadSprite("rounded-rect-outline");
-            var circle = LoadSprite("circle-soft");
-            var circleOutline = LoadSprite("circle-outline");
             var quad = LoadSprite("white-quad");
-            var planetShader = AssetDatabase.LoadAssetAtPath<Shader>(PlanetShaderPath);
-            var zoneShader = AssetDatabase.LoadAssetAtPath<Shader>(ZoneShaderPath);
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
-            var currencyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CurrencyWidget.prefab");
 
             var missing = new System.Collections.Generic.List<string>();
             if (design == null) missing.Add(DesignSystemPath);
-            if (rounded == null) missing.Add($"{SpriteFolder}/rounded-rect.png");
-            if (outline == null) missing.Add($"{SpriteFolder}/rounded-rect-outline.png");
-            if (circle == null) missing.Add($"{SpriteFolder}/circle-soft.png");
-            if (circleOutline == null) missing.Add($"{SpriteFolder}/circle-outline.png");
             if (quad == null) missing.Add($"{SpriteFolder}/white-quad.png");
-            if (planetShader == null) missing.Add(PlanetShaderPath);
-            if (zoneShader == null) missing.Add(ZoneShaderPath);
+            if (shader == null) missing.Add(ShaderPath);
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
-            if (currencyPrefab == null) missing.Add($"{PrefabFolder}/CurrencyWidget.prefab");
-            K1Sprites.AllPresent(missing);
+            if (U1GlazeSprites.Load("slot_empty") == null) missing.Add("спрайти U1Glaze (Ink Flow → Setup → Build UI Kit)");
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Планету НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -107,388 +93,417 @@ namespace InkFlow.Editor
             var navigation = safe.AddComponent<NavigationStack>();
 
             var uiRoot = canvasGo.AddComponent<UIRoot>();
-            Wire(uiRoot, ("canvas", canvas), ("scaler", scaler),
-                ("navigation", navigation), ("safeArea", safeBinder));
+            Wire(uiRoot, ("canvas", canvas), ("scaler", scaler), ("navigation", navigation), ("safeArea", safeBinder));
 
             var screenGo = Child(safe, "PlanetScreen");
             Stretch(screenGo);
             var screen = screenGo.AddComponent<PlanetScreen>();
 
-            BuildHeader(screenGo, design!, font, circle!, circleOutline!, currencyPrefab!,
-                out var backButton, out var title, out var currency, out var settingsButton);
+            // ── Стовпчик ──
+            var column = Child(screenGo, "Column");
+            Stretch(column);
+            var col = column.AddComponent<VerticalLayoutGroup>();
+            col.padding = new RectOffset((int)U1.Px(16f), (int)U1.Px(16f), 0, (int)U1.Px(8f));
+            col.childAlignment = TextAnchor.UpperCenter;
+            col.childControlWidth = col.childControlHeight = true;
+            col.childForceExpandWidth = true;
+            col.childForceExpandHeight = false;
 
-            var collectionButton = BuildCollectionButton(screenGo, design!, font, rounded!, out var collectionLabel, out var buttonTop);
-            var progress = BuildProgress(screenGo, design!, font, buttonTop);
-            var hint = BuildHint(screenGo, design!, font, buttonTop);
+            U1.ScreenHeader(column, design!, out var back, out var title, out var currency, out var gear);
+            title.text = string.Empty; // підекран: «‹» замість назви, назва планети — рядком нижче (S04)
 
-            var stageRoot = BuildStage(screenGo, design!, quad!, circle!, outline!, zoneShader!,
-                out var stage, out var disc, out var atmosphere, out var flash, out var moon, out var confetti, out var markers);
+            var planetName = U1.Text(column, "PlanetName", "Кріос", design!, U1.Role.H1, design!.InkText);
+            planetName.textWrappingMode = TextWrappingModes.NoWrap;
+            planetName.overflowMode = TextOverflowModes.Ellipsis;
+            var galaxyLabel = U1.Text(column, "GalaxyLabel", "ГАЛАКТИКА I · ПЕРВІСНА", design!, U1.Role.Label, design!.InkMuted);
+            galaxyLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            galaxyLabel.overflowMode = TextOverflowModes.Ellipsis;
 
-            BuildSlotSheet(screenGo, design!, font, rounded!, outline!,
-                out var sheet, out var sheetTitle, out var replaceButton, out var replaceLabel,
-                out var removeButton, out var removeLabel, out var cancelButton, out var cancelLabel);
+            // «Горизонт»: мітки рядком і лічильник — угорі (S05).
+            U1.Gap(column, 12f);
+            var pipRow = BuildPipRow(column, design!, out var rowPips, out var rowShines);
+            var horizonCounter = BuildCounter(column, "HorizonCounter", design!, out var horizonCount, out var horizonWord);
 
-            BuildCompletionCard(screenGo, design!, font, rounded!,
-                out var card, out var kicker, out var completionTitle, out var nextButton, out var nextLabel);
+            // ── Ділянка планети (гнучка) ──
+            var area = Child(column, "PlanetArea");
+            area.AddComponent<LayoutElement>().flexibleHeight = 1f;
+            var globe = BuildGlobe(area, design!, quad!, shader!, out var stage);
+            var horizon = BuildHorizon(area, design!, quad!, shader!, screenGo);
+
+            // ── Низ: лічильник «Сфери», дія, підказка ──
+            var sphereCounter = BuildCounter(column, "SphereCounter", design!, out var sphereCount, out var sphereWord);
+            var actionGap = U1.Gap(column, 10f); // ховається разом із дією, коли низ замінює панель «ожила»
+            var actionRow = Child(column, "ActionRow");
+            var actionLayout = actionRow.AddComponent<HorizontalLayoutGroup>();
+            actionLayout.childControlWidth = actionLayout.childControlHeight = true;
+            actionLayout.childForceExpandWidth = actionLayout.childForceExpandHeight = true;
+            // flexibleHeight 0: childForceExpandHeight робить ряд гнучким — він ділив би залишок із планетою (крок 3).
+            U1.Size(actionRow, 0f, 56f).flexibleHeight = 0f;
+            var place = U1.Button(actionRow, "Place", "Поставити картинку", design!, CandyButton.Tone.Coral);
+            var hintGap = U1.Gap(column, design!.PlanetHintGap); // поза гало кнопки (S04_01: 13.5 до літер)
+            var hint = U1.Text(column, "Hint", "Крути планету пальцем і тапни на порожню комірку", design!, U1.Role.Caption, design!.InkMuted);
+            hint.textWrappingMode = TextWrappingModes.NoWrap;
+            hint.overflowMode = TextOverflowModes.Ellipsis;
+
+            var alive = BuildAlivePanel(column, design!, out var kicker, out var aliveTitle, out var aliveBody, out var aliveButton);
+            var aliveGroup = alive.gameObject.AddComponent<CanvasGroup>();
+
+            // ── Лист зайнятої комірки (S04_04, S05_03) ──
+            var sheet = BuildSheet(screenGo, design!, quad!, out var frame, out var picture, out var sheetName, out var badge,
+                out var replace, out var remove, out var cancel);
 
             Wire(screen,
-                ("design", design!), ("planetShader", planetShader!),
-                ("backButton", backButton), ("planetTitle", title), ("currency", currency), ("settingsButton", settingsButton),
-                ("stageRoot", stageRoot), ("stage", stage), ("disc", disc),
-                ("atmosphere", atmosphere), ("completionFlash", flash), ("moon", moon), ("confetti", confetti),
-                ("progressLabel", progress), ("rotateHint", hint),
-                ("collectionButton", collectionButton), ("collectionLabel", collectionLabel),
-                ("slotSheet", sheet), ("sheetTitle", sheetTitle),
-                ("replaceButton", replaceButton), ("replaceLabel", replaceLabel),
-                ("removeButton", removeButton), ("removeLabel", removeLabel),
-                ("cancelButton", cancelButton), ("cancelLabel", cancelLabel),
-                ("completionCard", card), ("completionKicker", kicker),
-                ("completionTitle", completionTitle), ("nextPlanetButton", nextButton),
-                ("nextPlanetLabel", nextLabel));
-            WireArray(stage, "markers", markers);
+                ("design", design!), ("backButton", back), ("settingsButton", gear), ("currency", currency),
+                ("planetName", planetName), ("galaxyLabel", galaxyLabel),
+                ("horizonPipRow", pipRow), ("pipEmpty", U1.S("pip_empty")), ("pipFilled", U1.S("pip_filled")),
+                ("horizonCounter", horizonCounter), ("horizonCount", horizonCount), ("horizonCountWord", horizonWord),
+                ("column", column.GetComponent<RectTransform>()), ("area", area.GetComponent<RectTransform>()),
+                ("stage", stage), ("globe", globe), ("horizon", horizon),
+                ("sphereCounter", sphereCounter), ("sphereCount", sphereCount), ("sphereCountWord", sphereWord),
+                ("actionGap", actionGap.GetComponent<RectTransform>()), ("actionRow", actionRow.GetComponent<RectTransform>()),
+                ("placeButton", place), ("hintGap", hintGap.GetComponent<RectTransform>()), ("hint", hint),
+                ("alivePanel", alive), ("alivePanelGroup", aliveGroup), ("aliveKicker", kicker), ("aliveTitle", aliveTitle), ("aliveBody", aliveBody),
+                ("aliveButton", aliveButton),
+                ("sheet", sheet), ("sheetFrame", frame), ("sheetPicture", picture), ("sheetName", sheetName),
+                ("sheetBadge", badge), ("replaceButton", replace), ("removeButton", remove), ("cancelButton", cancel));
+            WireArray(screen, "horizonPips", rowPips);
+            WireArray(screen, "horizonPipShines", rowShines);
 
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
             eventSystem.AddComponent<InputSystemUIInputModule>();
 
+            // Синхронно й перед збереженням: OnValidate відкладений, і дефолти потрапили б у файл.
             uiRoot.ApplyScaler();
             screen.Apply();
 
-            // Префаб — те, з чого BuildMainScene збирає застосунок.
             SaveScreenPrefab(screenGo);
 
             InkFlowBootstrap.EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
-            Debug.Log($"[InkFlow] Планету зібрано: {ScenePath} (коефіцієнт {K:0.000}).");
+            Debug.Log($"[InkFlow] Планету зібрано: {ScenePath} (U1Glaze, «Сфера» / «Горизонт», коефіцієнт {DesignSystem.MockupToReference:0.000}).");
         }
 
-        // ── Шапка: padding 0 18 4; кнопка 40; назва 15/800 ls .04em ──
-        private static RectTransform BuildHeader(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite circle, Sprite circleOutline, GameObject currencyPrefab,
-            out Button backButton, out TMP_Text title, out CurrencyWidget currency, out Button settingsButton)
+        // ── Рядок міток «Горизонту» (S05): по одній на комірку; розмір і проміжок ставить екран за кількістю ──
+        private static RectTransform BuildPipRow(GameObject parent, DesignSystem design, out Image[] pips, out Image[] shines)
         {
-            var height = M(44f);
-            var go = Child(parent, "Header");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(M(18f), -height);
-            rect.offsetMax = new Vector2(-M(18f), 0f);
-
-            var backSize = M(40f);
-            var backGo = Child(go, "Back");
-            var backFill = backGo.AddComponent<Image>();
-            backFill.sprite = circle;
-            backFill.color = design.CircleButtonFill;
-            Place(backFill, Vector2.zero, new Vector2(backSize, backSize),
-                new Vector2(0f, 0.5f), new Vector2(0f, 0.5f));
-
-            var ringGo = Child(backGo, "Ring");
-            Stretch(ringGo);
-            var ring = ringGo.AddComponent<Image>();
-            ring.sprite = circleOutline;
-            ring.color = design.GlassStroke;
-            ring.raycastTarget = false;
-
-            var chevron = Label(backGo, "Chevron", "‹", design, font,
-                M(22f), design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(chevron.gameObject);
-
-            backButton = backGo.AddComponent<Button>();
-            backButton.targetGraphic = backFill;
-
-            // Заголовок центруємо у ВІЛЬНОМУ проміжку між кнопкою «‹» і капсулою валюти.
-            title = Label(go, "PlanetTitle", "Терра Прима", design, font,
-                design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(-M(53f), 0f), new Vector2(M(160f), M(24f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var currencyGo = (GameObject)PrefabUtility.InstantiatePrefab(currencyPrefab, go.transform);
-            currency = currencyGo.GetComponent<CurrencyWidget>();
-            // Шестерня (§15) — крайня праворуч, капсула валюти зсувається ліворуч і трохи вужчає.
-            Place(currency, new Vector2(-GearSlot, 0f), new Vector2(M(104f), M(40f)),
-                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
-            settingsButton = GearButton(go, design, circle, circleOutline, LoadSprite("icon-gear"));
-
-            return rect;
-        }
-
-        // ── Кнопка «Колекція»: 200×50 r26 градієнт, при низу safe area ──
-        private static Button BuildCollectionButton(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, out TMP_Text label, out float top)
-        {
-            var height = M(50f);
-            var bottom = M(24f);
-            var go = Child(parent, "CollectionButton");
-            var fill = go.AddComponent<GradientImage>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(26f));
-            fill.SetGradient(design.AccentTeal, design.AccentBlue);
-            Place(fill, new Vector2(0f, bottom), new Vector2(M(200f), height),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-
-            label = Label(go, "Label", "Колекція", design, font,
-                design.FontSizePaintButton, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(label.gameObject);
-
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = fill;
-            top = bottom + height;
-            return button;
-        }
-
-        // ── Прогрес «3 / 7 слотів»: над кнопкою ──
-        private static TMP_Text BuildProgress(GameObject parent, DesignSystem design, TMP_FontAsset? font, float buttonTop)
-        {
-            var label = Label(parent, "Progress", "3 / 7 слотів · тапни на порожній", design, font,
-                design.FontSizeGalaxyTitle, design.TextMuted, TextAlignmentOptions.Center);
-            Place(label, new Vector2(0f, buttonTop + M(12f)), new Vector2(M(340f), M(20f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-            return label;
-        }
-
-        // ── Підказка: 11.5/700 ──
-        private static TMP_Text BuildHint(GameObject parent, DesignSystem design, TMP_FontAsset? font, float buttonTop)
-        {
-            var hint = Label(parent, "RotateHint",
-                "<sprite name=\"retry\"> Крути планету пальцем, щоб дістати всі слоти",
-                design, font, design.FontSizeSmall, design.TextDim, TextAlignmentOptions.Center);
-            Place(hint, new Vector2(0f, buttonTop + M(36f)), new Vector2(M(340f), M(16f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-            return hint;
-        }
-
-        // ── Планета: S = 264 макета; слоти — чотири шари під диском ──
-        private static RectTransform BuildStage(GameObject parent, DesignSystem design,
-            Sprite quad, Sprite circle, Sprite outline, Shader zoneShader,
-            out PlanetStage stage, out Image disc, out Image atmosphere, out Image flash,
-            out RectTransform moon, out DripPool confetti, out SlotMarker[] markers)
-        {
-            var size = M(264f);
-            var go = Child(parent, "Stage");
-            var stageRect = go.GetComponent<RectTransform>();
-            stageRect.anchorMin = stageRect.anchorMax = new Vector2(0.5f, 0.5f);
-            stageRect.pivot = new Vector2(0.5f, 0.5f);
-            // Трохи вище центру: знизу підказка, прогрес і кнопка, згори лише шапка.
-            stageRect.anchoredPosition = new Vector2(0f, M(30f));
-            stageRect.sizeDelta = new Vector2(size, size);
-
-            // Матеріал серпанку створює PlanetScreen у рантаймі: матеріал, зроблений
-            // тут, запікся б у файл сцени окремим об'єктом і жив своїм життям.
-            atmosphere = Quad(go, "Atmosphere", quad, size * design.PlanetAtmosphereScale);
-
-            flash = Quad(go, "Flash", circle, size * design.PlanetFlashScale);
-            flash.color = Color.white;
-
-            // Диск — і планета, і зона захоплення дотику: обертання та влучання
-            // в слот рахує PlanetStage на цьому ж об'єкті.
-            var discGo = Child(go, "Disc");
-            disc = discGo.AddComponent<Image>();
-            disc.sprite = quad;
-            disc.raycastTarget = true;
-            Place(disc, Vector2.zero, new Vector2(size, size),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            stage = discGo.AddComponent<PlanetStage>();
-
-            var sockets = Layer(discGo, "Sockets");
-            var plates = Layer(discGo, "Plates");
-            var frames = Layer(discGo, "Frames");
-            var pixels = Layer(discGo, "Pixels");
-            var panel = K1Sprites.Panel;
-
-            markers = new SlotMarker[MaxSlots];
-            for (var i = 0; i < MaxSlots; i++)
+            var row = Child(parent, "PipRow");
+            var layout = row.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = U1.Px(design.HorizonPipGap);
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+            U1.Size(row, 0f, design.HorizonPipSize);
+            pips = new Image[SlotPool];
+            shines = new Image[SlotPool];
+            for (var i = 0; i < SlotPool; i++)
             {
-                // Влучання рахує PlanetStage — графіка слотів у raycast не бере участі,
-                // інакше передній і задній слоти сперечались би за дотик.
-                var socket = Quad(sockets, $"Socket{i}", quad, 100f);
-                var plate = Quad(plates, $"Plate{i}", panel != null ? panel : quad, 100f);
-                plate.type = Image.Type.Sliced;
-                plate.pixelsPerUnitMultiplier = K1Sprites.PanelMultiplier(M(10f));
-                var frame = Quad(frames, $"Frame{i}", outline, 100f);
-                frame.type = Image.Type.Sliced;
-                frame.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(10f));
-                var pixelGo = Child(pixels, $"Pixels{i}");
-                var pixelImage = pixelGo.AddComponent<RawImage>();
-                pixelImage.raycastTarget = false;
-                pixelImage.color = Color.white;
-                Place(pixelImage, Vector2.zero, new Vector2(100f, 100f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                var (pip, shine) = U1.Pip(row, $"Pip{i}", filled: false, Color.white, design.HorizonPipSize);
+                U1.Size(pip.gameObject, design.HorizonPipSize, design.HorizonPipSize);
+                pip.gameObject.SetActive(false);
+                pips[i] = pip;
+                shines[i] = shine;
+            }
+            return row.GetComponent<RectTransform>();
+        }
 
-                var marker = socket.gameObject.AddComponent<SlotMarker>();
-                Wire(marker, ("design", design),
-                    ("socket", socket), ("plate", plate), ("frame", frame), ("pixels", pixelImage));
-                plate.gameObject.SetActive(false);
-                frame.gameObject.SetActive(false);
-                pixelGo.SetActive(false);
-                socket.gameObject.SetActive(false);
-                markers[i] = marker;
+        // ── Лічильник «N / M комірок заповнено» (S04, S05): число h3 ink, слово body ink-muted ──
+        private static RectTransform BuildCounter(GameObject parent, string name, DesignSystem design, out TMP_Text count, out TMP_Text word)
+        {
+            var row = Child(parent, name);
+            var layout = row.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = U1.Px(10f);
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+            U1.Size(row, 0f, 28f).flexibleHeight = 0f;
+            count = U1.Text(row, "Count", "5 / 8", design, U1.Role.H3, design.InkText);
+            count.textWrappingMode = TextWrappingModes.NoWrap;
+            word = U1.Text(row, "Word", "комірок заповнено", design, U1.Role.Body, design.InkMuted);
+            word.textWrappingMode = TextWrappingModes.NoWrap;
+            return row.GetComponent<RectTransform>();
+        }
+
+        // ── «Сфера» (S04): гало, дуга видимої половини, куля, комірки під круглою маскою, кільце міток, іскри ──
+        private static PlanetGlobe BuildGlobe(GameObject area, DesignSystem design, Sprite quad, Shader shader, out RectTransform stage)
+        {
+            var root = Child(area, "Sphere");
+            Stretch(root);
+            // Прозора площина для дотику: без графіки з raycastTarget EventSystem не доставить ні свайпу, ні тапу.
+            var catcher = root.AddComponent<Image>();
+            catcher.color = Color.clear;
+            var view = root.AddComponent<PlanetGlobe>();
+
+            var stageGo = Child(root, "Stage");
+            stage = stageGo.GetComponent<RectTransform>();
+            stage.anchorMin = stage.anchorMax = stage.pivot = new Vector2(0.5f, 0.5f);
+            stage.sizeDelta = Vector2.zero;
+
+            var globeGo = Child(stageGo, "Globe");
+            var globe = globeGo.GetComponent<RectTransform>();
+            globe.anchorMin = globe.anchorMax = globe.pivot = new Vector2(0.5f, 0.5f);
+            var d = U1.Px(GlobePx);
+            globe.sizeDelta = new Vector2(d, d);
+
+            // Порядок шарів: гало → гало «ожила» → дуга → куля → комірки (під маскою кулі) → мітки → іскри.
+            var halo = Quad(globeGo, "Halo", quad, d * design.SphereHalo, d * design.SphereHalo);
+            var aliveHalo = Quad(globeGo, "AliveHalo", quad, d * design.SphereAliveHalo, d * design.SphereAliveHalo);
+            aliveHalo.gameObject.SetActive(false);
+            var arc = Quad(globeGo, "Arc", quad, d * 2f * design.SphereArcOuter, d * 2f * design.SphereArcOuter);
+            var disc = Quad(globeGo, "Disc", quad, d, d);
+
+            // Шар комірок обрізаний кругом кулі (SPEC): біля краю квадрат на кулі виступає за силует.
+            var clipGo = Child(globeGo, "CellsClip");
+            var clip = clipGo.AddComponent<Image>();
+            clip.sprite = U1.S("toggle_knob_on"); // круг набору U1Glaze: форма маски, сам не малюється
+            clip.raycastTarget = false;
+            Place(clip, Vector2.zero, new Vector2(d, d), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            clipGo.AddComponent<Mask>().showMaskGraphic = false;
+            var cells = new SlotCell[SlotPool];
+            for (var i = 0; i < SlotPool; i++)
+                cells[i] = BuildCell(clipGo, design, $"Cell{i}");
+
+            var pipsRoot = Child(globeGo, "Pips");
+            var pipsRect = pipsRoot.GetComponent<RectTransform>();
+            pipsRect.anchorMin = pipsRect.anchorMax = new Vector2(0.5f, 0.5f);
+            pipsRect.sizeDelta = Vector2.zero;
+            var pips = new Image[SlotPool];
+            var shines = new Image[SlotPool];
+            for (var i = 0; i < SlotPool; i++)
+            {
+                var (pip, shine) = U1.Pip(pipsRoot, $"Pip{i}", filled: false, Color.white, GlobePx * design.SpherePipSize);
+                var rect = pip.rectTransform;
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+                pip.gameObject.SetActive(false);
+                pips[i] = pip;
+                shines[i] = shine;
             }
 
-            // Матеріали порожніх плям створює й нищить стадія — їй і шейдер.
-            Wire(stage, ("design", design), ("disc", disc), ("zoneShader", zoneShader));
+            // Іскри «планета ожила» (S04_05): шість навколо кулі, px макета від центру (Y угору) і розмір.
+            var sparkleSpecs = new (float x, float y, float side)[]
+            {
+                (-156f, 137f, 18f), (97f, 187f, 11f), (156f, 127f, 15f), (-166f, -137f, 13f), (169f, -127f, 21f), (-88f, -190f, 11.5f),
+            };
+            var sparkles = new RectTransform[sparkleSpecs.Length];
+            for (var i = 0; i < sparkleSpecs.Length; i++)
+            {
+                var (x, y, side) = sparkleSpecs[i];
+                var go = Child(globeGo, $"Sparkle{i}");
+                var image = go.AddComponent<Image>();
+                image.sprite = U1.S("sparkle");
+                image.color = Color.white;
+                image.raycastTarget = false;
+                Place(image, new Vector2(U1.Px(x), U1.Px(y)), new Vector2(U1.Px(side), U1.Px(side)),
+                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                go.SetActive(false);
+                sparkles[i] = go.GetComponent<RectTransform>();
+            }
 
-            var moonGo = Child(go, "Moon");
-            var moonImage = moonGo.AddComponent<Image>();
-            moonImage.sprite = circle;
-            moonImage.color = design.PlanetMoonColor;
-            moonImage.raycastTarget = false;
-            Place(moonImage, Vector2.zero, new Vector2(M(26f), M(26f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            moon = moonGo.GetComponent<RectTransform>();
-
-            var confettiGo = Child(go, "Confetti");
-            var confettiRect = confettiGo.GetComponent<RectTransform>();
-            confettiRect.anchorMin = confettiRect.anchorMax = new Vector2(0.5f, 0.5f);
-            confettiRect.sizeDelta = Vector2.zero;
-            confetti = confettiGo.AddComponent<DripPool>();
-            Wire(confetti, ("design", design), ("dropSprite", circle));
-
-            return stageRect;
+            Wire(view, ("design", design), ("planetShader", shader), ("area", root.GetComponent<RectTransform>()),
+                ("globe", globe), ("disc", disc), ("halo", halo), ("aliveHalo", aliveHalo), ("arc", arc),
+                ("pipEmpty", U1.S("pip_empty")), ("pipFilled", U1.S("pip_filled")));
+            WireArray(view, "cells", cells);
+            WireArray(view, "pips", pips);
+            WireArray(view, "pipShines", shines);
+            WireArray(view, "sparkles", sparkles);
+            return view;
         }
 
-        private static GameObject Layer(GameObject disc, string name)
+        // ── «Горизонт» (S05): велика планета внизу ділянки, комірки рядами (місця ставить PlanetHorizon.Layout) ──
+        private static PlanetHorizon BuildHorizon(GameObject area, DesignSystem design, Sprite quad, Shader shader, GameObject screen)
         {
-            var go = Child(disc, name);
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = Vector2.zero;
-            return go;
+            var root = Child(area, "Horizon");
+            Stretch(root);
+            var catcher = root.AddComponent<Image>();
+            catcher.color = Color.clear;
+            var view = root.AddComponent<PlanetHorizon>();
+            var disc = Quad(root, "Disc", quad, U1.Px(design.HorizonRadius * 2f), U1.Px(design.HorizonRadius * 2f));
+            var cellsRoot = Child(root, "Cells");
+            Stretch(cellsRoot);
+            var cells = new SlotCell[SlotPool];
+            for (var i = 0; i < SlotPool; i++)
+                cells[i] = BuildCell(cellsRoot, design, $"Cell{i}");
+
+            // Іскри «планета ожила» (S05_04) у небі; розмір — px макета, місце ставить PlanetHorizon.Layout.
+            var sparkleSides = new[] { 10f, 18f, 12f, 12f, 20f, 9f };
+            var sparkles = new RectTransform[sparkleSides.Length];
+            for (var i = 0; i < sparkleSides.Length; i++)
+            {
+                var go = Child(root, $"Sparkle{i}");
+                var image = go.AddComponent<Image>();
+                image.sprite = U1.S("sparkle");
+                image.color = Color.white;
+                image.raycastTarget = false;
+                Place(image, Vector2.zero, new Vector2(U1.Px(sparkleSides[i]), U1.Px(sparkleSides[i])),
+                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+                go.SetActive(false);
+                sparkles[i] = go.GetComponent<RectTransform>();
+            }
+
+            Wire(view, ("design", design), ("planetShader", shader), ("area", root.GetComponent<RectTransform>()),
+                ("widthSource", screen.GetComponent<RectTransform>()),
+                ("disc", disc), ("cellsRoot", cellsRoot.GetComponent<RectTransform>()));
+            WireArray(view, "cells", cells);
+            WireArray(view, "sparkles", sparkles);
+            root.SetActive(false);
+            return view;
         }
 
-        // ── Лист зайнятого слота: «Замінити» / «Повернути в колекцію» / «Скасувати» ──
-        private static void BuildSlotSheet(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite outline,
-            out RectTransform sheet, out TMP_Text title, out Button replaceButton, out TMP_Text replaceLabel,
-            out Button removeButton, out TMP_Text removeLabel, out Button cancelButton, out TMP_Text cancelLabel)
-        {
-            var go = Child(parent, "SlotSheet");
-            Stretch(go);
-            sheet = go.GetComponent<RectTransform>();
-
-            var scrim = go.AddComponent<Image>();
-            scrim.color = design.OverScrim;
-            scrim.raycastTarget = true;
-
-            var panelGo = Child(go, "Panel");
-            var panel = panelGo.AddComponent<GradientImage>();
-            panel.sprite = rounded;
-            panel.type = Image.Type.Sliced;
-            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(28f));
-            panel.SetGradient(design.OverCardFrom, design.OverCardTo);
-            Place(panel, Vector2.zero, new Vector2(M(300f), M(236f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            title = Label(panelGo, "Title", "Картинка", design, font,
-                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(0f, -M(22f)), new Vector2(M(260f), M(30f)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            replaceButton = SheetButton(panelGo, "Replace", design, font, rounded, null, "Замінити",
-                new Vector2(0f, -M(70f)), design.AccentTeal, design.AccentBlue, design.TextPrimary, out replaceLabel);
-            removeButton = SheetButton(panelGo, "Remove", design, font, rounded, outline, "Повернути в колекцію",
-                new Vector2(0f, -M(124f)), design.GlassFill, design.GlassFill, design.TextPrimary, out removeLabel);
-
-            var cancelGo = Child(panelGo, "Cancel");
-            cancelLabel = Label(cancelGo, "Label", "Скасувати", design, font,
-                design.FontSizeShopCard, design.TextMuted, TextAlignmentOptions.Center);
-            cancelLabel.raycastTarget = true;
-            Stretch(cancelLabel.gameObject);
-            var cancelRect = cancelGo.GetComponent<RectTransform>();
-            cancelRect.anchorMin = cancelRect.anchorMax = new Vector2(0.5f, 0f);
-            cancelRect.pivot = new Vector2(0.5f, 0f);
-            cancelRect.anchoredPosition = new Vector2(0f, M(14f));
-            cancelRect.sizeDelta = new Vector2(M(160f), M(40f));
-            cancelButton = cancelGo.AddComponent<Button>();
-            cancelButton.targetGraphic = cancelLabel;
-
-            go.SetActive(false);
-        }
-
-        private static Button SheetButton(GameObject parent, string name, DesignSystem design, TMP_FontAsset? font,
-            Sprite rounded, Sprite? outline, string caption, Vector2 position, Color from, Color to, Color text,
-            out TMP_Text label)
+        /// <summary>
+        /// Комірка (SPEC): зовнішній RectTransform (поворот t1, масштаб) → внутрішній (поворот t2) → лунка
+        /// <c>slot_empty</c> / основа <c>slot_frame_base</c> + картинка з атласу (64 з 72) + рамка
+        /// <c>slot_frame_stroke</c> кольору рідкості, кільце вибраної <c>slot_selected</c> (124 / 72 бокса).
+        /// </summary>
+        private static SlotCell BuildCell(GameObject parent, DesignSystem design, string name)
         {
             var go = Child(parent, name);
-            var fill = go.AddComponent<GradientImage>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
-            fill.SetGradient(from, to);
-            Place(fill, position, new Vector2(M(252f), M(46f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            var box = U1.Px(CellPx);
+            rect.sizeDelta = new Vector2(box, box);
+            var group = go.AddComponent<CanvasGroup>();
+            group.blocksRaycasts = false;
+            group.interactable = false;
 
-            if (outline != null)
-            {
-                var strokeGo = Child(go, "Stroke");
-                Stretch(strokeGo);
-                var stroke = strokeGo.AddComponent<Image>();
-                stroke.sprite = outline;
-                stroke.type = Image.Type.Sliced;
-                stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(22f));
-                stroke.color = design.GlassStroke;
-                stroke.raycastTarget = false;
-            }
+            var innerGo = Child(go, "Inner");
+            Stretch(innerGo);
 
-            label = Label(go, "Label", caption, design, font, design.FontSizeShopCard, text, TextAlignmentOptions.Center);
-            Stretch(label.gameObject);
+            var selected = Sprite(innerGo, "Selected", "slot_selected");
+            Place(selected, Vector2.zero, new Vector2(U1.Px(124f), U1.Px(124f)), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            selected.gameObject.SetActive(false);
+            var empty = Sprite(innerGo, "Empty", "slot_empty");
+            Stretch(empty.gameObject);
+            var frameBase = Sprite(innerGo, "Base", "slot_frame_base");
+            Stretch(frameBase.gameObject);
+            var pixelsGo = Child(innerGo, "Pixels");
+            Stretch(pixelsGo, U1.Px((CellPx - 64f) * 0.5f));
+            var pixels = pixelsGo.AddComponent<RawImage>();
+            pixels.raycastTarget = false;
+            var stroke = Sprite(innerGo, "Stroke", "slot_frame_stroke");
+            Stretch(stroke.gameObject);
+            frameBase.gameObject.SetActive(false);
+            pixelsGo.SetActive(false);
+            stroke.gameObject.SetActive(false);
 
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = fill;
-            return button;
+            var cell = go.AddComponent<SlotCell>();
+            Wire(cell, ("inner", innerGo.GetComponent<RectTransform>()), ("group", group), ("empty", empty),
+                ("frameBase", frameBase), ("pixels", pixels), ("stroke", stroke), ("selected", selected));
+            go.SetActive(false);
+            return cell;
         }
 
-        // ── Картка завершення ──
-        private static void BuildCompletionCard(GameObject parent, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded,
-            out RectTransform card, out TMP_Text kicker, out TMP_Text title,
-            out Button nextButton, out TMP_Text nextLabel)
+        // ── «Планета ожила» (S04_05, S05_04): panel_card з бірюзовою обводкою, кікер, «… ожила!», текст, «До галактики» ──
+        private static RectTransform BuildAlivePanel(GameObject parent, DesignSystem design, out TMP_Text kicker, out TMP_Text title,
+            out TMP_Text body, out CandyButton button)
         {
-            var go = Child(parent, "CompletionCard");
-            Stretch(go);
-            card = go.GetComponent<RectTransform>();
+            var panel = U1.Panel(parent, "AlivePanel");
+            var layout = panel.AddComponent<VerticalLayoutGroup>();
+            var pad = (int)U1.Px(17f);
+            layout.padding = new RectOffset(pad, pad, (int)U1.Px(12f), (int)U1.Px(16f));
+            layout.spacing = U1.Px(3f);
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            // Висота — за вмістом: панель замінює низ стовпчика, ділянка планети забирає решту (куля піднімається).
+            panel.AddComponent<LayoutElement>().flexibleHeight = 0f;
 
-            var scrim = go.AddComponent<GradientImage>();
-            scrim.SetGradient(new Color(0.031f, 0.016f, 0.071f, 0.82f),
-                new Color(0.031f, 0.016f, 0.071f, 0f));
-            scrim.raycastTarget = true;
+            // Бірюзова обводка (S04_05: тонка лінія по краю й слабке гало зовні) — кільце field_focus_ring, як його задумано
+            // для поля («на 4 більше з кожного боку, бірюза 18 %»), поза розкладкою. Однопіксельного контуру з кутом
+            // panel_card у наборі немає — лишається гало.
+            var ringGo = Child(panel, "Ring");
+            ringGo.transform.SetAsFirstSibling();
+            var ring = ringGo.AddComponent<Image>();
+            ring.sprite = U1.S("field_focus_ring");
+            ring.type = Image.Type.Sliced;
+            ring.color = DesignSystem.WithAlpha(design.Teal, design.PlanetAliveRingAlpha);
+            ring.raycastTarget = false;
+            Stretch(ringGo, -U1.Px(3f));
+            ringGo.AddComponent<LayoutElement>().ignoreLayout = true;
 
-            kicker = Label(go, "Kicker", "ПЛАНЕТА ОЖИЛА", design, font,
-                design.FontSizeLabel, design.AccentTeal, TextAlignmentOptions.Center);
-            Place(kicker, new Vector2(0f, M(150f)), new Vector2(M(320f), M(16f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
-
-            title = Label(go, "Title", "Терра Прима ожила!", design, font,
-                design.FontSizeCompletion, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(0f, M(120f)), new Vector2(M(340f), M(34f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
-
-            var buttonGo = Child(go, "NextPlanet");
-            var fill = buttonGo.AddComponent<GradientImage>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(28f));
-            fill.SetGradient(design.AccentTeal, design.AccentBlue);
-            Place(fill, new Vector2(0f, M(58f)), new Vector2(M(230f), M(52f)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f));
-
-            nextLabel = Label(buttonGo, "Label", "Наступна планета", design, font,
-                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(nextLabel.gameObject);
-
-            nextButton = buttonGo.AddComponent<Button>();
-            nextButton.targetGraphic = fill;
+            kicker = U1.Text(panel, "Kicker", "УСІ КОМІРКИ ЗАПОВНЕНІ", design, U1.Role.Label, design.Teal300);
+            title = U1.Text(panel, "Title", "Кріос ожила!", design, U1.Role.H1, design.InkText);
+            title.textWrappingMode = TextWrappingModes.NoWrap;
+            title.overflowMode = TextOverflowModes.Ellipsis;
+            body = U1.Text(panel, "Body", "Відкрито наступну планету: Сатурнія.", design, U1.Role.Body, design.InkMuted);
+            body.textWrappingMode = TextWrappingModes.Normal;
+            U1.Gap(panel, 8f); // 3 + 8 + 3 = 14 між текстом і кнопкою, як на S04_05
+            button = U1.Button(panel, "ToGalaxy", "До галактики", design, CandyButton.Tone.Coral);
+            U1.Size(button.gameObject, 0f, 56f);
+            panel.SetActive(false);
+            return panel.GetComponent<RectTransform>();
         }
 
-        private static Image Quad(GameObject parent, string name, Sprite sprite, float side)
+        // ── Лист зайнятої комірки (S04_04, S05_03): ручка, картинка в рамці з мітками, назва, бейдж, дії ──
+        private static RectTransform BuildSheet(GameObject parent, DesignSystem design, Sprite quad, out RarityFrameView frame,
+            out PictureView picture, out TMP_Text name, out RarityBadgeView badge, out CandyButton replace, out CandyButton remove,
+            out Button cancel)
+        {
+            var root = U1.Sheet(parent, "SlotSheet", design, out var content);
+            // Лист — до самого низу екрана, а не safe area (S04_04: до 874): виступ, як у затемнення діалогів.
+            var outset = U1.Px(U1.ScrimOutsetPx);
+            content.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, -outset);
+            var layout = content.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset((int)U1.Px(20f), (int)U1.Px(20f), (int)U1.Px(34f), (int)(U1.Px(14f) + outset));
+
+            // Ручка 44 × 5 (S04_04) — поза розкладкою, на 13 від верху.
+            var handleGo = Child(content, "Handle");
+            var handle = handleGo.AddComponent<Image>();
+            handle.sprite = quad;
+            handle.color = DesignSystem.WithAlpha(design.InkMuted, 0.4f);
+            handle.raycastTarget = false;
+            Place(handle, new Vector2(0f, -U1.Px(13f)), new Vector2(U1.Px(44f), U1.Px(5f)), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+            handleGo.AddComponent<LayoutElement>().ignoreLayout = true;
+
+            var row = Child(content, "Picture");
+            var rowLayout = row.AddComponent<HorizontalLayoutGroup>();
+            rowLayout.spacing = U1.Px(14f);
+            rowLayout.childAlignment = TextAnchor.MiddleLeft;
+            rowLayout.childControlWidth = rowLayout.childControlHeight = true;
+            rowLayout.childForceExpandWidth = rowLayout.childForceExpandHeight = false;
+            frame = U1.FramedPicture(row, "Frame", design, big: true, sidePx: 84f, pipsRoomPx: 10f, out picture);
+            var texts = Child(row, "Texts");
+            var textCol = texts.AddComponent<VerticalLayoutGroup>();
+            textCol.spacing = U1.Px(8f);
+            textCol.childAlignment = TextAnchor.MiddleLeft;
+            textCol.childControlWidth = textCol.childControlHeight = true;
+            textCol.childForceExpandWidth = textCol.childForceExpandHeight = false;
+            var textSize = texts.AddComponent<LayoutElement>();
+            textSize.flexibleWidth = 1f;
+            textSize.minWidth = 0f;
+            name = U1.Text(texts, "Name", "Квітка", design, U1.Role.H2, design.InkText, TextAlignmentOptions.Left);
+            name.textWrappingMode = TextWrappingModes.NoWrap;
+            name.overflowMode = TextOverflowModes.Ellipsis;
+            badge = U1.RarityBadge(texts, "Rarity", design, Core.Rarity.Common);
+
+            replace = U1.Button(content, "Replace", "Замінити", design, CandyButton.Tone.Teal);
+            U1.Size(replace.gameObject, 0f, 56f);
+            remove = U1.Button(content, "Remove", "Повернути в колекцію", design, CandyButton.Tone.Glass);
+            U1.Size(remove.gameObject, 0f, 56f);
+            cancel = U1.TextButton(content, "Cancel", "Скасувати", design, design.InkMuted);
+            U1.Size(cancel.gameObject, 0f, 44f);
+
+            root.SetActive(false);
+            return root.GetComponent<RectTransform>();
+        }
+
+        private static Image Sprite(GameObject parent, string name, string sprite)
         {
             var go = Child(parent, name);
             var image = go.AddComponent<Image>();
-            image.sprite = sprite;
+            image.sprite = U1.S(sprite);
             image.raycastTarget = false;
-            Place(image, Vector2.zero, new Vector2(side, side),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            return image;
+        }
+
+        /// <summary>Квад під шейдер. Спрайт потрібен саме білий: без нього Image не має UV для розгортки шейдера.</summary>
+        private static Image Quad(GameObject parent, string name, Sprite quad, float width, float height)
+        {
+            var go = Child(parent, name);
+            var image = go.AddComponent<Image>();
+            image.sprite = quad;
+            image.raycastTarget = false;
+            Place(image, Vector2.zero, new Vector2(width, height), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             return image;
         }
     }

@@ -5,28 +5,19 @@ using InkFlow.Core;
 namespace InkFlow.Meta
 {
     /// <summary>
-    /// Один слот на поверхні планети (§12): місце на кулі й картинка, що в ньому стоїть.
-    ///
-    /// Координати — довгота й широта в градусах, а не екранні пікселі: планету крутять
-    /// пальцем, і слот мусить лишатись на своєму місці на кулі.
+    /// Один слот на поверхні планети (§12): номер і картинка, що в ньому стоїть. Місце на екрані — справа розкладки
+    /// (U1Glaze крок 4: «Сфера» — <see cref="GlobeSlots"/> за seed планети, «Горизонт» — <see cref="HorizonLayout"/>),
+    /// номер слота — ключ і там, і у файлі.
     /// </summary>
     public sealed class PlanetSlot
     {
-        public PlanetSlot(int index, float longitude, float latitude)
+        public PlanetSlot(int index)
         {
             Index = index;
-            Longitude = longitude;
-            Latitude = latitude;
         }
 
         /// <summary>Номер слота на планеті — так він записаний у файлі.</summary>
         public int Index { get; }
-
-        /// <summary>Довгота в градусах, 0..360.</summary>
-        public float Longitude { get; }
-
-        /// <summary>Широта в градусах, −90..90.</summary>
-        public float Latitude { get; }
 
         /// <summary>Картинка в слоті (id з бібліотеки). null — слот порожній.</summary>
         public string? PictureId { get; set; }
@@ -66,16 +57,13 @@ namespace InkFlow.Meta
         public PlanetSlot? Find(int index) =>
             index >= 0 && index < Slots.Count ? Slots[index] : null;
 
-        /// <summary>Поверхня за розкладкою планети: слоти стоять за <see cref="SlotLayout"/>, усі порожні.</summary>
+        /// <summary>Поверхня за розкладкою планети: стільки слотів, скільки в ній, усі порожні.</summary>
         public static PlanetSurface For(PlanetLayout planet)
         {
             if (planet is null) throw new ArgumentNullException(nameof(planet));
             var slots = new List<PlanetSlot>(planet.Slots);
             for (var i = 0; i < planet.Slots; i++)
-            {
-                SlotLayout.Position(i, planet.Slots, out var longitude, out var latitude);
-                slots.Add(new PlanetSlot(i, longitude, latitude));
-            }
+                slots.Add(new PlanetSlot(i));
             return new PlanetSurface(planet.Type, planet.Name, slots);
         }
 

@@ -677,7 +677,8 @@ namespace InkFlow.Editor
             var go = Child(parent, name);
             Stretch(go);
             var scrimGo = Child(go, "Scrim");
-            Stretch(scrimGo);
+            // Як у діалогів: затемнення лягає й на смуги поза safe area (статус-бар, жест додому) — крок 4.
+            Stretch(scrimGo, -Px(ScrimOutsetPx));
             var scrim = scrimGo.AddComponent<Image>();
             scrim.sprite = LoadSprite("white-quad");
             scrim.color = DesignSystem.WithAlpha(design.Scrim, design.SheetScrimOpacity);

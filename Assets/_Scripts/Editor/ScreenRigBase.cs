@@ -122,8 +122,10 @@ namespace InkFlow.Editor
         /// пара матеріал+текстура); у межах глибини графіки однієї пари йдуть одним викликом. Виклики рахуються
         /// окремо на кожній глибині (сума різних пар по глибинах): UGUI іноді зливає однакову пару на межі двох
         /// глибин, але це залежить від порядку ідентифікаторів матеріалів — тож оцінка свідомо не зливає (зверху). Тому сусіди, що не перекриваються (іконки в рядку, написи на картці),
-        /// батчаться разом, хоч в ієрархії й чергуються. Маски/обрізання не моделюються — на екранах U1Glaze
-        /// без масок це не важить; повністю прозорі графіки не рахуються, як і в <see cref="EstimateBatches"/>.
+        /// батчаться разом, хоч в ієрархії й чергуються. Стенсил-маска (`Mask`, з кроку 4 — круг кулі «Сфери»): замасковані
+        /// графіки мають свій materialForRendering, тож уже рахуються окремою парою, а зняття маски — ще +1 на кожну
+        /// активну маску; `RectMask2D` (обрізання без стенсила) не моделюється. Повністю прозорі графіки не рахуються,
+        /// як і в <see cref="EstimateBatches"/>.
         /// </summary>
         public int SimulateBatches() => SimulateBatches(CanvasRoot.transform);
 
@@ -158,7 +160,13 @@ namespace InkFlow.Editor
             var perDepth = new HashSet<(int depth, (Material, Texture) key)>();
             foreach (var item in items)
                 perDepth.Add((item.depth, item.key));
-            return perDepth.Count;
+            // Маска (стенсил) малює себе (графіка з її матеріалом уже порахована вище — у неї свій materialForRendering,
+            // як і в замаскованих) і ще раз — щоб зняти стенсил після дітей: +1 виклик на кожну активну маску.
+            var unmask = 0;
+            foreach (var mask in root.GetComponentsInChildren<Mask>(false))
+                if (mask.isActiveAndEnabled && mask.MaskEnabled())
+                    unmask++;
+            return perDepth.Count + unmask;
         }
 
         /// <summary>Префаб екрана під safe area, активний і розтягнутий.</summary>

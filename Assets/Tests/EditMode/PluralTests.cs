@@ -27,5 +27,22 @@ namespace InkFlow.Tests
             Assert.AreEqual("9 планет", Plural.Count(9, "планета", "планети", "планет"));
             Assert.AreEqual("1 планета", Plural.Count(1, "планета", "планети", "планет"));
         }
+
+        [Test]
+        public void ScreenWords_Cell_Planet_Galaxy()
+        {
+            // Правила інтерфейсу U1Glaze (SPEC): «1 комірка / 2 комірки / 5 комірок», «планета / планети / планет»,
+            // «галактика / галактики / галактик».
+            Assert.AreEqual("1 комірка", Plural.Count(1, "комірка", "комірки", "комірок"));
+            Assert.AreEqual("2 комірки", Plural.Count(2, "комірка", "комірки", "комірок"));
+            Assert.AreEqual("5 комірок", Plural.Count(5, "комірка", "комірки", "комірок"));
+            Assert.AreEqual("21 комірка", Plural.Count(21, "комірка", "комірки", "комірок"));
+            Assert.AreEqual("12 комірок", Plural.Count(12, "комірка", "комірки", "комірок"));
+            Assert.AreEqual("3 планети", Plural.Count(3, "планета", "планети", "планет"));
+            Assert.AreEqual("11 планет", Plural.Count(11, "планета", "планети", "планет"));
+            Assert.AreEqual("1 галактика", Plural.Count(1, "галактика", "галактики", "галактик"));
+            Assert.AreEqual("4 галактики", Plural.Count(4, "галактика", "галактики", "галактик"));
+            Assert.AreEqual("5 галактик", Plural.Count(5, "галактика", "галактики", "галактик"));
+        }
     }
 }

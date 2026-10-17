@@ -1,6 +1,7 @@
 using System;
 using InkFlow.Core;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace InkFlow.Style
 {
@@ -84,6 +85,8 @@ namespace InkFlow.Style
         [SerializeField] private Color coral700 = Hex("#C9345A");
         [Tooltip("Підтвердження, активна вкладка, увімкнений перемикач; текст на бірюзовому — tealInk.")]
         [SerializeField] private Color teal = Hex("#3FD6B8");
+        [Tooltip("teal-300: світла грань бірюзи, неонова рамка (кікер «УСІ КОМІРКИ ЗАПОВНЕНІ», кільце вибраної комірки).")]
+        [SerializeField] private Color teal300 = Hex("#8FF5DF");
         [SerializeField] private Color teal100 = Hex("#C4FFF3");
         [SerializeField] private Color teal700 = Hex("#138A76");
         [SerializeField] private Color tealInk = Hex("#05332D");
@@ -176,9 +179,60 @@ namespace InkFlow.Style
         [SerializeField, Range(1, 24)] private int sphereMaxSlots = 8;
         [Tooltip("Нахил осі кулі до глядача, градуси (globe_slots.py: 16).")]
         [SerializeField, Range(0f, 45f)] private float sphereAxisTilt = 16f;
-        [Tooltip("«Горизонт»: радіус великої планети, px макета (SPEC: ≈720), і проміжок між комірками в ряду, px.")]
+        [Tooltip("«Сфера»: діаметр кулі — частка ширини екрана (S04: 291.5 / 402).")]
+        [SerializeField, Range(0.4f, 0.9f)] private float sphereWidthShare = 0.725f;
+        [Tooltip("«Сфера»: висота кулі з дугою й мітками — частка діаметра; ділянці, нижчій за це, куля меншає (SE).")]
+        [SerializeField, Range(1f, 1.6f)] private float sphereExtent = 1.3f;
+        [Tooltip("Гало кулі — частка діаметра (S04: до 1.33 r); «планета ожила» — сильніше (1.64 r), з'являється за planetAliveDuration.")]
+        [SerializeField, Range(1f, 2f)] private float sphereHalo = 1.33f;
+        [SerializeField, Range(1f, 2.4f)] private float sphereAliveHalo = 1.64f;
+        [Tooltip("Бірюзова дуга видимої половини (S04): внутрішній і зовнішній радіус — частки діаметра (162.5 і 187.5 з 291.5), прозорість.")]
+        [SerializeField, Range(0.5f, 0.7f)] private float sphereArcInner = 0.557f;
+        [SerializeField, Range(0.5f, 0.75f)] private float sphereArcOuter = 0.643f;
+        [SerializeField, Range(0f, 1f)] private float sphereArcAlpha = 0.18f;
+        [Tooltip("Кільце міток навколо кулі: радіус до центру мітки й сторона мітки — частки діаметра (175 і 16 з 291.5).")]
+        [SerializeField, Range(0.5f, 0.8f)] private float spherePipRing = 0.6f;
+        [SerializeField, Range(0.02f, 0.1f)] private float spherePipSize = 0.055f;
+        [Tooltip("Самообертання кулі, градусів/с (0 — стоїть; знак — напрям: мінус — поверхня йде вправо).")]
+        [SerializeField, Range(-60f, 60f)] private float sphereAutoSpin = -8f;
+        [Tooltip("Свайп по кулі: градусів на px макета руху пальця.")]
+        [SerializeField, Range(0.05f, 2f)] private float sphereSwipeRate = 0.6f;
+        [Tooltip("Інерція свайпу: згасання вибігу за секунду (більше — спиняється різкіше).")]
+        [SerializeField, Range(0.5f, 12f)] private float sphereSwipeDamping = 4f;
+        [Tooltip("Палець стояв довше за стільки секунд перед відпусканням — вибігу немає.")]
+        [SerializeField, Range(0.02f, 0.5f)] private float sphereFlingHold = 0.08f;
+        [Tooltip("Тап по комірці з глибиною меншою за поріг спершу довертає її до центру (SPEC: d < 0.6, 0.35 с).")]
+        [SerializeField, Range(0f, 1f)] private float sphereTurnDepth = 0.6f;
+        [SerializeField, Min(0.05f)] private float sphereTurnDuration = 0.35f;
+        [Tooltip("Від коралової «Поставити картинку» до підказки, px (S04_01, S12_05: 13.5 до літер).")]
+        [SerializeField, Min(0f)] private float planetHintGap = 9f;
+        [Tooltip("Обводка панелі «планета ожила»: бірюзове гало навколо (S04_05: ≈ 13 % зовні, лінія ≈ 40 % по краю).")]
+        [SerializeField, Range(0f, 1f)] private float planetAliveRingAlpha = 0.25f;
+        [Tooltip("Вибрана комірка: масштаб (SPEC: 1.1).")]
+        [SerializeField, Range(1f, 1.4f)] private float slotSelectedScale = 1.1f;
+
+        [Tooltip("«Горизонт»: радіус великої планети, px макета (SPEC: ≈720); проміжок між комірками вздовж дуги (SPEC: 12).")]
         [SerializeField, Min(200f)] private float horizonRadius = 720f;
-        [SerializeField, Min(0f)] private float horizonRowGap = 12f;
+        [FormerlySerializedAs("horizonRowGap")]
+        [SerializeField, Min(0f)] private float horizonSlotGap = 12f;
+        [Tooltip("«Горизонт»: крок рядів (проміжок між рядами вздовж радіуса) і відступ дальнього ряду від краю планети, px (S05: 24, 37).")]
+        [SerializeField, Min(0f)] private float horizonRowStep = 24f;
+        [SerializeField, Min(0f)] private float horizonTopInset = 37f;
+        [Tooltip("«Горизонт»: найбільша комірка (ближній ряд) і перспектива — у скільки разів дальший ряд менший (S05: 86.5, 0.877).")]
+        [SerializeField, Range(40f, 140f)] private float horizonNearSlot = 86.5f;
+        [SerializeField, Range(0.5f, 1f)] private float horizonPerspective = 0.877f;
+        [Tooltip("«Горизонт»: бічне поле ряду, найдовший ряд (S05: 21 px, 7 комірок).")]
+        [SerializeField, Min(0f)] private float horizonSideInset = 21f;
+        [SerializeField, Range(3, 12)] private int horizonMaxRow = 7;
+        [Tooltip("«Горизонт»: глибина сцени від верху планети до кнопки, найменше неба над планетою, проміжок над кнопкою, px " +
+                 "(S05: 375.6, 113, 12). Нижчій ділянці вся сцена рівномірно меншає (SE: ×0.81).")]
+        [SerializeField, Min(100f)] private float horizonDepth = 375.6f;
+        [SerializeField, Min(0f)] private float horizonSkyMin = 113f;
+        [SerializeField, Min(0f)] private float horizonBottomGap = 12f;
+        [Tooltip("«Горизонт»: рядок міток під назвою — мітка, проміжок і найбільша ширина рядка, px (S05_01: 16 / 3; S05_02: 14 / 2).")]
+        [SerializeField, Range(8f, 24f)] private float horizonPipSize = 16f;
+        [SerializeField, Range(0f, 8f)] private float horizonPipGap = 3f;
+        [SerializeField, Min(100f)] private float horizonPipRowMax = 330f;
 
         [Header("U1Glaze: галактика (S03) — частки діаметра планети, px макета там, де сказано")]
         [Tooltip("Найбільший діаметр планети у фокусі, px макета (S03Galaxy_01: 225). Менше — коли каруселі бракує висоти.")]
@@ -674,9 +728,6 @@ namespace InkFlow.Style
         [Tooltip("Заголовок галактики і підпис зон: 13 px макета.")]
         [SerializeField] private float fontSizeGalaxyTitle = 36f;
 
-        [Tooltip("Напис на кнопці «Колекція» на планеті (старий стиль, до кроку 4 U1Glaze): 18 px макета.")]
-        [SerializeField] private float fontSizePaintButton = 50f;
-
 
         [Header("Налаштування (§15)")]
         [Tooltip("Доріжка перемикача, коли ввімкнено.")]
@@ -1015,51 +1066,10 @@ namespace InkFlow.Style
         [Tooltip("«{Планета} завершена!»: 26 px макета.")]
         [SerializeField] private float fontSizeCompletion = 72f;
 
-        [Tooltip("Розмір зони відносно радіуса планети. У макеті R = 132 і " +
-                 "size = r · 1.72, звідси 1.72/132.")]
-        [SerializeField] private float paintZoneSizeFactor = 0.01303f;
-
-        [Tooltip("Наскільки зони не доходять до лімба (макет: 0.94). Ближче до 1 — " +
-                 "і зона злизується з краю кулі, читаючись як приклеєна ззовні.")]
-        [SerializeField, Range(0.7f, 1f)] private float paintZoneInset = 0.94f;
-
-        [Tooltip("Градусів обертання на одиницю руху пальця.")]
-        [SerializeField] private float paintRotationPerUnit = 0.25f;
-
-        [Tooltip("Згасання вибігу після відпускання. Більше — різкіше спиняється.")]
-        [SerializeField, Min(0.5f)] private float paintRotationDamping = 4f;
-
-        [Tooltip("Швидкість автообертання після завершення планети, градусів/с.")]
-        [SerializeField] private float paintAutoSpinSpeed = 12f;
-
-        [Tooltip("Радіус слота в px макета для планети з найменшою кількістю слотів і з найбільшою; " +
-                 "між ними — лінійно за кількістю. На планеті з 12 слотами вони мусять бути меншими, щоб не накладались.")]
-        [SerializeField, Range(12f, 60f)] private float slotRadiusFewest = 40f;
-        [SerializeField, Range(12f, 60f)] private float slotRadiusMost = 24f;
-        [Tooltip("Кількості слотів, між якими інтерполюється радіус (дефолтна розкладка: 4 … 12).")]
-        [SerializeField, Min(1)] private int slotCountFewest = 4;
-        [SerializeField, Min(1)] private int slotCountMost = 12;
-        [Tooltip("Панель і рамка картинки в слоті відносно діаметра слота.")]
-        [SerializeField, Range(0.4f, 1f)] private float slotPictureScale = 0.82f;
-        [Tooltip("Піксель-арт відносно панелі слота: поле між пікселями й рамкою.")]
-        [SerializeField, Range(0.4f, 1f)] private float slotPixelsScale = 0.82f;
-        [Tooltip("Прозорість порожнього слота (сіра пляма з пунктиром).")]
-        [SerializeField, Range(0.1f, 1f)] private float slotEmptyAlpha = 0.85f;
-        [Tooltip("Зерно форми порожньої плями (_Seed шейдера InkFlow/Zone): усі гнізда однакові, це не материки.")]
-        [SerializeField, Range(0f, 1f)] private float slotSocketSeed = 0.37f;
-        [Tooltip("Спалах «планета ожила» відносно діаметра планети.")]
-        [SerializeField, Range(1f, 2f)] private float planetFlashScale = 1.4f;
-        [Tooltip("Колір супутника, що влітає на орбіту ожилої планети.")]
-        [SerializeField] private Color planetMoonColor = new Color(0.94f, 0.95f, 1f, 1f);
-
         [Tooltip("Наближення до планети з екрана огляду.")]
         [SerializeField, Min(0.1f)] private float paintApproachDuration = 0.55f;
         [SerializeField, Range(0.1f, 1f)] private float paintApproachFromScale = 0.35f;
 
-        [SerializeField, Min(0.1f)] private float paintFlashDuration = 0.7f;
-        [SerializeField, Min(0.1f)] private float paintMoonFlyDuration = 1f;
-
-        [SerializeField, Min(0)] private int paintConfettiCount = 12;
         [SerializeField] private float paintConfettiSize = 60f;
         [SerializeField] private float paintConfettiSpread = 160f;
 
@@ -1277,26 +1287,6 @@ namespace InkFlow.Style
         public float FontSizePaintTitle => fontSizePaintTitle;
         public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
         public float FontSizeCompletion => fontSizeCompletion;
-        public float PaintZoneSizeFactor => paintZoneSizeFactor;
-        public float PaintZoneInset => paintZoneInset;
-        public float PaintRotationPerUnit => paintRotationPerUnit;
-        public float PaintRotationDamping => paintRotationDamping;
-        public float PaintAutoSpinSpeed => paintAutoSpinSpeed;
-        public float SlotPictureScale => slotPictureScale;
-        public float SlotPixelsScale => slotPixelsScale;
-        public float SlotEmptyAlpha => slotEmptyAlpha;
-        public float SlotSocketSeed => slotSocketSeed;
-        public float PlanetFlashScale => planetFlashScale;
-        public Color PlanetMoonColor => planetMoonColor;
-
-        /// <summary>Радіус слота (px макета) для планети з такою кількістю слотів: лінійно між двома токенами.</summary>
-        public float SlotRadiusFor(int slotCount)
-        {
-            if (slotCountMost <= slotCountFewest)
-                return slotRadiusFewest;
-            var t = Mathf.InverseLerp(slotCountFewest, slotCountMost, slotCount);
-            return Mathf.Lerp(slotRadiusFewest, slotRadiusMost, t);
-        }
 
         public int CollectionColumns => collectionColumns;
         public float CollectionCardWidth => collectionCardWidth;
@@ -1307,14 +1297,10 @@ namespace InkFlow.Style
         public float FontSizeCollectionCount => fontSizeCollectionCount;
         public float PaintApproachDuration => paintApproachDuration;
         public float PaintApproachFromScale => paintApproachFromScale;
-        public float PaintFlashDuration => paintFlashDuration;
-        public float PaintMoonFlyDuration => paintMoonFlyDuration;
-        public int PaintConfettiCount => paintConfettiCount;
         public float PaintConfettiSize => paintConfettiSize;
         public float PaintConfettiSpread => paintConfettiSpread;
 
         public float FontSizeGalaxyTitle => fontSizeGalaxyTitle;
-        public float FontSizePaintButton => fontSizePaintButton;
         public Color ToggleOnFill => toggleOnFill;
         public Color ToggleOffFill => toggleOffFill;
         public Color ToggleKnob => toggleKnob;
@@ -1476,6 +1462,7 @@ namespace InkFlow.Style
         public Color Coral700 => coral700;
         public Color Teal => teal;
         public Color Teal100 => teal100;
+        public Color Teal300 => teal300;
         public Color Teal700 => teal700;
         public Color TealInk => tealInk;
         public Color Amber => amber;
@@ -1536,8 +1523,38 @@ namespace InkFlow.Style
         public float PlanetAliveDuration => planetAliveDuration;
         public int SphereMaxSlots => sphereMaxSlots;
         public float SphereAxisTilt => sphereAxisTilt;
+        public float SphereWidthShare => sphereWidthShare;
+        public float SphereExtent => sphereExtent;
+        public float SphereHalo => sphereHalo;
+        public float SphereAliveHalo => sphereAliveHalo;
+        public float SphereArcInner => sphereArcInner;
+        public float SphereArcOuter => sphereArcOuter;
+        public float SphereArcAlpha => sphereArcAlpha;
+        public float SpherePipRing => spherePipRing;
+        public float SpherePipSize => spherePipSize;
+        public float SphereAutoSpin => sphereAutoSpin;
+        public float SphereSwipeRate => sphereSwipeRate;
+        public float SphereSwipeDamping => sphereSwipeDamping;
+        public float SphereFlingHold => sphereFlingHold;
+        public float SphereTurnDepth => sphereTurnDepth;
+        public float SphereTurnDuration => sphereTurnDuration;
+        public float SlotSelectedScale => slotSelectedScale;
+        public float PlanetHintGap => planetHintGap;
+        public float PlanetAliveRingAlpha => planetAliveRingAlpha;
         public float HorizonRadius => horizonRadius;
-        public float HorizonRowGap => horizonRowGap;
+        public float HorizonSlotGap => horizonSlotGap;
+        public float HorizonRowStep => horizonRowStep;
+        public float HorizonTopInset => horizonTopInset;
+        public float HorizonNearSlot => horizonNearSlot;
+        public float HorizonPerspective => horizonPerspective;
+        public float HorizonSideInset => horizonSideInset;
+        public int HorizonMaxRow => horizonMaxRow;
+        public float HorizonDepth => horizonDepth;
+        public float HorizonSkyMin => horizonSkyMin;
+        public float HorizonBottomGap => horizonBottomGap;
+        public float HorizonPipSize => horizonPipSize;
+        public float HorizonPipGap => horizonPipGap;
+        public float HorizonPipRowMax => horizonPipRowMax;
         public float GalaxyPlanetSide => galaxyPlanetSide;
         public float GalaxyPipRing => galaxyPipRing;
         public float GalaxyPipSize => galaxyPipSize;

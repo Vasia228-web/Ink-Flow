@@ -29,55 +29,72 @@ namespace InkFlow.UI
     }
 
     /// <summary>
-    /// Планета-вітрина (майстер-док §12): крути пальцем, тапай на слот — порожній веде в колекцію,
-    /// зайнятий пропонує замінити картинку або повернути її в колекцію. Усі слоти заповнені —
-    /// планета ожила: спалах, атмосфера, автообертання, супутник, конфеті й картка «Наступна планета».
+    /// Планета-вітрина (майстер-док §12, U1Glaze S04/S05): до порогу комірок — «Сфера» (<see cref="PlanetGlobe"/>:
+    /// куля, що крутиться, кільце міток навколо), більше — «Горизонт» (<see cref="PlanetHorizon"/>: велика планета
+    /// внизу, комірки рядами, мітки рядком під назвою). Поріг — повзунок <c>sphereMaxSlots</c>.
     ///
-    /// Планета тут не обертається сама — доки не ожила. Автообертання повертається як нагорода.
+    /// Дії ті самі: порожня комірка й «Поставити картинку» ведуть у колекцію (вибір для цієї комірки), зайнята —
+    /// лист «Замінити / Повернути в колекцію / Скасувати». Усі комірки заповнені — планета ожила: гало 0 → 1,
+    /// іскри, панель «… ожила!» з «До галактики» (лише на переході в ожилу, повернувшись із колекції).
     /// Що стоїть у слотах, вирішує збереження (<see cref="GalaxyState"/>); екран лише показує.
     /// </summary>
     public sealed class PlanetScreen : ScreenBase
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private Shader planetShader;
 
         [Header("Шапка")]
         [SerializeField] private Button backButton;
         [SerializeField] private Button settingsButton;
-        [SerializeField] private TMP_Text planetTitle;
         [SerializeField] private CurrencyWidget currency;
+        [SerializeField] private TMP_Text planetName;
+        [SerializeField] private TMP_Text galaxyLabel;
+
+        [Header("«Горизонт»: мітки рядком і лічильник угорі")]
+        [SerializeField] private RectTransform horizonPipRow;
+        [SerializeField] private Image[] horizonPips = System.Array.Empty<Image>();
+        [SerializeField] private Image[] horizonPipShines = System.Array.Empty<Image>();
+        [SerializeField] private Sprite pipEmpty;
+        [SerializeField] private Sprite pipFilled;
+        [SerializeField] private RectTransform horizonCounter;
+        [SerializeField] private TMP_Text horizonCount;
+        [SerializeField] private TMP_Text horizonCountWord;
 
         [Header("Планета")]
-        [SerializeField] private RectTransform stageRoot;
-        [SerializeField] private PlanetStage stage;
-        [SerializeField] private Image disc;
-        [SerializeField] private Image atmosphere;
-        [SerializeField] private Image completionFlash;
-        [SerializeField] private RectTransform moon;
-        [SerializeField] private DripPool confetti;
+        [Tooltip("Стовпчик екрана: перебудовується перед заміром ділянки, щоб масштаб кулі брався з нової висоти.")]
+        [SerializeField] private RectTransform column;
+        [SerializeField] private RectTransform area;
+        [Tooltip("Обгортка кулі для наближення з огляду (масштаб), усередині — куля з масштабом під ділянку.")]
+        [SerializeField] private RectTransform stage;
+        [SerializeField] private PlanetGlobe globe;
+        [SerializeField] private PlanetHorizon horizon;
 
-        [Header("Підписи й кнопки")]
-        [SerializeField] private TMP_Text progressLabel;
-        [SerializeField] private TMP_Text rotateHint;
-        [SerializeField] private Button collectionButton;
-        [SerializeField] private TMP_Text collectionLabel;
+        [Header("Низ: лічильник «Сфери», дія, підказка")]
+        [SerializeField] private RectTransform sphereCounter;
+        [SerializeField] private TMP_Text sphereCount;
+        [SerializeField] private TMP_Text sphereCountWord;
+        [SerializeField] private RectTransform actionGap;
+        [SerializeField] private RectTransform actionRow;
+        [SerializeField] private CandyButton placeButton;
+        [SerializeField] private RectTransform hintGap;
+        [SerializeField] private TMP_Text hint;
 
-        [Header("Лист зайнятого слота")]
-        [SerializeField] private RectTransform slotSheet;
-        [SerializeField] private TMP_Text sheetTitle;
-        [SerializeField] private Button replaceButton;
-        [SerializeField] private TMP_Text replaceLabel;
-        [SerializeField] private Button removeButton;
-        [SerializeField] private TMP_Text removeLabel;
+        [Header("«Планета ожила»")]
+        [SerializeField] private RectTransform alivePanel;
+        [SerializeField] private CanvasGroup alivePanelGroup;
+        [SerializeField] private TMP_Text aliveKicker;
+        [SerializeField] private TMP_Text aliveTitle;
+        [SerializeField] private TMP_Text aliveBody;
+        [SerializeField] private CandyButton aliveButton;
+
+        [Header("Лист зайнятої комірки")]
+        [SerializeField] private RectTransform sheet;
+        [SerializeField] private RarityFrameView sheetFrame;
+        [SerializeField] private PictureView sheetPicture;
+        [SerializeField] private TMP_Text sheetName;
+        [SerializeField] private RarityBadgeView sheetBadge;
+        [SerializeField] private CandyButton replaceButton;
+        [SerializeField] private CandyButton removeButton;
         [SerializeField] private Button cancelButton;
-        [SerializeField] private TMP_Text cancelLabel;
-
-        [Header("Завершення")]
-        [SerializeField] private RectTransform completionCard;
-        [SerializeField] private TMP_Text completionKicker;
-        [SerializeField] private TMP_Text completionTitle;
-        [SerializeField] private Button nextPlanetButton;
-        [SerializeField] private TMP_Text nextPlanetLabel;
 
         private readonly SlotAtlas _atlas = new SlotAtlas();
         private readonly List<PixelPicture?> _atlasPictures = new List<PixelPicture?>(16);
@@ -85,21 +102,28 @@ namespace InkFlow.UI
         private PlanetSurface? _surface;
         private int _galaxy;
         private int _planetIndex;
+        private PlanetLook _look;
         private PlanetSlot? _sheetSlot;
-        private Material? _discMaterial;
-        private Material? _atmoMaterial;
-        private bool _hintHidden;
-        private bool _celebrated;
+        private bool _alive;
+        private bool _alivePanelShown;
         private bool _completeBeforeCollection;
         private bool _returningFromCollection;
+        // Аргументи, з якими зайшли, і з якими пішли в колекцію: Pop повертає ТІ САМІ (налаштування, колекція), новий
+        // вхід із галактики — нові. Так «повернення з колекції» не переживає виходу іншим шляхом (шестерня → «Додому»),
+        // а наближення не грає вдруге після налаштувань.
+        private ScreenArgs? _enteredWith;
+        private ScreenArgs? _collectionArgs;
+        private bool _layoutDirty;
+        private bool _wired;
+        private Coroutine? _animation;
 
         /// <summary>Назад в огляд галактики — не в хаб.</summary>
         public System.Action? BackRequested;
 
-        /// <summary>Відкрити колекцію: для вибору картинки в слот (аргументи кажуть, у який) або просто подивитись.</summary>
+        /// <summary>Відкрити колекцію для вибору картинки в комірку (аргументи кажуть, у яку).</summary>
         public System.Action<CollectionArgs>? CollectionRequested;
 
-        /// <summary>Наступна планета: огляд галактики з уже зсунутим фокусом.</summary>
+        /// <summary>«До галактики» з панелі «планета ожила»: огляд галактики на цій самій планеті.</summary>
         public System.Action? NextPlanetRequested;
 
         private void OnEnable() => ScheduleApply(Apply);
@@ -108,25 +132,38 @@ namespace InkFlow.UI
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 #endif
 
-        private void Awake()
+        private void Awake() => WireOnce();
+
+        /// <summary>Підписки — один раз; окремо від Awake, бо в Edit Mode (стенди, тести) Awake не біжить, а Apply — так.</summary>
+        private void WireOnce()
         {
+            if (_wired)
+                return;
+            _wired = true;
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
             WireSettingsButton(settingsButton);
-            if (nextPlanetButton != null)
-                nextPlanetButton.onClick.AddListener(() => NextPlanetRequested?.Invoke());
-            if (collectionButton != null)
-                collectionButton.onClick.AddListener(() => OpenCollection(null));
+            if (placeButton != null)
+                placeButton.Button.onClick.AddListener(OnPlaceClicked);
+            if (aliveButton != null)
+                aliveButton.Button.onClick.AddListener(() => NextPlanetRequested?.Invoke());
             if (replaceButton != null)
-                replaceButton.onClick.AddListener(OnReplace);
+                replaceButton.Button.onClick.AddListener(OnReplace);
             if (removeButton != null)
-                removeButton.onClick.AddListener(OnRemove);
+                removeButton.Button.onClick.AddListener(OnRemove);
             if (cancelButton != null)
                 cancelButton.onClick.AddListener(CloseSheet);
+            if (globe != null)
+            {
+                globe.SlotTapped += OnSlotTapped;
+            }
+            if (horizon != null)
+                horizon.SlotTapped += OnSlotTapped;
         }
 
         private GalaxyLayout Layout => State?.Layout ?? GalaxyLayout.Default;
         private string PlanetId => _surface != null ? GalaxyState.PlanetId(_surface.Type) : string.Empty;
+        private bool Editable => State == null || State.CanEditPlanet(_galaxy, PlanetId);
 
         /// <summary>
         /// Капсула в шапці показує справжній гаманець: без цього вона назавжди лишалась із числом-заглушкою
@@ -155,46 +192,37 @@ namespace InkFlow.UI
             if (State == null)
                 MockFill(_surface);
 
-            var complete = _surface.IsComplete;
-            // Повернення з колекції після того, як поставлено останню картинку, — це і є момент
-            // «планета ожила». Перший вхід на вже ожилу планету не святкує вдруге.
-            var returning = _returningFromCollection;
-            _celebrated = !(returning && complete && !_completeBeforeCollection);
+            // Повернення з колекції після того, як поставлено останню картинку, — і є момент «планета ожила».
+            // Вхід на вже ожилу планету не святкує вдруге.
+            var fresh = !ReferenceEquals(args, _enteredWith);
+            var returning = !fresh && _returningFromCollection && ReferenceEquals(args, _collectionArgs);
+            var celebrate = returning && _surface.IsComplete && !_completeBeforeCollection;
+            // Свято, що вже йшло, переживає похід у налаштування й назад (ті самі аргументи).
+            var keepAlive = !fresh && !returning && _alive && _surface.IsComplete;
+            _enteredWith = args;
             _returningFromCollection = false;
-            _hintHidden = _hintHidden || complete;
+            _collectionArgs = null;
+            _alive = false;
+            _alivePanelShown = false;
 
             Apply();
             CloseSheet();
-            if (SkipEnterAnimations)
-            {
-                // Стенд: без корутин — одразу кінцевий стан (планета в масштабі 1, картка завершення, якщо є).
-                if (stageRoot != null)
-                    stageRoot.localScale = Vector3.one;
-                if (!_celebrated)
-                {
-                    _celebrated = true;
-                    Toggle(atmosphere, true);
-                    Toggle(completionCard, true);
-                }
-                return;
-            }
-            if (!_celebrated)
-                StartCoroutine(CelebrationRoutine());
-            else if (returning)
-            {
-                // З колекції повертаємось на ту саму планету в тій самій позі — без повторного
-                // наближення: гравець має побачити, як картинка лягла в слот, а не як куля знову влітає.
-                if (stageRoot != null)
-                    stageRoot.localScale = Vector3.one;
-            }
-            else
-                StartCoroutine(ApproachRoutine());
+            StopAnimation();
+            if (celebrate)
+                ShowAlive(animated: !SkipEnterAnimations);
+            else if (keepAlive)
+                ShowAlive(animated: false);
+            else if (fresh && _look == PlanetLook.Sphere && !SkipEnterAnimations)
+                _animation = StartCoroutine(ApproachRoutine());
+            else if (stage != null)
+                stage.localScale = Vector3.one;
         }
 
         public void Apply()
         {
             if (design == null)
                 return;
+            WireOnce();
 
             if (_surface == null)
             {
@@ -203,96 +231,37 @@ namespace InkFlow.UI
                     MockFill(_surface);
             }
 
-            ApplyFont(planetTitle, design.FontSizePaintTitle, design.TextPrimary,
-                FontStyles.Bold, design.LetterSpacingPaintTitle);
-            ApplyFont(progressLabel, design.FontSizeGalaxyTitle, design.TextMuted, FontStyles.Bold, 0f);
-            ApplyFont(rotateHint, design.FontSizeSmall, design.TextDim, FontStyles.Normal, 0f);
-            ApplyFont(collectionLabel, design.FontSizePaintButton, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(sheetTitle, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(replaceLabel, design.FontSizeShopCard, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(removeLabel, design.FontSizeShopCard, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(cancelLabel, design.FontSizeShopCard, design.TextMuted, FontStyles.Bold, 0f);
-            ApplyFont(completionKicker, design.FontSizeLabel, design.AccentTeal,
-                FontStyles.Bold, design.LetterSpacingTagline);
-            ApplyFont(completionTitle, design.FontSizeCompletion, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(nextPlanetLabel, design.FontSizeSubtitle, design.TextPrimary, FontStyles.Bold, 0f);
+            _look = PlanetLooks.For(_surface.Slots.Count, design.SphereMaxSlots);
+            var sphere = _look == PlanetLook.Sphere;
 
-            if (planetTitle != null) planetTitle.text = _surface.Name;
-            if (collectionLabel != null) collectionLabel.text = "Колекція";
-            if (replaceLabel != null) replaceLabel.text = "Замінити";
-            if (removeLabel != null) removeLabel.text = "Повернути в колекцію";
-            if (cancelLabel != null) cancelLabel.text = "Скасувати";
-
-            // ↺ немає в Nunito — беремо іконку зі спрайт-асета, як і ★.
-            if (rotateHint != null)
-                rotateHint.text = "<sprite name=\"retry\"> Крути планету пальцем, щоб дістати всі слоти";
-
+            if (planetName != null) planetName.text = _surface.Name;
+            if (galaxyLabel != null) galaxyLabel.text = Layout.NameOf(_galaxy);
             currency?.Apply();
 
-            SetupPlanet();
+            Toggle(globe, sphere);
+            Toggle(horizon, !sphere);
+            Toggle(horizonPipRow, !sphere);
+            Toggle(horizonCounter, !sphere);
+            Toggle(sphereCounter, sphere);
+
+            if (sphere && globe != null)
+                globe.Bind(_surface);
+            else if (!sphere && horizon != null)
+                horizon.Bind(_surface);
+
             RefreshSlots();
             RefreshProgress();
-            RefreshCompletionTexts();
-
-            Toggle(completionCard, false);
-            Toggle(atmosphere, _surface.IsComplete);
-            Toggle(completionFlash, false);
-            Toggle(moon, false);
-            Toggle(rotateHint, !_hintHidden);
-            if (stage != null)
-                stage.AutoSpin = _surface.IsComplete;
+            ApplyAlive();
+            _layoutDirty = true;
+            LayoutPlanet();
             if (!Application.isPlaying)
-                Toggle(slotSheet, false);
+                Toggle(sheet, false);
         }
 
-        private void SetupPlanet()
-        {
-            if (disc == null || planetShader == null || _surface == null || design == null)
-                return;
-
-            if (_discMaterial == null)
-            {
-                _discMaterial = new Material(planetShader) { name = "PlanetDisc" };
-                disc.material = _discMaterial;
-            }
-
-            var palette = design.Planet(_surface.Type);
-            _discMaterial.SetFloat(Shader.PropertyToID("_Mode"), 0f);
-            _discMaterial.SetFloat(Shader.PropertyToID("_Type"), (float)_surface.Type);
-            // Нуль зупиняє автообертання шейдера: тут планету крутить палець (і стадія після оживлення).
-            _discMaterial.SetFloat(Shader.PropertyToID("_Spin"), 0f);
-            _discMaterial.SetFloat(Shader.PropertyToID("_Painted"), 1f);
-            _discMaterial.SetFloat(Shader.PropertyToID("_Locked"), 0f);
-            _discMaterial.SetColor(Shader.PropertyToID("_Base"), palette.Base);
-            _discMaterial.SetColor(Shader.PropertyToID("_Land"), palette.Land);
-            _discMaterial.SetColor(Shader.PropertyToID("_Atmo"), palette.Atmosphere);
-
-            if (atmosphere != null)
-            {
-                if (_atmoMaterial == null)
-                {
-                    _atmoMaterial = new Material(planetShader) { name = "PlanetAtmosphere" };
-                    _atmoMaterial.SetFloat(Shader.PropertyToID("_Mode"), 4f);
-                    atmosphere.material = _atmoMaterial;
-                }
-
-                _atmoMaterial.SetColor(Shader.PropertyToID("_Atmo"), palette.Atmosphere);
-            }
-
-            if (stage == null)
-                return;
-
-            stage.SlotTapped -= OnSlotTapped;
-            stage.SlotTapped += OnSlotTapped;
-            stage.RotatedByPlayer -= OnRotatedByPlayer;
-            stage.RotatedByPlayer += OnRotatedByPlayer;
-            stage.Bind(_surface, _discMaterial);
-        }
-
-        /// <summary>Картинки слотів — в атлас, маркери — на картинки або порожні плями.</summary>
+        /// <summary>Картинки слотів — в атлас, комірки — на картинки або порожні лунки, мітки — кольором картинок.</summary>
         private void RefreshSlots()
         {
-            if (stage == null || _surface == null || design == null)
+            if (_surface == null || design == null)
                 return;
 
             var library = State?.Library ?? PictureLibrary.Fallback;
@@ -306,71 +275,251 @@ namespace InkFlow.UI
 
             for (var i = 0; i < _surface.Slots.Count; i++)
             {
-                var marker = stage.MarkerFor(_surface.Slots[i]);
-                if (marker == null)
-                    continue;
+                var slot = _surface.Slots[i];
                 var picture = _atlasPictures[i];
-                if (!_surface.Slots[i].IsFilled)
-                    marker.ShowEmpty();
-                else if (picture == null || _atlas.Texture == null)
-                    // У збереженні картинка є, у бібліотеці — ні (прибрали з гри, асет не підв'язано):
-                    // слот зайнятий, і це видно; звільнити його можна, а от порожнім він не прикидається.
-                    marker.ShowUnknown(design.GlassStroke);
+                var cell = CellFor(slot);
+                if (cell != null)
+                {
+                    if (!slot.IsFilled)
+                        cell.ShowEmpty();
+                    else if (picture == null || _atlas.Texture == null)
+                        // У збереженні картинка є, у бібліотеці — ні: комірка зайнята й видима, звільнити її можна,
+                        // а порожньою вона не прикидається.
+                        cell.ShowUnknown(design.InkDim);
+                    else
+                        cell.ShowPicture(_atlas.Texture, _atlas.UvOf(i), design.RarityColor(picture.Rarity));
+                }
+
+                var color = picture != null ? DesignSystem.PaletteColor(picture.MainColor) : design.InkDim;
+                if (_look == PlanetLook.Sphere)
+                    globe?.SetPip(i, slot.IsFilled, color);
                 else
-                    marker.ShowPicture(_atlas.Texture, _atlas.UvOf(i), design.RarityColor(picture.Rarity));
+                    SetHorizonPip(i, slot.IsFilled, color);
             }
-            stage.Refresh();
+            for (var i = _surface.Slots.Count; i < horizonPips.Length; i++)
+                Toggle(horizonPips[i], false);
+            if (_look == PlanetLook.Horizon)
+                SizeHorizonPips(_surface.Slots.Count);
+        }
+
+        private SlotCell? CellFor(PlanetSlot slot) =>
+            _look == PlanetLook.Sphere ? globe?.CellFor(slot) : horizon?.CellFor(slot);
+
+        private void SetHorizonPip(int index, bool filled, Color color)
+        {
+            if (index >= horizonPips.Length || horizonPips[index] == null)
+                return;
+            Toggle(horizonPips[index], true);
+            horizonPips[index].sprite = filled ? pipFilled : pipEmpty;
+            horizonPips[index].color = filled ? color : Color.white;
+            if (index < horizonPipShines.Length && horizonPipShines[index] != null)
+                Toggle(horizonPipShines[index], filled);
+        }
+
+        /// <summary>
+        /// Рядок міток «Горизонту» вміщається в найбільшу ширину: 12 — по 16 з проміжком 3 (S05_01), 20 — дрібніші
+        /// (S05_02: 14 / 2). Розмір — на подію, не щокадру.
+        /// </summary>
+        private void SizeHorizonPips(int count)
+        {
+            if (design == null || horizonPipRow == null || count < 1)
+                return;
+            var size = design.HorizonPipSize;
+            var gap = design.HorizonPipGap;
+            var width = count * size + (count - 1) * gap;
+            if (width > design.HorizonPipRowMax)
+            {
+                var f = design.HorizonPipRowMax / width;
+                size *= f;
+                gap *= f;
+            }
+            var group = horizonPipRow.GetComponent<HorizontalLayoutGroup>();
+            if (group != null)
+                group.spacing = DesignSystem.FromMockupPx(gap);
+            for (var i = 0; i < count && i < horizonPips.Length; i++)
+            {
+                if (horizonPips[i] == null)
+                    continue;
+                var element = horizonPips[i].GetComponent<LayoutElement>();
+                if (element != null)
+                    element.preferredWidth = element.preferredHeight = element.minWidth = element.minHeight = DesignSystem.FromMockupPx(size);
+            }
         }
 
         private void RefreshProgress()
         {
-            if (progressLabel == null || _surface == null)
-                return;
-            progressLabel.text = _surface.IsComplete
-                ? $"Усі {Plural.Count(_surface.Slots.Count, "слот", "слоти", "слотів")} заповнені"
-                : $"{_surface.FilledCount} / {_surface.Slots.Count} слотів · тапни на порожній";
-        }
-
-        private void RefreshCompletionTexts()
-        {
             if (_surface == null)
                 return;
-            // «Галактику завершено» з U1Glaze кроку 3 показує екран галактики (S03_04 → S03_05); тут — лише
-            // «планета ожила» і повернення до галактики, інакше святкували б двічі.
-            if (completionKicker != null) completionKicker.text = "ПЛАНЕТА ОЖИЛА";
-            if (completionTitle != null) completionTitle.text = $"{_surface.Name} ожила!";
-            if (nextPlanetLabel != null) nextPlanetLabel.text = "До галактики";
+            var total = _surface.Slots.Count;
+            var count = $"{_surface.FilledCount} / {total}";
+            // «2 / 4 комірки заповнено», «5 / 8 комірок заповнено» (S04, S05): слово — за загальною кількістю.
+            var word = $"{Plural.Of(total, "комірку", "комірки", "комірок")} заповнено";
+            if (sphereCount != null) sphereCount.text = count;
+            if (sphereCountWord != null) sphereCountWord.text = word;
+            if (horizonCount != null) horizonCount.text = count;
+            if (horizonCountWord != null) horizonCountWord.text = word;
+
+            var editable = Editable;
+            if (placeButton != null)
+                placeButton.Interactable = editable && !_surface.IsComplete;
+
+            // Підказка: на «Сфері» — як крутити; там, де нічого не зміниш, — чому (мовчати не можна: тап без відповіді
+            // читається як зламана кнопка). «Горизонт» без підказки (S05), окрім пояснення.
+            string? text = null;
+            if (!editable && State != null)
+                text = _galaxy < State.CurrentGalaxy
+                    ? "Ця галактика завершена — це вітрина"
+                    : "Ця планета ще замкнена — заверши попередню";
+            else if (_look == PlanetLook.Sphere)
+                text = "Крути планету пальцем і тапни на порожню комірку";
+            if (hint != null)
+                hint.text = text ?? string.Empty;
+            Toggle(hint, text != null && !_alivePanelShown);
+            Toggle(hintGap, text != null && !_alivePanelShown);
         }
 
-        private void OnDisable()
+        /// <summary>Стан «ожила»: гало й іскри на ожилій планеті; панель — лише під час свята (і лише після гало).</summary>
+        private void ApplyAlive()
         {
-            if (stage == null)
-                return;
-            stage.SlotTapped -= OnSlotTapped;
-            stage.RotatedByPlayer -= OnRotatedByPlayer;
+            var complete = _surface != null && _surface.IsComplete;
+            SetAliveGlow(complete ? 1f : 0f);
+            var panel = _alive && _alivePanelShown;
+            Toggle(alivePanel, panel);
+            Toggle(sphereCounter, _look == PlanetLook.Sphere && !panel);
+            Toggle(actionGap, !panel);
+            Toggle(actionRow, !panel);
+            if (panel)
+            {
+                Toggle(hint, false);
+                Toggle(hintGap, false);
+            }
         }
 
-        private void OnRotatedByPlayer()
+        private void SetAliveGlow(float amount)
         {
-            // Підказку прибираємо назавжди в межах сесії: побачивши її раз і
-            // крутнувши, гравець уже знає.
-            if (_hintHidden)
+            if (_look == PlanetLook.Sphere)
+                globe?.SetAlive(amount);
+            else
+                horizon?.SetAlive(amount);
+        }
+
+        private void ShowAlive(bool animated)
+        {
+            if (_surface == null || design == null)
                 return;
-            _hintHidden = true;
-            Toggle(rotateHint, false);
+            _alive = true;
+            if (aliveKicker != null) aliveKicker.text = "УСІ КОМІРКИ ЗАПОВНЕНІ";
+            if (aliveTitle != null) aliveTitle.text = $"{_surface.Name} ожила!";
+            if (aliveBody != null)
+            {
+                var planets = Layout.Planets;
+                aliveBody.text = _planetIndex + 1 < planets.Count
+                    ? $"Відкрито наступну планету: {planets[_planetIndex + 1].Name}."
+                    : "Це остання планета галактики.";
+            }
+            if (aliveButton != null) aliveButton.Text = "До галактики";
+            if (stage != null)
+                stage.localScale = Vector3.one;
+            if (animated)
+            {
+                // SPEC: спершу гало й іскри, потім панель знизу — поки гало розгорається, низ лишається як був.
+                _alivePanelShown = false;
+                ApplyAlive();
+                SetAliveGlow(0f);
+                _animation = StartCoroutine(AliveRoutine());
+                return;
+            }
+            ShowAlivePanel();
+            if (alivePanelGroup != null)
+                alivePanelGroup.alpha = 1f;
+        }
+
+        /// <summary>Панель «ожила» замінює низ: ділянка вища, куля піднімається (S04_05).</summary>
+        private void ShowAlivePanel()
+        {
+            _alivePanelShown = true;
+            ApplyAlive();
+            LayoutPlanet();
+        }
+
+        /// <summary>
+        /// «Планета ожила» (SPEC): гало й іскри 0 → 1 за planetAliveDuration, потім панель виїжджає знизу й
+        /// проявляється (localPosition і CanvasGroup.alpha за dialogAppearDuration).
+        /// </summary>
+        private IEnumerator AliveRoutine()
+        {
+            if (design == null)
+                yield break;
+            var duration = design.PlanetAliveDuration;
+            for (var t = 0f; t < duration; t += Time.deltaTime)
+            {
+                SetAliveGlow(design.CurveEaseInOut.Evaluate(t / duration));
+                yield return null;
+            }
+            SetAliveGlow(1f);
+
+            ShowAlivePanel();
+            if (alivePanel != null && alivePanelGroup != null)
+            {
+                var rest = alivePanel.localPosition;
+                var offset = alivePanel.rect.height * 0.5f;
+                var appear = design.DialogAppearDuration;
+                for (var t = 0f; t < appear; t += Time.deltaTime)
+                {
+                    var k = design.CurveEaseInOut.Evaluate(t / appear);
+                    alivePanel.localPosition = rest - Vector3.up * ((1f - k) * offset);
+                    alivePanelGroup.alpha = k;
+                    yield return null;
+                }
+                alivePanel.localPosition = rest;
+                alivePanelGroup.alpha = 1f;
+            }
+            _animation = null;
+        }
+
+        private void Update()
+        {
+            if (_layoutDirty)
+                LayoutPlanet();
+        }
+
+        private void OnRectTransformDimensionsChange() => _layoutDirty = true;
+
+        /// <summary>
+        /// Планета під ділянку, на зміну розкладки (не щокадру): «Сфера» — діаметр кулі (S04: частка ширини; на
+        /// низьких — менше, щоб уміщались дуга й мітки) масштабом; «Горизонт» — розкладка рядів під розмір ділянки.
+        /// Стовпчик спершу перебудовується: інакше висота ділянки була б ще стара (сховали лічильник, показали панель).
+        /// </summary>
+        private void LayoutPlanet()
+        {
+            _layoutDirty = false;
+            if (design == null || area == null)
+                return;
+            if (column != null && column.gameObject.activeInHierarchy)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(column);
+            if (_look == PlanetLook.Horizon)
+            {
+                horizon?.Layout();
+                return;
+            }
+            if (globe == null)
+                return;
+            var height = area.rect.height;
+            var screenWidth = ((RectTransform)transform).rect.width;
+            if (height <= 0f || screenWidth <= 0f || globe.BaseDiameter <= 0f)
+                return;
+            var diameter = Mathf.Min(screenWidth * design.SphereWidthShare, height / design.SphereExtent);
+            globe.SetFit(diameter / globe.BaseDiameter);
         }
 
         private void OnSlotTapped(PlanetSlot slot)
         {
-            if (_surface == null)
+            if (_surface == null || _alive)
                 return;
-            // Завершена галактика — вітрина, яку більше не редагують; замкнена планета — теж ні.
-            // Мовчати не можна: тап без відповіді читається як зламана кнопка.
-            if (State != null && !State.CanEditPlanet(_galaxy, PlanetId))
+            // Завершена галактика — вітрина, яку більше не редагують; замкнена планета — теж ні. Пояснення — у підказці.
+            if (!Editable)
             {
-                ShowHint(_galaxy < State.CurrentGalaxy
-                    ? "Ця галактика завершена — це вітрина, її вже не змінюють"
-                    : "Ця планета ще замкнена — заверши попередню");
+                RefreshProgress();
                 return;
             }
             if (!slot.IsFilled)
@@ -378,37 +527,62 @@ namespace InkFlow.UI
                 OpenCollection(slot);
                 return;
             }
-
-            _sheetSlot = slot;
-            stage?.SetSelected(slot);
-            if (sheetTitle != null)
-            {
-                var library = State?.Library ?? PictureLibrary.Fallback;
-                var picture = slot.PictureId is null ? null : library.Find(slot.PictureId);
-                sheetTitle.text = picture != null ? picture.Name : "Невідома картинка";
-            }
-            Toggle(slotSheet, true);
+            OpenSheet(slot);
         }
 
-        /// <summary>Підказка під планетою замість «крути пальцем»: пояснення, чому тап нічого не зробив.</summary>
-        private void ShowHint(string text)
+        private void OpenSheet(PlanetSlot slot)
         {
-            if (rotateHint == null)
-                return;
-            rotateHint.text = text;
-            Toggle(rotateHint, true);
+            _sheetSlot = slot;
+            SetSelected(slot);
+            var library = State?.Library ?? PictureLibrary.Fallback;
+            var picture = slot.PictureId is null ? null : library.Find(slot.PictureId);
+            if (sheetName != null)
+                sheetName.text = picture != null ? picture.Name : "Невідома картинка";
+            var rarity = picture != null ? picture.Rarity : Rarity.Common;
+            sheetFrame?.SetRarity(rarity);
+            sheetBadge?.SetRarity(rarity);
+            Toggle(sheetBadge, picture != null);
+            if (sheetPicture != null)
+            {
+                Toggle(sheetPicture, picture != null);
+                if (picture != null)
+                    sheetPicture.ShowCompleted(picture, string.Empty);
+            }
+            if (replaceButton != null) replaceButton.Text = "Замінити";
+            if (removeButton != null) removeButton.Text = "Повернути в колекцію";
+            Toggle(sheet, true);
         }
 
-        private void OpenCollection(PlanetSlot? slot)
+        private void SetSelected(PlanetSlot? slot)
+        {
+            if (_look == PlanetLook.Sphere)
+                globe?.SetSelected(slot);
+            else
+                horizon?.SetSelected(slot);
+        }
+
+        /// <summary>«Поставити картинку»: колекція для першої порожньої комірки.</summary>
+        private void OnPlaceClicked()
+        {
+            if (_surface == null || !Editable)
+                return;
+            foreach (var slot in _surface.Slots)
+                if (!slot.IsFilled)
+                {
+                    OpenCollection(slot);
+                    return;
+                }
+        }
+
+        private void OpenCollection(PlanetSlot slot)
         {
             if (_surface == null)
                 return;
             _completeBeforeCollection = _surface.IsComplete;
             _returningFromCollection = true;
+            _collectionArgs = _enteredWith;
             CloseSheet();
-            CollectionRequested?.Invoke(slot is null
-                ? new CollectionArgs()
-                : new CollectionArgs(_galaxy, PlanetId, slot.Index));
+            CollectionRequested?.Invoke(new CollectionArgs(_galaxy, PlanetId, slot.Index));
         }
 
         private void OnReplace()
@@ -434,21 +608,29 @@ namespace InkFlow.UI
 
             RefreshSlots();
             RefreshProgress();
-            // Планета, з якої забрали картинку, більше не ожила: атмосфера й автообертання гаснуть.
-            Toggle(atmosphere, _surface.IsComplete);
-            if (stage != null)
-                stage.AutoSpin = _surface.IsComplete;
+            // Планета, з якої забрали картинку, більше не ожила: гало гасне.
+            ApplyAlive();
         }
 
         private void CloseSheet()
         {
             _sheetSlot = null;
-            stage?.SetSelected(null);
-            Toggle(slotSheet, false);
+            SetSelected(null);
+            Toggle(sheet, false);
+        }
+
+        private void StopAnimation()
+        {
+            if (_animation == null)
+                return;
+            StopCoroutine(_animation);
+            _animation = null;
+            if (alivePanelGroup != null)
+                alivePanelGroup.alpha = 1f;
         }
 
 #if UNITY_EDITOR
-        /// <summary>Стенд знімків: відкрити лист зайнятого слота, як після тапу.</summary>
+        /// <summary>Стенд знімків: лист зайнятої комірки, як після тапу.</summary>
         public void PreviewSheet(int slotIndex)
         {
             var slot = _surface?.Find(slotIndex);
@@ -456,110 +638,84 @@ namespace InkFlow.UI
                 OnSlotTapped(slot);
         }
 
-        /// <summary>Стенд і тести: маркери слотів стадії.</summary>
-        public SlotMarker[] PreviewMarkers => stage != null ? stage.Markers : System.Array.Empty<SlotMarker>();
+        /// <summary>Стенд і тести: тап по комірці (з усіма перевірками екрана).</summary>
+        public void PreviewTap(int slotIndex)
+        {
+            var slot = _surface?.Find(slotIndex);
+            if (slot != null)
+                OnSlotTapped(slot);
+        }
 
-        /// <summary>Тести: чи відкритий лист зайнятого слота.</summary>
-        public bool PreviewSheetOpen => slotSheet != null && slotSheet.gameObject.activeSelf;
+        /// <summary>Тести: «Повернути в колекцію» з відкритого листа.</summary>
+        public void PreviewRemove() => OnRemove();
 
-        /// <summary>Тести: текст підказки під планетою (порожній, якщо схована).</summary>
-        public string PreviewHint => rotateHint != null && rotateHint.gameObject.activeSelf ? rotateHint.text : string.Empty;
+        /// <summary>Стенд знімків: «планета ожила» без колекції (кінцевий стан, без анімації).</summary>
+        public void PreviewAlive() => ShowAlive(animated: false);
+
+        /// <summary>Стенд знімків: поворот кулі, як на макеті (S04: seed 3, rot 110 / 195 / 40 / 95 / 150).</summary>
+        public void PreviewRotation(float degrees)
+        {
+            if (globe != null)
+                globe.Rotation = degrees;
+        }
+
+        public PlanetLook PreviewLook => _look;
+        public PlanetGlobe? PreviewGlobe => globe;
+        public PlanetHorizon? PreviewHorizon => horizon;
+        public IReadOnlyList<SlotCell> PreviewCells =>
+            _look == PlanetLook.Sphere
+                ? (globe != null ? globe.Cells : System.Array.Empty<SlotCell>())
+                : (horizon != null ? horizon.Cells : System.Array.Empty<SlotCell>());
+        public bool PreviewSheetOpen => sheet != null && sheet.gameObject.activeSelf;
+        public bool PreviewAliveShown => alivePanel != null && alivePanel.gameObject.activeSelf;
+        public string PreviewAliveBody => aliveBody != null ? aliveBody.text : string.Empty;
+        public string PreviewHint => hint != null && hint.gameObject.activeSelf ? hint.text : string.Empty;
+
+        /// <summary>Тести: підказка вміщається без «…» (її пояснення не можна обрізати).</summary>
+        public bool PreviewHintFits
+        {
+            get
+            {
+                if (hint == null || !hint.gameObject.activeInHierarchy)
+                    return true;
+                hint.ForceMeshUpdate();
+                return !hint.isTextTruncated;
+            }
+        }
+
+        public Vector3 PreviewStageScale => stage != null ? stage.localScale : Vector3.one;
+        public string PreviewCounter =>
+            (_look == PlanetLook.Sphere ? sphereCount : horizonCount)?.text + " " +
+            (_look == PlanetLook.Sphere ? sphereCountWord : horizonCountWord)?.text;
+        public CandyButton? PreviewPlaceButton => placeButton;
+        public int PreviewHorizonPips
+        {
+            get
+            {
+                var n = 0;
+                foreach (var pip in horizonPips)
+                    if (pip != null && pip.gameObject.activeInHierarchy)
+                        n++;
+                return n;
+            }
+        }
 #endif
 
-        /// <summary>Наближення до планети з екрана огляду: масштаб і зсув, не нова сцена.</summary>
+        /// <summary>Наближення до планети з огляду галактики: масштаб обгортки, не нова сцена.</summary>
         private IEnumerator ApproachRoutine()
         {
-            if (stageRoot == null || design == null)
+            if (stage == null || design == null)
                 yield break;
-
             var duration = design.PaintApproachDuration;
             var from = design.PaintApproachFromScale;
-
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
-                var k = design.CurveBackOut.Evaluate(t / duration);
-                var scale = Mathf.LerpUnclamped(from, 1f, k);
-                stageRoot.localScale = new Vector3(scale, scale, 1f);
+                var scale = Mathf.LerpUnclamped(from, 1f, design.CurveBackOut.Evaluate(t / duration));
+                stage.localScale = new Vector3(scale, scale, 1f);
                 yield return null;
             }
-
-            stageRoot.localScale = Vector3.one;
-        }
-
-        /// <summary>
-        /// Планета ожила: спалах, атмосфера, повернення автообертання, супутник
-        /// і крапельки-конфеті. Картка з'являється останньою — щоб не перекрити
-        /// саму подію.
-        /// </summary>
-        private IEnumerator CelebrationRoutine()
-        {
-            _celebrated = true;
-            if (design == null)
-                yield break;
-
-            if (stageRoot != null)
-                stageRoot.localScale = Vector3.one;
-            Toggle(rotateHint, false);
-            Toggle(completionFlash, true);
-
-            var flashRenderer = completionFlash != null ? completionFlash.canvasRenderer : null;
-            var duration = design.PaintFlashDuration;
-            for (var t = 0f; t < duration; t += Time.deltaTime)
-            {
-                var k = t / duration;
-                flashRenderer?.SetAlpha(1f - k);
-                if (completionFlash != null)
-                    completionFlash.transform.localScale = Vector3.one * Mathf.Lerp(0.7f, 1.35f, k);
-                yield return null;
-            }
-
-            Toggle(completionFlash, false);
-            Toggle(atmosphere, true);
-            if (stage != null)
-                stage.AutoSpin = true;
-
-            EmitConfetti();
-            yield return StartCoroutine(MoonRoutine());
-
-            Toggle(completionCard, true);
-        }
-
-        private IEnumerator MoonRoutine()
-        {
-            if (moon == null || design == null)
-                yield break;
-
-            Toggle(moon, true);
-            var radius = stageRoot != null ? stageRoot.rect.width * 0.62f : 300f;
-            var duration = design.PaintMoonFlyDuration;
-
-            for (var t = 0f; t < duration; t += Time.deltaTime)
-            {
-                var k = Mathf.Clamp01(t / duration);
-                // Влітає здалеку й лягає на орбіту: радіус стискається, кут іде далі.
-                var angle = Mathf.Lerp(-0.9f, 0.55f, k) * Mathf.PI;
-                var r = Mathf.Lerp(radius * 2.4f, radius, design.CurveEaseInOut.Evaluate(k));
-                moon.localPosition = new Vector3(Mathf.Cos(angle) * r, Mathf.Sin(angle) * r * 0.34f, 0f);
-                yield return null;
-            }
-        }
-
-        private void EmitConfetti()
-        {
-            if (confetti == null || _surface == null || design == null)
-                return;
-
-            var radius = stageRoot != null ? stageRoot.rect.width * 0.5f : 300f;
-            for (var i = 0; i < design.PaintConfettiCount; i++)
-            {
-                var angle = Random.value * Mathf.PI * 2f;
-                var origin = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius * 0.8f;
-                // Конфеті — кольори рідкості картинок, що стоять на планеті.
-                var picture = _atlasPictures.Count > 0 ? _atlasPictures[i % _atlasPictures.Count] : null;
-                var color = picture != null ? design.RarityColor(picture.Rarity) : design.AccentTeal;
-                confetti.Emit(origin, color, design.PaintConfettiSize,
-                    Random.Range(-design.PaintConfettiSpread, design.PaintConfettiSpread));
-            }
+            stage.localScale = Vector3.one;
+            _animation = null;
         }
 
         /// <summary>Сцена-майстерня без стану гравця: кілька слотів із запасною картинкою, щоб бачити розкладку.</summary>
@@ -578,33 +734,6 @@ namespace InkFlow.UI
                 target.gameObject.SetActive(on);
         }
 
-        private void ApplyFont(TMP_Text? label, float size, Color color, FontStyles style, float spacing)
-        {
-            if (label == null)
-                return;
-            label.fontSize = size;
-            label.color = color;
-            label.fontStyle = style;
-            label.characterSpacing = spacing;
-            if (design.Font != null)
-                label.font = design.Font;
-        }
-
-        private void OnDestroy()
-        {
-            DestroyMaterial(_discMaterial);
-            DestroyMaterial(_atmoMaterial);
-            _atlas.Release();
-        }
-
-        private static void DestroyMaterial(Material? material)
-        {
-            if (material == null)
-                return;
-            if (Application.isPlaying)
-                Destroy(material);
-            else
-                DestroyImmediate(material);
-        }
+        private void OnDestroy() => _atlas.Release();
     }
 }

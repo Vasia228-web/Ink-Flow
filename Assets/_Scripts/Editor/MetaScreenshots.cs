@@ -27,7 +27,8 @@ namespace InkFlow.Editor
         {
             "hub", "hub-long", "hub-fresh",
             "galaxy-fresh", "galaxy-mid", "galaxy-done", "galaxy-locked", "galaxy-complete", "galaxy-reveal", "galaxy-second",
-            "planet-empty", "planet-half", "planet-full", "planet-sheet",
+            "planet-sphere-4", "planet-sphere-8", "planet-sphere-rotated", "planet-sphere-sheet", "planet-sphere-alive",
+            "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase",
             "collection-browse", "collection-pick", "collection-empty",
             "settings", "settings-run",
             "profile-fresh", "profile",
@@ -35,12 +36,22 @@ namespace InkFlow.Editor
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen" };
 
         /// <summary>Стани галактики (крок 3 U1Glaze): S03_01 … S03_05, нова порожня галактика зі стрілками, гість S09_01.</summary>
         public static readonly string[] GalaxyStates =
         {
             "galaxy-fresh", "galaxy-mid", "galaxy-done", "galaxy-locked", "galaxy-complete", "galaxy-reveal", "galaxy-second", "galaxy-visitor"
+        };
+
+        /// <summary>
+        /// Стани планети (крок 4 U1Glaze): «Сфера» S04_01 … S04_05 (Кріос, seed 3, поворот як на макеті), «Горизонт»
+        /// S05_01 … S05_04 (Рудокам, 12 і 20 комірок) і вітрина завершеної галактики (пояснення замість дії).
+        /// </summary>
+        public static readonly string[] PlanetStates =
+        {
+            "planet-sphere-4", "planet-sphere-8", "planet-sphere-rotated", "planet-sphere-sheet", "planet-sphere-alive",
+            "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase"
         };
 
         /// <summary>Лише вітрина компонентів (крок 0 U1Glaze): збірка + знімки на всіх пристроях.</summary>
@@ -145,6 +156,41 @@ namespace InkFlow.Editor
             AssetDatabase.Refresh();
             Finish(overBudget, audit);
         }
+
+        /// <summary>
+        /// Batch: лише планета на всіх пристроях (<see cref="PlanetStates"/>) з автоперевіркою й бюджетом викликів —
+        /// контрольна точка кроку 4 без повного проходу метагри.
+        /// </summary>
+        public static void BuildAndCapturePlanet()
+        {
+            RefreshPictureLibrary.Refresh();
+            BuildPlanetScreen.Build();
+            if (!MetaScreenRig<ScreenBase>.Available("PlanetScreen"))
+            {
+                Debug.LogError("[InkFlow] Немає префаба PlanetScreen — планету не зібрано.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in PlanetStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Finish(overBudget, audit);
+        }
+
+        /// <summary>
+        /// Галактика для знімків планети: перша планета — та, що на макеті (тип задає seed «Сфери»: Кріос — 3, як на
+        /// S04), далі ще дві, щоб «ожила» мала наступну планету.
+        /// </summary>
+        public static GalaxyLayout MockupGalaxy(PlanetType type, string name, int slots) => new GalaxyLayout(new[]
+        {
+            new PlanetLayout(type, name, slots),
+            new PlanetLayout(PlanetType.Rings, "Сатурнія", 8, hasRing: true),
+            new PlanetLayout(PlanetType.Gas, "Вихор", 9),
+        }, GalaxyLayout.Default.GalaxyNames);
 
         /// <summary>Виклики малювання (симуляція батчингу UGUI) у лог і в список перевищень.</summary>
         private static void Budget(ScreenRigBase rig, string device, string state, List<string> overBudget)
@@ -311,30 +357,57 @@ namespace InkFlow.Editor
                     rig.SavePng(path);
                     break;
                 }
-                case "planet-empty":
-                case "planet-half":
-                case "planet-full":
-                case "planet-sheet":
+                case "planet-sphere-4":
+                case "planet-sphere-8":
+                case "planet-sphere-rotated":
+                case "planet-sphere-sheet":
+                case "planet-sphere-alive":
+                case "planet-horizon-12":
+                case "planet-horizon-20":
+                case "planet-horizon-sheet":
+                case "planet-horizon-alive":
                 {
+                    // Макети: «Сфера» — Кріос (seed 3) у тих самих поворотах, «Горизонт» — Рудокам; планета — перша в
+                    // галактиці, тож відкрита й редагована.
+                    var sphere = state.StartsWith("planet-sphere");
+                    var slots = state == "planet-sphere-4" ? 4 : sphere ? 8 : state == "planet-horizon-20" ? 20 : 12;
+                    var alive = state.EndsWith("-alive");
+                    var filled = alive ? slots : state == "planet-sphere-4" ? 2 : sphere ? 5 : state == "planet-horizon-20" ? 13 : 7;
+                    using var rig = MetaScreenRig<PlanetScreen>.Create(device, "PlanetScreen");
+                    var player = rig.NewPlayer(MockupGalaxy(sphere ? PlanetType.Ice : PlanetType.Rocky, sphere ? "Кріос" : "Рудокам", slots));
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    rig.FillPlanet(player, 0, count: filled, pictureOffset: 3);
+                    rig.Enter(player, new PlanetArgs(0, 0));
+                    if (sphere)
+                        rig.Screen.PreviewRotation(state switch
+                        {
+                            "planet-sphere-4" => 110f, "planet-sphere-8" => 195f, "planet-sphere-rotated" => 40f,
+                            "planet-sphere-sheet" => 95f, _ => 150f,
+                        });
+                    if (state == "planet-sphere-sheet")
+                        rig.Screen.PreviewSheet(2);
+                    if (state == "planet-horizon-sheet")
+                        rig.Screen.PreviewSheet(1);
+                    if (alive)
+                        rig.Screen.PreviewAlive();
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "PlanetScreen", device.Name, state, audit);
+                    rig.SavePng(path);
+                    break;
+                }
+                case "planet-showcase":
+                {
+                    // Завершена галактика — вітрина: фінальна планета (12 → «Горизонт»), дія вимкнена, підказка пояснює.
                     using var rig = MetaScreenRig<PlanetScreen>.Create(device, "PlanetScreen");
                     var player = rig.NewPlayer();
-                    // Повна планета — фінальна з дванадцятьма слотами: для неї треба ожити всім попереднім.
-                    var index = state == "planet-full" ? player.Layout.Planets.Count - 1 : 0;
-                    if (state == "planet-full")
-                        for (var p = 0; p < player.Layout.Planets.Count; p++) rig.FillPlanet(player, p, pictureOffset: p * 11);
-                    else if (state == "planet-half" || state == "planet-sheet")
-                        rig.FillPlanet(player, 0, count: 2, pictureOffset: 5);
-                    // Повна планета — у ПЕРШІЙ галактиці: після її заповнення поточною стала друга.
-                    rig.Enter(player, new PlanetArgs(0, index));
-                    if (state == "planet-sheet")
-                        rig.Screen.PreviewSheet(0);
-                    if (state == "planet-full")
-                    {
-                        var distinct = rig.EstimateBatches(out var runs, out var graphics);
-                        Debug.Log($"[InkFlow] {device.Name} / {state}: графік {graphics}, різних пар матеріал+текстура {distinct}, змін пари в порядку обходу {runs}.");
-                        if (runs > DrawCallBudget)
-                            overBudget.Add($"{device.Name} / {state}: {runs} змін пари (різних {distinct})");
-                    }
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    for (var p = 0; p < player.Layout.Planets.Count; p++)
+                        rig.FillPlanet(player, p, pictureOffset: p * 11);
+                    rig.Enter(player, new PlanetArgs(0, player.Layout.Planets.Count - 1));
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "PlanetScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }

@@ -1,4 +1,4 @@
-// Процедурна планета для UGUI: сфера, кільце, дуга прогресу й атмосфера в одному
+// Процедурна планета для UGUI: сфера, кільце, дуга видимої половини й атмосфера в одному
 // шейдері. Спрайтів немає навмисно — планета лишається різкою на будь-якій щільності
 // пікселів і не важить нічого в білді.
 //
@@ -6,7 +6,7 @@
 // це і тримає правило «анімація не бруднить графіку».
 //
 // _Mode: 0 — сфера, 1 — кільце (задня половина), 2 — кільце (передня),
-//        3 — дуга прогресу, 4 — атмосферний серпанок.
+//        3 — дуга видимої половини («Сфера», U1Glaze S04), 4 — атмосферний серпанок.
 Shader "InkFlow/Planet"
 {
     Properties
@@ -26,6 +26,8 @@ Shader "InkFlow/Planet"
         _Painted ("Painted fraction", Range(0,1)) = 1
         _Locked ("Locked", Range(0,1)) = 0
         _Rim ("Haze peak (quad radius)", Range(0.3,0.95)) = 0.8
+        _ArcInner ("Arc inner radius (quad radius)", Range(0.5,0.98)) = 0.866
+        _ArcAlpha ("Arc alpha", Range(0,1)) = 0.18
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0
@@ -106,6 +108,8 @@ Shader "InkFlow/Planet"
             float _Painted;
             float _Locked;
             float _Rim;
+            float _ArcInner;
+            float _ArcAlpha;
             float4 _ClipRect;
 
             // Замкнена планета — знебарвлена світла куля (U1Glaze S03_03), а не темна: затінення лишається, колір іде
@@ -251,8 +255,9 @@ Shader "InkFlow/Planet"
                     float3 n = float3(p.x, p.y, z);
 
                     // Обертання навколо власної осі: крутимо точку вибірки, не пікселі.
-                    // _Spin = 0 зупиняє автообертання, і планету крутить _Rotation
-                    // з пальця — саме так працює екран фарбування.
+                    // _Spin = 0 зупиняє автообертання; тоді кут задає лише _Rotation (за замовчуванням 0 —
+                    // поверхня стоїть). Екран планети (U1Glaze, крок 4) _Rotation не пише: крутяться комірки й
+                    // кільце з C# (PlanetGlobe), поверхня — ні.
                     float turns = _Spin > 0.0001 ? _Time.y / _Spin : 0.0;
                     float a = turns * 6.2831853 + _Rotation;
                     float ca = cos(a), sa = sin(a);
@@ -309,19 +314,18 @@ Shader "InkFlow/Planet"
                 }
                 else if (_Mode < 3.5)
                 {
-                    // ── Дуга прогресу ──
-                    float inner = 0.83, outer = 0.99;
-                    float band = smoothstep(inner, inner + 0.012, r) * (1.0 - smoothstep(outer - 0.012, outer, r));
-                    if (band <= 0.0) discard;
-
-                    // Відлік від 12-ї години за годинниковою стрілкою.
-                    float ang = atan2(p.x, p.y) / 6.2831853;
-                    ang = ang < 0.0 ? ang + 1.0 : ang;
-                    float filled = step(ang, _Painted);
-
-                    float3 col = lerp(float3(1, 1, 1), atmo3, filled);
-                    float a = band * lerp(0.12, 1.0, filled);
-                    outColor = fixed4(col, a);
+                    // ── Дуга видимої половини (U1Glaze S04) ──
+                    // Смуга між _ArcInner і краєм квада, лише верхня половина (передній бік кулі), з круглими
+                    // кінцями на 9-й і 3-й годині. Колір — _Atmo, прозорість — _ArcAlpha; спрайта для неї немає.
+                    float aa = max(fwidth(r), 0.002);
+                    float inner = _ArcInner;
+                    float band = smoothstep(inner - aa, inner + aa, r) * (1.0 - smoothstep(1.0 - aa, 1.0, r)) * step(0.0, p.y);
+                    float capRadius = (1.0 - inner) * 0.5; // не «half»: це тип у HLSL
+                    float mid = (1.0 + inner) * 0.5;
+                    float cap = 1.0 - smoothstep(capRadius - aa, capRadius + aa, length(float2(abs(p.x) - mid, p.y)));
+                    float a = max(band, cap);
+                    if (a <= 0.0) discard;
+                    outColor = fixed4(atmo3, a * _ArcAlpha);
                 }
                 else
                 {
