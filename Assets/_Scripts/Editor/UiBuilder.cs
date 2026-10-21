@@ -144,55 +144,17 @@ namespace InkFlow.Editor
         }
 
         /// <summary>
-        /// Кругла скляна кнопка 40 px макета з іконкою-спрайтом або гліфом. Шестерня (§15) на всіх
-        /// екранах — саме цим: копія в кожному збирачі розійшлась би на першій правці.
+        /// Множник PPU для 9-slice <c>rounded-rect</c> (кут 40 px при 128 px текстури) під потрібний радіус у
+        /// reference-одиницях: через це поле радіус керований, а не зашитий у картинку. Плита поля й картинки забігу.
         /// </summary>
-        internal static Button RoundIconButton(GameObject parent, string name, DesignSystem design, TMP_FontAsset? font,
-            Sprite circle, Sprite circleOutline, Sprite? icon, string? glyph, Vector2 anchor, Vector2 offset)
+        internal static float RoundedRectPpu(float radiusInReferenceUnits)
         {
-            var size = Mathf.Round(40f * DesignSystem.MockupToReference);
-            var go = Child(parent, name);
-            var fill = go.AddComponent<Image>();
-            fill.sprite = circle;
-            fill.color = design.CircleButtonFill;
-            Place(fill, offset, new Vector2(size, size), anchor, anchor);
-
-            var ringGo = Child(go, "Ring");
-            Stretch(ringGo);
-            var ring = ringGo.AddComponent<Image>();
-            ring.sprite = circleOutline;
-            ring.color = design.GlassStroke;
-            ring.raycastTarget = false;
-
-            if (glyph != null)
-            {
-                var label = Label(go, "Glyph", glyph, design, font,
-                    Mathf.Round(22f * DesignSystem.MockupToReference), design.TextPrimary, TextAlignmentOptions.Center);
-                Stretch(label.gameObject);
-            }
-            else if (icon != null)
-            {
-                var iconGo = Child(go, "Icon");
-                var image = iconGo.AddComponent<Image>();
-                image.sprite = icon;
-                image.color = design.TextPrimary;
-                image.raycastTarget = false;
-                var iconSize = Mathf.Round(20f * DesignSystem.MockupToReference);
-                Place(image, Vector2.zero, new Vector2(iconSize, iconSize),
-                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            }
-
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = fill;
-            return button;
+            const float spriteCornerPx = 40f;
+            const float spritePixelsPerUnit = 128f;
+            if (radiusInReferenceUnits <= 0f)
+                return 1f;
+            return spritePixelsPerUnit * (spriteCornerPx / spritePixelsPerUnit) / radiusInReferenceUnits;
         }
-
-        /// <summary>Шестерня в правому верхньому куті шапки (§15): крайня праворуч, решта зсувається ліворуч.</summary>
-        internal static Button GearButton(GameObject header, DesignSystem design, Sprite circle, Sprite circleOutline, Sprite gear) =>
-            RoundIconButton(header, "Settings", design, null, circle, circleOutline, gear, null, new Vector2(1f, 0.5f), Vector2.zero);
-
-        /// <summary>Ширина, яку шестерня забирає у правого блока шапки: кнопка 40 плюс проміжок 8 px макета.</summary>
-        internal static float GearSlot => Mathf.Round(48f * DesignSystem.MockupToReference);
 
         /// <summary>Вертикальний скрол на всю ширину від <paramref name="top"/> до низу; вміст прив'язаний до верху.</summary>
         internal static ScrollRect VerticalScroll(GameObject parent, string name, float top, out GameObject content)

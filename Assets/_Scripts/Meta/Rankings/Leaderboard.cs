@@ -13,11 +13,10 @@ namespace InkFlow.Meta
     /// </summary>
     public sealed class RankPlayer
     {
-        public RankPlayer(string id, string nick, InkColor avatar, bool incognito, long value, int rank, int avatarId = 0)
+        public RankPlayer(string id, string nick, bool incognito, long value, int rank, int avatarId = 0)
         {
             Id = id ?? string.Empty;
             Nick = nick ?? string.Empty;
-            Avatar = avatar;
             AvatarId = avatarId;
             Incognito = incognito;
             Value = value;
@@ -26,9 +25,6 @@ namespace InkFlow.Meta
 
         public string Id { get; }
         public string Nick { get; }
-
-        /// <summary>Аватар із набору (§14): той самий колір, що в профілі гравця.</summary>
-        public InkColor Avatar { get; }
 
         /// <summary>Номер аватара з набору U1Glaze (avatar_1…8 — 0…7): той самий, що в шапці головного й на картці гостя.</summary>
         public int AvatarId { get; }
@@ -48,7 +44,7 @@ namespace InkFlow.Meta
 
         /// <summary>Картка «Ти» з РЕАЛЬНИХ чисел гравця (§16): локальний файл — правда.</summary>
         public static RankPlayer You(PlayerState state, string playerId, RankMetric metric, RankPeriod period, DateTime utcNow) =>
-            new RankPlayer(string.IsNullOrEmpty(playerId) ? "you" : playerId, state.Nick, AvatarSet.InkOf(state.AvatarId),
+            new RankPlayer(string.IsNullOrEmpty(playerId) ? "you" : playerId, state.Nick,
                 state.Settings.ProfileHidden, state.RankValue(metric, period, utcNow), 0, state.AvatarId) { IsYou = true };
     }
 
@@ -73,7 +69,7 @@ namespace InkFlow.Meta
             _players = new List<RankPlayer>(page.Entries.Count);
             foreach (var entry in page.Entries)
             {
-                var player = new RankPlayer(entry.PlayerId, entry.Nick, AvatarSet.InkOf(entry.AvatarId), entry.Incognito, entry.Value, entry.Rank, entry.AvatarId)
+                var player = new RankPlayer(entry.PlayerId, entry.Nick, entry.Incognito, entry.Value, entry.Rank, entry.AvatarId)
                 {
                     IsYou = entry.PlayerId == you.Id
                 };

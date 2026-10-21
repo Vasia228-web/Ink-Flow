@@ -50,7 +50,7 @@ namespace InkFlow.Editor
             var shadowImage = shadowGo.AddComponent<Image>();
             shadowImage.sprite = shadow;
             shadowImage.type = Image.Type.Sliced;
-            shadowImage.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius + design.PanelShadowBlur);
+            shadowImage.pixelsPerUnitMultiplier = RoundedRectPpu(radius + design.PanelShadowBlur);
             shadowImage.color = bare ? Color.clear : design.PanelShadow;
             shadowImage.raycastTarget = false;
 
@@ -66,7 +66,7 @@ namespace InkFlow.Editor
             var plateFill = fillGo.AddComponent<Image>();
             plateFill.sprite = panel != null ? panel : rounded;
             plateFill.type = Image.Type.Sliced;
-            plateFill.pixelsPerUnitMultiplier = panel != null ? K1Sprites.PanelMultiplier(radius) : GlassPanel.PixelsPerUnitFor(radius);
+            plateFill.pixelsPerUnitMultiplier = panel != null ? K1Sprites.PanelMultiplier(radius) : RoundedRectPpu(radius);
             plateFill.color = bare ? Color.clear : Color.white;
             plateFill.raycastTarget = false;
 
@@ -76,7 +76,7 @@ namespace InkFlow.Editor
             var plateStroke = strokeGo.AddComponent<Image>();
             plateStroke.sprite = outline;
             plateStroke.type = Image.Type.Sliced;
-            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius);
+            plateStroke.pixelsPerUnitMultiplier = RoundedRectPpu(radius);
             plateStroke.color = bare ? Color.clear : design.PicturePlateStroke;
             plateStroke.raycastTarget = false;
 

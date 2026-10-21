@@ -298,7 +298,7 @@ namespace InkFlow.Editor
             plateStroke = shadowGo.AddComponent<Image>();
             plateStroke.sprite = cardGlow;
             plateStroke.type = Image.Type.Sliced;
-            plateStroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(radius + design.PanelShadowBlur);
+            plateStroke.pixelsPerUnitMultiplier = RoundedRectPpu(radius + design.PanelShadowBlur);
             plateStroke.color = design.PanelShadow;
             plateStroke.raycastTarget = false;
 
@@ -311,7 +311,7 @@ namespace InkFlow.Editor
             plate = plateGo.AddComponent<Image>();
             plate.sprite = K1Sprites.Panel != null ? K1Sprites.Panel : rounded;
             plate.type = Image.Type.Sliced;
-            plate.pixelsPerUnitMultiplier = K1Sprites.Panel != null ? K1Sprites.PanelMultiplier(radius) : GlassPanel.PixelsPerUnitFor(radius);
+            plate.pixelsPerUnitMultiplier = K1Sprites.Panel != null ? K1Sprites.PanelMultiplier(radius) : RoundedRectPpu(radius);
             plate.color = Color.white;
             plate.raycastTarget = false;
 
@@ -343,7 +343,7 @@ namespace InkFlow.Editor
             foreach (var h in highlights)
             {
                 h.type = Image.Type.Sliced;
-                h.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(geometry.Box * 0.22f));
+                h.pixelsPerUnitMultiplier = RoundedRectPpu(M(geometry.Box * 0.22f));
             }
 
             // Привид: до п'яти блоків із блиском під спільним CanvasGroup (альфа — валідно / ні).

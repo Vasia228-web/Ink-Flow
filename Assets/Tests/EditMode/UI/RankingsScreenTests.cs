@@ -51,7 +51,7 @@ namespace InkFlow.UI.Tests
             Assert.IsTrue(rig.Screen.PreviewTableShown, "вісімнадцять гравців — таблиця є");
             Assert.AreEqual("Вега", board.Players[0].Nick, "мок збігається з еталонним скріншотом");
             Assert.AreEqual(1, board.You.Value, "картка «Ти» — з локального файлу: одна планета ожила");
-            Assert.AreEqual(AvatarSet.InkOf(4), board.You.Avatar, "аватар із профілю");
+            Assert.AreEqual(4, board.You.AvatarId, "аватар із профілю");
             Assert.AreEqual($"#{board.YourPosition}", rig.Screen.PreviewYouPosition);
             Assert.AreEqual("1 планета за тиждень", rig.Screen.PreviewYouSubtitle);
             Assert.AreEqual(4, board.You.AvatarId, "аватар-спрайт із профілю");

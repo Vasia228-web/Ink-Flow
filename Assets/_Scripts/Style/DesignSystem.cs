@@ -1,4 +1,3 @@
-using System;
 using InkFlow.Core;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -41,11 +40,11 @@ namespace InkFlow.Style
 
         public int TokenVersion => tokenVersion;
 
-
         // ═════════════════════════ U1Glaze (docs/StyleRef/U1Glaze/tokens.json) ═════════════════════════
         // Єдине джерело стилю інтерфейсу SpacePaint. Значення — з tokens.json і SPEC.md; розміри —
-        // у reference-одиницях (px макета 402×874 × MockupToReference). Токени старого стилю нижче
-        // по файлу живуть, доки живуть їхні споживачі, і зникають разом із ними на кроці 10.
+        // у reference-одиницях (px макета 402×874 × MockupToReference). Нижче по файлу — токени екрана
+        // забігу (K1Candy, W4DarkCanvas, A1Breathe), фону, планет і кривих руху; токени старого стилю
+        // «Ink Flow v2» прибрано на кроці 10 U1Glaze.
 
         [Header("U1Glaze: палітра")]
         [Tooltip("Фон екрана: радіальний градієнт bg-top → space-900.")]
@@ -70,7 +69,7 @@ namespace InkFlow.Style
         [SerializeField] private Color scrim = Hex("#05040F");
 
         [Header("U1Glaze: текст")]
-        [Tooltip("Основний текст (ink у tokens.json; тут InkText, бо Ink(InkColor) — колір чорнила).")]
+        [Tooltip("Основний текст (ink у tokens.json; тут InkText — «Ink» у проєкті означає чорнило).")]
         [SerializeField] private Color inkText = Hex("#F2F4FF");
         [SerializeField] private Color inkMuted = Hex("#A9ABD0");
         [Tooltip("Лише дрібні допоміжні підписи (4.8:1 на panel-bottom).")]
@@ -275,103 +274,22 @@ namespace InkFlow.Style
                  "інакше на Аквілі місяць ховався під мітки о 3-й і 9-й.")]
         [SerializeField, Range(0.3f, 0.6f)] private float galaxyMoonOrbit = 0.52f;
 
-        // ───────────────────────── Палітра чорнила ─────────────────────────
-
-        [Serializable]
-        public struct InkSwatch
-        {
-            public InkColor color;
-            public Color hex;
-        }
-
-        [Header("Палітра чорнила (5 кольорів макета + 1 екстрапольований)")]
-        [Tooltip("Базові кольори крапель. Індекс = InkColor.")]
-        [SerializeField]
-        private InkSwatch[] inkPalette =
-        {
-            new InkSwatch { color = InkColor.Magenta, hex = Hex("#FF2D8A") },
-            new InkSwatch { color = InkColor.Cyan, hex = Hex("#00D9C0") },
-            new InkSwatch { color = InkColor.Amber, hex = Hex("#FFB300") },
-            new InkSwatch { color = InkColor.Lime, hex = Hex("#9BE636") },
-            new InkSwatch { color = InkColor.Violet, hex = Hex("#9D4DFF") },
-            // Макет визначає лише 5 ігрових кольорів. Rose — екстраполяція
-            // з рожевих акцентів макета (#FF77B6); підтвердити з дизайном перед
-            // рівнями, де colorsCount = 6.
-            new InkSwatch { color = InkColor.Rose, hex = Hex("#FF77B6") }
-        };
-
         // ───────────────────────── Кольори картинок ─────────────────────────
         // Кольори фігур, поля й пікселів — це майстер-палітра Core (§3), а не токени
         // дизайн-системи: одна таблиця на гру, картинки й інтерфейс не можуть розійтись.
 
         [Header("Космічний фон (radial 130%×90% з точки 50% / -12%)")]
-        [SerializeField] private Color backgroundInner = Hex("#2A1E56");
-        [SerializeField] private Color backgroundMid = Hex("#1A1338");
-        [SerializeField] private Color backgroundOuter = Hex("#0C0820");
         [SerializeField] private Color backgroundEdge = Hex("#070512");
 
         [Tooltip("Позиції зупинок градієнта фону (0..1), як у макеті: 0 / .34 / .68 / 1.")]
         [SerializeField] private Vector4 backgroundStops = new Vector4(0f, 0.34f, 0.68f, 1f);
 
         [Header("Неонові акценти")]
-        [SerializeField] private Color accentPrimary = Hex("#FF2D8A");
-        [SerializeField] private Color accentSecondary = Hex("#9D4DFF");
-        [SerializeField] private Color accentTeal = Hex("#00D9C0");
-        [SerializeField] private Color accentBlue = Hex("#3B7BFF");
         [SerializeField] private Color accentGold = Hex("#FFB300");
-        [SerializeField] private Color accentLime = Hex("#9BE636");
 
         [Header("Текст")]
         [SerializeField] private Color textPrimary = Hex("#FFFFFF");
         [SerializeField] private Color textMuted = new Color(1f, 1f, 1f, 0.62f);
-        [SerializeField] private Color textDim = new Color(1f, 1f, 1f, 0.38f);
-
-        // ───────────────────────── Скло ─────────────────────────
-
-        [Header("Скляна панель")]
-        [Tooltip("Заливка скла: ТЕМНА основа з низькою альфою — космічний фон має просвічувати. " +
-                 "Біла заливка макета (.05) читалась як сірий непрозорий пластик, бо в UGUI під нею " +
-                 "немає backdrop-blur, який у вебі притемнює фон.")]
-        [SerializeField] private Color glassFill = new Color32(9, 6, 22, 108);
-
-        [Tooltip("Підвищена заливка для активних/виділених панелей.")]
-        [SerializeField] private Color glassFillRaised = new Color32(16, 11, 34, 150);
-
-        [Tooltip("Тонка світла рамка по контуру: біла з малою альфою.")]
-        [SerializeField] private Color glassStroke = new Color(1f, 1f, 1f, 0.14f);
-
-        [Tooltip("Товщина контуру в reference-одиницях: 1-2 px макета ≈ 3-5.")]
-        [SerializeField] private float glassStrokeWidth = 4f;
-
-        // ───────────────────────── Радіуси ─────────────────────────
-
-        [Header("Радіуси, reference-одиниці (px макета × 2.769)")]
-        [Tooltip("16 px макета — чипи, дрібні плашки.")]
-        [SerializeField] private float radiusSmall = 44f;
-
-        [Tooltip("18 px — нижня навігація, кнопки-іконки.")]
-        [SerializeField] private float radiusMedium = 50f;
-
-        [Tooltip("20-22 px — кнопки.")]
-        [SerializeField] private float radiusButton = 61f;
-
-        [Tooltip("26 px — основні картки/панелі.")]
-        [SerializeField] private float radiusCard = 72f;
-
-        [Tooltip("34 px — модальні листи знизу.")]
-        [SerializeField] private float radiusSheet = 94f;
-
-        // ───────────────────────── Відступи ─────────────────────────
-
-        [Header("Сітка відступів, reference-одиниці")]
-        [SerializeField] private float spacingXs = 11f;   // 4 px
-        [SerializeField] private float spacingSm = 17f;   // 6 px
-        [SerializeField] private float spacingMd = 28f;   // 10 px
-        [SerializeField] private float spacingLg = 39f;   // 14 px
-        [SerializeField] private float spacingXl = 50f;   // 18 px — бічні поля екрана
-
-        [Tooltip("Висота нижньої навігації разом із внутрішніми відступами (65 px макета).")]
-        [SerializeField] private float navBarHeight = 180f;
 
         // ───────────────────────── Типографіка ─────────────────────────
 
@@ -379,81 +297,12 @@ namespace InkFlow.Style
         [Tooltip("Макет намальовано в Baloo 2; у грі — Nunito (Baloo 2 не має кирилиці).")]
         [SerializeField] private TMPro.TMP_FontAsset? font;
 
-        [SerializeField] private float fontSizeCaption = 28f;  // 10 px
-        [SerializeField] private float fontSizeLabel = 33f;    // 12 px
-        [SerializeField] private float fontSizeBody = 42f;     // 15 px
-        [SerializeField] private float fontSizeSubtitle = 47f; // 17 px
-        [SerializeField] private float fontSizeTitle = 61f;    // 22 px
-        [SerializeField] private float fontSizeDisplay = 75f;  // 27 px
-
         [Tooltip("Розріджені великі літери (labels): .14em макета.")]
         [SerializeField] private float letterSpacingWide = 14f;
 
-        // ───────────────────────── Світіння ─────────────────────────
-
-        [Header("Кнопка")]
-        [Tooltip("Наскільки колір тону підмішується в темну скляну основу кнопки. " +
-                 "У макеті всередині картки ледь помітний кольоровий підтон, а не заливка.")]
-        [SerializeField, Range(0f, 0.6f)] private float buttonTintStrength = 0.16f;
-
-        [Tooltip("Непрозорість кольорової рамки кнопки (рамка тонка, 1 px макета).")]
-        [SerializeField, Range(0f, 1f)] private float buttonStrokeAlpha = 0.75f;
-
-        [Header("Світіння")]
-        [Tooltip("Радіус гало кнопки: щільна підсвітка контуру, не ореол.")]
-        [SerializeField] private float glowButtonRadius = 30f;
-
-        [Tooltip("Гало назовні — тонке й делікатне: у макеті це підсвітка контуру, а не ореол. " +
-                 "Спрайт спільний із карткою і тепер рант, тож площа світіння менша.")]
-        [SerializeField, Range(0f, 0.6f)] private float glowButtonAlpha = 0.34f;
-
-        [Tooltip("Гало навколо великої панелі: 0 0 40px rgba(157,77,255,.18).")]
-        [SerializeField] private float glowPanelRadius = 111f;
-
-        [SerializeField, Range(0f, 1f)] private float glowPanelAlpha = 0.18f;
-
         // ───────────────────────── Крапля ─────────────────────────
 
-        [Header("Крапля")]
-        [Tooltip("Освітлення центру відблиску: lighten(colour, .5) у макеті.")]
-        [SerializeField, Range(0f, 1f)] private float dropHighlightLighten = 0.5f;
-
-        [Tooltip("Друга зупинка: lighten(colour, .12) на 32%.")]
-        [SerializeField, Range(0f, 1f)] private float dropMidLighten = 0.12f;
-
-        [Tooltip("Край краплі: darken(colour, .28) на 100%.")]
-        [SerializeField, Range(0f, 1f)] private float dropEdgeDarken = 0.28f;
-
-        [Tooltip("Непрозорість глянцю: rgba(255,255,255,.4) у центрі відблиску.")]
-        [SerializeField, Range(0f, 1f)] private float dropGlossAlpha = 0.4f;
-
-        [Tooltip("Тінь під краплею: 0 6px 16px withAlpha(colour, .4).")]
-        [SerializeField, Range(0f, 1f)] private float dropShadowAlpha = 0.4f;
-
-        [Tooltip("Розмір гало як частка від розміру краплі. Має лишатись у межах клітинки: " +
-                 "на сітці 6×6 завелике гало зливає сусідні краплі в одну пляму.")]
-        [SerializeField, Range(1f, 1.6f)] private float dropGlowScale = 1.16f;
-
         // ───────────────────────── Рух ─────────────────────────
-
-        [Header("Рух: тривалості, сек")]
-        [Tooltip("Погойдування краплі в спокої: 5-6 s ease-in-out, нескінченно.")]
-        [SerializeField] private float motionWobbleDuration = 5.5f;
-
-        [Tooltip("Амплітуда погойдування по масштабу: scale(1.02,.98) ↔ (.98,1.03).")]
-        [SerializeField] private float motionWobbleScale = 0.03f;
-
-        [Tooltip("Нахил при погойдуванні, градуси: ±2°.")]
-        [SerializeField] private float motionWobbleTilt = 2f;
-
-        [Tooltip("Приземлення краплі (squash & stretch): .47 s.")]
-        [SerializeField] private float motionLandDuration = 0.47f;
-
-        [Tooltip("Натискання кнопки: .28 s back-out.")]
-        [SerializeField] private float motionPressDuration = 0.28f;
-
-        [Tooltip("Поява екрана: .35 s.")]
-        [SerializeField] private float motionScreenFadeDuration = 0.35f;
 
         [Header("Рух: криві (дзеркала cubic-bezier макета)")]
         [Tooltip("cubic-bezier(.34,1.56,.64,1) — «back-out», основна крива натискань.")]
@@ -479,141 +328,7 @@ namespace InkFlow.Style
 
         [SerializeField, Min(0)] private int starCount = 90;
 
-
-        // ───────────────────────── Хаб-меню ─────────────────────────
-
-        [Header("Хаб: картки режимів (значення з розмітки макета)")]
-        [Tooltip("Радіус картки режиму: 28 px макета.")]
-        [SerializeField] private float radiusModeCard = 78f;
-
-        [Tooltip("Перша зупинка градієнта картки. Скло, а не заливка: крізь картку " +
-                 "мають просвічувати зорі, тож альфа тримається в межах 0.06-0.10. " +
-                 "Колір живе в рамці й гало.")]
-        [SerializeField, Range(0f, 0.3f)] private float cardTintStrong = 0.30f;
-
-        [Tooltip("Друга зупинка градієнта — майже прозора.")]
-        [SerializeField, Range(0f, 0.3f)] private float cardTintWeak = 0.16f;
-
-        [Tooltip("Темна основа під кольоровим підтоном картки: та сама, що в скла.")]
-        [SerializeField] private Color cardBase = new Color32(9, 6, 22, 92);
-
-        [Tooltip("Прозорість НЕЙТРАЛЬНОГО обведення картки. Акцентного контуру " +
-                 "тут немає свідомо: він читався як яскраве кільце навколо картки.")]
-        [SerializeField, Range(0f, 1f)] private float cardStrokeAlpha = 0.85f;
-
-        [Tooltip("Ширина згасання гало НАЗОВНІ від краю картки, в reference-одиницях. " +
-                 "30 ≈ 11 px макета — саме той діапазон 8-12 px, що в макеті.")]
-        [SerializeField, Range(16f, 60f)] private float cardGlowRadius = 30f;
-
-        [Tooltip("Не використовується картками режимів: у них зовнішнього гало немає. " +
-                 "Лишається для інших елементів, які беруть card-glow.")]
-        [SerializeField, Range(0f, 1f)] private float cardGlowAlpha = 0f;
-
-        [Tooltip("У скільки разів яскравішає гало в момент натискання.")]
-        [SerializeField, Range(1f, 4f)] private float cardGlowPressBoost = 2.4f;
-
-        [Tooltip("Плитка іконки в картці: 52×52 px макета.")]
-        [SerializeField] private float cardIconTileSize = 144f;
-
-        [Tooltip("Наскільки світлішає акцент для рядка статистики (#FF9ECB від #FF2D8A).")]
-        [SerializeField, Range(0f, 1f)] private float statTextLighten = 0.56f;
-
-        [Header("Хаб: нижня навігація")]
-        [Tooltip("Заливка капсули навігації — таке саме скло, що й картки: крізь неї " +
-                 "видно фон. Значення макета rgba(18,12,34,.55) в UGUI без backdrop-blur " +
-                 "читалось як сіра непрозора плашка.")]
-        [SerializeField] private Color navFill = new Color32(14, 9, 28, 110);
-
-        [Tooltip("Рамка капсули: rgba(255,255,255,.12).")]
-        [SerializeField] private Color navStroke = new Color(1f, 1f, 1f, 0.12f);
-
-        [Tooltip("Радіус капсули навігації: 30 px макета.")]
-        [SerializeField] private float radiusNav = 83f;
-
-        [Tooltip("Підпис активної вкладки: rgba(255,255,255,.92), вага 800.")]
-        [SerializeField] private Color navLabelActive = new Color(1f, 1f, 1f, 0.92f);
-
-        [Tooltip("Підпис неактивної: rgba(255,255,255,.5), вага 700.")]
-        [SerializeField] private Color navLabelInactive = new Color(1f, 1f, 1f, 0.5f);
-
-        [Header("Хаб: типографіка")]
-        [Tooltip("Лого «Ink Flow»: 58 px макета, line-height .9.")]
-        [SerializeField] private float fontSizeLogo = 161f;
-
-        [Tooltip("Дрібний підпис (11 px макета): підзаголовок профілю, службові рядки.")]
-        [SerializeField] private float fontSizeSmall = 30f;
-
-        [Tooltip("Підзаголовок картки (12.5 px макета).")]
-        [SerializeField] private float fontSizeCardSubtitle = 35f;
-
-        [Tooltip("Підпис профілю: rgba(255,255,255,.42).")]
-        [SerializeField] private Color textFaint = new Color(1f, 1f, 1f, 0.42f);
-
-        [Tooltip("Таглайн під лого: rgba(255,255,255,.4), letter-spacing .18em.")]
-        [SerializeField] private float letterSpacingTagline = 18f;
-
-        [Tooltip("Рядок статистики: letter-spacing .02em.")]
-        [SerializeField] private float letterSpacingTight = 2f;
-
-
-        // ───────────────────────── Оживлення ─────────────────────────
-
-        [Header("Крапля: органічна форма")]
-        [Tooltip("Асиметрія blob-форми: наскільки осі X/Y розходяться. 0 = ідеальне коло.")]
-        [SerializeField, Range(0f, 0.2f)] private float blobAsymmetry = 0.055f;
-
-        [Tooltip("Період повільної деформації форми, сек. Свідомо не кратний періоду " +
-                 "дихання — інакше рух читається як механічний.")]
-        [SerializeField, Min(0.5f)] private float blobMorphPeriod = 7.3f;
-
-        [Tooltip("На скільки зміщується відблиск при нахилі краплі, частка радіуса.")]
-        [SerializeField, Range(0f, 0.3f)] private float glossDrift = 0.07f;
-
-        [Header("Краплі, що стікають")]
-        [Tooltip("Середня пауза між краплинами однієї краплі, сек.")]
-        [SerializeField, Min(0.5f)] private float dripInterval = 5.5f;
-
-        [Tooltip("Розкид паузи: ±ця частка від інтервалу. Без розкиду краплі капають хором.")]
-        [SerializeField, Range(0f, 1f)] private float dripJitter = 0.55f;
-
-        [Tooltip("Скільки летить краплина, сек.")]
-        [SerializeField, Min(0.2f)] private float dripFallDuration = 1.15f;
-
-        [Tooltip("Дистанція падіння в reference-одиницях.")]
-        [SerializeField] private float dripFallDistance = 110f;
-
-        [Tooltip("Розмір краплини як частка від розміру джерела.")]
-        [SerializeField, Range(0.05f, 0.5f)] private float dripSize = 0.22f;
-
-        [Header("Фон: туманність і зорі")]
-        // Правило екрана: найяскравіше — лого й картки, фон завжди темніший.
-        // Туманності гравець не має помічати свідомо; її робота — прибрати
-        // пласкість фону. Якщо її видно як окремий об'єкт, вона завелика або яскрава.
-
-        [Tooltip("Розмір туманності як частка ширини екрана. Понад 2 — ядро ширше " +
-                 "за екран, і форма кулі не читається взагалі.")]
-        [SerializeField, Range(0.5f, 3f)] private float nebulaScale = 2.2f;
-
-        [Tooltip("Пікова яскравість у центрі купола. Це НЕ середня: у спрайті " +
-                 "(1-t²)³ середня альфа = 1/4 пікової, тож сумарного світла тут " +
-                 "приблизно вп'ятеро менше за старий суцільний диск на 0.13. " +
-                 "Нижче ~0.02 підйом над фоном стає меншим за 2/255 — тобто " +
-                 "туманності не видно взагалі. Верхня межа низька навмисно.")]
-        [SerializeField, Range(0f, 0.1f)] private float nebulaAlpha = 0.03f;
-
-        [Tooltip("Зсув центра від центра екрана, у частках ширини. Вниз-убік, щоб " +
-                 "не сидіти рівно за лого.")]
-        [SerializeField] private Vector2 nebulaOffset = new Vector2(-0.26f, -0.4f);
-
-        [Tooltip("Наскільки колір туманності відходить від фонового до акцентного. " +
-                 "0 — зливається з фоном, 1 — чистий акцент. Тримати низьким.")]
-        [SerializeField, Range(0f, 1f)] private float nebulaTintMix = 0.3f;
-
-        [Tooltip("Період «дихання» туманності, сек. Дуже повільно — це атмосфера, не анімація.")]
-        [SerializeField, Min(4f)] private float nebulaBreathPeriod = 17f;
-
-        [SerializeField, Range(0f, 0.4f)] private float nebulaBreathAmount = 0.14f;
-
+        [Header("Зорі фону: мерехтіння")]
         [Tooltip("Яка частка зір мерехтить. Решта світить рівно — так небо виглядає глибшим.")]
         [SerializeField, Range(0f, 1f)] private float starTwinkleFraction = 0.35f;
 
@@ -627,125 +342,20 @@ namespace InkFlow.Style
         [Tooltip("Тривалість пружного повернення (з overshoot).")]
         [SerializeField, Range(0.05f, 0.6f)] private float pressReleaseDuration = 0.26f;
 
-        [Tooltip("Підстрибування іконки вкладки при перемиканні, reference-одиниці.")]
-        [SerializeField] private float tabBounceHeight = 14f;
-
-        [SerializeField, Range(0.05f, 0.6f)] private float tabBounceDuration = 0.32f;
-
         // ───────────────────────── Доступ ─────────────────────────
 
-        public Color BackgroundInner => backgroundInner;
-        public Color BackgroundMid => backgroundMid;
-        public Color BackgroundOuter => backgroundOuter;
         public Color BackgroundEdge => backgroundEdge;
         public Vector4 BackgroundStops => backgroundStops;
 
-        public Color AccentPrimary => accentPrimary;
-        public Color AccentSecondary => accentSecondary;
-        public Color AccentTeal => accentTeal;
-        public Color AccentBlue => accentBlue;
         public Color AccentGold => accentGold;
-        public Color AccentLime => accentLime;
 
         public Color TextPrimary => textPrimary;
         public Color TextMuted => textMuted;
-        public Color TextDim => textDim;
-
-        public Color GlassFill => glassFill;
-        public Color GlassFillRaised => glassFillRaised;
-        public Color GlassStroke => glassStroke;
-        public float GlassStrokeWidth => glassStrokeWidth;
-
-        public float RadiusSmall => radiusSmall;
-        public float RadiusMedium => radiusMedium;
-        public float RadiusButton => radiusButton;
-        public float RadiusCard => radiusCard;
-        public float RadiusSheet => radiusSheet;
-
-        public float SpacingXs => spacingXs;
-        public float SpacingSm => spacingSm;
-        public float SpacingMd => spacingMd;
-        public float SpacingLg => spacingLg;
-        public float SpacingXl => spacingXl;
-        public float NavBarHeight => navBarHeight;
 
         public TMPro.TMP_FontAsset? Font => font;
-        public float FontSizeCaption => fontSizeCaption;
-        public float FontSizeLabel => fontSizeLabel;
-        public float FontSizeBody => fontSizeBody;
-        public float FontSizeSubtitle => fontSizeSubtitle;
-        public float FontSizeTitle => fontSizeTitle;
-        public float FontSizeDisplay => fontSizeDisplay;
         public float LetterSpacingWide => letterSpacingWide;
 
-        public float GlowButtonRadius => glowButtonRadius;
-        public float GlowButtonAlpha => glowButtonAlpha;
-        public float GlowPanelRadius => glowPanelRadius;
-        public float GlowPanelAlpha => glowPanelAlpha;
-
-        public float DropHighlightLighten => dropHighlightLighten;
-        public float DropMidLighten => dropMidLighten;
-        public float DropEdgeDarken => dropEdgeDarken;
-        public float DropGlossAlpha => dropGlossAlpha;
-        public float DropShadowAlpha => dropShadowAlpha;
-        public float DropGlowScale => dropGlowScale;
-
-        public float ButtonTintStrength => buttonTintStrength;
-        public float ButtonStrokeAlpha => buttonStrokeAlpha;
-
-        public float RadiusModeCard => radiusModeCard;
-        public float CardTintStrong => cardTintStrong;
-        public float CardTintWeak => cardTintWeak;
-        public float CardStrokeAlpha => cardStrokeAlpha;
-        public float CardGlowRadius => cardGlowRadius;
-        public float CardGlowAlpha => cardGlowAlpha;
-        public float CardIconTileSize => cardIconTileSize;
-        public Color CardBase => cardBase;
-        public float CardGlowPressBoost => cardGlowPressBoost;
-
-        public float BlobAsymmetry => blobAsymmetry;
-        public float BlobMorphPeriod => blobMorphPeriod;
-        public float GlossDrift => glossDrift;
-
-        public float DripInterval => dripInterval;
-        public float DripJitter => dripJitter;
-        public float DripFallDuration => dripFallDuration;
-        public float DripFallDistance => dripFallDistance;
-        public float DripSize => dripSize;
-
-        public float NebulaScale => nebulaScale;
-        public float NebulaAlpha => nebulaAlpha;
-        public Vector2 NebulaOffset => nebulaOffset;
-
-        /// <summary>
-        /// Колір туманності будується від фонового, а не від акцентного: так вона
-        /// не може стати світлішою за фон, хоч би як крутили nebulaTintMix.
-        /// </summary>
-        public Color NebulaTint => Color.Lerp(backgroundInner, accentSecondary, nebulaTintMix);
-        public float NebulaBreathPeriod => nebulaBreathPeriod;
-        public float NebulaBreathAmount => nebulaBreathAmount;
-        [Header("Галактика")]
-        [Tooltip("Заголовок галактики і підпис зон: 13 px макета.")]
-        [SerializeField] private float fontSizeGalaxyTitle = 36f;
-
-
-        [Header("Налаштування (§15)")]
-        [Tooltip("Доріжка перемикача, коли ввімкнено.")]
-        [SerializeField] private Color toggleOnFill = Hex("#00D9C0");
-        [Tooltip("Доріжка перемикача, коли вимкнено.")]
-        [SerializeField] private Color toggleOffFill = new Color(1f, 1f, 1f, 0.14f);
-        [Tooltip("Кружок перемикача.")]
-        [SerializeField] private Color toggleKnob = Color.white;
-        [Tooltip("Відступ кружка від краю доріжки, одиниці канваса.")]
-        [SerializeField, Min(0f)] private float toggleKnobInset = 6f;
-        [Tooltip("До якої частки розміру стискається напис рядка налаштувань, щоб не переноситись на другий рядок.")]
-        [SerializeField, Range(0.5f, 1f)] private float settingsLabelMinScale = 0.75f;
-
-        [Tooltip("Заливка круглої скляної кнопки «‹»: rgba(255,255,255,.07) макета. " +
-                 "Тут біле скло, а не темне: кнопка лежить на фоні, а не на контенті.")]
-        [SerializeField] private Color circleButtonFill = new Color(1f, 1f, 1f, 0.07f);
-
-
+        [Header("Планета-куля (галактика)")]
         [Tooltip("Діаметр планети у фокусі: 186 px макета.")]
         [SerializeField] private float planetSize = 515f;
 
@@ -779,11 +389,6 @@ namespace InkFlow.Style
 
         [SerializeField, Min(1f)] private float planetMoonPeriod = 8f;
 
-
-        [Tooltip("Заливка неактивної кнопки: rgba(255,255,255,.06) макета. Галактика з кроку 3 U1Glaze — button_off; " +
-                 "лишається для запасу (Reserve/OilShop, картка пакета).")]
-        [SerializeField] private Color buttonDisabledFill = new Color(1f, 1f, 1f, 0.06f);
-
         [Tooltip("Палітри поверхонь, СТРОГО в порядку PlanetType. " +
                  "Довжина мусить дорівнювати PlanetTypes.Count.")]
         [SerializeField] private PlanetPalette[] planetPalettes = DefaultPlanetPalettes();
@@ -816,8 +421,6 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float linePreviewPureAlpha = 0.34f;
         [SerializeField, Range(0f, 1f)] private float linePreviewMixedAlpha = 0.12f;
 
-        [Tooltip("Полотно поля: заливка й обведення під сіткою (застаріле — панель тепер K1Candy зі спрайта).")]
-        [SerializeField] private Color boardPlateFill = new Color(1f, 1f, 1f, 0.04f);
         [SerializeField] private Color boardPlateStroke = new Color(1f, 1f, 1f, 0.1f);
 
         [Tooltip("Лоток: прозорість фігури, поки її тягнуть.")]
@@ -974,8 +577,6 @@ namespace InkFlow.Style
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
         [SerializeField, Min(0.2f)] private float hintShowDuration = 1.6f;
 
-        [Tooltip("Картинка над полем: плитка, рамка рідкості, спалах завершення.")]
-        [SerializeField] private Color picturePlateFill = new Color(1f, 0.99f, 0.96f, 0.08f);
         [SerializeField] private Color picturePlateStroke = new Color(1f, 1f, 1f, 0.14f);
         [SerializeField, Min(0f)] private float pictureCompleteDuration = 1.1f;
         [SerializeField, Range(0f, 0.3f)] private float pictureCompletePop = 0.06f;
@@ -988,9 +589,6 @@ namespace InkFlow.Style
         [SerializeField, Min(0f)] private float runIntroFadeDuration = 0.25f;
 
         [Header("Кінець партії (Нескінченний)")]
-        [SerializeField] private Color overCardFrom = new Color(0.180f, 0.102f, 0.290f, 0.96f);
-        [SerializeField] private Color overCardTo = new Color(0.094f, 0.051f, 0.165f, 0.96f);
-        [SerializeField] private Color overScrim = new Color(0.047f, 0.020f, 0.094f, 0.78f);
 
         [Tooltip("Нагорода набігає цифрами, а не з'являється готовою.")]
         [SerializeField, Min(0.1f)] private float rewardCountDuration = 0.9f;
@@ -999,8 +597,6 @@ namespace InkFlow.Style
         [SerializeField, Min(0.2f)] private float confettiFallDuration = 2.2f;
 
         [Header("Профіль")]
-        [Tooltip("Нік на візитці: 30 px макета.")]
-        [SerializeField] private float fontSizeProfileNick = 83f;
 
         [Tooltip("До якої частки кегля стискається нік, щоб уміститись в один рядок (візитка, шапка хаба).")]
         [SerializeField, Range(0.3f, 1f)] private float nickMinScale = 0.55f;
@@ -1024,26 +620,7 @@ namespace InkFlow.Style
         [SerializeField, Range(0f, 1f)] private float youCardRingAlpha = 0.6f;
         [SerializeField, Range(0.2f, 1f)] private float youCardOfflineAlpha = 0.6f;
 
-        [Tooltip("Градієнтний аватар схованого профілю — лише профіль старого стилю (до кроку 8 U1Glaze).")]
-        [SerializeField] private Color rankIncognito = Hex("#5C6274");
-
-        [Header("Спільні токени з колишнього магазину (магазин — у запасі, Reserve/OilShop)")]
-        [Tooltip("Назва фарби й напис на кнопці картки: 13.5 px макета.")]
-        [SerializeField] private float fontSizeShopCard = 37f;
-
-        [Tooltip("Розрядка «МАГАЗИН»: .18em макета.")]
-        [SerializeField] private float letterSpacingShopTitle = 18f;
-
-        [SerializeField] private Color shopTabActiveFrom = new Color(1f, 0.176f, 0.541f, 0.92f);
-        [SerializeField] private Color shopTabActiveTo = new Color(0.616f, 0.302f, 1f, 0.9f);
-
         [Header("Фарбування планети")]
-        [Tooltip("Назва планети в шапці: 15 px макета, ls .04em.")]
-        [SerializeField] private float fontSizePaintTitle = 42f;
-        [SerializeField] private float letterSpacingPaintTitle = 4f;
-
-        [Tooltip("«{Планета} завершена!»: 26 px макета.")]
-        [SerializeField] private float fontSizeCompletion = 72f;
 
         [Tooltip("Наближення до планети з екрана огляду.")]
         [SerializeField, Min(0.1f)] private float paintApproachDuration = 0.55f;
@@ -1074,8 +651,6 @@ namespace InkFlow.Style
         public Color GhostInvalidTint => ghostInvalidTint;
         public float LinePreviewPureAlpha => linePreviewPureAlpha;
         public float LinePreviewMixedAlpha => linePreviewMixedAlpha;
-        public Color BoardPlateFill => boardPlateFill;
-        public Color BoardPlateStroke => boardPlateStroke;
         public float TrayDraggingAlpha => trayDraggingAlpha;
 
         public float BoardPanelRadius => boardPanelRadius;
@@ -1084,14 +659,11 @@ namespace InkFlow.Style
         public float PanelShadowOffset => panelShadowOffset;
         public float PanelShadowBlur => panelShadowBlur;
         public float BlockFraction => blockFraction;
-        public float BlockTintBoost => blockTintBoost;
         public float BlockGlowAlpha => blockGlowAlpha;
         public float BlockGlowScale => blockGlowScale;
         public float BlockHighlightAlpha => blockHighlightAlpha;
         public float TrayPieceScale => trayPieceScale;
         public float BoardSideMargin => boardSideMargin;
-        public float BoardPadding => boardPadding;
-        public float BoardGap => boardGap;
 
         /// <summary>Геометрія поля під токени відступів (px макета) — єдине місце, де вони зустрічаються з Core.</summary>
         public BoardGeometry BoardGeometryFor(int width, int height) =>
@@ -1207,7 +779,6 @@ namespace InkFlow.Style
         public float ComboPopRise => comboPopRise;
         public float HintIdleDelay => hintIdleDelay;
         public float HintShowDuration => hintShowDuration;
-        public Color PicturePlateFill => picturePlateFill;
         public Color PicturePlateStroke => picturePlateStroke;
         public float PictureCompleteDuration => pictureCompleteDuration;
         public float PictureCompletePop => pictureCompletePop;
@@ -1225,12 +796,8 @@ namespace InkFlow.Style
 
         /// <summary>Колір індексу майстер-палітри (§3) — фігури, клітинки поля, пікселі, краплі.</summary>
         public static Color PaletteColor(byte index) => MasterPalette.ColorOf(index).ToColor();
-        public Color OverCardFrom => overCardFrom;
-        public Color OverCardTo => overCardTo;
-        public Color OverScrim => overScrim;
         public float RewardCountDuration => rewardCountDuration;
         public float ConfettiFallDuration => confettiFallDuration;
-        public float FontSizeProfileNick => fontSizeProfileNick;
         public float NickMinScale => nickMinScale;
         public float RankRowHeight => rankRowHeightPx * MockupToReference;
         public float RankRowGap => rankRowGapPx * MockupToReference;
@@ -1240,14 +807,6 @@ namespace InkFlow.Style
         public float RankRowYouAlpha => rankRowYouAlpha;
         public float YouCardRingAlpha => youCardRingAlpha;
         public float YouCardOfflineAlpha => youCardOfflineAlpha;
-
-        public float FontSizeShopCard => fontSizeShopCard;
-        public float LetterSpacingShopTitle => letterSpacingShopTitle;
-        public Color ShopTabActiveFrom => shopTabActiveFrom;
-        public Color ShopTabActiveTo => shopTabActiveTo;
-        public float FontSizePaintTitle => fontSizePaintTitle;
-        public float LetterSpacingPaintTitle => letterSpacingPaintTitle;
-        public float FontSizeCompletion => fontSizeCompletion;
 
         public int CollectionColumns => collectionColumns;
         /// <summary>Картка колекції в reference-одиницях (px макета × <see cref="MockupToReference"/>).</summary>
@@ -1260,13 +819,6 @@ namespace InkFlow.Style
         public float PaintConfettiSize => paintConfettiSize;
         public float PaintConfettiSpread => paintConfettiSpread;
 
-        public float FontSizeGalaxyTitle => fontSizeGalaxyTitle;
-        public Color ToggleOnFill => toggleOnFill;
-        public Color ToggleOffFill => toggleOffFill;
-        public Color ToggleKnob => toggleKnob;
-        public float ToggleKnobInset => toggleKnobInset;
-        public float SettingsLabelMinScale => settingsLabelMinScale;
-        public Color CircleButtonFill => circleButtonFill;
         public float PlanetSize => planetSize;
         public float PlanetSizeFinale => planetSizeFinale;
         public float PlanetCarouselStep => planetCarouselStep;
@@ -1280,7 +832,6 @@ namespace InkFlow.Style
         public float PlanetRingWidthScale => planetRingWidthScale;
         public float PlanetRingHeightScale => planetRingHeightScale;
         public float PlanetMoonPeriod => planetMoonPeriod;
-        public Color ButtonDisabledFill => buttonDisabledFill;
 
         /// <summary>
         /// Палітри дев'яти типів рівно з макета (масив PLANETS, поле pal).
@@ -1313,31 +864,6 @@ namespace InkFlow.Style
         public float PressScale => pressScale;
         public float PressDownDuration => pressDownDuration;
         public float PressReleaseDuration => pressReleaseDuration;
-        public float TabBounceHeight => tabBounceHeight;
-        public float TabBounceDuration => tabBounceDuration;
-
-        public Color NavFill => navFill;
-        public Color NavStroke => navStroke;
-        public float RadiusNav => radiusNav;
-        public Color NavLabelActive => navLabelActive;
-        public Color NavLabelInactive => navLabelInactive;
-
-        public float FontSizeLogo => fontSizeLogo;
-        public float FontSizeSmall => fontSizeSmall;
-        public float FontSizeCardSubtitle => fontSizeCardSubtitle;
-        public Color TextFaint => textFaint;
-        public float LetterSpacingTagline => letterSpacingTagline;
-        public float LetterSpacingTight => letterSpacingTight;
-
-        /// <summary>Колір рядка статистики картки — освітлений акцент (#FF2D8A → #FF9ECB).</summary>
-        public Color StatText(Color accent) => Lighten(accent, statTextLighten);
-
-        public float MotionWobbleDuration => motionWobbleDuration;
-        public float MotionWobbleScale => motionWobbleScale;
-        public float MotionWobbleTilt => motionWobbleTilt;
-        public float MotionLandDuration => motionLandDuration;
-        public float MotionPressDuration => motionPressDuration;
-        public float MotionScreenFadeDuration => motionScreenFadeDuration;
 
         public AnimationCurve CurveBackOut => curveBackOut;
         public AnimationCurve CurveLand => curveLand;
@@ -1346,47 +872,6 @@ namespace InkFlow.Style
         public float StarTwinkleSlow => starTwinkleSlow;
         public float StarTwinkleFast => starTwinkleFast;
         public int StarCount => starCount;
-
-        /// <summary>Базовий колір чорнила за типом. Fallback — білий, щоб помилка була видима.</summary>
-        public Color Ink(InkColor color)
-        {
-            for (var i = 0; i < inkPalette.Length; i++)
-                if (inkPalette[i].color == color)
-                    return inkPalette[i].hex;
-            return Color.white;
-        }
-
-        /// <summary>Світла зупинка градієнта краплі (центр відблиску).</summary>
-        public Color InkHighlight(InkColor color) => Lighten(Ink(color), dropHighlightLighten);
-
-        /// <summary>Проміжна зупинка градієнта краплі.</summary>
-        public Color InkMid(InkColor color) => Lighten(Ink(color), dropMidLighten);
-
-        /// <summary>Темний край краплі.</summary>
-        public Color InkEdge(InkColor color) => Darken(Ink(color), dropEdgeDarken);
-
-        /// <summary>
-        /// Градієнт краплі-аватара (§14) — один на рядок рейтингу, картку «Ти», набір у профілі й картку
-        /// гостя: верх світліший на <see cref="DropHighlightLighten"/>, край темніший на <see cref="DropEdgeDarken"/>;
-        /// прихований профіль — сірий тими самими множниками.
-        /// </summary>
-        public void AvatarGradient(InkColor ink, bool incognito, out Color from, out Color to)
-        {
-            var color = incognito || ink == InkColor.None ? rankIncognito : Ink(ink);
-            from = Lighten(color, dropHighlightLighten);
-            to = Darken(color, dropEdgeDarken);
-        }
-
-        /// <summary>Колір тіні/гало під краплею.</summary>
-        public Color InkGlow(InkColor color)
-        {
-            var c = Ink(color);
-            c.a = dropShadowAlpha;
-            return c;
-        }
-
-        /// <summary>Те саме, що lighten() у макеті: змішування з білим.</summary>
-        public static Color Lighten(Color c, float amount) => Color.Lerp(c, Color.white, amount);
 
         /// <summary>Те саме, що darken() у макеті: змішування з чорним.</summary>
         public static Color Darken(Color c, float amount) =>
@@ -1545,15 +1030,6 @@ namespace InkFlow.Style
         {
             ColorUtility.TryParseHtmlString(hex, out var color);
             return color;
-        }
-
-        private void OnValidate()
-        {
-            // Порядок палітри мусить збігатися з InkColor — інакше Ink() поверне не те,
-            // і помилку буде видно лише очима на екрані.
-            if (inkPalette.Length < InkColors.MaxCount)
-                Debug.LogWarning($"[InkFlow] DesignSystem: у палітрі {inkPalette.Length} кольорів, " +
-                                 $"а InkColor має {InkColors.MaxCount}.", this);
         }
     }
 }

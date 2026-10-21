@@ -201,7 +201,7 @@ namespace InkFlow.UI
         private RankPlayer You() =>
             State != null
                 ? RankPlayer.You(State, PlayerId, _metric, _period, DateTime.UtcNow)
-                : new RankPlayer("you", "Гравець", InkColor.Magenta, false, _metric == RankMetric.Planets ? 2 : 1, 0, 3) { IsYou = true };
+                : new RankPlayer("you", "Гравець", false, _metric == RankMetric.Planets ? 2 : 1, 0, 3) { IsYou = true };
 
         /// <summary>
         /// Запит сторінки. Сервіс відповідає колбеком — можливо, одразу (Fake), після виходу з екрана або

@@ -13,7 +13,7 @@ namespace InkFlow.Tests.Meta
     {
         private static readonly DateTime Today = new DateTime(2026, 10, 7, 12, 0, 0, DateTimeKind.Utc);
 
-        private static RankPlayer You(long value) => new RankPlayer("you", "Нова", InkColor.Magenta, false, value, 0) { IsYou = true };
+        private static RankPlayer You(long value) => new RankPlayer("you", "Нова", false, value, 0) { IsYou = true };
 
         [Test]
         public void Mock_TopThreeMatchesReferenceScreenshot()
@@ -67,7 +67,7 @@ namespace InkFlow.Tests.Meta
             Assert.AreEqual(RankMetric.Planets, board.Metric);
             Assert.AreEqual(MockRankings.Count, board.Players.Count);
             Assert.AreEqual(1, board.Players[0].Rank);
-            Assert.AreEqual(AvatarSet.InkOf(0), board.Players[0].Avatar, "аватар — із набору за номером");
+            Assert.AreEqual(0, board.Players[0].AvatarId, "аватар — із набору за номером");
             Assert.AreEqual(3, board.YourPosition);
             Assert.AreEqual(2, board.GapToNext, "до Гелія (52) бракує двох");
 
@@ -151,7 +151,7 @@ namespace InkFlow.Tests.Meta
             var you = RankPlayer.You(state, "p-1", RankMetric.Planets, RankPeriod.AllTime, Today);
             Assert.AreEqual("p-1", you.Id);
             Assert.AreEqual(state.Nick, you.Nick);
-            Assert.AreEqual(AvatarSet.InkOf(4), you.Avatar, "§14: аватар із профілю — у картці «Ти»");
+            Assert.AreEqual(4, you.AvatarId, "§14: аватар із профілю — у картці «Ти»");
             Assert.IsFalse(you.Incognito);
             Assert.IsTrue(you.IsYou);
 

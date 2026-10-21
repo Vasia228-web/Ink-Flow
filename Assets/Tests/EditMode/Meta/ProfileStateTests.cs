@@ -19,15 +19,12 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
-        public void AvatarSet_IsOneDropPerInkColour()
+        public void AvatarSet_HasEightSprites_AndClampsUnknownIds()
         {
             Assert.AreEqual(8, AvatarSet.Count, "U1Glaze: 8 аватарів-спрайтів (§14)");
-            Assert.AreEqual(InkColor.Magenta, AvatarSet.InkOf(0));
-            Assert.AreEqual(InkColor.Magenta, AvatarSet.InkOf(-1), "поза набором — перший");
-            Assert.AreEqual(InkColor.Magenta, AvatarSet.InkOf(AvatarSet.Count + 5));
-            for (var i = 0; i < InkColors.All.Length; i++)
-                Assert.AreEqual(i, AvatarSet.IdOf(AvatarSet.InkOf(i)));
-            Assert.AreEqual(AvatarSet.InkOf(0), AvatarSet.InkOf(InkColors.All.Length), "сьомий аватар — колір циклом по палітрі");
+            Assert.AreEqual(0, AvatarSet.Clamp(-1), "поза набором — перший");
+            Assert.AreEqual(0, AvatarSet.Clamp(AvatarSet.Count + 5));
+            Assert.AreEqual(AvatarSet.Count - 1, AvatarSet.Clamp(AvatarSet.Count - 1));
         }
 
         [Test]
