@@ -55,6 +55,10 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text planetZones;
         [SerializeField] private RectTransform openRow;
         [SerializeField] private CandyButton openButton;
+
+        [Tooltip("Тіло кнопки: своя галактика — коралова «Відкрити», чужа — скляна «Подивитись планету» (S09_01).")]
+        [SerializeField] private Sprite? openCoralSprite;
+        [SerializeField] private Sprite? openGlassSprite;
         [SerializeField] private RectTransform pagination;
         [SerializeField] private Image[] dots = System.Array.Empty<Image>();
         [SerializeField] private Sprite? dotSprite;
@@ -110,6 +114,9 @@ namespace InkFlow.UI
 
         /// <summary>Гравець натиснув «Відкрити»: індекс галактики (цикл) і планети — екран планети-вітрини (§12).</summary>
         public System.Action<int, int>? OpenRequested;
+
+        /// <summary>«Подивитись планету» в чужій галактиці (S09_01): вітрина гравця й номер планети.</summary>
+        public System.Action<PublicShowcase, int>? VisitorPlanetRequested;
 
         /// <summary>Вкладка нижньої навігації: <see cref="NavBar.Play"/> / galaxy / collection / ranks.</summary>
         public System.Action<string>? TabRequested;
@@ -339,8 +346,17 @@ namespace InkFlow.UI
                 galaxyProgress.text = $"{_galaxy.DoneCount} / {Plural.Count(_galaxy.Planets.Count, "планета", "планети", "планет")}";
             ApplyGalaxyArrows();
 
-            // «Відкрити» й навігація — своя галактика; у гостя — лише перегляд (його «Подивитись планету» — крок 7).
-            Toggle(openRow, !_readOnly);
+            // «Відкрити» й навігація — своя галактика; у гостя — скляна «Подивитись планету» (S09_01, крок 7).
+            var visiting = _readOnly && _visitor != null;
+            Toggle(openRow, !_readOnly || visiting);
+            if (openButton != null)
+            {
+                if (visiting && openGlassSprite != null)
+                    openButton.SetTone(CandyButton.Tone.Glass, openGlassSprite);
+                else if (!_readOnly && openCoralSprite != null)
+                    openButton.SetTone(CandyButton.Tone.Coral, openCoralSprite);
+                openButton.Text = visiting ? "Подивитись планету" : "Відкрити";
+            }
             Toggle(navBar, _own && !_readOnly);
             navBar?.SetActive(NavBar.Galaxy);
 
@@ -563,11 +579,18 @@ namespace InkFlow.UI
 
         private void OnOpenClicked()
         {
-            if (_galaxy == null || _readOnly || carousel == null)
+            if (_galaxy == null || carousel == null)
                 return;
             var index = carousel.Focus;
             if (index < 0 || index >= _galaxy.Planets.Count || _galaxy.Planets[index].State == PlanetState.Locked)
                 return;
+            if (_readOnly)
+            {
+                // Чужа планета — лише та, у якій гравець щось поставив (замкнена в нього — «Ще не відкрита»).
+                if (_visitor != null && _galaxy.Planets[index].FilledSlots > 0)
+                    VisitorPlanetRequested?.Invoke(_visitor, index);
+                return;
+            }
             OpenRequested?.Invoke(_galaxy.Index, index);
         }
 
@@ -597,8 +620,8 @@ namespace InkFlow.UI
 
             // На замкненій планеті кнопка лишається на місці, але плоска й неклікабельна (button_off, S03_03):
             // прибирати її зовсім — значить смикати розкладку на кожному свайпі.
-            if (!_readOnly && openButton != null)
-                openButton.Interactable = planet.State != PlanetState.Locked;
+            if (openButton != null && (!_readOnly || _visitor != null))
+                openButton.Interactable = _readOnly ? planet.FilledSlots > 0 : planet.State != PlanetState.Locked;
         }
 
         /// <summary>Пагінація: крапка на планету, активна — бірюзова пігулка (S03). Розмір — на зміну фокуса, не щокадру.</summary>

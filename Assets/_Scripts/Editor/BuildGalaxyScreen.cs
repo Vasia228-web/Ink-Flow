@@ -185,6 +185,7 @@ namespace InkFlow.Editor
                 ("carousel", carousel),
                 ("planetName", planetName), ("planetZones", planetZones),
                 ("openRow", openRow.GetComponent<RectTransform>()), ("openButton", open),
+                ("openCoralSprite", U1.S("button_coral")), ("openGlassSprite", U1.S("button_glass")),
                 ("pagination", pagination), ("dotSprite", U1.S("toggle_knob_off")), ("pillSprite", U1.S("progress_fill")),
                 ("navBar", navBar),
                 ("completeDialog", complete), ("completeArc", arc), ("completeKicker", completeKicker),

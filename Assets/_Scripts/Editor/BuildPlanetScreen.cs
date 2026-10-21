@@ -146,6 +146,7 @@ namespace InkFlow.Editor
             hint.overflowMode = TextOverflowModes.Ellipsis;
 
             var alive = BuildAlivePanel(column, design!, out var kicker, out var aliveTitle, out var aliveBody, out var aliveButton);
+            var visitorFooter = BuildVisitorFooter(column, design!, out var visitorTitle, out var visitorButton);
             var aliveGroup = alive.gameObject.AddComponent<CanvasGroup>();
 
             // ── Лист зайнятої комірки (S04_04, S05_03) ──
@@ -164,6 +165,7 @@ namespace InkFlow.Editor
                 ("placeButton", place), ("hintGap", hintGap.GetComponent<RectTransform>()), ("hint", hint),
                 ("alivePanel", alive), ("alivePanelGroup", aliveGroup), ("aliveKicker", kicker), ("aliveTitle", aliveTitle), ("aliveBody", aliveBody),
                 ("aliveButton", aliveButton),
+                ("visitorFooter", visitorFooter), ("visitorTitle", visitorTitle), ("visitorButton", visitorButton),
                 ("sheet", sheet), ("sheetFrame", frame), ("sheetPicture", picture), ("sheetName", sheetName),
                 ("sheetBadge", badge), ("replaceButton", replace), ("removeButton", remove), ("cancelButton", cancel));
             WireArray(screen, "horizonPips", rowPips);
@@ -387,9 +389,37 @@ namespace InkFlow.Editor
 
             var cell = go.AddComponent<SlotCell>();
             Wire(cell, ("inner", innerGo.GetComponent<RectTransform>()), ("group", group), ("empty", empty),
-                ("frameBase", frameBase), ("pixels", pixels), ("stroke", stroke), ("selected", selected));
+                ("frameBase", frameBase), ("pixels", pixels), ("stroke", stroke), ("selected", selected),
+                ("emptyOwn", U1.S("slot_empty")), ("emptyReadOnly", U1.S("slot_empty_readonly")));
             go.SetActive(false);
             return cell;
+        }
+
+        // ── Низ чужої планети (S09_02/03): panel_card — «Планета гравця Вега · 6 / 8» h3, «Тут можна лише дивитися»
+        // caption, скляна «До галактики гравця» ──
+        private static RectTransform BuildVisitorFooter(GameObject parent, DesignSystem design, out TMP_Text title, out CandyButton button)
+        {
+            var panel = U1.Panel(parent, "VisitorFooter", "panel_card");
+            var layout = panel.AddComponent<VerticalLayoutGroup>();
+            var pad = (int)U1.Px(16f);
+            layout.padding = new RectOffset(pad, pad, (int)U1.Px(14f), pad);
+            layout.spacing = U1.Px(6f);
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            U1.Size(panel, 0f, 0f).flexibleHeight = 0f;
+
+            title = U1.Text(panel, "Title", "Планета гравця · 0 / 8", design, U1.Role.H3, design.InkText);
+            title.textWrappingMode = TextWrappingModes.NoWrap;
+            title.overflowMode = TextOverflowModes.Ellipsis;
+            var note = U1.Text(panel, "Note", "Тут можна лише дивитися", design, U1.Role.Caption, design.InkMuted);
+            note.textWrappingMode = TextWrappingModes.NoWrap;
+            U1.Gap(panel, 4f);
+            button = U1.Button(panel, "Back", "До галактики гравця", design, CandyButton.Tone.Glass);
+            U1.Size(button.gameObject, 0f, 56f);
+            panel.SetActive(false);
+            return panel.GetComponent<RectTransform>();
         }
 
         // ── «Планета ожила» (S04_05, S05_04): panel_card з бірюзовою обводкою, кікер, «… ожила!», текст, «До галактики» ──

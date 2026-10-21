@@ -30,6 +30,10 @@ namespace InkFlow.UI
         [SerializeField] private Image stroke;
         [SerializeField] private Image selected;
 
+        [Tooltip("Порожня лунка своєї планети (з «+») і чужої (без «+», S09_02/03) — ставить збирач.")]
+        [SerializeField] private Sprite? emptyOwn;
+        [SerializeField] private Sprite? emptyReadOnly;
+
         private CanvasRenderer[] _renderers = System.Array.Empty<CanvasRenderer>();
         private float _shade = -1f;
         private bool _filled;
@@ -79,8 +83,12 @@ namespace InkFlow.UI
                 gameObject.SetActive(false);
         }
 
-        public void ShowEmpty()
+        /// <param name="readOnly">Чужа планета (перегляд): темна лунка без «+», бо ставити туди нічого не можна.</param>
+        public void ShowEmpty(bool readOnly = false)
         {
+            var sprite = readOnly ? emptyReadOnly : emptyOwn;
+            if (empty != null && sprite != null && empty.sprite != sprite)
+                empty.sprite = sprite;
             _shade = -1f; // перебудова графіки скидає колір CanvasRenderer — наступна поза покладе затінення знову
             _filled = false;
             _showsPixels = false;

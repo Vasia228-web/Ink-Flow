@@ -167,6 +167,13 @@ namespace InkFlow.Meta
         public static GalaxyProgress FromShowcase(PublicShowcase showcase, GalaxyLayout layout)
         {
             if (showcase is null) throw new System.ArgumentNullException(nameof(showcase));
+            return FromSave(DataOf(showcase), layout, showcase.Galaxy);
+        }
+
+        /// <summary>Слоти вітрини у формі збереження — для огляду галактики й планети гравця в режимі перегляду (S09).</summary>
+        public static GalaxyData DataOf(PublicShowcase showcase)
+        {
+            if (showcase is null) throw new System.ArgumentNullException(nameof(showcase));
             var data = new GalaxyData();
             foreach (var slot in showcase.Slots)
                 data.Slots.Add(new PlanetSlotRecord
@@ -174,7 +181,7 @@ namespace InkFlow.Meta
                     Galaxy = showcase.Galaxy, PlanetId = slot.PlanetId, Slot = slot.Slot,
                     PictureId = slot.PictureId, FilledUtc = string.Empty
                 });
-            return FromSave(data, layout, showcase.Galaxy);
+            return data;
         }
     }
 }

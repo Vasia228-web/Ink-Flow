@@ -289,5 +289,25 @@ namespace InkFlow.UI.Tests
                     }
                 }
         }
+
+        [Test]
+        public void VisitorPlanet_IsReadOnly_WithAFooterInsteadOfTheAction()
+        {
+            // S09_02: чужа «Сфера» — слоти з вітрини, порожні лунки без «+», низ «Планета гравця … · N / M», дії немає.
+            using var rig = MetaScreenRig<PlanetScreen>.Create(ScreenRigBase.Devices[0], "PlanetScreen");
+            var player = rig.NewPlayer();
+            var planet = player.Layout.Planets[0];
+            var slots = new List<ShowcaseSlot>();
+            for (var s = 0; s < planet.Slots - 1; s++)
+                slots.Add(new ShowcaseSlot(planet.Id, s, rig.Library[s].Id));
+            var showcase = new PublicShowcase("guest", "Вега", 0, false, null, 0, 0, 0, slots, "");
+
+            rig.Enter(player, PlanetArgs.ForVisitor(showcase, 0));
+
+            Assert.IsTrue(rig.Screen.PreviewVisitorFooterShown, "низ гостя");
+            Assert.IsFalse(rig.Screen.PreviewActionShown, "«Поставити картинку» немає");
+            Assert.AreEqual($"Планета гравця Вега · {planet.Slots - 1} / {planet.Slots}", rig.Screen.PreviewVisitorTitle);
+            Assert.AreEqual(0, player.Galaxy.Slots.Count, "мій файл не чіпали");
+        }
     }
 }

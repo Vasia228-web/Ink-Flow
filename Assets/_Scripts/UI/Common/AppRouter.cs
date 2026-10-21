@@ -140,6 +140,8 @@ namespace InkFlow.UI
                 galaxy.OpenRequested += (galaxyIndex, planetIndex) => Push(planet, new PlanetArgs(galaxyIndex, planetIndex));
                 // Своя галактика — вкладка (U1Glaze крок 3): її навігація веде туди ж, що й хаба.
                 galaxy.TabRequested += OnTab;
+                // Чужа планета з чужої галактики (S09_02/03): той самий екран планети в режимі перегляду; Pop — назад.
+                galaxy.VisitorPlanetRequested += (showcase, planetIndex) => Push(planet, PlanetArgs.ForVisitor(showcase, planetIndex));
             }
 
             if (planet != null)

@@ -96,7 +96,15 @@ namespace InkFlow.UI.Tests
             Assert.AreEqual(layout.NameOf(0), rig.Screen.PreviewGalaxyTitle, "рядок галактики — без ніку: нік у картці");
             Assert.AreEqual(string.Empty, rig.Screen.PreviewTitle, "замість назви — «‹»");
             Assert.AreEqual(1, rig.Screen.PreviewFocus, "гість бачить останню ожилу планету, а не порожню наступну");
-            Assert.IsFalse(rig.Screen.PreviewOpenButton!.gameObject.activeInHierarchy, "редагування немає");
+            Assert.IsTrue(rig.Screen.PreviewOpenButton!.gameObject.activeInHierarchy, "S09_01: «Подивитись планету»");
+            Assert.AreEqual("Подивитись планету", rig.Screen.PreviewOpenCandy!.Text);
+            Assert.AreEqual(CandyButton.Tone.Glass, rig.Screen.PreviewOpenCandy.CurrentTone, "скляна — перегляд, не головна дія");
+            PublicShowcase? opened = null;
+            var openedPlanet = -1;
+            rig.Screen.VisitorPlanetRequested += (visitor, planet) => { opened = visitor; openedPlanet = planet; };
+            rig.Screen.PreviewOpenButton.onClick.Invoke();
+            Assert.AreSame(showcase, opened, "планета — з тієї самої вітрини");
+            Assert.AreEqual(1, openedPlanet, "планета у фокусі");
 
             // Прихований профіль: нік не показуємо, аватар — інкогніто, планет не видно.
             rig.Enter(player, GalaxyArgs.ForVisitor(PublicShowcase.Hidden("guest-2", 5, 1, "")));

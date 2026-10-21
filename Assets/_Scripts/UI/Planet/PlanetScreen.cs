@@ -26,6 +26,13 @@ namespace InkFlow.UI
 
         public int Galaxy { get; }
         public int PlanetIndex { get; }
+
+        /// <summary>Чужа планета з рейтингів (U1Glaze S09_02/03): вітрина гравця, лише перегляд; null — своя.</summary>
+        public PublicShowcase? Visitor { get; private set; }
+
+        /// <summary>Планета гравця з його вітрини: галактика — та, що у вітрині.</summary>
+        public static PlanetArgs ForVisitor(PublicShowcase showcase, int planetIndex) =>
+            new PlanetArgs(showcase?.Galaxy ?? 0, planetIndex) { Visitor = showcase };
     }
 
     /// <summary>
@@ -86,6 +93,11 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text aliveBody;
         [SerializeField] private CandyButton aliveButton;
 
+        [Header("Низ чужої планети (S09_02/03)")]
+        [SerializeField] private RectTransform visitorFooter;
+        [SerializeField] private TMP_Text visitorTitle;
+        [SerializeField] private CandyButton visitorButton;
+
         [Header("Лист зайнятої комірки")]
         [SerializeField] private RectTransform sheet;
         [SerializeField] private RarityFrameView sheetFrame;
@@ -100,6 +112,7 @@ namespace InkFlow.UI
         private readonly List<PixelPicture?> _atlasPictures = new List<PixelPicture?>(16);
 
         private PlanetSurface? _surface;
+        private PublicShowcase? _visitor;
         private int _galaxy;
         private int _planetIndex;
         private PlanetLook _look;
@@ -147,6 +160,8 @@ namespace InkFlow.UI
                 placeButton.Button.onClick.AddListener(OnPlaceClicked);
             if (aliveButton != null)
                 aliveButton.Button.onClick.AddListener(() => NextPlanetRequested?.Invoke());
+            if (visitorButton != null)
+                visitorButton.Button.onClick.AddListener(() => BackRequested?.Invoke());
             if (replaceButton != null)
                 replaceButton.Button.onClick.AddListener(OnReplace);
             if (removeButton != null)
@@ -163,7 +178,7 @@ namespace InkFlow.UI
 
         private GalaxyLayout Layout => State?.Layout ?? GalaxyLayout.Default;
         private string PlanetId => _surface != null ? GalaxyState.PlanetId(_surface.Type) : string.Empty;
-        private bool Editable => State == null || State.CanEditPlanet(_galaxy, PlanetId);
+        private bool Editable => _visitor == null && (State == null || State.CanEditPlanet(_galaxy, PlanetId));
 
         /// <summary>
         /// Капсула в шапці показує справжній гаманець: без цього вона назавжди лишалась із числом-заглушкою
@@ -179,6 +194,7 @@ namespace InkFlow.UI
         {
             base.OnEnter(args);
             var layout = Layout;
+            _visitor = (args as PlanetArgs)?.Visitor;
             if (args is PlanetArgs planetArgs)
             {
                 _planetIndex = Mathf.Clamp(planetArgs.PlanetIndex, 0, layout.Planets.Count - 1);
@@ -188,9 +204,15 @@ namespace InkFlow.UI
                 _galaxy = State?.CurrentGalaxy ?? 0;
 
             _surface = PlanetSurface.For(layout.Planets[_planetIndex]);
-            GalaxyState.Apply(_surface, State?.Galaxy, _galaxy);
-            if (State == null)
-                MockFill(_surface);
+            // Чужа планета — зі слотів вітрини гравця (§16), своя — зі збереження.
+            if (_visitor != null)
+                GalaxyState.Apply(_surface, GalaxyProgress.DataOf(_visitor), _galaxy);
+            else
+            {
+                GalaxyState.Apply(_surface, State?.Galaxy, _galaxy);
+                if (State == null)
+                    MockFill(_surface);
+            }
 
             // Повернення з колекції після того, як поставлено останню картинку, — і є момент «планета ожила».
             // Вхід на вже ожилу планету не святкує вдруге.
@@ -281,7 +303,7 @@ namespace InkFlow.UI
                 if (cell != null)
                 {
                     if (!slot.IsFilled)
-                        cell.ShowEmpty();
+                        cell.ShowEmpty(readOnly: _visitor != null);
                     else if (picture == null || _atlas.Texture == null)
                         // У збереженні картинка є, у бібліотеці — ні: комірка зайнята й видима, звільнити її можна,
                         // а порожньою вона не прикидається.
@@ -363,6 +385,18 @@ namespace InkFlow.UI
             if (placeButton != null)
                 placeButton.Interactable = editable && !_surface.IsComplete;
 
+            // Чужа планета (S09_02/03): замість лічильника, дії й підказки — панель «Планета гравця … · N / M»,
+            // «Тут можна лише дивитися» і «До галактики гравця».
+            Toggle(visitorFooter, _visitor != null);
+            if (_visitor != null)
+            {
+                if (visitorTitle != null)
+                    visitorTitle.text = $"Планета гравця {_visitor.Nick} · {_surface.FilledCount} / {total}";
+                Toggle(hint, false);
+                Toggle(hintGap, false);
+                return;
+            }
+
             // Підказка: на «Сфері» — як крутити; там, де нічого не зміниш, — чому (мовчати не можна: тап без відповіді
             // читається як зламана кнопка). «Горизонт» без підказки (S05), окрім пояснення.
             string? text = null;
@@ -384,10 +418,11 @@ namespace InkFlow.UI
             var complete = _surface != null && _surface.IsComplete;
             SetAliveGlow(complete ? 1f : 0f);
             var panel = _alive && _alivePanelShown;
+            var visitor = _visitor != null;
             Toggle(alivePanel, panel);
-            Toggle(sphereCounter, _look == PlanetLook.Sphere && !panel);
-            Toggle(actionGap, !panel);
-            Toggle(actionRow, !panel);
+            Toggle(sphereCounter, _look == PlanetLook.Sphere && !panel && !visitor);
+            Toggle(actionGap, !panel && !visitor);
+            Toggle(actionRow, !panel && !visitor);
             if (panel)
             {
                 Toggle(hint, false);
@@ -514,7 +549,7 @@ namespace InkFlow.UI
 
         private void OnSlotTapped(PlanetSlot slot)
         {
-            if (_surface == null || _alive)
+            if (_surface == null || _alive || _visitor != null)
                 return;
             // Завершена галактика — вітрина, яку більше не редагують; замкнена планета — теж ні. Пояснення — у підказці.
             if (!Editable)
@@ -630,6 +665,11 @@ namespace InkFlow.UI
         }
 
 #if UNITY_EDITOR
+        /// <summary>Тестам: чи видно низ чужої планети і що на ньому написано.</summary>
+        public bool PreviewVisitorFooterShown => visitorFooter != null && visitorFooter.gameObject.activeSelf;
+        public string PreviewVisitorTitle => visitorTitle != null ? visitorTitle.text : string.Empty;
+        public bool PreviewActionShown => actionRow != null && actionRow.gameObject.activeSelf;
+
         /// <summary>Стенд знімків: лист зайнятої комірки, як після тапу.</summary>
         public void PreviewSheet(int slotIndex)
         {

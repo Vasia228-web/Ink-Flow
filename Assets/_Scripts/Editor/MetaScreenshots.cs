@@ -29,6 +29,7 @@ namespace InkFlow.Editor
             "galaxy-fresh", "galaxy-mid", "galaxy-done", "galaxy-locked", "galaxy-complete", "galaxy-reveal", "galaxy-second",
             "planet-sphere-4", "planet-sphere-8", "planet-sphere-rotated", "planet-sphere-sheet", "planet-sphere-alive",
             "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase",
+            "planet-visitor-sphere", "planet-visitor-horizon",
             "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
             "settings", "settings-run",
             "profile-fresh", "profile",
@@ -115,8 +116,57 @@ namespace InkFlow.Editor
         public static readonly string[] PlanetStates =
         {
             "planet-sphere-4", "planet-sphere-8", "planet-sphere-rotated", "planet-sphere-sheet", "planet-sphere-alive",
-            "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase"
+            "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase",
+            "planet-visitor-sphere", "planet-visitor-horizon"
         };
+
+        /// <summary>Знімки планети з уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
+        [MenuItem("Ink Flow/Debug/Capture Planet Screenshots")]
+        public static void CapturePlanet()
+        {
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in PlanetStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            foreach (var device in ScreenRigBase.Devices)
+                Capture(device, "galaxy-visitor", Path.Combine(OutputFolder, $"{device.Name}_galaxy-visitor.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Debug.Log($"[InkFlow] Знімки планети: {PlanetStates.Length + 1} станів × {ScreenRigBase.Devices.Length} пристроїв у {OutputFolder}.");
+            Finish(overBudget, audit);
+        }
+
+        /// <summary>
+        /// Вітрина гравця «Вега» для S09: у галактиці III «Сфера» на 8 комірок (6 заповнено) і «Горизонт» на 12 (9) —
+        /// картинки з бібліотеки, як на макетах (кактус, квітка, НЛО, капкейк, ракета, черешні, роботик, серце…).
+        /// </summary>
+        private static PublicShowcase MockupVisitor(GalaxyLayout layout, PictureLibrary library, out int spherePlanet, out int horizonPlanet)
+        {
+            spherePlanet = horizonPlanet = 0;
+            for (var i = 0; i < layout.Planets.Count; i++)
+            {
+                if (layout.Planets[i].Slots == 8 && spherePlanet == 0) spherePlanet = i;
+                if (layout.Planets[i].Slots == 12) horizonPlanet = i;
+            }
+            var pictures = new[] { "cactus_hat", "flower", "ufo", "cupcake", "rocket", "cherry", "robot", "heart", "trice", "fish", "unicorn", "alien" };
+            var slots = new List<ShowcaseSlot>();
+            void Fill(int planet, int count)
+            {
+                for (var s = 0; s < count; s++)
+                {
+                    var id = pictures[s % pictures.Length];
+                    if (library.Find(id) == null) id = library[s % library.Count].Id;
+                    slots.Add(new ShowcaseSlot(layout.Planets[planet].Id, s, id));
+                }
+            }
+            for (var p = 0; p < layout.Planets.Count; p++)
+                if (p != spherePlanet && p != horizonPlanet && p < horizonPlanet)
+                    Fill(p, layout.Planets[p].Slots);
+            Fill(spherePlanet, 6);
+            Fill(horizonPlanet, 9);
+            return new PublicShowcase("mock-0", "Вега", 0, false, null, horizonPlanet, 2, 2, slots, string.Empty);
+        }
 
         /// <summary>Лише вітрина компонентів (крок 0 U1Glaze): збірка + знімки на всіх пристроях.</summary>
         public static void BuildAndCaptureComponents()
@@ -454,6 +504,21 @@ namespace InkFlow.Editor
                         rig.Screen.PreviewSheet(1);
                     if (alive)
                         rig.Screen.PreviewAlive();
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "PlanetScreen", device.Name, state, audit);
+                    rig.SavePng(path);
+                    break;
+                }
+                case "planet-visitor-sphere":
+                case "planet-visitor-horizon":
+                {
+                    // Чужа планета (S09_02 «Сфера» 6 / 8, S09_03 «Горизонт» 9 / 12): лунки без «+», низ «Планета гравця …».
+                    using var rig = MetaScreenRig<PlanetScreen>.Create(device, "PlanetScreen");
+                    var player = rig.NewPlayer();
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    var visitor = MockupVisitor(player.Layout, rig.Library, out var sphere, out var horizon);
+                    rig.Enter(player, PlanetArgs.ForVisitor(visitor, state == "planet-visitor-sphere" ? sphere : horizon));
                     Canvas.ForceUpdateCanvases();
                     Budget(rig, device.Name, state, overBudget);
                     Audit(rig, "PlanetScreen", device.Name, state, audit);
