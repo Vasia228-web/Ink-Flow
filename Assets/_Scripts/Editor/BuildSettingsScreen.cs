@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using InkFlow.Style;
 using InkFlow.UI;
 using TMPro;
@@ -13,30 +12,23 @@ using static InkFlow.Editor.UiBuilder;
 namespace InkFlow.Editor
 {
     /// <summary>
-    /// Збирає екран налаштувань (майстер-док §15): картка перемикачів звуку, музики й вібрації,
-    /// три дії («Додому», «Заново», «Колекція»), картка «Інші налаштування» (приховати профіль,
-    /// мова — лише з ≥ 2 локалями, політика, підтримка, версія). Меню: Ink Flow → Setup → Build Settings Screen.
-    ///
-    /// Кожне число — px макета × K, K = DesignSystem.MockupToReference (1080/402 ≈ 2.687). Усе нижче шапки — у вертикальному скролі: на iPhone SE
-    /// (694 px макета заввишки) усе влазить і так, але зайвий рядок мови чи довший напис не мають
-    /// обрізатись мовчки.
+    /// Збирає налаштування U1Glaze (S11SettingsSoon_01, S12SmallScreen_11) фабриками <see cref="U1"/>: шапка 56 («‹» і
+    /// назва h2 по центру) → вертикальний скрол: «ЗВУК І ВІБРАЦІЯ» + картка з трьома рядками-перемикачами, ряд
+    /// «Додому» (бірюзова) + «Колекція» (скло), «Почати заново» (скло, лише в забігу), «ІНШЕ» + картка (приховати
+    /// профіль з поясненням, мова — схована, політика й підтримка з бейджем «Скоро» або «›»); внизу екрана — версія.
+    /// Рядки картки — 57 px, роздільник line-700 зверху кожного, крім першого. Меню: Ink Flow → Setup → Build Settings Screen.
     /// </summary>
     public static class BuildSettingsScreen
     {
         private const string ScenePath = "Assets/Scenes/Settings.unity";
         private const string PrefabFolder = "Assets/_Prefabs/UI";
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
-        private const string FontPath = "Assets/_Fonts/Nunito ExtraBold SDF.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        private const float K = DesignSystem.MockupToReference;
-
-        private static float M(float mockupPx) => Mathf.Round(mockupPx * K);
-
-        private static readonly float SideMargin = M(18f);
-        private static readonly float RowHeight = M(48f);
-        private static readonly float CardPadding = M(6f);
-        private static readonly float CardRadius = M(22f);
+        /// <summary>Висота рядка картки (S11_01: 57 px), поля рядка й відступ роздільника від краю картки.</summary>
+        private const float RowPx = 57f;
+        private const float RowPaddingPx = 20f;
+        private const float DividerInsetPx = 15f;
 
         [MenuItem("Ink Flow/Setup/Build Settings Screen")]
         public static void Build()
@@ -60,22 +52,13 @@ namespace InkFlow.Editor
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var design = AssetDatabase.LoadAssetAtPath<DesignSystem>(DesignSystemPath);
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(FontPath);
             IconSprites = AssetDatabase.LoadAssetAtPath<TMP_SpriteAsset>(SpriteAssetPath);
-
-            var rounded = LoadSprite("rounded-rect");
-            var outline = LoadSprite("rounded-rect-outline");
-            var circle = LoadSprite("circle-soft");
-            var circleOutline = LoadSprite("circle-outline");
             var cosmic = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabFolder}/CosmicBackground.prefab");
 
-            var missing = new List<string>();
+            var missing = new System.Collections.Generic.List<string>();
             if (design == null) missing.Add(DesignSystemPath);
-            if (rounded == null) missing.Add($"{SpriteFolder}/rounded-rect.png");
-            if (outline == null) missing.Add($"{SpriteFolder}/rounded-rect-outline.png");
-            if (circle == null) missing.Add($"{SpriteFolder}/circle-soft.png");
-            if (circleOutline == null) missing.Add($"{SpriteFolder}/circle-outline.png");
             if (cosmic == null) missing.Add($"{PrefabFolder}/CosmicBackground.prefab");
+            if (U1GlazeSprites.Load("toggle_track_on") == null) missing.Add("спрайти U1Glaze (Ink Flow → Setup → Build UI Kit)");
             if (missing.Count > 0)
             {
                 Debug.LogError("[InkFlow] Налаштування НЕ зібрано — не знайдено:\n  " + string.Join("\n  ", missing));
@@ -105,53 +88,113 @@ namespace InkFlow.Editor
             Stretch(screenGo);
             var screen = screenGo.AddComponent<SettingsScreen>();
 
-            var headerHeight = BuildHeader(screenGo, design!, font, circle!, circleOutline!, out var backButton, out var title);
-            VerticalScroll(screenGo, "Body", headerHeight + M(12f), out var content);
+            var column = Child(screenGo, "Column");
+            Stretch(column);
+            var col = column.AddComponent<VerticalLayoutGroup>();
+            col.padding = new RectOffset((int)U1.Px(16f), (int)U1.Px(16f), 0, (int)U1.Px(8f));
+            col.childAlignment = TextAnchor.UpperCenter;
+            col.childControlWidth = col.childControlHeight = true;
+            col.childForceExpandWidth = true;
+            col.childForceExpandHeight = false;
 
-            var y = 0f;
-            var soundCaption = Caption(content, "SoundCaption", "ЗВУК І ВІБРАЦІЯ", design!, font, ref y);
-            var soundCard = Card(content, "SoundCard", rounded!, outline!, design!, RowHeight * 3f + CardPadding * 2f, ref y);
-            var soundToggle = ToggleRow(soundCard, "Sound", "Звук", 0, design!, font, rounded!, circle!);
-            var musicToggle = ToggleRow(soundCard, "Music", "Музика", 1, design!, font, rounded!, circle!);
-            var vibrationToggle = ToggleRow(soundCard, "Vibration", "Вібрація", 2, design!, font, rounded!, circle!);
-            y -= M(14f);
+            var back = BuildHeader(column, design!);
 
-            var homeButton = ActionButton(content, "Home", "Додому", design!, font, rounded!, outline!, true, ref y, out var homeLabel);
-            var restartButton = ActionButton(content, "Restart", "Заново", design!, font, rounded!, outline!, false, ref y, out var restartLabel);
-            var collectionButton = ActionButton(content, "Collection", "Колекція", design!, font, rounded!, outline!, false, ref y, out var collectionLabel);
-            y -= M(4f);
+            // ── Скрол: на SE у забігу все разом не вміщається, на високих телефонах — без прокрутки ──
+            var scrollGo = Child(column, "Scroll");
+            scrollGo.AddComponent<LayoutElement>().flexibleHeight = 1f;
+            var scroll = scrollGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
+            var catcher = scrollGo.AddComponent<Image>();
+            catcher.color = Color.clear;
+            var viewportGo = Child(scrollGo, "Viewport");
+            Stretch(viewportGo);
+            // Маска виходить за поля стовпчика: тіні карток не зрізаються по краях.
+            var viewportRect = viewportGo.GetComponent<RectTransform>();
+            viewportRect.offsetMin = new Vector2(-U1.Px(16f), 0f);
+            viewportRect.offsetMax = new Vector2(U1.Px(16f), 0f);
+            viewportGo.AddComponent<RectMask2D>();
+            var contentGo = Child(viewportGo, "Content");
+            var content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+            var stack = contentGo.AddComponent<VerticalLayoutGroup>();
+            stack.padding = new RectOffset((int)U1.Px(16f), (int)U1.Px(16f), (int)U1.Px(6f), (int)U1.Px(20f));
+            stack.spacing = 0f;
+            stack.childAlignment = TextAnchor.UpperCenter;
+            stack.childControlWidth = stack.childControlHeight = true;
+            stack.childForceExpandWidth = true;
+            stack.childForceExpandHeight = false;
+            contentGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            scroll.viewport = viewportRect;
+            scroll.content = content;
 
-            var othersCaption = Caption(content, "OthersCaption", "ІНШІ НАЛАШТУВАННЯ", design!, font, ref y);
-            var othersCard = Card(content, "OthersCard", rounded!, outline!, design!, RowHeight * 4f + M(36f) + CardPadding * 2f, ref y);
-            var hideProfileToggle = ToggleRow(othersCard, "HideProfile", "Приховати профіль у рейтингах", 0, design!, font, rounded!, circle!);
-            var languageButton = LinkRow(othersCard, "Language", "Мова", "Українська", 1, design!, font, out var languageLabel, out var languageValue);
-            var privacyButton = LinkRow(othersCard, "Privacy", "Політика приватності", "скоро", 2, design!, font, out var privacyLabel, out var privacyHint);
-            var supportButton = LinkRow(othersCard, "Support", "Написати в підтримку", "скоро", 3, design!, font, out var supportLabel, out var supportHint);
-            var version = Label(othersCard, "Version", "Ink Flow · версія 1.0", design!, font,
-                design!.FontSizeCaption, design.TextDim, TextAlignmentOptions.Center);
-            var versionRect = version.GetComponent<RectTransform>();
-            versionRect.anchorMin = new Vector2(0f, 1f);
-            versionRect.anchorMax = new Vector2(1f, 1f);
-            versionRect.pivot = new Vector2(0.5f, 1f);
-            versionRect.offsetMin = new Vector2(0f, -(CardPadding + RowHeight * 4f + M(36f)));
-            versionRect.offsetMax = new Vector2(0f, -(CardPadding + RowHeight * 4f));
+            // ── ЗВУК І ВІБРАЦІЯ ──
+            SectionLabel(contentGo, "SoundCaption", "Звук і вібрація", design!);
+            var soundCard = Card(contentGo, "SoundCard");
+            var sound = ToggleRow(soundCard, "Sound", "Звук", null, design!, first: true);
+            var music = ToggleRow(soundCard, "Music", "Музика", null, design!);
+            var vibration = ToggleRow(soundCard, "Vibration", "Вібрація", null, design!);
+
+            // ── Дії: «Додому» + «Колекція», під ними в забігу «Почати заново» ──
+            U1.Gap(contentGo, 16f);
+            var actions = Child(contentGo, "Actions");
+            var actionsLayout = actions.AddComponent<VerticalLayoutGroup>();
+            actionsLayout.spacing = U1.Px(12f);
+            actionsLayout.childControlWidth = actionsLayout.childControlHeight = true;
+            actionsLayout.childForceExpandWidth = true;
+            actionsLayout.childForceExpandHeight = false;
+            actions.AddComponent<LayoutElement>().flexibleHeight = 0f;
+
+            var pair = Child(actions, "Pair");
+            var pairLayout = pair.AddComponent<HorizontalLayoutGroup>();
+            pairLayout.spacing = U1.Px(12f);
+            pairLayout.childControlWidth = pairLayout.childControlHeight = true;
+            pairLayout.childForceExpandWidth = true;
+            pairLayout.childForceExpandHeight = false;
+            U1.Size(pair, 0f, 56f).flexibleHeight = 0f;
+            var home = U1.Button(pair, "Home", "Додому", design!, CandyButton.Tone.Teal);
+            ActionSize(home);
+            var collection = U1.Button(pair, "Collection", "Колекція", design!, CandyButton.Tone.Glass);
+            ActionSize(collection);
+
+            var restart = U1.Button(actions, "Restart", "Почати заново", design!, CandyButton.Tone.Glass);
+            ActionSize(restart);
+            restart.gameObject.SetActive(false);
+
+            // ── ІНШЕ ──
+            U1.Gap(contentGo, 8f);
+            var othersCaption = SectionLabel(contentGo, "OthersCaption", "Інше", design!);
+            var othersCard = Card(contentGo, "OthersCard");
+            var hideProfile = ToggleRow(othersCard, "HideProfile", "Приховати профіль у рейтингах",
+                "Інші бачитимуть тебе як «Гравець-інкогніто»", design!, first: true);
+            var language = LinkRow(othersCard, "Language", "Мова", design!, out var languageValue, out var languageSoon, out var languageChevron);
+            languageValue.gameObject.SetActive(true);
+            languageValue.text = "Українська";
+            languageSoon.SetActive(false);
+            languageChevron.SetActive(true);
             // Рядок мови в префабі схований: екран вмикає його лише з двома й більше локалями.
-            languageButton.gameObject.SetActive(false);
+            language.gameObject.SetActive(false);
+            var privacy = LinkRow(othersCard, "Privacy", "Політика приватності", design!, out _, out var privacySoon, out var privacyChevron);
+            var support = LinkRow(othersCard, "Support", "Написати в підтримку", design!, out _, out var supportSoon, out var supportChevron);
 
-            content.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, -y + M(24f));
+            // ── Версія — внизу екрана, поза скролом ──
+            var version = U1.Text(column, "Version", "SpacePaint · версія 1.0", design!, U1.Role.Caption, design!.InkDim);
+            version.textWrappingMode = TextWrappingModes.NoWrap;
+            U1.Size(version.gameObject, 0f, 32f).flexibleHeight = 0f;
 
             Wire(screen,
-                ("design", design!), ("backButton", backButton), ("title", title),
-                ("soundCaption", soundCaption), ("soundToggle", soundToggle), ("musicToggle", musicToggle),
-                ("vibrationToggle", vibrationToggle),
-                ("homeButton", homeButton), ("homeLabel", homeLabel),
-                ("restartButton", restartButton), ("restartLabel", restartLabel),
-                ("collectionButton", collectionButton), ("collectionLabel", collectionLabel),
-                ("content", content.GetComponent<RectTransform>()), ("othersCard", othersCard.GetComponent<RectTransform>()),
-                ("othersCaption", othersCaption), ("hideProfileToggle", hideProfileToggle),
-                ("languageButton", languageButton), ("languageLabel", languageLabel), ("languageValue", languageValue),
-                ("privacyButton", privacyButton), ("privacyLabel", privacyLabel), ("privacyHint", privacyHint),
-                ("supportButton", supportButton), ("supportLabel", supportLabel), ("supportHint", supportHint),
+                ("design", design), ("backButton", back),
+                ("soundToggle", sound), ("musicToggle", music), ("vibrationToggle", vibration),
+                ("homeButton", home), ("collectionButton", collection), ("restartButton", restart),
+                ("content", content), ("othersCaption", othersCaption), ("hideProfileToggle", hideProfile),
+                ("languageButton", language), ("languageValue", languageValue),
+                ("privacyButton", privacy), ("privacySoon", privacySoon), ("privacyChevron", privacyChevron),
+                ("supportButton", support), ("supportSoon", supportSoon), ("supportChevron", supportChevron),
                 ("versionLabel", version));
 
             var eventSystem = new GameObject("EventSystem");
@@ -165,200 +208,166 @@ namespace InkFlow.Editor
 
             InkFlowBootstrap.EnsureFolder("Assets/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
-            Debug.Log($"[InkFlow] Налаштування зібрано: {ScenePath} (коефіцієнт {K:0.000}).");
+            Debug.Log($"[InkFlow] Налаштування зібрано: {ScenePath} (U1Glaze, коефіцієнт {DesignSystem.MockupToReference:0.000}).");
         }
 
-        private static float BuildHeader(GameObject parent, DesignSystem design, TMP_FontAsset? font,
-            Sprite circle, Sprite circleOutline, out Button backButton, out TMP_Text title)
+        /// <summary>Шапка 56 (S11_01): «‹» icon_button 46 ліворуч, назва h2 по центру шапки (не по залишку ряду).</summary>
+        private static Button BuildHeader(GameObject column, DesignSystem design)
         {
-            var height = M(46f);
-            var go = Child(parent, "Header");
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, -height);
-            rect.offsetMax = new Vector2(-SideMargin, 0f);
+            var row = Child(column, "Header");
+            U1.Size(row, 0f, 56f).flexibleHeight = 0f;
 
-            backButton = RoundIconButton(go, "Back", design, font, circle, circleOutline, null, "‹",
-                new Vector2(0f, 0.5f), Vector2.zero);
+            var back = U1.IconButton(row, "Back", design, "icon_back", new Vector2(0f, 0.5f), Vector2.zero);
 
-            // Праворуч нічого немає (це і є налаштування), тож заголовок центрується по шапці.
-            title = Label(go, "Title", "НАЛАШТУВАННЯ", design, font,
-                design.FontSizePaintTitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, Vector2.zero, new Vector2(M(260f), M(24f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            return height;
+            var title = U1.Text(row, "Title", "Налаштування", design, U1.Role.H2, design.InkText);
+            title.textWrappingMode = TextWrappingModes.NoWrap;
+            title.overflowMode = TextOverflowModes.Ellipsis;
+            var titleRect = title.rectTransform;
+            titleRect.anchorMin = new Vector2(0f, 0f);
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            // Поля під «‹» з обох боків: назва по центру й не залазить під кнопку.
+            var side = design.IconButtonSize + U1.Px(8f);
+            titleRect.offsetMin = new Vector2(side, 0f);
+            titleRect.offsetMax = new Vector2(-side, 0f);
+            return back;
         }
 
-        private static TMP_Text Caption(GameObject content, string name, string text, DesignSystem design,
-            TMP_FontAsset? font, ref float y)
+        /// <summary>Підпис секції («ЗВУК І ВІБРАЦІЯ», «ІНШЕ»): label великими, ink-muted, з відступом 6 від краю картки.</summary>
+        private static TMP_Text SectionLabel(GameObject parent, string name, string text, DesignSystem design)
         {
-            var label = Label(content, name, text, design, font, design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Left);
-            var rect = label.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin + M(6f), y - M(18f));
-            rect.offsetMax = new Vector2(-SideMargin, y);
-            y -= M(24f);
+            var label = U1.Text(parent, name, text, design, U1.Role.Label, design.InkMuted, TextAlignmentOptions.Left);
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.margin = new Vector4(U1.Px(6f), 0f, 0f, 0f);
+            U1.Size(label.gameObject, 0f, 26f).flexibleHeight = 0f;
+            U1.Gap(parent, 6f);
             return label;
         }
 
-        /// <summary>Скляна картка на всю ширину з відступами; рядки кладуться всередину зверху.</summary>
-        private static GameObject Card(GameObject content, string name, Sprite rounded, Sprite outline,
-            DesignSystem design, float height, ref float y)
+        /// <summary>Картка panel_card: рядки один під одним, поля 4 згори й знизу.</summary>
+        private static GameObject Card(GameObject parent, string name)
         {
-            var go = Child(content, name);
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, y - height);
-            rect.offsetMax = new Vector2(-SideMargin, y);
-
-            var fill = go.AddComponent<Image>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(CardRadius);
-            fill.color = design.GlassFill;
-            fill.raycastTarget = false;
-
-            var strokeGo = Child(go, "Stroke");
-            Stretch(strokeGo);
-            var stroke = strokeGo.AddComponent<Image>();
-            stroke.sprite = outline;
-            stroke.type = Image.Type.Sliced;
-            stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(CardRadius);
-            stroke.color = design.GlassStroke;
-            stroke.raycastTarget = false;
-
-            y -= height;
-            return go;
+            var card = U1.Panel(parent, name, "panel_card");
+            var layout = card.AddComponent<VerticalLayoutGroup>();
+            var pad = (int)U1.Px(4f);
+            layout.padding = new RectOffset(0, 0, pad, pad);
+            layout.spacing = 0f;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            card.AddComponent<LayoutElement>().flexibleHeight = 0f;
+            return card;
         }
 
-        private static RectTransform Row(GameObject card, string name, int index)
+        private static void ActionSize(CandyButton button)
         {
-            var go = Child(card, name);
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            var top = -(CardPadding + RowHeight * index);
-            rect.offsetMin = new Vector2(0f, top - RowHeight);
-            rect.offsetMax = new Vector2(0f, top);
-            return rect;
+            var size = U1.Size(button.gameObject, 0f, 56f);
+            size.flexibleWidth = 1f;
+            size.flexibleHeight = 0f;
         }
 
-        /// <summary>Рядок із перемикачем: тап по всьому рядку, пігулка 52×30 праворуч, кружок 22.</summary>
-        private static SettingsToggle ToggleRow(GameObject card, string name, string text, int index,
-            DesignSystem design, TMP_FontAsset? font, Sprite rounded, Sprite circle)
+        /// <summary>
+        /// Рядок картки: зона тапу на весь рядок, роздільник зверху (крім першого), вертикальна група з «лінією»
+        /// (напис ліворуч + праве) і, якщо є, поясненням під нею. Напис переноситься (S12_11: «Приховати профіль
+        /// у рейтингах» на SE — два рядки), рядок росте разом із ним.
+        /// </summary>
+        private static (GameObject row, GameObject line, TMP_Text label, Button button) Row(GameObject card, string name, string text,
+            string? note, DesignSystem design, bool first)
         {
-            var row = Row(card, name, index);
-            var hit = row.gameObject.AddComponent<Image>();
+            var row = Child(card, name);
+            var hit = row.AddComponent<Image>();
             hit.color = Color.clear;
+            var layout = row.AddComponent<VerticalLayoutGroup>();
+            var pad = (int)U1.Px(RowPaddingPx);
+            layout.padding = new RectOffset(pad, pad, 0, note != null ? (int)U1.Px(12f) : 0);
+            layout.spacing = 0f;
+            layout.childControlWidth = layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            row.AddComponent<LayoutElement>().flexibleHeight = 0f;
 
-            var label = Label(row.gameObject, "Label", text, design, font, design.FontSizeBody, design.TextPrimary, TextAlignmentOptions.Left);
-            var labelRect = label.GetComponent<RectTransform>();
-            labelRect.anchorMin = new Vector2(0f, 0f);
-            labelRect.anchorMax = new Vector2(1f, 1f);
-            labelRect.offsetMin = new Vector2(M(16f), 0f);
-            labelRect.offsetMax = new Vector2(-M(84f), 0f);
+            if (!first)
+            {
+                var divider = U1.Divider(row, "Divider", design);
+                divider.gameObject.AddComponent<LayoutElement>().ignoreLayout = true;
+                var rect = divider.rectTransform;
+                rect.pivot = new Vector2(0.5f, 1f);
+                rect.offsetMin = new Vector2(U1.Px(DividerInsetPx), -U1.Px(1f));
+                rect.offsetMax = new Vector2(-U1.Px(DividerInsetPx), 0f);
+            }
 
-            var trackGo = Child(row.gameObject, "Track");
-            var track = trackGo.AddComponent<Image>();
-            track.sprite = rounded;
-            track.type = Image.Type.Sliced;
-            track.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(15f));
-            track.color = design.ToggleOffFill;
-            track.raycastTarget = false;
-            Place(track, new Vector2(-M(16f), 0f), new Vector2(M(52f), M(30f)),
-                new Vector2(1f, 0.5f), new Vector2(1f, 0.5f));
+            var line = Child(row, "Line");
+            var lineLayout = line.AddComponent<HorizontalLayoutGroup>();
+            // Проміжок 4, не 12: напис вирівняний ліворуч і до перемикача майже не доходить, а на 402 «Приховати
+            // профіль у рейтингах» потребує ~263 з 266 px — з 12 переносився б (S11_01 — один рядок).
+            lineLayout.spacing = U1.Px(4f);
+            lineLayout.childAlignment = TextAnchor.MiddleLeft;
+            lineLayout.childControlWidth = lineLayout.childControlHeight = true;
+            lineLayout.childForceExpandWidth = lineLayout.childForceExpandHeight = false;
+            var lineSize = line.AddComponent<LayoutElement>();
+            lineSize.minHeight = U1.Px(note != null ? 50f : RowPx);
+            lineSize.flexibleHeight = 0f;
 
-            var knobGo = Child(trackGo, "Knob");
-            var knob = knobGo.AddComponent<Image>();
-            knob.sprite = circle;
-            knob.color = design.ToggleKnob;
-            knob.raycastTarget = false;
-            Place(knob, Vector2.zero, new Vector2(M(22f), M(22f)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            // S11_01: напис рядка — 16/900 (кегль body, Nunito Black, як у чипа), а не h3 18: на 402 «Приховати профіль
+            // у рейтингах» стає в один рядок поруч із перемикачем, на SE переноситься (S12_11).
+            var label = U1.Text(line, "Label", text, design, U1.Role.Body, design.InkText, TextAlignmentOptions.Left);
+            label.font = design.FontBlack;
+            label.textWrappingMode = TextWrappingModes.Normal;
+            var labelSize = label.gameObject.AddComponent<LayoutElement>();
+            labelSize.preferredWidth = 0f;
+            labelSize.minWidth = 0f;
+            labelSize.flexibleWidth = 1f;
 
-            var button = row.gameObject.AddComponent<Button>();
+            if (note != null)
+            {
+                var caption = U1.Text(row, "Note", note, design, U1.Role.Caption, design.InkMuted, TextAlignmentOptions.Left);
+                caption.textWrappingMode = TextWrappingModes.Normal;
+            }
+
+            var button = row.AddComponent<Button>();
             button.targetGraphic = hit;
+            button.transition = Selectable.Transition.None;
+            return (row, line, label, button);
+        }
 
-            var toggle = row.gameObject.AddComponent<SettingsToggle>();
-            Wire(toggle, ("design", design), ("label", label), ("button", button),
-                ("track", track), ("knob", knobGo.GetComponent<RectTransform>()), ("knobImage", knob));
+        /// <summary>Рядок із перемикачем U1 56×34 праворуч; тап по всьому рядку.</summary>
+        private static SettingsToggle ToggleRow(GameObject card, string name, string text, string? note, DesignSystem design, bool first = false)
+        {
+            var (row, line, label, button) = Row(card, name, text, note, design, first);
+            var (track, knob) = U1.Toggle(line, "Toggle", design, true);
+            track.raycastTarget = false;
+            U1.Size(track.gameObject, 56f, 34f);
+
+            var toggle = row.AddComponent<SettingsToggle>();
+            Wire(toggle, ("label", label), ("button", button), ("track", track), ("knob", knob),
+                ("trackOn", U1.S("toggle_track_on")), ("trackOff", U1.S("toggle_track_off")),
+                ("knobOn", U1.S("toggle_knob_on")), ("knobOff", U1.S("toggle_knob_off")));
+            var so = new SerializedObject(toggle);
+            so.FindProperty("knobTravel").floatValue = U1.Px(U1.ToggleKnobTravelPx);
+            so.ApplyModifiedPropertiesWithoutUndo();
             return toggle;
         }
 
-        /// <summary>Рядок-посилання: напис ліворуч, значення або «›» праворуч; тап по всьому рядку.</summary>
-        private static Button LinkRow(GameObject card, string name, string text, string valueText, int index,
-            DesignSystem design, TMP_FontAsset? font, out TMP_Text label, out TMP_Text value)
+        /// <summary>Рядок-посилання: напис ліворуч, праворуч — значення (мова), сірий бейдж «Скоро» або «›».</summary>
+        private static Button LinkRow(GameObject card, string name, string text, DesignSystem design,
+            out TMP_Text value, out GameObject soon, out GameObject chevron)
         {
-            var row = Row(card, name, index);
-            var hit = row.gameObject.AddComponent<Image>();
-            hit.color = Color.clear;
+            var (_, line, _, button) = Row(card, name, text, null, design, first: false);
 
-            label = Label(row.gameObject, "Label", text, design, font, design.FontSizeBody, design.TextPrimary, TextAlignmentOptions.Left);
-            var labelRect = label.GetComponent<RectTransform>();
-            labelRect.anchorMin = new Vector2(0f, 0f);
-            labelRect.anchorMax = new Vector2(1f, 1f);
-            labelRect.offsetMin = new Vector2(M(16f), 0f);
-            labelRect.offsetMax = new Vector2(-M(110f), 0f);
+            value = U1.Text(line, "Value", string.Empty, design, U1.Role.Body, design.InkMuted, TextAlignmentOptions.Right);
+            value.textWrappingMode = TextWrappingModes.NoWrap;
+            value.gameObject.SetActive(false);
 
-            value = Label(row.gameObject, "Value", valueText, design, font, design.FontSizeBody, design.TextMuted, TextAlignmentOptions.Right);
-            var valueRect = value.GetComponent<RectTransform>();
-            valueRect.anchorMin = new Vector2(0f, 0f);
-            valueRect.anchorMax = new Vector2(1f, 1f);
-            valueRect.offsetMin = new Vector2(M(120f), 0f);
-            valueRect.offsetMax = new Vector2(-M(16f), 0f);
+            soon = U1.Badge(line, "Soon", "Скоро", design, "badge_grey", design.InkText).transform.parent.gameObject;
 
-            var button = row.gameObject.AddComponent<Button>();
-            button.targetGraphic = hit;
-            return button;
-        }
-
-        /// <summary>Кнопка-дія на всю ширину: «Додому» — акцентний градієнт, решта — скло.</summary>
-        private static Button ActionButton(GameObject content, string name, string text, DesignSystem design,
-            TMP_FontAsset? font, Sprite rounded, Sprite outline, bool accent, ref float y, out TMP_Text label)
-        {
-            var height = M(48f);
-            var go = Child(content, name);
-            var rect = go.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(SideMargin, y - height);
-            rect.offsetMax = new Vector2(-SideMargin, y);
-
-            var fill = go.AddComponent<GradientImage>();
-            fill.sprite = rounded;
-            fill.type = Image.Type.Sliced;
-            fill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(24f));
-            if (accent)
-                fill.SetGradient(design.AccentTeal, design.AccentBlue);
-            else
-                fill.SetGradient(design.GlassFill, design.GlassFill);
-
-            if (!accent)
-            {
-                var strokeGo = Child(go, "Stroke");
-                Stretch(strokeGo);
-                var stroke = strokeGo.AddComponent<Image>();
-                stroke.sprite = outline;
-                stroke.type = Image.Type.Sliced;
-                stroke.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(M(24f));
-                stroke.color = design.GlassStroke;
-                stroke.raycastTarget = false;
-            }
-
-            label = Label(go, "Label", text, design, font, design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(label.gameObject);
-
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = fill;
-            y -= height + M(10f);
+            var chevronGo = Child(line, "Chevron");
+            var icon = chevronGo.AddComponent<Image>();
+            icon.sprite = U1.S("icon_chev");
+            icon.color = design.InkMuted;
+            icon.raycastTarget = false;
+            icon.preserveAspect = true;
+            U1.Size(chevronGo, 20f, 20f);
+            chevronGo.SetActive(false);
+            chevron = chevronGo;
             return button;
         }
     }

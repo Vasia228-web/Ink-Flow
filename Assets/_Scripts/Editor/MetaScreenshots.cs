@@ -31,13 +31,31 @@ namespace InkFlow.Editor
             "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase",
             "planet-visitor-sphere", "planet-visitor-horizon",
             "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
-            "settings", "settings-run",
+            "settings", "settings-run", "settings-links",
             "profile-fresh", "profile", "profile-nick", "profile-nick-error", "profile-nick-max",
             "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline", "galaxy-visitor"
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen", "ProfileScreen" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen", "ProfileScreen", "SettingsScreen" };
+
+        /// <summary>Стани налаштувань (крок 9 U1Glaze): S11_01 з хаба, з забігу («Почати заново»), з адресами й двома мовами.</summary>
+        public static readonly string[] SettingsStates = { "settings", "settings-run", "settings-links" };
+
+        /// <summary>Знімки налаштувань із уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
+        [MenuItem("Ink Flow/Debug/Capture Settings Screenshots")]
+        public static void CaptureSettings()
+        {
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in SettingsStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Debug.Log($"[InkFlow] Знімки налаштувань: {SettingsStates.Length} станів × {ScreenRigBase.Devices.Length} пристроїв у {OutputFolder}.");
+            Finish(overBudget, audit);
+        }
 
         /// <summary>Стани профілю (крок 8 U1Glaze): S10_01, новий гравець, діалог ніка S10_02 / 03 (заборонене) / 04 (межа).</summary>
         public static readonly string[] ProfileStates = { "profile", "profile-fresh", "profile-nick", "profile-nick-error", "profile-nick-max" };
@@ -560,12 +578,19 @@ namespace InkFlow.Editor
                 }
                 case "settings":
                 case "settings-run":
+                case "settings-links":
                 {
-                    // З хаба (без «Заново») і з забігу (з «Заново»); посилання порожні — рядки «скоро».
+                    // З хаба (без «Почати заново») і з забігу (з ним); посилання порожні — бейджі «Скоро»;
+                    // «settings-links» — адреси й дві мови в конфігу: рядок «Мова» і «›» замість бейджів.
                     using var rig = MetaScreenRig<SettingsScreen>.Create(device, "SettingsScreen");
                     var player = rig.NewPlayer();
-                    rig.Screen.BindLinks(AppLinks.Default);
+                    rig.Screen.BindLinks(state == "settings-links"
+                        ? new AppLinks("https://example.com/privacy", "mailto:help@example.com", new[] { "uk", "en" })
+                        : AppLinks.Default);
                     rig.Enter(player, new SettingsArgs(inRun: state == "settings-run"));
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "SettingsScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }

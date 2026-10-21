@@ -6,8 +6,8 @@ using NUnit.Framework;
 namespace InkFlow.UI.Tests
 {
     /// <summary>
-    /// Налаштування (§15) на живому рендері: перемикачі пишуть у стан, «Заново» лише в забігу, рядок мови
-    /// з'являється лише з двома локалями, посилання без адреси — «скоро», версія на екрані; гаптика за
+    /// Налаштування (§15) на живому рендері: перемикачі пишуть у стан, «Почати заново» лише в забігу, рядок мови
+    /// з'являється лише з двома локалями, посилання без адреси — бейдж «Скоро», версія на екрані; гаптика за
     /// перемикачем реально мовчить.
     /// Потрібен зібраний префаб — Ink Flow → Setup → Build Settings Screen.
     /// </summary>
@@ -69,7 +69,7 @@ namespace InkFlow.UI.Tests
             Assert.IsTrue(rig.Screen.PreviewVersion.Contains("версія"), rig.Screen.PreviewVersion);
 
             rig.Enter(player, new SettingsArgs(inRun: true));
-            Assert.IsTrue(rig.Screen.PreviewRestartShown, "у забігу — «Заново»");
+            Assert.IsTrue(rig.Screen.PreviewRestartShown, "у забігу — «Почати заново»");
 
             rig.Screen.BindLinks(new AppLinks("https://example.com/privacy", "help@example.com", new[] { "uk", "en" }));
             rig.Enter(player, new SettingsArgs(inRun: false));
@@ -78,25 +78,37 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
-        public void HiddenRestart_LeavesNoGapBetweenHomeAndCollection()
+        public void HiddenRestart_LeavesNoGap_AndComesBackInPlace()
         {
             using var rig = MetaScreenRig<SettingsScreen>.Create(ScreenRigBase.Devices[0], "SettingsScreen");
             var player = rig.NewPlayer();
             rig.Screen.BindLinks(AppLinks.Default);
 
+            rig.Enter(player, new SettingsArgs(inRun: false));
+            var othersHub = rig.Screen.PreviewOthersTop;
+
             rig.Enter(player, new SettingsArgs(inRun: true));
-            var gapInRun = rig.Screen.PreviewGapBelowHome;
-            var othersInRun = rig.Screen.PreviewGapAboveOthers;
-            Assert.Greater(gapInRun, 0f, "між кнопками є проміжок із префаба");
+            var othersRun = rig.Screen.PreviewOthersTop;
+            Assert.Greater(othersHub - othersRun, 100f, "у забігу «Почати заново» відсуває «ІНШЕ» вниз на свою висоту");
 
             rig.Enter(player, new SettingsArgs(inRun: false));
-            Assert.IsFalse(rig.Screen.PreviewRestartShown);
-            Assert.AreEqual(gapInRun, rig.Screen.PreviewGapBelowHome, 0.5f, "«Колекція» стала на місце схованого «Заново»");
-            Assert.AreEqual(othersInRun, rig.Screen.PreviewGapAboveOthers, 0.5f, "підпис «Інші» підтягнувся разом із нею");
+            Assert.AreEqual(othersHub, rig.Screen.PreviewOthersTop, 0.5f, "сховане «Почати заново» не лишає дірки — і без накопичення зсуву");
+        }
 
-            rig.Enter(player, new SettingsArgs(inRun: true));
-            Assert.AreEqual(gapInRun, rig.Screen.PreviewGapBelowHome, 0.5f, "і назад — без накопичення зсуву");
-            Assert.AreEqual(othersInRun, rig.Screen.PreviewGapAboveOthers, 0.5f);
+        [Test]
+        public void UnconfiguredLinks_ShowSoonBadge_ConfiguredShowChevron()
+        {
+            using var rig = MetaScreenRig<SettingsScreen>.Create(ScreenRigBase.Devices[0], "SettingsScreen");
+            var player = rig.NewPlayer();
+
+            rig.Screen.BindLinks(AppLinks.Default);
+            rig.Enter(player, new SettingsArgs(inRun: false));
+            Assert.IsTrue(rig.Screen.PreviewPrivacySoon, "адреси немає — сірий бейдж «Скоро»");
+
+            rig.Screen.BindLinks(new AppLinks("https://example.com/privacy", "help@example.com", new[] { "uk" }));
+            rig.Enter(player, new SettingsArgs(inRun: false));
+            Assert.IsFalse(rig.Screen.PreviewPrivacySoon, "адреса є — замість бейджа «›»");
+            Assert.IsTrue(rig.Screen.PreviewVersion.StartsWith("SpacePaint"), rig.Screen.PreviewVersion);
         }
 
         [Test]

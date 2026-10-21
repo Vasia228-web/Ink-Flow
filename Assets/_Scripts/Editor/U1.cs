@@ -390,6 +390,9 @@ namespace InkFlow.Editor
             return chip;
         }
 
+        /// <summary>Зсув кружка перемикача від центру доріжки: (56 − 28) / 2 − 3 px поля.</summary>
+        internal const float ToggleKnobTravelPx = 11f;
+
         /// <summary>Перемикач 56×34: доріжка й кружок — спрайти; стан — підміна спрайтів і позиція кружка.</summary>
         internal static (Image track, Image knob) Toggle(GameObject parent, string name, DesignSystem design, bool on)
         {
@@ -404,7 +407,8 @@ namespace InkFlow.Editor
             knob.sprite = S(on ? "toggle_knob_on" : "toggle_knob_off");
             knob.raycastTarget = false;
             var size = Px(28f);
-            Place(knob, new Vector2(on ? Px(11f) : -Px(11f), 0f), new Vector2(size, size), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            var travel = Px(ToggleKnobTravelPx);
+            Place(knob, new Vector2(on ? travel : -travel, 0f), new Vector2(size, size), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
             _ = design;
             return (track, knob);
         }
