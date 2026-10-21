@@ -1,5 +1,5 @@
 id: ghost_pirate
-name: ПРИВИД-ПІРАТ
+name: Привид-пірат
 theme: ghosts
 rarity: uncommon
 step: 9

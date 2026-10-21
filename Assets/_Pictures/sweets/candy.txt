@@ -1,5 +1,5 @@
 id: candy
-name: ЦУКЕРКА
+name: Цукерка
 theme: sweets
 rarity: common
 step: 7

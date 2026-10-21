@@ -1,5 +1,5 @@
 id: ghost_wizard
-name: ПРИВИД-ЧАРІВНИК
+name: Привид-чарівник
 theme: ghosts
 rarity: rare
 step: 8

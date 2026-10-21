@@ -1,5 +1,5 @@
 id: snail
-name: РАВЛИК
+name: Равлик
 theme: bugs
 rarity: uncommon
 step: 7

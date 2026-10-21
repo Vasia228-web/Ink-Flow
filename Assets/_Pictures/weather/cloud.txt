@@ -1,5 +1,5 @@
 id: cloud
-name: ХМАРКА
+name: Хмарка
 theme: weather
 rarity: common
 step: 7

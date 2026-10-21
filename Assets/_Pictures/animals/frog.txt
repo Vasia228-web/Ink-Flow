@@ -1,5 +1,5 @@
 id: frog
-name: ЖАБКА
+name: Жабка
 theme: animals
 rarity: common
 step: 11

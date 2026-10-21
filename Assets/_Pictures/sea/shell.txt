@@ -1,5 +1,5 @@
 id: shell
-name: МУШЛЯ
+name: Мушля
 theme: sea
 rarity: common
 step: 7

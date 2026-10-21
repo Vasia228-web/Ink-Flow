@@ -1,5 +1,5 @@
 id: cyclops
-name: ЦИКЛОПИК
+name: Циклопик
 theme: monsters
 rarity: common
 step: 9

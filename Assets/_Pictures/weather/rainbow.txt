@@ -1,5 +1,5 @@
 id: rainbow
-name: ВЕСЕЛКА
+name: Веселка
 theme: weather
 rarity: rare
 step: 7

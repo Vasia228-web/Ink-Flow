@@ -1,5 +1,5 @@
 id: ufo
-name: ЛЕТЮЧА ТАРІЛКА
+name: Летюча тарілка
 theme: space
 rarity: uncommon
 step: 6

@@ -1,5 +1,5 @@
 id: mouse
-name: МИШКА
+name: Мишка
 theme: animals
 rarity: common
 step: 10

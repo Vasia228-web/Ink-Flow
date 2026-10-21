@@ -1,5 +1,5 @@
 id: potion
-name: ЗІЛЛЯ
+name: Зілля
 theme: things
 rarity: uncommon
 step: 7

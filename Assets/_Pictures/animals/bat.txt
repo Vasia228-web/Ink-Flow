@@ -1,5 +1,5 @@
 id: bat
-name: КАЖАНЧИК
+name: Кажанчик
 theme: animals
 rarity: uncommon
 step: 5

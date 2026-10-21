@@ -1,5 +1,5 @@
 id: flower
-name: КВІТКА
+name: Квітка
 theme: plants
 rarity: common
 step: 10

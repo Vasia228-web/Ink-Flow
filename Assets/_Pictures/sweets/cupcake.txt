@@ -1,5 +1,5 @@
 id: cupcake
-name: КАПКЕЙК
+name: Капкейк
 theme: sweets
 rarity: uncommon
 step: 8

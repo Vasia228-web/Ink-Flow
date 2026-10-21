@@ -1,5 +1,5 @@
 id: sushi
-name: СУШІ
+name: Суші
 theme: food
 rarity: uncommon
 step: 6

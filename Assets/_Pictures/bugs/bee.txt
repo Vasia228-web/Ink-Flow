@@ -1,5 +1,5 @@
 id: bee
-name: БДЖІЛКА
+name: Бджілка
 theme: bugs
 rarity: common
 step: 8

@@ -1,5 +1,5 @@
 id: mushroom
-name: ГРИБОЧОК
+name: Грибочок
 theme: plants
 rarity: common
 step: 9

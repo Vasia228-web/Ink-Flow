@@ -1,5 +1,5 @@
 id: stego
-name: СТЕГОЗАВРИК
+name: Стего­заврик
 theme: dinos
 rarity: uncommon
 step: 6

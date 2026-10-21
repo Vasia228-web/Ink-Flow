@@ -1,5 +1,5 @@
 id: pizza
-name: ПІЦА
+name: Піца
 theme: food
 rarity: rare
 step: 6

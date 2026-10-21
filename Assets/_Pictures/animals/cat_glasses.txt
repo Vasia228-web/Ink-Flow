@@ -1,5 +1,5 @@
 id: cat_glasses
-name: КОТИК В ОКУЛЯРАХ
+name: Котик в окулярах
 theme: animals
 rarity: rare
 step: 6

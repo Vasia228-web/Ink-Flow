@@ -1,5 +1,5 @@
 id: snowflake
-name: СНІЖИНКА
+name: Сніжинка
 theme: weather
 rarity: uncommon
 step: 4

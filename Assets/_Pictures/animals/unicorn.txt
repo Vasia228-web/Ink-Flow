@@ -1,5 +1,5 @@
 id: unicorn
-name: ЄДИНОРІГ
+name: Єдиноріг
 theme: animals
 rarity: epic
 step: 5

@@ -1,5 +1,5 @@
 id: panda
-name: ПАНДА
+name: Панда
 theme: animals
 rarity: uncommon
 step: 9

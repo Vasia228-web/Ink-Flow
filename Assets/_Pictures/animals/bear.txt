@@ -1,5 +1,5 @@
 id: bear
-name: ВЕДМЕДИК
+name: Ведмедик
 theme: animals
 rarity: uncommon
 step: 9

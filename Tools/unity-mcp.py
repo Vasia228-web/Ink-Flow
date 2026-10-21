@@ -10,6 +10,7 @@
   python3 Tools/unity-mcp.py menu "Ink Flow/Setup/Build Hub Screen"
   python3 Tools/unity-mcp.py refresh                 — AssetDatabase.Refresh + дочекатися компіляції
   python3 Tools/unity-mcp.py tests [EditMode] [фільтр] — запустити тести й дочекатися підсумку
+  python3 Tools/unity-mcp.py test-job <id>           — дочекатися вже запущеної задачі тестів
   python3 Tools/unity-mcp.py call <інструмент> '<json-аргументи>'
 
 Код виходу: 0 — успіх; 1 — інструмент повернув помилку чи тести впали; 2 — немає зв'язку.
@@ -67,6 +68,9 @@ def call(name, args, timeout=600):
             data = json.loads(content[0].get('text', '{}'))
         except json.JSONDecodeError:
             data = {'text': content[0].get('text')}
+    # Частина інструментів (run_tests, get_test_job) загортає відповідь у {"result": {...}}.
+    if isinstance(data, dict) and set(data.keys()) == {'result'} and isinstance(data['result'], dict):
+        data = data['result']
     if result.get('isError') or (reply or {}).get('error'):
         data = data or {}
         data.setdefault('success', False)
@@ -123,14 +127,17 @@ def wait_idle(limit=600):
     return False
 
 
-def tests(mode='EditMode', test_filter=None):
+def tests(mode='EditMode', test_filter=None, job=None):
     args = {'mode': mode}
     if test_filter:
         args['test_names'] = [test_filter] if '.' in test_filter else None
         args['assembly_names'] = None if '.' in test_filter else [test_filter]
         args = {k: v for k, v in args.items() if v is not None}
-    started = call('run_tests', args)
-    job = ((started or {}).get('data') or {}).get('job_id')
+    if job is None:
+        started = call('run_tests', args)
+        job = ((started or {}).get('data') or {}).get('job_id')
+    else:
+        started = {}
     if not job:
         print('Тести не стартували:', json.dumps(started, ensure_ascii=False)[:800])
         return 1
@@ -186,6 +193,8 @@ def main(argv):
     if cmd == 'tests':
         mode = argv[2] if len(argv) > 2 else 'EditMode'
         return tests(mode, argv[3] if len(argv) > 3 else None)
+    if cmd == 'test-job':
+        return tests(job=argv[2])
     if cmd == 'call':
         if argv[2] == 'execute_code':
             print('execute_code заборонено без «ок» автора.')

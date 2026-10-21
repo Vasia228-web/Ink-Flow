@@ -1,5 +1,5 @@
 id: banana
-name: БАНАН
+name: Банан
 theme: food
 rarity: common
 step: 4

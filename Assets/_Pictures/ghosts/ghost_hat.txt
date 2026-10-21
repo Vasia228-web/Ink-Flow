@@ -1,5 +1,5 @@
 id: ghost_hat
-name: ПРИВИД У КАПЕЛЮСІ
+name: Привид у капелюсі
 theme: ghosts
 rarity: uncommon
 step: 10

@@ -1,5 +1,5 @@
 id: dragon
-name: ДРАКОНЧИК
+name: Дра­кончик
 theme: animals
 rarity: legendary
 step: 5

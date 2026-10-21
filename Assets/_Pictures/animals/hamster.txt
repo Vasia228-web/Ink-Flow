@@ -1,5 +1,5 @@
 id: hamster
-name: ХОМ'ЯЧОК
+name: Хом'ячок
 theme: animals
 rarity: common
 step: 10

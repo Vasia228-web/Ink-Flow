@@ -1,5 +1,5 @@
 id: donut
-name: ПОНЧИК
+name: Пончик
 theme: food
 rarity: uncommon
 step: 8

@@ -1,5 +1,5 @@
 id: bonsai
-name: БОНСАЙ
+name: Бонсай
 theme: plants
 rarity: rare
 step: 5

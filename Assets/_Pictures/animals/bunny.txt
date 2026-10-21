@@ -1,5 +1,5 @@
 id: bunny
-name: ЗАЙЧИК
+name: Зайчик
 theme: animals
 rarity: common
 step: 9

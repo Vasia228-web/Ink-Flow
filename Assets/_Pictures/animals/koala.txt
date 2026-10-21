@@ -1,5 +1,5 @@
 id: koala
-name: КОАЛА
+name: Коала
 theme: animals
 rarity: uncommon
 step: 9

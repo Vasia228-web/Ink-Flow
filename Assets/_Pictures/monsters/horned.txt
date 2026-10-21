@@ -1,5 +1,5 @@
 id: horned
-name: РОГАТИК
+name: Рогатик
 theme: monsters
 rarity: uncommon
 step: 8

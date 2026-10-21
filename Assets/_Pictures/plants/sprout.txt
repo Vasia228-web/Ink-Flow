@@ -1,5 +1,5 @@
 id: sprout
-name: ПАРОСТОК
+name: Паросток
 theme: plants
 rarity: common
 step: 6

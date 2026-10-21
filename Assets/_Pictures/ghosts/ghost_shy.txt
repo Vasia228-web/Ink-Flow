@@ -1,5 +1,5 @@
 id: ghost_shy
-name: СОРОМ'ЯЗЛИВИЙ ПРИВИД
+name: Сором'яз­ливий привид
 theme: ghosts
 rarity: common
 step: 11

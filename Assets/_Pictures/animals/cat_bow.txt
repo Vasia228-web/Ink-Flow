@@ -1,5 +1,5 @@
 id: cat_bow
-name: КОТИК ІЗ БАНТОМ
+name: Котик із бантом
 theme: animals
 rarity: uncommon
 step: 9

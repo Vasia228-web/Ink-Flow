@@ -1,5 +1,5 @@
 id: satellite
-name: СУПУТНИК
+name: Супутник
 theme: space
 rarity: rare
 step: 4

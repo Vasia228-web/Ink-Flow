@@ -1,5 +1,5 @@
 id: cactus
-name: КАКТУС
+name: Кактус
 theme: plants
 rarity: common
 step: 6

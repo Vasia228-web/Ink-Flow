@@ -1,5 +1,5 @@
 id: bigmouth
-name: ЗУБАСТИК
+name: Зубастик
 theme: monsters
 rarity: rare
 step: 7

@@ -1,5 +1,5 @@
 id: gem_cosmic
-name: СЕРЦЕ ГАЛАКТИКИ
+name: Серце галак­тики
 theme: things
 rarity: cosmic
 step: 3

@@ -1,5 +1,5 @@
 id: moon
-name: МІСЯЦЬ
+name: Місяць
 theme: space
 rarity: common
 step: 10

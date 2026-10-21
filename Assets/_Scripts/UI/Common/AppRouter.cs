@@ -154,6 +154,10 @@ namespace InkFlow.UI
             if (collection != null)
             {
                 collection.BackRequested += Pop;
+                // Колекція — вкладка (U1Glaze крок 5): її навігація веде туди ж, що й хаба; «Грати» з порожньої
+                // колекції чи фільтра — у забіг поверх неї, як «Грати» на головному.
+                collection.TabRequested += OnTab;
+                collection.PlayRequested += () => Push(endless, new EndlessArgs(_balance));
                 collection.PicturePicked += (args, pictureId) =>
                 {
                     // Постановка — одна дія стану: перевірка копій, запис і збереження разом.
@@ -294,7 +298,7 @@ namespace InkFlow.UI
                     OpenTab(galaxy, GalaxyArgs.OwnEntry());
                     break;
                 case NavBar.Collection:
-                    OpenTab(collection, new CollectionArgs());
+                    OpenTab(collection, CollectionArgs.Tab());
                     break;
                 case NavBar.Ranks:
                     OpenTab(rankings);

@@ -1,5 +1,5 @@
 id: robot
-name: РОБОТИК
+name: Роботик
 theme: things
 rarity: uncommon
 step: 8

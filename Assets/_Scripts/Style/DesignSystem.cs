@@ -1073,18 +1073,16 @@ namespace InkFlow.Style
         [SerializeField] private float paintConfettiSize = 60f;
         [SerializeField] private float paintConfettiSpread = 160f;
 
-        [Header("Колекція (§12)")]
+        [Header("Колекція (U1Glaze S06)")]
         [Tooltip("Колонок у сітці колекції.")]
         [SerializeField, Range(2, 4)] private int collectionColumns = 3;
-        [Tooltip("Картка колекції: ширина й висота (панель + підпис), px макета 104 × 128.")]
-        [SerializeField] private float collectionCardWidth = 288f;
-        [SerializeField] private float collectionCardHeight = 354f;
-        [Tooltip("Проміжок між картками: 11 px макета.")]
-        [SerializeField] private float collectionGap = 30f;
+        [Tooltip("Картка колекції в px макета: рамка рідкості на всю ширину (114 на 402), під нею мітки, назва в два рядки й лічильник (S06Collection_01).")]
+        [SerializeField, Min(60f)] private float collectionCardWidthPx = 114f;
+        [SerializeField, Min(80f)] private float collectionCardHeightPx = 190f;
+        [Tooltip("Проміжок між картками, px макета (по горизонталі й між рядами).")]
+        [SerializeField, Min(0f)] private float collectionGapPx = 14f;
         [Tooltip("Прозорість картки, усі копії якої вже стоять у слотах (режим вибору).")]
         [SerializeField, Range(0.1f, 1f)] private float collectionUsedAlpha = 0.35f;
-        [SerializeField] private float fontSizeCollectionName = 30f;
-        [SerializeField] private float fontSizeCollectionCount = 27f;
 
         public float BoardPlaceDuration => boardPlaceDuration;
         public float LineClearDuration => lineClearDuration;
@@ -1289,12 +1287,11 @@ namespace InkFlow.Style
         public float FontSizeCompletion => fontSizeCompletion;
 
         public int CollectionColumns => collectionColumns;
-        public float CollectionCardWidth => collectionCardWidth;
-        public float CollectionCardHeight => collectionCardHeight;
-        public float CollectionGap => collectionGap;
+        /// <summary>Картка колекції в reference-одиницях (px макета × <see cref="MockupToReference"/>).</summary>
+        public float CollectionCardWidth => collectionCardWidthPx * MockupToReference;
+        public float CollectionCardHeight => collectionCardHeightPx * MockupToReference;
+        public float CollectionGap => collectionGapPx * MockupToReference;
         public float CollectionUsedAlpha => collectionUsedAlpha;
-        public float FontSizeCollectionName => fontSizeCollectionName;
-        public float FontSizeCollectionCount => fontSizeCollectionCount;
         public float PaintApproachDuration => paintApproachDuration;
         public float PaintApproachFromScale => paintApproachFromScale;
         public float PaintConfettiSize => paintConfettiSize;

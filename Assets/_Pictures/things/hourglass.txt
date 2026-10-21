@@ -1,5 +1,5 @@
 id: hourglass
-name: ПІСОЧНИЙ ГОДИННИК
+name: Пісочний годинник
 theme: things
 rarity: rare
 step: 6

@@ -1,5 +1,5 @@
 id: jellyfish
-name: МЕДУЗКА
+name: Медузка
 theme: sea
 rarity: uncommon
 step: 6

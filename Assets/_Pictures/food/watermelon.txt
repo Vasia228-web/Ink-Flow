@@ -1,5 +1,5 @@
 id: watermelon
-name: КАВУН
+name: Кавун
 theme: food
 rarity: uncommon
 step: 5

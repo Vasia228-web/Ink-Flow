@@ -1,5 +1,5 @@
 id: kraken
-name: КРАКЕНЯ
+name: Кракеня
 theme: monsters
 rarity: legendary
 step: 6

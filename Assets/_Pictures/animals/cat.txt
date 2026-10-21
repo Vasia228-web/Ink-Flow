@@ -1,5 +1,5 @@
 id: cat
-name: КОТИК
+name: Котик
 theme: animals
 rarity: common
 step: 10

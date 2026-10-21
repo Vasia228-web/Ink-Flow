@@ -1,5 +1,5 @@
 id: beetle
-name: ЖУК-ОЛЕНЬ
+name: Жук-олень
 theme: bugs
 rarity: rare
 step: 5

@@ -1,5 +1,5 @@
 id: hedgehog
-name: ЇЖАЧОК
+name: Їжачок
 theme: animals
 rarity: uncommon
 step: 8

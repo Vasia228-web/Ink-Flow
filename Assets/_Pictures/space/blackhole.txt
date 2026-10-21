@@ -1,5 +1,5 @@
 id: blackhole
-name: ЧОРНА ДІРА
+name: Чорна діра
 theme: space
 rarity: cosmic
 step: 3

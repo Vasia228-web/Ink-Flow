@@ -1,5 +1,5 @@
 id: planet
-name: ПЛАНЕТА
+name: Планета
 theme: space
 rarity: common
 step: 7

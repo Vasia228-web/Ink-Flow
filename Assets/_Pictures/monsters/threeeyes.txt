@@ -1,5 +1,5 @@
 id: threeeyes
-name: ТРИОКИЙ
+name: Триокий
 theme: monsters
 rarity: uncommon
 step: 8

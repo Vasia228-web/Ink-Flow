@@ -1,5 +1,5 @@
 id: crab
-name: КРАБИК
+name: Крабик
 theme: sea
 rarity: common
 step: 8

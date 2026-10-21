@@ -1,5 +1,5 @@
 id: ghost
-name: ПРИВИДИК
+name: Привидик
 theme: ghosts
 rarity: common
 step: 11

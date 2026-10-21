@@ -1,5 +1,5 @@
 id: raincloud
-name: ДОЩОВА ХМАРКА
+name: Дощова хмарка
 theme: weather
 rarity: uncommon
 step: 6

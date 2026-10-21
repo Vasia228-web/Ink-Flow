@@ -29,14 +29,60 @@ namespace InkFlow.Editor
             "galaxy-fresh", "galaxy-mid", "galaxy-done", "galaxy-locked", "galaxy-complete", "galaxy-reveal", "galaxy-second",
             "planet-sphere-4", "planet-sphere-8", "planet-sphere-rotated", "planet-sphere-sheet", "planet-sphere-alive",
             "planet-horizon-12", "planet-horizon-20", "planet-horizon-sheet", "planet-horizon-alive", "planet-showcase",
-            "collection-browse", "collection-pick", "collection-empty",
+            "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
             "settings", "settings-run",
             "profile-fresh", "profile",
             "rankings", "rankings-offline", "galaxy-visitor"
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen" };
+
+        /// <summary>
+        /// Стани колекції (крок 5 U1Glaze): S06_01 (14 різних · 15 усього, копії в слотах), S06_02 (вибір у комірку з
+        /// обраною картинкою й картинкою, усі копії якої в слотах), S06_03 (порожній фільтр «Космічна»), новий гравець,
+        /// вибір вітринної картинки профілю.
+        /// </summary>
+        public static readonly string[] CollectionStates =
+        {
+            "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase"
+        };
+
+        /// <summary>Картинки макета S06 (за id): довгі назви з м'яким переносом і всі шість рідкостей.</summary>
+        private static readonly string[] MockupCollection =
+        {
+            "trice", "cactus_hat", "cupcake", "cherry", "robot", "unicorn", "flower", "heart", "gem_cosmic",
+            "ghost_shy", "alien", "dragon", "fish", "kraken"
+        };
+
+        /// <summary>Batch: лише колекція на всіх пристроях з автоперевіркою й бюджетом викликів — КТ кроку 5.</summary>
+        public static void BuildAndCaptureCollection()
+        {
+            RefreshPictureLibrary.Refresh();
+            BuildCollectionScreen.Build();
+            if (!MetaScreenRig<ScreenBase>.Available("CollectionScreen"))
+            {
+                Debug.LogError("[InkFlow] Немає префаба CollectionScreen — колекцію не зібрано.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+            CaptureCollection();
+        }
+
+        /// <summary>Знімки колекції з уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
+        [MenuItem("Ink Flow/Debug/Capture Collection Screenshots")]
+        public static void CaptureCollection()
+        {
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in CollectionStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Debug.Log($"[InkFlow] Знімки колекції: {CollectionStates.Length} станів × {ScreenRigBase.Devices.Length} пристроїв у {OutputFolder}.");
+            Finish(overBudget, audit);
+        }
 
         /// <summary>Стани галактики (крок 3 U1Glaze): S03_01 … S03_05, нова порожня галактика зі стрілками, гість S09_01.</summary>
         public static readonly string[] GalaxyStates =
@@ -482,19 +528,41 @@ namespace InkFlow.Editor
                 }
                 default:
                 {
+                    // Колекція (S06): 14 різних · 15 усього (капкейк двічі), у слотах — капкейк і роботик, як на макеті;
+                    // порожній фільтр — та сама колекція без космічних, фільтр «Космічна».
                     using var rig = MetaScreenRig<CollectionScreen>.Create(device, "CollectionScreen");
                     var player = rig.NewPlayer();
+                    player.Wallet.Add(1240, RewardSource.Debug);
                     if (state != "collection-empty")
                     {
-                        for (var i = 0; i < 20; i++)
-                            player.CollectPicture(rig.Library[(i * 5) % rig.Library.Count].Id, System.DateTime.UtcNow);
-                        player.CollectPicture(rig.Library[0].Id, System.DateTime.UtcNow);
-                        player.TryPlaceInSlot(0, player.Layout.Planets[0].Id, 0, rig.Library[0].Id, System.DateTime.UtcNow);
+                        var now = System.DateTime.UtcNow;
+                        foreach (var id in MockupCollection)
+                            if (rig.Library.Find(id) != null && (state != "collection-filter-empty" || id != "gem_cosmic"))
+                                player.CollectPicture(id, now);
+                        player.CollectPicture("cupcake", now);
+                        var planet = player.Layout.Planets[0].Id;
+                        player.TryPlaceInSlot(0, planet, 0, "cupcake", now);
+                        player.TryPlaceInSlot(0, planet, 1, "robot", now);
                     }
-                    var args = state == "collection-pick"
-                        ? new CollectionArgs(0, player.Layout.Planets[0].Id, 1)
-                        : new CollectionArgs();
+                    var args = state switch
+                    {
+                        "collection-pick" => new CollectionArgs(0, player.Layout.Planets[0].Id, 5),
+                        "collection-showcase" => CollectionArgs.ForShowcase(),
+                        _ => CollectionArgs.Tab()
+                    };
                     rig.Enter(player, args);
+                    if (state == "collection-pick")
+                    {
+                        var index = -1;
+                        for (var i = 0; i < rig.Screen.VisibleIds.Count; i++)
+                            if (rig.Screen.VisibleIds[i] == "cactus_hat") index = i;
+                        rig.Screen.PreviewTap(index);
+                    }
+                    if (state == "collection-filter-empty")
+                        rig.Screen.SetRarity((int)InkFlow.Core.Rarity.Cosmic + 1);
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "CollectionScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }

@@ -1,5 +1,5 @@
 id: cat_hat
-name: КОТИК У КАПЕЛЮСІ
+name: Котик у капелюсі
 theme: animals
 rarity: uncommon
 step: 10

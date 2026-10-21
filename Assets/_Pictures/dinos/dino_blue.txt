@@ -1,5 +1,5 @@
 id: dino_blue
-name: СИНЬОЗАВР
+name: Синьо­завр
 theme: dinos
 rarity: common
 step: 9

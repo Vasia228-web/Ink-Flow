@@ -1,5 +1,5 @@
 id: telescope
-name: ТЕЛЕСКОП
+name: Телескоп
 theme: space
 rarity: common
 step: 6

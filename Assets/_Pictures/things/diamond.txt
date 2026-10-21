@@ -1,5 +1,5 @@
 id: diamond
-name: ДІАМАНТ
+name: Діамант
 theme: things
 rarity: epic
 step: 4

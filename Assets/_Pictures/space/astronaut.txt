@@ -1,5 +1,5 @@
 id: astronaut
-name: КОСМОНАВТ
+name: Космо­навт
 theme: space
 rarity: rare
 step: 6

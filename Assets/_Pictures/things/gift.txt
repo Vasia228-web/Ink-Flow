@@ -1,5 +1,5 @@
 id: gift
-name: ПОДАРУНОК
+name: Пода­рунок
 theme: things
 rarity: uncommon
 step: 8

@@ -1,5 +1,5 @@
 id: ghost_crown
-name: ПРИВИД-КОРОЛЬ
+name: Привид-король
 theme: ghosts
 rarity: rare
 step: 8

@@ -1,5 +1,5 @@
 id: tulip
-name: ТЮЛЬПАН
+name: Тюльпан
 theme: plants
 rarity: common
 step: 7

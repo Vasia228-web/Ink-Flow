@@ -9,8 +9,8 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Аргументи колекції: просто подивитись (порожні), обрати картинку в слот планети або на вітрину
-    /// профілю (§14). Слот описується так само, як у збереженні: галактика, планета, номер.
+    /// Аргументи колекції: подивитись (вкладка або підекран з налаштувань), обрати картинку в слот планети або
+    /// на вітрину профілю (§14). Слот описується так само, як у збереженні: галактика, планета, номер.
     /// </summary>
     public sealed class CollectionArgs : ScreenArgs
     {
@@ -23,59 +23,87 @@ namespace InkFlow.UI
             Slot = slot;
         }
 
-        private CollectionArgs(bool showcase) => Showcase = showcase;
+        private CollectionArgs(bool showcase, bool tab)
+        {
+            Showcase = showcase;
+            IsTab = tab;
+        }
 
         /// <summary>Вибір вітринної картинки профілю: будь-яка зібрана, копії не рахуються.</summary>
-        public static CollectionArgs ForShowcase() => new CollectionArgs(showcase: true);
+        public static CollectionArgs ForShowcase() => new CollectionArgs(showcase: true, tab: false);
+
+        /// <summary>Вкладка нижньої навігації: навігація видна, «‹» немає (U1Glaze S06_01).</summary>
+        public static CollectionArgs Tab() => new CollectionArgs(showcase: false, tab: true);
 
         public int Galaxy { get; }
         public string? PlanetId { get; }
         public int Slot { get; }
         public bool Showcase { get; }
+        public bool IsTab { get; }
 
-        /// <summary>Режим вибору: тап по картинці ставить її в слот (чи на вітрину) і повертає назад.</summary>
+        /// <summary>Режим вибору: тап обирає картинку, коралова кнопка ставить її в слот (чи на вітрину).</summary>
         public bool IsPick => PlanetId != null || Showcase;
     }
 
     /// <summary>
-    /// Колекція (майстер-док §12): сітка всіх зібраних картинок із рамками рідкості, фільтри за
-    /// темою й рідкістю. Окремий екран, а не шухляда: сюди ведуть і планета (вибір у слот), і
-    /// налаштування (§15), і друге джерело правди про сітку розійшлося б із першим.
+    /// Колекція (майстер-док §12, U1Glaze S06): сітка всіх зібраних картинок у рамках рідкості, фільтри за темою й
+    /// рідкістю чипами, порожній фільтр карткою з «Грати». Окремий екран, а не шухляда: сюди ведуть вкладка,
+    /// планета (вибір у слот), профіль (вітрина) і налаштування (§15).
     ///
-    /// Сітка віртуалізована, як рядки рейтингу: карток у пулі стільки, скільки влазить у в'юпорт
-    /// із запасом, перепризначення — з onValueChanged, поза проходом канваса. Усі пікселі —
-    /// з одного атласу, тож сітка з сотні карток малюється кількома викликами.
+    /// Режим вибору — два кроки (рішення автора): тап обирає картинку (бірюзове кільце), коралова «Поставити
+    /// «Назва»» підтверджує. Картинка, усі копії якої вже в слотах, притлумлена, і тап пояснює чому.
     ///
-    /// Атлас збирається РАЗ на вхід — з усіх зібраних картинок; фільтр лише вибирає, які
-    /// клітинки показати. Інакше кожен тап по чипу перемальовував би всю колекцію піксель за
-    /// пікселем і створював нову текстуру — до мегабайта сміття на тап.
+    /// Сітка віртуалізована: карток у пулі стільки, скільки влазить у в'юпорт із запасом, перепризначення — з
+    /// onValueChanged, поза проходом канваса. Усі пікселі — з одного атласу, зібраного РАЗ на вхід; фільтр лише
+    /// вибирає клітинки (інакше кожен тап по чипу перемальовував би колекцію й створював нову текстуру).
     /// </summary>
     public sealed class CollectionScreen : ScreenBase
     {
         [SerializeField] private DesignSystem design;
 
-        [Header("Шапка")]
+        [Header("Шапка вкладки / підекрана")]
+        [SerializeField] private GameObject browseHeader;
         [SerializeField] private Button backButton;
         [SerializeField] private Button settingsButton;
         [SerializeField] private TMP_Text title;
+        [SerializeField] private CurrencyWidget currency;
         [SerializeField] private TMP_Text subtitle;
 
+        [Header("Шапка вибору")]
+        [SerializeField] private GameObject pickHeader;
+        [SerializeField] private Button closeButton;
+        [SerializeField] private TMP_Text pickTitle;
+        [SerializeField] private GameObject pickInfo;
+        [SerializeField] private Image pickInfoIcon;
+        [SerializeField] private TMP_Text pickInfoText;
+        [SerializeField] private Sprite planetIcon;
+        [SerializeField] private Sprite showcaseIcon;
+
         [Header("Фільтри")]
-        [SerializeField] private RectTransform themesContent;
-        [SerializeField] private Button[] themeButtons = System.Array.Empty<Button>();
-        [SerializeField] private GradientImage[] themeFills = System.Array.Empty<GradientImage>();
-        [SerializeField] private TMP_Text[] themeLabels = System.Array.Empty<TMP_Text>();
-        [SerializeField] private Button[] rarityButtons = System.Array.Empty<Button>();
-        [SerializeField] private Image[] rarityDots = System.Array.Empty<Image>();
-        [SerializeField] private Image[] rarityRings = System.Array.Empty<Image>();
-        [SerializeField] private TMP_Text rarityAllLabel;
+        [SerializeField] private GameObject themesRow;
+        [SerializeField] private ScrollRect themesScroll;
+        [SerializeField] private ChipView[] themeChips = System.Array.Empty<ChipView>();
+        [SerializeField] private ScrollRect raritiesScroll;
+        [SerializeField] private ChipView[] rarityChips = System.Array.Empty<ChipView>();
 
         [Header("Сітка")]
         [SerializeField] private ScrollRect scroll;
         [SerializeField] private RectTransform content;
         [SerializeField] private CollectionCard[] cards = System.Array.Empty<CollectionCard>();
-        [SerializeField] private TMP_Text emptyLabel;
+
+        [Header("Порожньо")]
+        [SerializeField] private GameObject emptyCard;
+        [SerializeField] private TMP_Text emptyTitle;
+        [SerializeField] private TMP_Text emptyBody;
+        [SerializeField] private CandyButton emptyPlay;
+
+        [Header("Низ")]
+        [SerializeField] private GameObject footer;
         [SerializeField] private TMP_Text hintLabel;
+        [SerializeField] private CandyButton placeButton;
+        [SerializeField] private Sprite placeSprite;
+        [SerializeField] private Sprite offSprite;
+        [SerializeField] private NavBar navBar;
 
         // Усі зібрані картинки — у порядку бібліотеки; з них атлас.
         private readonly List<PixelPicture?> _all = new List<PixelPicture?>(128);
@@ -90,22 +118,32 @@ namespace InkFlow.UI
         private CollectionArgs _args = new CollectionArgs();
         private int _theme;      // 0 — усі
         private int _rarity;     // 0 — усі, далі (int)Rarity + 1
+        private string? _selected;
         private int _firstBound = int.MinValue;
         private float _boundWidth = -1f;
         private int[] _boundRow = System.Array.Empty<int>();
         private bool _themeOverflowReported;
 
-        /// <summary>Назад: на планету або туди, звідки відкрили.</summary>
+        /// <summary>Назад / закрити вибір: на планету, профіль чи туди, звідки відкрили.</summary>
         public System.Action? BackRequested;
 
-        /// <summary>Гравець обрав картинку для слота (лише в режимі вибору): аргументи слота й id картинки.</summary>
+        /// <summary>Гравець підтвердив картинку (лише в режимі вибору): аргументи слота й id картинки.</summary>
         public System.Action<CollectionArgs, string>? PicturePicked;
+
+        /// <summary>Вкладка нижньої навігації (лише коли колекція — вкладка).</summary>
+        public System.Action<string>? TabRequested;
+
+        /// <summary>«Грати» з порожньої колекції чи порожнього фільтра.</summary>
+        public System.Action? PlayRequested;
 
         /// <summary>Картинки після фільтрів — у порядку бібліотеки (тестам і знімкам).</summary>
         public IReadOnlyList<string> VisibleIds => _ids;
 
         /// <summary>Картки пулу (тестам).</summary>
         public IReadOnlyList<CollectionCard> Cards => cards;
+
+        /// <summary>Обрана картинка в режимі вибору (тестам); null — ще не обрано.</summary>
+        public string? SelectedId => _selected;
 
         private void OnEnable() => ScheduleApply(Apply);
 
@@ -117,27 +155,55 @@ namespace InkFlow.UI
 
         /// <summary>Тестам: тап по картці з індексом у поточному зрізі, як пальцем.</summary>
         public void PreviewTap(int index) => OnCardTapped(index);
+
+        /// <summary>Тестам і знімкам: коралова «Поставити».</summary>
+        public void PreviewPlace() => OnPlaceClicked();
+
+        /// <summary>Тестам: чи видна картка порожнього фільтра, навігація, «‹», рядок тем, низ із кнопкою.</summary>
+        public bool PreviewEmptyShown => emptyCard != null && emptyCard.activeSelf;
+        public bool PreviewNavBarShown => navBar != null && navBar.gameObject.activeSelf;
+        public bool PreviewBackShown => backButton != null && backButton.gameObject.activeSelf;
+        public bool PreviewThemesShown => themesRow != null && themesRow.activeSelf;
+        public bool PreviewFooterShown => footer != null && footer.activeSelf;
+        public bool PreviewPlaceEnabled => placeButton != null && placeButton.Interactable;
+        public string PreviewPlaceText => placeButton != null ? placeButton.Text : string.Empty;
+        public string PreviewEmptyTitle => emptyTitle != null ? emptyTitle.text : string.Empty;
+        public string PreviewHint => hintLabel != null && hintLabel.gameObject.activeSelf ? hintLabel.text : string.Empty;
 #endif
 
         private void Awake()
         {
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
+            if (closeButton != null)
+                closeButton.onClick.AddListener(() => BackRequested?.Invoke());
             WireSettingsButton(settingsButton);
-            for (var i = 0; i < themeButtons.Length; i++)
+            for (var i = 0; i < themeChips.Length; i++)
             {
                 var index = i;
-                themeButtons[i]?.onClick.AddListener(() => SetTheme(index));
+                themeChips[i]?.Button.onClick.AddListener(() => SetTheme(index));
             }
-            for (var i = 0; i < rarityButtons.Length; i++)
+            for (var i = 0; i < rarityChips.Length; i++)
             {
                 var index = i;
-                rarityButtons[i]?.onClick.AddListener(() => SetRarity(index));
+                rarityChips[i]?.Button.onClick.AddListener(() => SetRarity(index));
             }
             for (var i = 0; i < cards.Length; i++)
                 cards[i]?.Bind(OnCardTapped);
             if (scroll != null)
                 scroll.onValueChanged.AddListener(_ => Recycle());
+            if (placeButton != null)
+                placeButton.Button.onClick.AddListener(OnPlaceClicked);
+            if (emptyPlay != null)
+                emptyPlay.Button.onClick.AddListener(() => PlayRequested?.Invoke());
+            if (navBar != null)
+                navBar.TabSelected += id => TabRequested?.Invoke(id);
+        }
+
+        public override void BindState(PlayerState state)
+        {
+            base.BindState(state);
+            currency?.Bind(state.Wallet);
         }
 
         public override void OnEnter(ScreenArgs args)
@@ -146,8 +212,13 @@ namespace InkFlow.UI
             _args = args as CollectionArgs ?? new CollectionArgs();
             _theme = 0;
             _rarity = 0;
+            _selected = null;
             if (scroll != null)
                 scroll.verticalNormalizedPosition = 1f;
+            if (themesScroll != null)
+                themesScroll.horizontalNormalizedPosition = 0f;
+            if (raritiesScroll != null)
+                raritiesScroll.horizontalNormalizedPosition = 0f;
             Apply();
         }
 
@@ -156,6 +227,7 @@ namespace InkFlow.UI
         {
             _theme = Mathf.Clamp(index, 0, _themes.Count);
             Rebuild();
+            Reveal(themesScroll, _theme < themeChips.Length ? themeChips[_theme] : null);
         }
 
         /// <summary>Фільтр за рідкістю: 0 — усі, далі (int)Rarity + 1.</summary>
@@ -163,6 +235,33 @@ namespace InkFlow.UI
         {
             _rarity = Mathf.Clamp(index, 0, Rarities.Count);
             Rebuild();
+            Reveal(raritiesScroll, _rarity < rarityChips.Length ? rarityChips[_rarity] : null);
+        }
+
+        /// <summary>
+        /// Докручує ряд чипів так, щоб обраний був видно цілком (S06_03: «Космічна» за правим краєм ряду). Лише на
+        /// дію гравця, не щокадру: розкладку ряду перебудовуємо один раз, далі — позиція вмісту.
+        /// </summary>
+        private static void Reveal(ScrollRect? row, ChipView? chip)
+        {
+            if (row == null || chip == null || row.content == null || row.viewport == null)
+                return;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(row.content);
+            var chipRect = (RectTransform)chip.transform;
+            var viewWidth = row.viewport.rect.width;
+            var contentWidth = row.content.rect.width;
+            if (contentWidth <= viewWidth)
+                return;
+            var left = chipRect.anchoredPosition.x - chipRect.rect.width * chipRect.pivot.x;
+            var right = left + chipRect.rect.width;
+            var x = -row.content.anchoredPosition.x;          // ліва межа видимого
+            if (left < x)
+                x = left;
+            else if (right > x + viewWidth)
+                x = right - viewWidth;
+            x = Mathf.Clamp(x, 0f, contentWidth - viewWidth);
+            row.StopMovement();
+            row.content.anchoredPosition = new Vector2(-x, row.content.anchoredPosition.y);
         }
 
         public void Apply()
@@ -170,19 +269,29 @@ namespace InkFlow.UI
             if (design == null)
                 return;
 
-            ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary, FontStyles.Bold, design.LetterSpacingShopTitle);
-            if (title != null) title.text = "КОЛЕКЦІЯ";
-            ApplyFont(subtitle, design.FontSizeCaption, design.TextMuted, FontStyles.Normal, 0f);
-            ApplyFont(emptyLabel, design.FontSizeCaption, design.TextMuted, FontStyles.Bold, 0f);
-            ApplyFont(hintLabel, design.FontSizeCaption, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(rarityAllLabel, design.FontSizeCaption, design.TextPrimary, FontStyles.Bold, 0f);
-            if (rarityAllLabel != null) rarityAllLabel.text = "Усі";
-            for (var i = 0; i < themeLabels.Length; i++)
-                ApplyFont(themeLabels[i], design.FontSizeCaption, design.TextPrimary, FontStyles.Bold, 0f);
+            var pick = _args.IsPick;
+            Toggle(browseHeader, !pick);
+            Toggle(pickHeader, pick);
+            Toggle(subtitle, !pick);
+            Toggle(pickInfo, pick);
+            // У виборі — лише рідкості (S06_02): тема тут другорядна, а місце — сітці.
+            Toggle(themesRow, !pick);
+            Toggle(footer, pick);
+            Toggle(navBar, !pick && _args.IsTab);
+            Toggle(backButton, !pick && !_args.IsTab);
+            if (title != null)
+                title.text = "Колекція";
+            if (pickTitle != null)
+                pickTitle.text = "Обери картинку";
+            navBar?.SetActive(NavBar.Collection);
+            currency?.Apply();
             if (hintLabel != null)
                 hintLabel.gameObject.SetActive(false);
 
             var library = State?.Library ?? PictureLibrary.Fallback;
+            if (pick)
+                ApplyPickInfo();
+
             _themes.Clear();
             for (var i = 0; i < library.Themes.Count; i++)
                 _themes.Add(library.Themes[i]);
@@ -208,65 +317,64 @@ namespace InkFlow.UI
 
             ApplyThemeChips();
             ApplyRarityChips();
+            ApplyPlaceButton();
             Rebuild();
+        }
+
+        private void ApplyPickInfo()
+        {
+            if (pickInfoText == null)
+                return;
+            if (_args.Showcase)
+            {
+                pickInfoText.text = "Вітринна картинка · її бачать інші гравці";
+                if (pickInfoIcon != null && showcaseIcon != null) pickInfoIcon.sprite = showcaseIcon;
+            }
+            else
+            {
+                var planet = (State?.Layout ?? GalaxyLayout.Default).Find(_args.PlanetId!);
+                pickInfoText.text = $"Комірка {_args.Slot + 1} · планета {(planet != null ? planet.Name : "—")}";
+                if (pickInfoIcon != null && planetIcon != null) pickInfoIcon.sprite = planetIcon;
+            }
         }
 
         private void ApplyThemeChips()
         {
-            if (!_themeOverflowReported && _themes.Count + 1 > themeButtons.Length)
+            if (!_themeOverflowReported && _themes.Count + 1 > themeChips.Length)
             {
                 _themeOverflowReported = true;
-                Debug.LogError($"[InkFlow] Тем у бібліотеці {_themes.Count}, а чипів у пулі {themeButtons.Length}: " +
+                Debug.LogError($"[InkFlow] Тем у бібліотеці {_themes.Count}, а чипів у пулі {themeChips.Length}: " +
                                "перезбери екран (Ink Flow → Setup → Build Collection Screen), інакше частина тем недосяжна.");
             }
-
-            RectTransform? lastUsed = null;
-            for (var i = 0; i < themeButtons.Length; i++)
+            for (var i = 0; i < themeChips.Length; i++)
             {
+                var chip = themeChips[i];
+                if (chip == null)
+                    continue;
                 var used = i <= _themes.Count;
-                Toggle(themeButtons[i], used);
+                Toggle(chip, used);
                 if (!used)
                     continue;
-                if (themeButtons[i] != null)
-                    lastUsed = (RectTransform)themeButtons[i].transform;
-                if (i < themeLabels.Length && themeLabels[i] != null)
-                    themeLabels[i].text = i == 0 ? "Усі теми" : ThemeNames.Of(_themes[i - 1]);
-                var on = i == _theme;
-                if (i < themeFills.Length && themeFills[i] != null)
-                    themeFills[i].SetGradient(on ? design.ShopTabActiveFrom : design.GlassFill, on ? design.ShopTabActiveTo : design.GlassFill);
-                if (i < themeLabels.Length && themeLabels[i] != null)
-                    themeLabels[i].color = on ? design.TextPrimary : design.TextMuted;
-            }
-
-            // Ширина ряду — до правого краю останнього вжитого чипа: скрол не має їхати в порожнечу.
-            if (themesContent != null && lastUsed != null)
-            {
-                var right = lastUsed.anchoredPosition.x + lastUsed.sizeDelta.x * 0.5f;
-                themesContent.sizeDelta = new Vector2(right, themesContent.sizeDelta.y);
+                chip.Text = i == 0 ? "Усі теми" : ThemeNames.Of(_themes[i - 1]);
+                chip.SetOn(i == _theme);
             }
         }
 
         private void ApplyRarityChips()
         {
-            // Кнопка 0 — «Усі» (напис), 1…6 — крапки кольору рідкості; обрана — з кільцем.
-            for (var i = 0; i < rarityButtons.Length; i++)
+            for (var i = 0; i < rarityChips.Length; i++)
             {
+                var chip = rarityChips[i];
+                if (chip == null)
+                    continue;
                 var used = i <= Rarities.Count;
-                Toggle(rarityButtons[i], used);
+                Toggle(chip, used);
                 if (!used)
                     continue;
-                var on = i == _rarity;
-                if (i < rarityDots.Length && rarityDots[i] != null)
-                {
-                    rarityDots[i].color = i == 0
-                        ? (on ? design.ShopTabActiveFrom : design.GlassFill)
-                        : design.RarityColor((Rarity)(i - 1));
-                }
-                if (i < rarityRings.Length && rarityRings[i] != null)
-                    rarityRings[i].enabled = on;
+                chip.Text = i == 0 ? "Усі" : RarityNames.Title((Rarity)(i - 1));
+                chip.SetMark(i == 0 ? (Color?)null : design.RarityColor((Rarity)(i - 1)));
+                chip.SetOn(i == _rarity);
             }
-            if (rarityAllLabel != null)
-                rarityAllLabel.color = _rarity == 0 ? design.TextPrimary : design.TextMuted;
         }
 
         /// <summary>Перебирає зібране під фільтри й розкладає сітку. Атласу не чіпає.</summary>
@@ -299,39 +407,52 @@ namespace InkFlow.UI
 
             if (subtitle != null)
             {
-                if (_args.Showcase)
-                {
-                    subtitle.text = "Обери вітринну картинку · її бачать інші гравці";
-                }
-                else if (_args.IsPick)
-                {
-                    var planet = (State?.Layout ?? GalaxyLayout.Default).Find(_args.PlanetId!);
-                    subtitle.text = $"Обери картинку для слота · {(planet != null ? planet.Name : "планета")}";
-                }
-                else
-                {
-                    var distinct = State != null ? State.Collection.Distinct : library.Count;
-                    var total = State != null ? State.Collection.Total : library.Count;
-                    subtitle.text = $"Зібрано {distinct} різних · {total} усього";
-                }
+                var distinct = State != null ? State.Collection.Distinct : library.Count;
+                var total = State != null ? State.Collection.Total : library.Count;
+                subtitle.text = $"Зібрано {distinct} різних · {total} усього";
             }
 
-            Toggle(emptyLabel, _ids.Count == 0);
-            if (emptyLabel != null)
-                emptyLabel.text = State != null && State.Collection.Distinct == 0
-                    ? "Домалюй картинку в Нескінченному — і вона з'явиться тут"
-                    : "Під цей фільтр нічого немає";
-
+            ApplyEmpty();
             ResizeContent();
             _firstBound = int.MinValue;
             Recycle();
         }
 
         /// <summary>
-        /// Масштаб картки: на вузькому канвасі (телефон 20:9 має ~966 одиниць ширини, не 1080) три
-        /// картки токенної ширини не влазять, тож усі картки рівномірно меншають через localScale —
-        /// внутрішня розкладка картки лишається тією самою.
+        /// Порожньо: колекція ще порожня, або порожній фільтр (S06_03). «Грати» — лише поза вибором: з вибору
+        /// гравець іде назад до планети, а не в забіг.
         /// </summary>
+        private void ApplyEmpty()
+        {
+            var empty = _ids.Count == 0;
+            Toggle(emptyCard, empty);
+            if (scroll != null)
+                Toggle(scroll, !empty);
+            if (!empty || emptyTitle == null || emptyBody == null)
+                return;
+
+            var nothingCollected = State != null && State.Collection.Distinct == 0;
+            if (nothingCollected)
+            {
+                emptyTitle.text = "Колекція поки порожня";
+                emptyBody.text = "Домалюй картинку в Нескінченному — і вона з'явиться тут.";
+            }
+            else if (_rarity > 0 && _theme == 0)
+            {
+                var rarity = (Rarity)(_rarity - 1);
+                emptyTitle.text = $"Ще немає {RarityNames.GenitivePlural(rarity)} картинок";
+                emptyBody.text = rarity >= Rarity.Legendary
+                    ? "Вони трапляються найрідше. Грай далі — і одна з них твоя."
+                    : "Грай далі — і вони з'являться тут.";
+            }
+            else
+            {
+                emptyTitle.text = "Тут поки нічого немає";
+                emptyBody.text = "Спробуй іншу тему чи рідкість — або грай далі.";
+            }
+            Toggle(emptyPlay, !_args.IsPick);
+        }
+
         private float CardScale()
         {
             if (design == null || content == null)
@@ -365,8 +486,7 @@ namespace InkFlow.UI
         /// Перепризначає картки під положення скролу — з onValueChanged, поза проходом канваса.
         ///
         /// Пул — кільце рядків: рядок сітки r завжди живе в пулі на місці r mod N. Коли вікно
-        /// зсувається на один рядок, перепризначається лише рядок, що в'їхав, а не всі картки:
-        /// швидкий скрол через сотню картинок не перегенеровує 36 текстів на кожному кроці.
+        /// зсувається на один рядок, перепризначається лише рядок, що в'їхав, а не всі картки.
         /// </summary>
         private void Recycle()
         {
@@ -376,8 +496,7 @@ namespace InkFlow.UI
             var columns = Mathf.Max(1, design.CollectionColumns);
             var poolRows = Mathf.Max(1, cards.Length / columns);
             var width = content.rect.width;
-            // Ширина змінилась (поворот, Split View на iPad, перша розкладка після канваса) — масштаб
-            // і зсув карток уже не ті: перераховуємо все.
+            // Ширина змінилась (поворот, Split View, перша розкладка після канваса) — перераховуємо все.
             if (!Mathf.Approximately(width, _boundWidth))
             {
                 ResizeContent();
@@ -419,37 +538,34 @@ namespace InkFlow.UI
                         card.Release();
                         continue;
                     }
-
-                    var picture = _pictures[index];
-                    card.Rect.anchoredPosition = new Vector2(left + col * (cardWidth + gap), -(gap + row * step));
-                    card.Rect.localScale = new Vector3(scale, scale, 1f);
-                    var copies = State != null ? State.Collection.CountOf(picture.Id) : 1;
-                    _placed.TryGetValue(picture.Id, out var placed);
-                    // На вітрину йде будь-яка зібрана картинка — копії в слотах тут не рахуються, нічого не тьмяніє.
-                    card.Show(index, picture, _atlas.Texture, _atlas.UvOf(_cells[index]), design.RarityColor(picture.Rarity),
-                        copies, _args.Showcase ? copies : copies - placed, _args.IsPick, design.CollectionUsedAlpha);
+                    BindCard(card, index, left + col * (cardWidth + gap), -(gap + row * step), scale);
                 }
             }
         }
 
+        private void BindCard(CollectionCard card, int index, float x, float y, float scale)
+        {
+            var picture = _pictures[index];
+            card.Rect.anchoredPosition = new Vector2(x, y);
+            card.Rect.localScale = new Vector3(scale, scale, 1f);
+            var copies = State != null ? State.Collection.CountOf(picture.Id) : 1;
+            _placed.TryGetValue(picture.Id, out var placed);
+            // На вітрину йде будь-яка зібрана картинка — копії в слотах тут не рахуються, нічого не тьмяніє.
+            var free = _args.Showcase ? copies : copies - placed;
+            card.Show(index, picture, _atlas.Texture, _atlas.UvOf(_cells[index]), copies, free,
+                _args.IsPick && !_args.Showcase, string.Equals(picture.Id, _selected, System.StringComparison.Ordinal));
+        }
+
         private void OnCardTapped(int index)
         {
-            if (index < 0 || index >= _ids.Count)
+            if (index < 0 || index >= _ids.Count || !_args.IsPick)
                 return;
             var id = _ids[index];
-            if (!_args.IsPick)
-                return;
 
-            if (_args.Showcase)
+            if (!_args.Showcase && State != null && State.FreeCopies(id) <= 0)
             {
-                PicturePicked?.Invoke(_args, id);
-                return;
-            }
-
-            if (State != null && State.FreeCopies(id) <= 0)
-            {
-                // Пояснюємо, а не мовчимо: усі копії цієї картинки вже стоять у слотах — і кажемо де,
-                // бо завершену галактику в огляді треба ще знайти стрілками.
+                // Пояснюємо, а не мовчимо: усі копії вже стоять у слотах — і кажемо де, бо завершену галактику в
+                // огляді треба ще знайти стрілками.
                 if (hintLabel != null)
                 {
                     hintLabel.text = GalaxyState.HasCopyOutside(State.Galaxy, _args.Galaxy, id, State.Layout)
@@ -460,7 +576,45 @@ namespace InkFlow.UI
                 return;
             }
 
-            PicturePicked?.Invoke(_args, id);
+            _selected = id;
+            if (hintLabel != null)
+                hintLabel.gameObject.SetActive(false);
+            for (var i = 0; i < cards.Length; i++)
+                if (cards[i] != null && cards[i].Index >= 0)
+                    cards[i].SetSelected(string.Equals(cards[i].PictureId, _selected, System.StringComparison.Ordinal));
+            ApplyPlaceButton();
+        }
+
+        /// <summary>Коралова «Поставити «Назва»» — лише коли щось обрано; до того плоска «Обери картинку».</summary>
+        private void ApplyPlaceButton()
+        {
+            if (placeButton == null)
+                return;
+            PixelPicture? picture = null;
+            if (_selected != null)
+            {
+                var library = State?.Library ?? PictureLibrary.Fallback;
+                picture = library.Find(_selected);
+            }
+            if (picture == null)
+            {
+                _selected = null;
+                if (offSprite != null) placeButton.SetTone(CandyButton.Tone.Off, offSprite);
+                placeButton.Interactable = false;
+                placeButton.Text = "Обери картинку";
+                return;
+            }
+            if (placeSprite != null) placeButton.SetTone(CandyButton.Tone.Coral, placeSprite);
+            placeButton.Interactable = true;
+            var name = picture.Name.Replace("­", string.Empty);
+            placeButton.Text = _args.Showcase ? $"На вітрину «{name}»" : $"Поставити «{name}»";
+        }
+
+        private void OnPlaceClicked()
+        {
+            if (!_args.IsPick || _selected == null)
+                return;
+            PicturePicked?.Invoke(_args, _selected);
         }
 
         private static void Toggle(Component? target, bool on)
@@ -469,16 +623,10 @@ namespace InkFlow.UI
                 target.gameObject.SetActive(on);
         }
 
-        private void ApplyFont(TMP_Text? label, float size, Color color, FontStyles style, float spacing)
+        private static void Toggle(GameObject? target, bool on)
         {
-            if (label == null)
-                return;
-            label.fontSize = size;
-            label.color = color;
-            label.fontStyle = style;
-            label.characterSpacing = spacing;
-            if (design.Font != null)
-                label.font = design.Font;
+            if (target != null && target.activeSelf != on)
+                target.SetActive(on);
         }
 
         private void OnDestroy() => _atlas.Release();

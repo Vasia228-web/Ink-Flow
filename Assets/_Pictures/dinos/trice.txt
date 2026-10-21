@@ -1,5 +1,5 @@
 id: trice
-name: ТРИЦЕРАТОПСИК
+name: Трицера­топсик
 theme: dinos
 rarity: rare
 step: 7

@@ -1,5 +1,5 @@
 id: sun
-name: СОНЕЧКО
+name: Сонечко
 theme: weather
 rarity: common
 step: 7

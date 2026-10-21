@@ -1,5 +1,5 @@
 id: chocolate
-name: ШОКОЛАДКА
+name: Шоко­ладка
 theme: sweets
 rarity: common
 step: 11

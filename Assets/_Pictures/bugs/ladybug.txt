@@ -1,5 +1,5 @@
 id: ladybug
-name: СОНЕЧКО-ЖУЧОК
+name: Сонечко-жучок
 theme: bugs
 rarity: common
 step: 9

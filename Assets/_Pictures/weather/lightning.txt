@@ -1,5 +1,5 @@
 id: lightning
-name: БЛИСКАВКА
+name: Блис­кавка
 theme: weather
 rarity: common
 step: 5

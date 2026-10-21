@@ -1,5 +1,5 @@
 id: octopus
-name: ВОСЬМИНІЖКА
+name: Восьми­ніжка
 theme: sea
 rarity: uncommon
 step: 10

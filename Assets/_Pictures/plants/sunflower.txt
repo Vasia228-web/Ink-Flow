@@ -1,5 +1,5 @@
 id: sunflower
-name: СОНЯШНИК
+name: Соняшник
 theme: plants
 rarity: uncommon
 step: 8

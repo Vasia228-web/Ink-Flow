@@ -1,5 +1,5 @@
 id: alien
-name: ІНОПЛАНЕТЯНИН
+name: Інопла­нетянин
 theme: space
 rarity: uncommon
 step: 7

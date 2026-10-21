@@ -1,5 +1,5 @@
 id: rocket
-name: РАКЕТА
+name: Ракета
 theme: space
 rarity: common
 step: 5

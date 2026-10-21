@@ -1,5 +1,5 @@
 id: axolotl
-name: АКСОЛОТЛЬ
+name: Аксо­лотль
 theme: sea
 rarity: epic
 step: 5

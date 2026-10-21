@@ -1,5 +1,5 @@
 id: sheep
-name: ОВЕЧКА
+name: Овечка
 theme: animals
 rarity: common
 step: 12

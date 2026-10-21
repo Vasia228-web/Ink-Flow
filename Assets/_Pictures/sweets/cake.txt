@@ -1,5 +1,5 @@
 id: cake
-name: ТОРТ
+name: Торт
 theme: sweets
 rarity: epic
 step: 5

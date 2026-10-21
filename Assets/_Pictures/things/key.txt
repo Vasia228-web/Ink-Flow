@@ -1,5 +1,5 @@
 id: key
-name: КЛЮЧИК
+name: Ключик
 theme: things
 rarity: common
 step: 5

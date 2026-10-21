@@ -1,5 +1,5 @@
 id: fish
-name: РИБКА
+name: Рибка
 theme: sea
 rarity: common
 step: 6

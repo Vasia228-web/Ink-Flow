@@ -1,5 +1,5 @@
 id: strawberry
-name: ПОЛУНИЦЯ
+name: Полуниця
 theme: food
 rarity: common
 step: 8

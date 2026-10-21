@@ -1,5 +1,5 @@
 id: slime
-name: СЛИМАЧОК
+name: Слимачок
 theme: monsters
 rarity: common
 step: 9

@@ -1,5 +1,5 @@
 id: ghost_royal
-name: ПРИВИД-ІМПЕРАТОР
+name: Привид-імпе­ратор
 theme: ghosts
 rarity: epic
 step: 7

@@ -1,5 +1,5 @@
 id: rex
-name: ТИРАНОЗАВР
+name: Тирано­завр
 theme: dinos
 rarity: epic
 step: 5

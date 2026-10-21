@@ -1,5 +1,5 @@
 id: heart
-name: СЕРДЕЧКО
+name: Сердечко
 theme: things
 rarity: common
 step: 9

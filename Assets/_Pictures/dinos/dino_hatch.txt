@@ -1,5 +1,5 @@
 id: dino_hatch
-name: ВИЛУПОК
+name: Вилупок
 theme: dinos
 rarity: uncommon
 step: 8

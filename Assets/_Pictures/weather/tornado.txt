@@ -1,5 +1,5 @@
 id: tornado
-name: ТОРНАДО
+name: Торнадо
 theme: weather
 rarity: rare
 step: 6

@@ -1,5 +1,5 @@
 id: owl
-name: СОВЕНЯ
+name: Совеня
 theme: animals
 rarity: rare
 step: 8

@@ -1,5 +1,5 @@
 id: taco
-name: ТАКО
+name: Тако
 theme: food
 rarity: rare
 step: 6

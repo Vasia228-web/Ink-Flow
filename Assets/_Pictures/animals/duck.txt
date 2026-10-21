@@ -1,5 +1,5 @@
 id: duck
-name: КАЧЕНЯ
+name: Каченя
 theme: animals
 rarity: common
 step: 8

@@ -1,5 +1,5 @@
 id: whale
-name: КИТ
+name: Кит
 theme: sea
 rarity: rare
 step: 6

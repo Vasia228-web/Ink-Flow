@@ -1,5 +1,5 @@
 id: crystal
-name: КРИСТАЛ
+name: Кристал
 theme: things
 rarity: legendary
 step: 4

@@ -1,5 +1,5 @@
 id: burger
-name: БУРГЕР
+name: Бургер
 theme: food
 rarity: epic
 step: 7

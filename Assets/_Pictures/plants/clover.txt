@@ -1,5 +1,5 @@
 id: clover
-name: КОНЮШИНА
+name: Конюшина
 theme: plants
 rarity: uncommon
 step: 7

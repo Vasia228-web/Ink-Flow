@@ -1,5 +1,5 @@
 id: cactus_hat
-name: КАКТУС У СОМБРЕРО
+name: Кактус у сомбреро
 theme: plants
 rarity: rare
 step: 6

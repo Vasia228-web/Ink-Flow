@@ -1,5 +1,5 @@
 id: comet
-name: КОМЕТА
+name: Комета
 theme: space
 rarity: uncommon
 step: 4

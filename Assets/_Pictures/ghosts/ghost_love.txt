@@ -1,5 +1,5 @@
 id: ghost_love
-name: ЗАКОХАНИЙ ПРИВИД
+name: Зако­ханий привид
 theme: ghosts
 rarity: uncommon
 step: 9

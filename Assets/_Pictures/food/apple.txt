@@ -1,5 +1,5 @@
 id: apple
-name: ЯБЛУКО
+name: Яблуко
 theme: food
 rarity: common
 step: 8

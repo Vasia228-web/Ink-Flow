@@ -1,5 +1,5 @@
 id: seahorse
-name: МОРСЬКИЙ КОНИК
+name: Морський коник
 theme: sea
 rarity: rare
 step: 4

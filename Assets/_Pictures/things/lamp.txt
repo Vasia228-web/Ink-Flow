@@ -1,5 +1,5 @@
 id: lamp
-name: ЛАМПОЧКА
+name: Лампочка
 theme: things
 rarity: common
 step: 8

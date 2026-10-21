@@ -1,5 +1,5 @@
 id: book
-name: КНИЖКА
+name: Книжка
 theme: things
 rarity: common
 step: 11

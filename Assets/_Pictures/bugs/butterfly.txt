@@ -1,5 +1,5 @@
 id: butterfly
-name: МЕТЕЛИК
+name: Метелик
 theme: bugs
 rarity: uncommon
 step: 8

@@ -1,5 +1,5 @@
 id: galaxy
-name: ГАЛАКТИКА
+name: Галак­тика
 theme: space
 rarity: legendary
 step: 6

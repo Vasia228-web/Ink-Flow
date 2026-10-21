@@ -1,5 +1,5 @@
 id: turtle
-name: ЧЕРЕПАШКА
+name: Чере­пашка
 theme: sea
 rarity: uncommon
 step: 6

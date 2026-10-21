@@ -1,5 +1,5 @@
 id: fox
-name: ЛИСИЧКА
+name: Лисичка
 theme: animals
 rarity: uncommon
 step: 8

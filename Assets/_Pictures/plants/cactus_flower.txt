@@ -1,5 +1,5 @@
 id: cactus_flower
-name: КАКТУС У ЦВІТУ
+name: Кактус у цвіту
 theme: plants
 rarity: uncommon
 step: 6

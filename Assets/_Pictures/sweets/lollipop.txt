@@ -1,5 +1,5 @@
 id: lollipop
-name: ЛЬОДЯНИК
+name: Льодяник
 theme: sweets
 rarity: common
 step: 6

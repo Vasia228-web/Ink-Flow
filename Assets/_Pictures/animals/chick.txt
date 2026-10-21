@@ -1,5 +1,5 @@
 id: chick
-name: КУРЧА
+name: Курча
 theme: animals
 rarity: common
 step: 9
