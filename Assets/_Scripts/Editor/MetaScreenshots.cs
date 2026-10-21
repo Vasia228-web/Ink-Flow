@@ -585,7 +585,7 @@ namespace InkFlow.Editor
                     using var rig = MetaScreenRig<SettingsScreen>.Create(device, "SettingsScreen");
                     var player = rig.NewPlayer();
                     rig.Screen.BindLinks(state == "settings-links"
-                        ? new AppLinks("https://example.com/privacy", "mailto:help@example.com", new[] { "uk", "en" })
+                        ? new AppLinks("https://example.com/privacy", "help@example.com", new[] { "uk", "en" })
                         : AppLinks.Default);
                     rig.Enter(player, new SettingsArgs(inRun: state == "settings-run"));
                     Canvas.ForceUpdateCanvases();

@@ -30,7 +30,6 @@ namespace InkFlow.Editor
 
         private const int CircleSize = 256;
 
-
         [MenuItem("Ink Flow/Setup/Generate UI Sprites")]
         public static void Generate()
         {
@@ -161,14 +160,6 @@ namespace InkFlow.Editor
             tex.SetPixels(pixels);
             tex.Apply();
             return tex;
-        }
-
-        /// <summary>Відстань від точки до відрізка — основа для ланок галочки.</summary>
-        private static float SegmentDistance(Vector2 p, Vector2 a, Vector2 b)
-        {
-            var ab = b - a;
-            var t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-6f, Vector2.Dot(ab, ab)));
-            return Vector2.Distance(p, a + ab * t);
         }
 
         /// <summary>Суцільний білий квадрат: носій UV для шейдерних квадів.</summary>
