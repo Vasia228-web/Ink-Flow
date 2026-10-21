@@ -1,8 +1,8 @@
 # Дизайн-система U1Glaze (SpacePaint)
 
-> Читай, коли міняєш токени, спрайти, шрифти, атоми й фабрики `U1`, вітрину компонентів або вигляд ігрового екрана. Розкладки конкретних екранів — `docs/screens.md`. Старий стиль «Ink Flow v2» — `docs/legacy-ink-flow-v2.md` (видаляється на кроці 10). Особливості Unity/TMP/UGUI, на які тут посилання, — `docs/gotchas.md`.
+> Читай, коли міняєш токени, спрайти, шрифти, атоми й фабрики `U1`, вітрину компонентів або вигляд ігрового екрана. Розкладки конкретних екранів — `docs/screens.md`. Особливості Unity/TMP/UGUI, на які тут посилання, — `docs/gotchas.md`.
 
-**U1Glaze — єдиний стиль інтерфейсу SpacePaint (Сесія 7, з 2026-10-12; екрани переводяться по одному, поточний стан — у CLAUDE.md).** Еталон — `docs/StyleRef/U1Glaze/` (SPEC.md, SCREENS.md + preview/, sprites.json, tokens.json, tools/globe_slots.py). Старий стиль «Ink Flow v2» — `docs/legacy-ink-flow-v2.md`.
+**U1Glaze — єдиний стиль інтерфейсу SpacePaint (Сесія 7, з 2026-10-12; усі екрани переведено, крок 10 прибрав старий стиль «Ink Flow v2»).** Еталон — `docs/StyleRef/U1Glaze/` (SPEC.md, SCREENS.md + preview/, sprites.json, tokens.json, tools/globe_slots.py).
 
 ## Канвас і коефіцієнт
 
@@ -14,7 +14,7 @@
 
 - **Спрайти** — `Assets/_Sprites/U1Glaze/` (106 PNG 3× з `docs/StyleRef/U1Glaze/sprites/` + копія `sprites.json`; з 113 еталона сім — пакети нафти, «+» капсули, «Відновити покупки», іконка «Рівні» — лежать у `Reserve/` разом зі своїми записами маніфесту: атлас пакує всю теку, тож невидимі спрайти їхали б у збірку). Імпорт задає `StyleSpriteImporter` за маніфестом (`U1GlazeSprites`): PPU = 300 / 2.687 ≈ 111.67 (референсний PPU канваса 100), тож `SetNativeSize` дає рівно розмір макета × 2.687, 9-slice — межі `border_px` з маніфесту при множнику 1, Full Rect, Bilinear, без стиснення в джерелі. Усі спрайти — в одному `U1Glaze.spriteatlasv2` на ОДНІЙ сторінці (до `U1GlazeSprites.AtlasMaxSize` 4096 — 106 спрайтів 3× ≈ 6.3 Мпікс у 2048² не вміщались, і дві сторінки розривали батчі; UI-тест `U1GlazeSprites_ShareOneAtlasPage`; ASTC 4×4 на мобільних; збирач ставить Sprite Packer у `SpriteAtlasV2`, щоб атлас працював і в редакторі — інакше оцінка батчів у стендах рахувала б кожну текстуру окремо). Збирачі беруть спрайт за ім'ям з маніфесту: `U1.S("button_coral")`; перевірка масштабу — UI-тест `U1SpriteScaleTests` (кнопка 56 px макета на пристрої 402×874 @3× = 168 px кадру).
 
-Згенеровані спрайти UI (`GenerateUISprites`, `Assets/_Sprites/UI/`) — три світіння для трьох задач: `glow` — рант для контурного світіння (і гало блока K1Candy), `card-glow` — м'яке гало прямокутника (тінь панелі поля, `RarityHalo`), `nebula` — радіальне гало круглого об'єкта. Піктограми — спрайти `icon_*` з маніфесту U1Glaze, не гліфи; `icon-star` / `icon-retry` ще генеруються й прив'язані до `TMP_SpriteAsset` «InkFlow Icons» (★ і ↺ у Nunito немає), але жоден екран їх уже не вживає — перевірити на кроці 10. Історія вад гало — `docs/legacy-ink-flow-v2.md`.
+Згенеровані спрайти UI (`GenerateUISprites`, `Assets/_Sprites/UI/`) — лише для екрана забігу й службових квадів: `rounded-rect` (9-slice плити поля й картинки, радіус — `UiBuilder.RoundedRectPpu`), `card-glow` — м'яке гало прямокутника без внутрішнього краю (тінь панелі поля, `RarityHalo`), `circle-soft` (м'які кола), `white-quad` (квади шейдерів, роздільники). Гало блока K1Candy — власний спрайт `glow` набору K1Candy. Піктограми — спрайти `icon_*` з маніфесту U1Glaze, не гліфи; `icon-star` / `icon-retry` генеруються й прив'язані до `TMP_SpriteAsset` «InkFlow Icons» (★ і ↺ у Nunito немає) — запасний шлях для цих двох символів у написах (крок 10 залишив свідомо: прибрати — правка всіх збирачів і `check-glyphs` заради двох малих спрайтів). Уроки гало (рант vs силует, розрив альфи) — `docs/gotchas.md`.
 
 ## Шрифт і типографіка
 
@@ -44,7 +44,7 @@
 
 ## Генерація UI-ресурсів
 
-Разова генерація UI (у Edit Mode): `Ink Flow → Setup → Build UI Kit` — створює спрайти, імпортує спрайти U1Glaze за маніфестом і збирає атлас (`Import U1Glaze Sprites` — те саме окремо), чотири TMP-шрифти й матеріал тіні, `DesignSystem.asset`, префаби атомів (капсула нафти) і сцену `Assets/Scenes/UIKit.unity`. Шрифти качаються окремо: `bash Tools/fetch-fonts.sh` (400/700/800/900). Вітрина компонентів U1Glaze: `Build Components Showcase`; batch зі знімками на 5 пристроях і автоперевіркою: `-executeMethod InkFlow.Editor.MetaScreenshots.BuildAndCaptureComponents`.
+Разова генерація UI (у Edit Mode): `Ink Flow → Setup → Build UI Kit` — створює спрайти, імпортує спрайти U1Glaze за маніфестом і збирає атлас (`Import U1Glaze Sprites` — те саме окремо), чотири TMP-шрифти й матеріал тіні, `DesignSystem.asset` і спільні префаби (капсула нафти `CurrencyWidget`, космічний фон `CosmicBackground`). Шрифти качаються окремо: `bash Tools/fetch-fonts.sh` (400/700/800/900). Вітрина компонентів U1Glaze: `Build Components Showcase`; batch зі знімками на 5 пристроях і автоперевіркою: `-executeMethod InkFlow.Editor.MetaScreenshots.BuildAndCaptureComponents`.
 
 ## Планети: шейдер, не спрайти
 

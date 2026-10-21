@@ -29,7 +29,7 @@
 ## Що це за гра
 
 SpacePaint — мобільна головоломка про фарбу: ставиш поліоміно на поле 8×8 у кольорах поточної піксельної картинки, зриваєш лінії — кожна клітинка кладе піксель свого кольору; картинки збираються в колекцію й стають на планети-вітрини галактик (Unity 6000.5.4f1, 2D URP, IL2CPP; Android + iOS).
-Стиль інтерфейсу — U1Glaze (еталон `docs/StyleRef/U1Glaze/`). Гравець скрізь бачить SpacePaint; у коді, просторах імен, збірках, меню й теках лишається InkFlow — не перейменовуємо. Старий стиль «Ink Flow v2» ще живе в чотирьох екранах і зникає на кроці 10: `docs/legacy-ink-flow-v2.md`.
+Стиль інтерфейсу — U1Glaze (еталон `docs/StyleRef/U1Glaze/`). Гравець скрізь бачить SpacePaint; у коді, просторах імен, збірках, меню й теках лишається InkFlow — не перейменовуємо. Старий стиль «Ink Flow v2» прибрано на кроці 10 (атоми, спрайти, токени; опис — у git до `bc4a1b9`).
 
 ## Джерела правди
 
@@ -87,10 +87,10 @@ SpacePaint — мобільна головоломка про фарбу: ста
 
 ## Статус
 
-- **Порядок робіт** — `prompts/2026-10-20-krok4-claude-md-mcp-krok5.md`: фаза 1 ✅ (крок 4, `dbc296a`) → фаза 2 ✅ (рефреш, `5bee273`; глобальні правила й скіл beginner-to-pro — у `~/.claude`) → фаза 3 ✅ (MCP for Unity, `1c2b3dd`; зв'язок перевірено 2026-10-21: консоль, Validate Project, 440 EditMode-тестів) → фаза 4 ✅ (помічники й скіли, замір — `Tools/token-bench/README.md`) → **фаза 5: U1Glaze кроки 5, 7, 8, 9, 10 підряд (нічний режим автора 2026-10-21: без зупинок, рішення — консервативні й записані), далі чернетка промту «Перша версія»**.
-- **U1Glaze** (`prompts/2026-10-12-ui-spacepaint-u1glaze.md`): кроки 0–5, 7–9 ✅ (Головний, Забіг, Галактика, Планета, Колекція з назвами «з великої», «Ліга» й чужа планета, Профіль з 8 аватарами, Налаштування — 5, 7–9 зроблено в нічному режимі 2026-10-21 без КТ). Далі 10 прибирання. Крок 6 «Магазин» пропущено (запас). На кроці 10 також: перерахунок альф під лінійне змішування (рішення автора 2026-10-17), `Tools/salvage/`, `docs/StyleRef/tokens.json`.
+- **Порядок робіт** — `prompts/2026-10-20-krok4-claude-md-mcp-krok5.md`: фаза 1 ✅ (крок 4, `dbc296a`) → фаза 2 ✅ (рефреш, `5bee273`; глобальні правила й скіл beginner-to-pro — у `~/.claude`) → фаза 3 ✅ (MCP for Unity, `1c2b3dd`; зв'язок перевірено 2026-10-21: консоль, Validate Project, 440 EditMode-тестів) → фаза 4 ✅ (помічники й скіли, замір — `Tools/token-bench/README.md`) → фаза 5 ✅ (U1Glaze кроки 5, 7–10, нічний режим автора 2026-10-21/22) → **далі: чернетка промту «Перша версія» (`prompts/`) і КТ автора за нічним звітом**.
+- **U1Glaze** (`prompts/2026-10-12-ui-spacepaint-u1glaze.md`): кроки 0–5, 7–10 ✅ — усі екрани на U1Glaze, старий стиль прибрано (5, 7–10 — нічний режим 2026-10-21/22 без КТ, автор перевіряє за нічним звітом). Крок 6 «Магазин» пропущено (запас). Перерахунок альф під лінійне змішування свідомо не зроблено — вимір показав, що затемнення вже як у макеті (`docs/implementation-notes.md`, крок 10); рішення за автором.
 - **Не закомічено в робочій копії:** перезібрані сцени, префаби, нові `.meta`, `DesignSystem.asset` — див. п. 2 «Дороги». Знімки в `docs/screenshots/` застаріли (перезняти через MCP у фазі 5).
-- **Тести:** 343 headless (`run-core-tests.sh`), 91 UI-тест.
+- **Тести:** 344 headless (`run-core-tests.sh`), 443 EditMode (UI + Meta + Services).
 
 ## Запас (Reserve/)
 
@@ -100,7 +100,7 @@ SpacePaint — мобільна головоломка про фарбу: ста
 ## Команди
 
 ```bash
-bash Tools/run-core-tests.sh      # headless, 343 тести; працює при ВІДКРИТОМУ редакторі
+bash Tools/run-core-tests.sh      # headless, 344 тести; працює при ВІДКРИТОМУ редакторі
 bash Tools/check-compile.sh       # компіляція точно тими response-файлами, що в редактора
 python3 Tools/check-ui-animation.py && python3 Tools/check-glyphs.py && python3 Tools/check-navigation.py
 "/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet" run --project Tools/InkFlow.Sim -c Release --verbosity quiet -- --games 1000 --seed 42 --noise 3   # бот; --bot sloppy|default|careful, --weights a,b,c,d,e[,w], --no-carry, --csv; код 1 — є несправедливі смерті
@@ -120,7 +120,7 @@ python3 Tools/check-ui-animation.py && python3 Tools/check-glyphs.py && python3 
 - `docs/screens.md` — розкладка й поведінка кожного екрана, навігація, дев-панель. Читай, коли правиш екран.
 - `docs/gotchas.md` — уроки середовища (Unity, TMP, UGUI, збирачі, тести). Читай перед роботою з редактором і розкладкою.
 - `docs/implementation-notes.md` — журнал рішень і цифр прогонів; `docs/history.md` — журнал сесій 2–7 і контрольних точок.
-- `docs/legacy-ink-flow-v2.md` — старий стиль (видалити на кроці 10); `docs/pictures-format.md` — формат картинок; `docs/StyleRef/` — еталони (U1Glaze, K1Candy, W4DarkCanvas, A1Breathe).
+- `docs/pictures-format.md` — формат картинок; `docs/StyleRef/` — еталони (U1Glaze, K1Candy, W4DarkCanvas, A1Breathe).
 - `Reserve/*/README.md` — запас; `prompts/` — поточна задача; `../reports/` — звіти автору.
 
 Статус оновлюй наприкінці кожної задачі чи фази. Файл не росте: деталі — у `docs/`.

@@ -105,7 +105,7 @@ Assets/
       Collection/    CollectionScreen (+CollectionArgs), CollectionCard
       Common/        AppRouter, NavigationStack, ScreenBase, StyleRefresh, SafeAreaBinder, NickPrompt, ConfirmPrompt, GameAudio, NavBar (нижня навігація U1Glaze),
                      CurrencyWidget (капсула нафти; «+» — у запасі), ComponentsShowcase (вітрина U1Glaze), …
-      Atoms/         CandyButton, ChipView, RarityFrameView, RarityBadgeView, DialogView (U1Glaze); GlassPanel, NeonButton, DropView, … (старий стиль, до кроку 10)
+      Atoms/         CandyButton, ChipView, RarityFrameView, RarityBadgeView, DialogView, CosmicBackground, StarField (U1Glaze)
       Hub/           HubScreen (головний U1Glaze, крок 1)
       Galaxy/ Rankings/ Profile/
     App/             GameBootstrap, ServiceLocator, DevPanel
@@ -121,7 +121,7 @@ Assets/
   Scenes/            Main.unity (єдина в Build Settings) + сцени-майстерні кожного екрана
   Tests/EditMode/    Core-тести в корені, Meta/ окремо, UI/ — InkFlow.UI.Tests (живий рендер, лише в Unity)
 Tools/               run-core-tests.sh, check-compile.sh, check-*.py, asmdef-refs.py, CoreTestRunner/, InkFlow.Sim/,
-                     pictures/ (raster, author, contact_sheet), fetch-fonts.sh, salvage/
+                     pictures/ (raster, author, contact_sheet), fetch-fonts.sh
 docs/                ink-flow-core-final.md (ігрова правда), цей файл, implementation-notes.md, pictures-format.md,
                      StyleRef/ (еталони вигляду: K1Candy, W4DarkCanvas, A1Breathe), screenshots/
 ```
@@ -461,7 +461,7 @@ public interface IShowcaseService    { bool IsAvailable; void Publish(PublicShow
 |---|---|---|
 | EditMode, без Unity API | `InkFlow.Core.Tests` | формули §5, мішок, лінії й кроки, картинки й уся бібліотека (117 файлів), колода, зліпок, небезпека, геометрія й розкладка, формат рахунку, видимий стан поля, покриття й гало полотна, формула тривоги, бот, відсутність старого ядра |
 | EditMode | `InkFlow.Meta.Tests` | економіка забігу, витрати нафти, симуляція економіки, колекція, слоти, ліміти, міграції v1→v11, профіль (аватар, правила ніка, вітрина), рейтинги (сторінка, мок, база тижня, публічна вітрина), відсутність економіки фарби, режиму «Рівні» й покупки нафти (і цілість `Reserve/`), налаштування й посилання |
-| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **343 тести** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
+| Headless CLI | `Tools/run-core-tests.sh` | ті самі NUnit-файли через dotnet, коли редактор відкритий — **344 тести** (разом із `InkFlow.Services.Tests`: Fake-сервіси рейтингів і `RankingsSync`) |
 | EditMode, живий рендер | `InkFlow.UI.Tests` (`Assets/Tests/EditMode/UI`) | **91 тест** на зібраних префабах через стенди `RunScreenRig` і `MetaScreenRig<T>`: розкладка поля в усіх сценаріях і 5 пристроях, тривога (видимість, порядок шарів, формула = PNG еталона, Strong сильніша за Warn), рендер W4 піксель у піксель, картинка над полем і гало рідкості; планета (поріг «Сфера» / «Горизонт», половина з одного атласу, форма комірок «Сфери» = матриця еталона з двох вкладених RectTransform, тап — передня комірка, зворот не влучає, завершена галактика без листа з вимкненою дією й необрізаним поясненням, невідома картинка як зайнята комірка, лист «Замінити / Повернути» і порожня → колекція, «Горизонт» на всю ширину екрана, похід у колекцію іншим шляхом не святкує, панель «ожила» з наступною планетою, усі стани — вміщення, автоперевірка й бюджет на 402×874 і SE), колекція (лише зібране, фільтр рідкості без перебудови атласу, притлумлення без вільних копій), галактика (режим перегляду без кнопок, «Відкрити» з фокуса, завершені цикли стрілками), `GalaxyConfig` = дефолтна розкладка, головний (вміщення й автоперевірка на 402×874 і SE, події кнопок, зона тапу профілю, відмінки бейджів, «…» ніка й 999 999 999, пріоритет мініатюри, стек вкладок `SetRootWith`/`PopTo`, симуляція батчингу), шрифти на одній сторінці атласа, налаштування (перемикачі пишуть у стан, «Заново» лише в забігу, мова лише з двома локалями, «скоро» без адреси, гаптика за перемикачем мовчить). Лише в Unity: редактор закритий або batch на копії проєкту |
 | Бот-прогони | `Tools/InkFlow.Sim` | 1000 забігів за секунду; цифри в `docs/implementation-notes.md` |
 
