@@ -32,12 +32,30 @@ namespace InkFlow.Editor
             "planet-visitor-sphere", "planet-visitor-horizon",
             "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
             "settings", "settings-run",
-            "profile-fresh", "profile",
+            "profile-fresh", "profile", "profile-nick", "profile-nick-error", "profile-nick-max",
             "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline", "galaxy-visitor"
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen", "ProfileScreen" };
+
+        /// <summary>Стани профілю (крок 8 U1Glaze): S10_01, новий гравець, діалог ніка S10_02 / 03 (заборонене) / 04 (межа).</summary>
+        public static readonly string[] ProfileStates = { "profile", "profile-fresh", "profile-nick", "profile-nick-error", "profile-nick-max" };
+
+        /// <summary>Знімки профілю з уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
+        [MenuItem("Ink Flow/Debug/Capture Profile Screenshots")]
+        public static void CaptureProfile()
+        {
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in ProfileStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Debug.Log($"[InkFlow] Знімки профілю: {ProfileStates.Length} станів × {ScreenRigBase.Devices.Length} пристроїв у {OutputFolder}.");
+            Finish(overBudget, audit);
+        }
 
         /// <summary>Стани «Ліги» (крок 7 U1Glaze): S08_01 (планети · тиждень), S08_02 (за весь час), S08_03 (галактики), S08_04 (без мережі).</summary>
         public static readonly string[] RankingsStates = { "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline" };
@@ -608,19 +626,39 @@ namespace InkFlow.Editor
                 }
                 case "profile-fresh":
                 case "profile":
+                case "profile-nick":
+                case "profile-nick-error":
+                case "profile-nick-max":
                 {
-                    // Новий гравець (вітрини ще немає, кнопка спить) і гравець із колекцією, обраним аватаром і вітриною.
+                    // S10_01: колекція, рожевий аватар, вітрина — «Кактус у сомбреро» (Рідкісна); новий гравець — заглушка.
+                    // Діалог ніка — та сама фабрика, що в головній сцені: «Гравець» (S10_02), «Модератор» — заборонене
+                    // слово в списку стенда (S10_03), «Космічний_Маляр2» — межа 16 (S10_04).
                     using var rig = MetaScreenRig<ProfileScreen>.Create(device, "ProfileScreen");
                     var player = rig.NewPlayer();
-                    if (state == "profile")
+                    player.Wallet.Add(1240, RewardSource.Debug);
+                    if (state != "profile-fresh")
                     {
                         for (var i = 0; i < 7; i++)
                             player.CollectPicture(rig.Library[(i * 11) % rig.Library.Count].Id, System.DateTime.UtcNow);
-                        player.SetAvatar(3);
-                        player.SetShowcasePicture(rig.Library[22 % rig.Library.Count].Id);
+                        player.CollectPicture("cactus_hat", System.DateTime.UtcNow);
+                        player.SetAvatar(5);
+                        player.SetShowcasePicture("cactus_hat");
                     }
                     rig.Enter(player, ScreenArgs.Empty);
+                    NickPrompt? prompt = null;
+                    if (state.StartsWith("profile-nick", System.StringComparison.Ordinal))
+                    {
+                        prompt = BuildMainScene.BuildNickPrompt(rig.Safe.gameObject, rig.Design);
+                        prompt.Bind(new NickRules(3, 16, new[] { "модератор" }));
+                        prompt.Show(player.Nick, _ => { });
+                        prompt.PreviewSetText(state == "profile-nick-error" ? "Модератор" : state == "profile-nick-max" ? "Космічний_Маляр2" : "Гравець");
+                    }
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "ProfileScreen", device.Name, state, audit);
                     rig.SavePng(path);
+                    if (prompt != null)
+                        Object.DestroyImmediate(prompt.gameObject);
                     break;
                 }
                 default:

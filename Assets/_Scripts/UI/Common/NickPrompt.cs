@@ -1,5 +1,7 @@
 using System;
+using InkFlow.Core;
 using InkFlow.Meta;
+using InkFlow.Style;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,51 +9,72 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Діалог вводу ніка: затемнення, поле, підказка про межі й дві кнопки. Правила (§14: довжина й
-    /// фільтр образливих слів) — <see cref="NickRules"/> з конфігу через роутер; невдалий нік не
-    /// закриває діалог, а каже чому.
+    /// Діалог ніка (U1Glaze S10Profile_02…04): «Твій нік», поле, під ним — підказка чи помилка ліворуч і лічильник
+    /// «7 / 16» праворуч, бірюзова «Зберегти» й текстова «Скасувати». Перевірка — наживо, на кожну зміну тексту
+    /// (<see cref="NickRules"/> з конфігу через роутер, §14):
+    ///   • валідний — підказка ink-muted, «Зберегти» активна;
+    ///   • на межі довжини — бурштинове «Максимум N символів», але нік валідний і зберігається (S10_04);
+    ///   • заборонене слово, закоротко, без літер — кораловий контур поля, коралова помилка, «Зберегти» вимкнена (S10_03).
     ///
-    /// Свідомо мінімальний і НЕ екран: він не бере участі в навігації, не потрапляє у стек і не має
-    /// власного «назад». Повноцінний онбординг («Як тебе звати?» при першому запуску) робитимемо
-    /// окремо — тоді цей діалог або переїде туди, або лишиться як «змінити нік».
+    /// Свідомо НЕ екран: не бере участі в навігації, не потрапляє у стек і не має власного «назад».
     /// </summary>
     public sealed class NickPrompt : MonoBehaviour
     {
+        [SerializeField] private DesignSystem design;
         [SerializeField] private RectTransform root;
+        [SerializeField] private DialogView? dialog;
         [SerializeField] private TMP_InputField field;
+        [SerializeField] private Image fieldBody;
+        [SerializeField] private Image fieldRing;
         [SerializeField] private TMP_Text hintLabel;
-        [SerializeField] private TMP_Text errorLabel;
-        [SerializeField] private Button confirmButton;
+        [SerializeField] private TMP_Text counterLabel;
+        [SerializeField] private CandyButton confirmButton;
         [SerializeField] private Button cancelButton;
+
+        [Header("Спрайти поля (ставить збирач)")]
+        [SerializeField] private Sprite fieldSprite;
+        [SerializeField] private Sprite fieldErrorSprite;
 
         private NickRules _rules = NickRules.Default;
         private Action<string>? _confirmed;
+        private NickVerdict _verdict = NickVerdict.TooShort;
 
-        /// <summary>Що показує рядок помилки зараз (тестам); порожньо — помилки немає.</summary>
-        public string Error => errorLabel != null && errorLabel.gameObject.activeSelf ? errorLabel.text : string.Empty;
+        /// <summary>Що показує рядок помилки зараз (тестам); порожньо — помилки немає (підказка чи попередження — не помилка).</summary>
+        public string Error => _verdict != NickVerdict.Ok && field != null && field.text.Length > 0 && hintLabel != null ? hintLabel.text : string.Empty;
+
+        /// <summary>Підказка під полем, як її видно (тестам).</summary>
+        public string Hint => hintLabel != null ? hintLabel.text : string.Empty;
+
+        /// <summary>Лічильник «N / M» (тестам).</summary>
+        public string Counter => counterLabel != null ? counterLabel.text : string.Empty;
+
+        /// <summary>Чи можна зберегти зараз (тестам).</summary>
+        public bool CanSave => confirmButton != null && confirmButton.Interactable;
 
         /// <summary>Чи відкритий діалог (тестам).</summary>
         public bool IsOpen => root != null && root.gameObject.activeSelf;
 
 #if UNITY_EDITOR
-        /// <summary>Тестам: набрати нік, як із клавіатури.</summary>
+        /// <summary>Тестам і знімкам: набрати нік, як із клавіатури.</summary>
         public void PreviewSetText(string value)
         {
-            if (field != null)
-                field.text = value;
+            if (field == null)
+                return;
+            field.text = value;
+            Validate(field.text);
         }
 #endif
 
         private void Awake()
         {
             if (confirmButton != null)
-                confirmButton.onClick.AddListener(Confirm);
+                confirmButton.Button.onClick.AddListener(Confirm);
             if (cancelButton != null)
                 cancelButton.onClick.AddListener(Hide);
             if (field != null)
             {
                 field.characterLimit = _rules.MaxLength;
-                field.onValueChanged.AddListener(_ => ShowError(string.Empty));
+                field.onValueChanged.AddListener(Validate);
             }
             // Без Hide() тут: об'єкт у сцені лежить вимкненим зі збирача, а Awake біжить усередині
             // першого SetActive(true) з Show() — Hide() звідси ковтав перший тап по олівцю за запуск.
@@ -63,24 +86,21 @@ namespace InkFlow.UI
             _rules = rules ?? NickRules.Default;
             if (field != null)
                 field.characterLimit = _rules.MaxLength;
-            if (hintLabel != null)
-                hintLabel.text = Hint(_rules);
         }
 
         public void Show(string current, Action<string> onConfirmed)
         {
             _confirmed = onConfirmed;
-            if (hintLabel != null)
-                hintLabel.text = Hint(_rules);
-            ShowError(string.Empty);
+            root?.gameObject.SetActive(true);
+            dialog?.Show();
             if (field != null)
             {
+                field.characterLimit = _rules.MaxLength;
                 field.text = current;
                 field.Select();
                 field.ActivateInputField();
+                Validate(field.text);
             }
-
-            root?.gameObject.SetActive(true);
         }
 
         public void Hide()
@@ -90,14 +110,14 @@ namespace InkFlow.UI
                 root.gameObject.SetActive(false);
         }
 
-        /// <summary>Підтвердити як пальцем (тестам). Невдалий нік лишає діалог відкритим із поясненням.</summary>
+        /// <summary>Підтвердити як пальцем (тестам). Невалідний нік лишає діалог відкритим із поясненням.</summary>
         public void Confirm()
         {
             var value = NickRules.Normalize(field != null ? field.text : string.Empty);
             var verdict = _rules.Check(value);
             if (verdict != NickVerdict.Ok)
             {
-                ShowError(Message(verdict, _rules));
+                Validate(field != null ? field.text : string.Empty);
                 return;
             }
 
@@ -106,25 +126,48 @@ namespace InkFlow.UI
             callback?.Invoke(value);
         }
 
-        private void ShowError(string text)
+        /// <summary>Жива перевірка: підказка/помилка, лічильник, контур поля, доступність «Зберегти». На подію, не щокадру.</summary>
+        private void Validate(string raw)
         {
-            if (errorLabel == null)
+            if (design == null)
                 return;
-            errorLabel.text = text;
-            if (errorLabel.gameObject.activeSelf != (text.Length > 0))
-                errorLabel.gameObject.SetActive(text.Length > 0);
+            var value = NickRules.Normalize(raw);
+            _verdict = _rules.Check(value);
+            var empty = (raw ?? string.Empty).Length == 0;
+            var length = (raw ?? string.Empty).Length;
+
+            var error = _verdict != NickVerdict.Ok && !empty;
+            var atLimit = _verdict == NickVerdict.Ok && length >= _rules.MaxLength;
+            var tone = error ? design.Coral300 : atLimit ? design.Amber300 : design.InkMuted;
+
+            if (hintLabel != null)
+            {
+                hintLabel.text = error ? Message(_verdict, _rules) : atLimit ? $"Максимум {_rules.MaxLength} символів" : HintText;
+                hintLabel.color = tone;
+            }
+            if (counterLabel != null)
+            {
+                counterLabel.text = $"{length} / {_rules.MaxLength}";
+                counterLabel.color = tone;
+            }
+            if (fieldBody != null)
+                fieldBody.sprite = error ? fieldErrorSprite : fieldSprite;
+            if (fieldRing != null)
+                fieldRing.color = error ? DesignSystem.WithAlpha(design.DangerLine, 1f) : design.Teal;
+            if (confirmButton != null)
+                confirmButton.Interactable = _verdict == NickVerdict.Ok;
         }
 
-        /// <summary>Підказка під полем: межі й нагадування, що нік публічний.</summary>
-        public static string Hint(NickRules rules) =>
-            $"Від {rules.MinLength} до {rules.MaxLength} символів · нік бачать у рейтингах";
+        /// <summary>Підказка під полем, коли все гаразд (S10_02).</summary>
+        public const string HintText = "Літери, цифри, «-» і «_»";
 
-        /// <summary>Пояснення відмови — коротке, без моралі.</summary>
+        /// <summary>Пояснення відмови — коротке, без моралі (S10_03).</summary>
         public static string Message(NickVerdict verdict, NickRules rules) => verdict switch
         {
-            NickVerdict.TooShort => $"Закоротко — потрібно від {rules.MinLength} до {rules.MaxLength} символів",
-            NickVerdict.TooLong => $"Задовго — потрібно від {rules.MinLength} до {rules.MaxLength} символів",
-            NickVerdict.Offensive => "Такий нік не підходить — його побачать інші гравці",
+            NickVerdict.TooShort => $"Мінімум {Plural.Count(rules.MinLength, "символ", "символи", "символів")}",
+            NickVerdict.TooLong => $"Максимум {Plural.Count(rules.MaxLength, "символ", "символи", "символів")}",
+            NickVerdict.Offensive => "Це слово заборонене. Спробуй інше.",
+            NickVerdict.NoLetters => "Потрібна хоч одна літера чи цифра",
             _ => string.Empty
         };
     }

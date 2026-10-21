@@ -306,8 +306,12 @@ namespace InkFlow.UI
                 _haloPixels = new Color32[canvasCells];
                 if (pixels != null)
                     pixels.texture = _texture;
-                _material?.SetTexture(MaskId, _mask);
-                _material?.SetTexture(HaloId, _halo);
+                // `?.` не бачить «знищеного» матеріалу (фальшивий null Unity після перезавантаження домену в редакторі).
+                if (_material != null)
+                {
+                    _material.SetTexture(MaskId, _mask);
+                    _material.SetTexture(HaloId, _halo);
+                }
                 changed = true;
             }
             if (changed)

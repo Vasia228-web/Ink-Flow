@@ -210,105 +210,76 @@ namespace InkFlow.Editor
         }
 
         /// <summary>
-        /// Діалог зміни ніка. Розкладка проста настільки, що окремий збирач
-        /// їй не потрібен — усе поміщається тут.
+        /// Діалог ніка U1Glaze (S10Profile_02…04) — публічна фабрика: UI-тест збирає його так само, як головна сцена.
+        /// <see cref="U1.Dialog"/> (затемнення 78 % + непрозора панель 362): «Твій нік» h1 ліворуч, поле <see cref="U1.Field"/>
+        /// з <c>TMP_InputField</c>, рядок «підказка / помилка» ліворуч і лічильник «N / M» праворуч, бірюзова «Зберегти»
+        /// 56 і текстова «Скасувати». Лежить вимкненим.
         /// </summary>
-        /// <summary>Діалог ніка — публічна фабрика: UI-тест збирає його так само, як головна сцена.</summary>
         public static NickPrompt BuildNickPrompt(GameObject parent, DesignSystem design)
         {
-            const float k = DesignSystem.MockupToReference;
-            var go = Child(parent, "NickPrompt");
-            Stretch(go);
+            var dialog = U1.Dialog(parent, "NickPrompt", design, U1.DialogWidthPx, out var panel, U1.DialogPaddingPx);
+            var title = U1.Text(panel, "Title", "Твій нік", design, U1.Role.H1, design.InkText, TextAlignmentOptions.Left);
+            title.textWrappingMode = TextWrappingModes.NoWrap;
 
-            var scrim = go.AddComponent<Image>();
-            scrim.color = design.OverScrim;
-
-            var panelGo = Child(go, "Panel");
-            var panel = panelGo.AddComponent<GradientImage>();
-            panel.sprite = LoadSprite("rounded-rect");
-            panel.type = Image.Type.Sliced;
-            panel.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(28f * k));
-            panel.SetGradient(design.OverCardFrom, design.OverCardTo);
-            Place(panel, Vector2.zero, new Vector2(Mathf.Round(300f * k), Mathf.Round(236f * k)),
-                new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-
-            var title = Label(panelGo, "Title", "Як тебе звати?", design, design.Font,
-                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Place(title, new Vector2(0f, -Mathf.Round(26f * k)),
-                new Vector2(Mathf.Round(260f * k), Mathf.Round(30f * k)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            var fieldGo = Child(panelGo, "Field");
-            var fieldBg = fieldGo.AddComponent<Image>();
-            fieldBg.sprite = LoadSprite("rounded-rect");
-            fieldBg.type = Image.Type.Sliced;
-            fieldBg.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(16f * k));
-            fieldBg.color = design.GlassFill;
-            Place(fieldBg, new Vector2(0f, -Mathf.Round(76f * k)),
-                new Vector2(Mathf.Round(252f * k), Mathf.Round(46f * k)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-
-            var textGo = Child(fieldGo, "Text");
-            Stretch(textGo, Mathf.Round(12f * k));
-            var text = textGo.AddComponent<TextMeshProUGUI>();
-            text.fontSize = design.FontSizeSubtitle;
-            text.color = design.TextPrimary;
-            text.alignment = TextAlignmentOptions.Left;
-            if (design.Font != null) text.font = design.Font;
-
-            var input = fieldGo.AddComponent<TMP_InputField>();
-            input.textViewport = (RectTransform)textGo.transform;
+            var (fieldBody, ring, text) = U1.Field(panel, "Field", string.Empty, design, error: false, focused: true);
+            U1.Size(fieldBody.gameObject, 0f, 58f);
+            // Поле вводу: TMP_InputField поверх спрайта поля; текст — роль h3 900, як на макеті.
+            var input = fieldBody.gameObject.AddComponent<TMP_InputField>();
+            var viewportGo = Child(fieldBody.gameObject, "TextArea");
+            Stretch(viewportGo);
+            var viewportRect = viewportGo.GetComponent<RectTransform>();
+            viewportRect.offsetMin = new Vector2(U1.Px(18f), U1.Px(4f));
+            viewportRect.offsetMax = new Vector2(-U1.Px(18f), -U1.Px(4f));
+            viewportGo.AddComponent<RectMask2D>();
+            text.transform.SetParent(viewportGo.transform, false);
+            Stretch(text.gameObject);
+            text.margin = Vector4.zero;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.alignment = TextAlignmentOptions.MidlineLeft;
+            input.textViewport = viewportRect;
             input.textComponent = text;
-            input.characterLimit = InkFlow.Meta.NickRules.Default.MaxLength;
+            input.targetGraphic = fieldBody;
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.characterLimit = 16;
+            input.caretColor = design.Teal;
+            input.customCaretColor = true;
+            input.caretWidth = 3;
+            input.selectionColor = DesignSystem.WithAlpha(design.Teal, 0.35f);
+            input.onFocusSelectAll = false;
 
-            // Підказка про межі (§14) і рядок помилки під полем: невдалий нік не закриває діалог, а каже чому.
-            var hint = Label(panelGo, "Hint", NickPrompt.Hint(InkFlow.Meta.NickRules.Default), design, design.Font,
-                design.FontSizeCaption, design.TextMuted, TextAlignmentOptions.Center);
-            Place(hint, new Vector2(0f, -Mathf.Round(128f * k)),
-                new Vector2(Mathf.Round(260f * k), Mathf.Round(18f * k)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-            var error = Label(panelGo, "Error", string.Empty, design, design.Font,
-                design.FontSizeCaption, design.AccentPrimary, TextAlignmentOptions.Center);
-            Place(error, new Vector2(0f, -Mathf.Round(148f * k)),
-                new Vector2(Mathf.Round(260f * k), Mathf.Round(18f * k)),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f));
-            error.gameObject.SetActive(false);
+            var infoRow = Child(panel, "Info");
+            var info = infoRow.AddComponent<HorizontalLayoutGroup>();
+            info.spacing = U1.Px(8f);
+            info.childAlignment = TextAnchor.MiddleLeft;
+            info.childControlWidth = info.childControlHeight = true;
+            info.childForceExpandWidth = info.childForceExpandHeight = false;
+            U1.Size(infoRow, 0f, 24f).flexibleHeight = 0f;
+            var hint = U1.Text(infoRow, "Hint", NickPrompt.HintText, design, U1.Role.Body, design.InkMuted, TextAlignmentOptions.Left);
+            hint.textWrappingMode = TextWrappingModes.NoWrap;
+            hint.overflowMode = TextOverflowModes.Ellipsis;
+            hint.enableAutoSizing = true;
+            hint.fontSizeMax = design.UiBody;
+            hint.fontSizeMin = design.UiBody * 0.8f;
+            var hintSize = hint.gameObject.AddComponent<LayoutElement>();
+            hintSize.preferredWidth = 0f;
+            hintSize.minWidth = 0f;
+            hintSize.flexibleWidth = 1f;
+            var counter = U1.Text(infoRow, "Counter", "0 / 16", design, U1.Role.Body, design.InkMuted, TextAlignmentOptions.Right);
+            counter.font = design.FontBlack;
+            counter.textWrappingMode = TextWrappingModes.NoWrap;
 
-            var okGo = Child(panelGo, "Confirm");
-            var okFill = okGo.AddComponent<GradientImage>();
-            okFill.sprite = LoadSprite("rounded-rect");
-            okFill.type = Image.Type.Sliced;
-            okFill.pixelsPerUnitMultiplier = GlassPanel.PixelsPerUnitFor(Mathf.Round(22f * k));
-            okFill.SetGradient(design.AccentTeal, design.AccentBlue);
-            Place(okFill, new Vector2(Mathf.Round(62f * k), Mathf.Round(20f * k)),
-                new Vector2(Mathf.Round(120f * k), Mathf.Round(46f * k)),
-                new Vector2(0.5f, 0f), new Vector2(0.5f, 0f));
-            var okLabel = Label(okGo, "Label", "Готово", design, design.Font,
-                design.FontSizeSubtitle, design.TextPrimary, TextAlignmentOptions.Center);
-            Stretch(okLabel.gameObject);
-            var ok = okGo.AddComponent<Button>();
-            ok.targetGraphic = okFill;
+            U1.Gap(panel, 6f);
+            var save = U1.Button(panel, "Save", "Зберегти", design, CandyButton.Tone.Teal);
+            U1.Size(save.gameObject, 0f, 56f);
+            var cancel = U1.TextButton(panel, "Cancel", "Скасувати", design, design.InkMuted);
+            U1.Size(cancel.gameObject, 0f, 44f);
 
-            var cancelGo = Child(panelGo, "Cancel");
-            var cancelLabel = Label(cancelGo, "Label", "Скасувати", design, design.Font,
-                design.FontSizeShopCard, design.TextMuted, TextAlignmentOptions.Center);
-            cancelLabel.raycastTarget = true;
-            Stretch(cancelLabel.gameObject);
-            Place(cancelLabel, Vector2.zero, Vector2.zero, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-            var cancelRect = cancelGo.GetComponent<RectTransform>();
-            cancelRect.anchorMin = cancelRect.anchorMax = new Vector2(0.5f, 0f);
-            cancelRect.pivot = new Vector2(0.5f, 0f);
-            cancelRect.anchoredPosition = new Vector2(-Mathf.Round(70f * k), Mathf.Round(20f * k));
-            cancelRect.sizeDelta = new Vector2(Mathf.Round(110f * k), Mathf.Round(46f * k));
-            var cancel = cancelGo.AddComponent<Button>();
-            cancel.targetGraphic = cancelLabel;
-
-            var prompt = go.AddComponent<NickPrompt>();
-            Wire(prompt, ("root", go.GetComponent<RectTransform>()), ("field", input),
-                ("hintLabel", hint), ("errorLabel", error),
-                ("confirmButton", ok), ("cancelButton", cancel));
-
-            go.SetActive(false);
+            var prompt = dialog.gameObject.AddComponent<NickPrompt>();
+            Wire(prompt, ("design", design), ("root", dialog.GetComponent<RectTransform>()), ("dialog", dialog),
+                ("field", input), ("fieldBody", fieldBody), ("fieldRing", ring), ("hintLabel", hint), ("counterLabel", counter),
+                ("confirmButton", save), ("cancelButton", cancel),
+                ("fieldSprite", U1.S("field")), ("fieldErrorSprite", U1.S("field_error")));
+            dialog.gameObject.SetActive(false);
             return prompt;
         }
 

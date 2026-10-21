@@ -33,6 +33,17 @@ namespace InkFlow.UI.Tests
             Assert.AreEqual(NickPrompt.Message(NickVerdict.Offensive, NickRules.Default), prompt.Error);
             Assert.IsNull(confirmed);
 
+            Assert.IsFalse(prompt.CanSave, "S10_03: заборонене слово — «Зберегти» вимкнена");
+            Assert.AreEqual("5 / 16", prompt.Counter, "лічильник символів");
+
+            prompt.PreviewSetText("Космічний_Маляр2");
+            Assert.IsTrue(prompt.CanSave, "S10_04: межа довжини — нік валідний");
+            Assert.AreEqual("Максимум 16 символів", prompt.Hint, "бурштинове попередження, не помилка");
+            Assert.AreEqual(string.Empty, prompt.Error);
+
+            prompt.PreviewSetText("Гравець");
+            Assert.AreEqual(NickPrompt.HintText, prompt.Hint, "S10_02: звичайна підказка");
+
             prompt.PreviewSetText("  Нова   Зоря ");
             prompt.Confirm();
             Assert.AreEqual("Нова Зоря", confirmed, "нормалізований нік іде в колбек");
