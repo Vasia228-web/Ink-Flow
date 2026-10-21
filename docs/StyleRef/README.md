@@ -1,10 +1,13 @@
-# Ink Flow — стилі K1Candy + W4DarkCanvas + A1Breathe
+# SpacePaint — еталони стилів
 
 Обрані стилі, перенесені в Unity.
 
+- **U1Glaze/** — **єдиний чинний стиль інтерфейсу SpacePaint** (SPEC.md, SCREENS.md, `preview/`, `sprites.json`, `tokens.json`, `tools/globe_slots.py`); опис реалізації — `docs/design-system-u1glaze.md`.
 - **K1Candy/** — глянцеві блоки фігур і поле з квадратними лунками.
 - **W4DarkCanvas/** — картинка: рівні квадратні пікселі на темному полотні з плетінням, світлі контури незафарбованого, м'яке гало фарби.
 - **A1Breathe/** — тривога поля «мало місця»: тепле сяйво, що дихає навколо поля.
-- **tokens.json** — усі кольори, відступи й радіуси дизайн-системи.
+- **tokens.json** (цієї теки) — токени старого стилю «Ink Flow v2»; зникає разом з ним на кроці 10 U1Glaze (`docs/legacy-ink-flow-v2.md`).
+
+K1Candy, W4DarkCanvas і A1Breathe лишаються чинними для екрана забігу.
 
 Усі PNG мають прозорий фон (крім полотна й прикладів картинок).

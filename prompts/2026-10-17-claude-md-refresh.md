@@ -1,6 +1,6 @@
 # 2026-10-17 · Освіжити CLAUDE.md (SpacePaint)
 
-Статус: ⏳ не почато
+Статус: ⏳ сесія 1 виконана 2026-10-20 (звіт `../reports/2026-10-20-claude-md-refresh-session1.html`); **сесія 2 виконана 2026-10-21, контрольна точка подана** (звіт `../reports/2026-10-21-claude-md-refresh-session2.html`: CLAUDE.md 380 → 111 рядків, нові `docs/design-system-u1glaze.md`, `screens.md`, `gotchas.md`, `history.md`, `legacy-ink-flow-v2.md`; check-compile чисто, 343 тести, три чекери зелені) — чекаю «ок» автора → коміт і push; окремо, лише з його «ок»: `~/.claude/CLAUDE.md` і скіл beginner-to-pro. Після «ок» нагадати автору забрати цей промт в `../prompts-archive/`.
 
 ## Коли запускати
 
