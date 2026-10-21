@@ -59,7 +59,7 @@ namespace InkFlow.Core
     public sealed class LeaderboardPage
     {
         public LeaderboardPage(RankMetric metric, RankPeriod period, LeaderboardStatus status,
-            IReadOnlyList<LeaderboardEntry>? entries, int yourRank, long yourValue, string? error = null)
+            IReadOnlyList<LeaderboardEntry>? entries, int yourRank, long yourValue, string? error = null, long aheadValue = -1)
         {
             Metric = metric;
             Period = period;
@@ -68,7 +68,14 @@ namespace InkFlow.Core
             YourRank = yourRank;
             YourValue = yourValue;
             Error = error;
+            AheadValue = aheadValue;
         }
+
+        /// <summary>
+        /// Значення гравця на місці <see cref="YourRank"/> − 1 — для «ще N до №M» на картці «Ти» (U1Glaze S08), коли
+        /// гравець далеко за сторінкою й сусіда в <see cref="Entries"/> немає; −1 — невідоме.
+        /// </summary>
+        public long AheadValue { get; }
 
         public RankMetric Metric { get; }
         public RankPeriod Period { get; }
@@ -191,16 +198,20 @@ namespace InkFlow.Core
 
             var entries = new List<LeaderboardEntry>(Math.Min(limit, rows.Count));
             var yourRank = 1;
+            long ahead = -1;
             for (var r = 0; r < rows.Count; r++)
             {
                 var (index, value) = rows[r];
                 if (value > yourValue)
+                {
                     yourRank++;
+                    ahead = value;   // останній, хто вище, — сусід над гравцем
+                }
                 if (entries.Count < limit)
-                    entries.Add(new LeaderboardEntry(PlayerIdOf(index), Nicks[index], index % 6,
+                    entries.Add(new LeaderboardEntry(PlayerIdOf(index), Nicks[index], index % 8,
                         Array.IndexOf(Incognito, index) >= 0, value, r + 1));
             }
-            return new LeaderboardPage(metric, period, LeaderboardStatus.Ok, entries, yourRank, yourValue);
+            return new LeaderboardPage(metric, period, LeaderboardStatus.Ok, entries, yourRank, yourValue, aheadValue: ahead);
         }
 
         /// <summary>
@@ -226,7 +237,7 @@ namespace InkFlow.Core
             for (var p = 0; p < planets && p < planetsDone; p++)
                 for (var s = 0; s < planetSlots![p]; s++)
                     slots.Add(new ShowcaseSlot(planetIds![p], s, $"mock-{p}-{s}"));
-            return new PublicShowcase(id, Nicks[index], index % 6, false, null, planetsDone, 0, 0, slots, string.Empty);
+            return new PublicShowcase(id, Nicks[index], index % 8, false, null, planetsDone, 0, 0, slots, string.Empty);
         }
     }
 }

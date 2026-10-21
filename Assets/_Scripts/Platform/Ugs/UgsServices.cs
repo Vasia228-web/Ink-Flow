@@ -138,17 +138,26 @@ namespace InkFlow.Platform.Ugs
 
                 var yourRank = 0;
                 long yourValue = 0;
+                long ahead = -1;
                 try
                 {
                     var mine = await LeaderboardsService.Instance.GetPlayerScoreAsync(id);
                     yourRank = mine.Rank + 1;
                     yourValue = (long)mine.Score;
+                    // Сусід над гравцем — для «ще N до №M» (U1Glaze S08), коли гравець за межами сторінки.
+                    if (yourRank > Math.Max(1, limit))
+                    {
+                        var range = await LeaderboardsService.Instance.GetPlayerRangeAsync(id, new GetPlayerRangeOptions { RangeLimit = 1 });
+                        foreach (var row in range.Results)
+                            if (row.Rank == mine.Rank - 1)
+                                ahead = (long)row.Score;
+                    }
                 }
                 catch (Exception)
                 {
                     // Гравець ще нічого не надсилав у цю таблицю — місця немає, це не помилка.
                 }
-                done?.Invoke(new LeaderboardPage(metric, period, LeaderboardStatus.Ok, entries, yourRank, yourValue));
+                done?.Invoke(new LeaderboardPage(metric, period, LeaderboardStatus.Ok, entries, yourRank, yourValue, aheadValue: ahead));
             }
             catch (Exception error)
             {

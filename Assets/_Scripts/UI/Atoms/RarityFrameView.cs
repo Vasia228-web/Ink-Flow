@@ -32,7 +32,9 @@ namespace InkFlow.UI
         [SerializeField] private bool big = true;
         [SerializeField] private Rarity rarity = Rarity.Common;
 
-        private Material? _sheen;
+        // Один матеріал переливу на всі космічні рамки: окремий екземпляр на рамку — окремий виклик малювання на кожну
+        // (сітка колекції з фільтром «Космічна» — до 18). Живе весь сеанс; період — з дизайн-системи при застосуванні.
+        private static Material? _sheen;
 
         public Rarity Rarity => rarity;
         public bool IsBig => big;
@@ -42,15 +44,6 @@ namespace InkFlow.UI
 #if UNITY_EDITOR
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 #endif
-
-        private void OnDestroy()
-        {
-            if (_sheen == null)
-                return;
-            // У Edit Mode (стенди, збирачі) Destroy заборонено — лише DestroyImmediate.
-            if (Application.isPlaying) Destroy(_sheen);
-            else DestroyImmediate(_sheen);
-        }
 
         public void Configure(bool isBig, Sprite[] frameSprites, Sprite[] smallSprites, Sprite[] pipSet, Sprite[] glowSet, Shader? sheen)
         {
@@ -119,8 +112,8 @@ namespace InkFlow.UI
         {
             if (sheenShader == null)
                 return null;
-            if (_sheen == null)
-                _sheen = new Material(sheenShader) { name = "CosmicSheen" };
+            if (_sheen == null || _sheen.shader != sheenShader)
+                _sheen = new Material(sheenShader) { name = "CosmicSheen", hideFlags = HideFlags.DontSave };
             // Період — при застосуванні стилю, не щокадру: далі крутить сам шейдер.
             _sheen.SetFloat("_Period", design != null ? design.CosmicSheenPeriod : 6f);
             return _sheen;

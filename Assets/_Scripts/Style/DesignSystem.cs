@@ -1005,48 +1005,27 @@ namespace InkFlow.Style
         [Tooltip("До якої частки кегля стискається нік, щоб уміститись в один рядок (візитка, шапка хаба).")]
         [SerializeField, Range(0.3f, 1f)] private float nickMinScale = 0.55f;
 
-        [Header("Рейтинги")]
-        [Tooltip("Нік і номер у рядку: 15 px макета.")]
-        [SerializeField] private float fontSizeRankRow = 42f;
+        [Header("Рейтинги «Ліга» (U1Glaze S08)")]
+        [Tooltip("Рядок таблиці, px макета (S08: 56, між рядками — лише роздільник).")]
+        [SerializeField, Min(44f)] private float rankRowHeightPx = 56f;
+        [SerializeField, Min(0f)] private float rankRowGapPx = 0f;
 
-        [Tooltip("Число метрики в рядку: 18 px макета.")]
-        [SerializeField] private float fontSizeRankValue = 50f;
+        [Tooltip("Запас під останнім рядком у картці таблиці, px макета.")]
+        [SerializeField, Min(0f)] private float rankListBottomPaddingPx = 8f;
 
-        [Tooltip("Число першого місця на подіумі: 26 px макета.")]
-        [SerializeField] private float fontSizePodiumFirst = 72f;
+        [Tooltip("Цифра на медалі топ-3 (S08: #2A1600 — на золоті білий не читається).")]
+        [SerializeField] private Color medalInk = Hex("#2A1600");
 
-        [Tooltip("Число другого й третього місця: 20 px макета.")]
-        [SerializeField] private float fontSizePodiumOther = 55f;
+        [Tooltip("Теплий відтінок рядка першого місця і бірюзовий — свого рядка (альфа поверх картки).")]
+        [SerializeField, Range(0f, 1f)] private float rankRowFirstAlpha = 0.14f;
+        [SerializeField, Range(0f, 1f)] private float rankRowYouAlpha = 0.16f;
 
-        [Tooltip("Медалі: золото, срібло, бронза. Порядок = місце.")]
-        [SerializeField] private Color[] medals =
-        {
-            Hex("#FFD54A"), Hex("#D7DEE8"), Hex("#E0975A")
-        };
+        [Tooltip("Бірюзова обводка картки «Ти» (рішення автора, S08) і притлумлення картки без мережі (S08_04).")]
+        [SerializeField, Range(0f, 1f)] private float youCardRingAlpha = 0.6f;
+        [SerializeField, Range(0.2f, 1f)] private float youCardOfflineAlpha = 0.6f;
 
-        [Tooltip("Цифра на бейджі місця — темна: на золоті білий не читається.")]
-        [SerializeField] private Color medalText = Hex("#231A08");
-
-        [SerializeField, Range(0f, 1f)] private float podiumGlowAlpha = 0.55f;
-
-        [Tooltip("Секунд на оберт: перше місце помітно живіше за решту.")]
-        [SerializeField] private float podiumSpinFirst = 20f;
-        [SerializeField] private float podiumSpinOther = 26f;
-
-        [Tooltip("Планета й аватар схованого профілю.")]
+        [Tooltip("Градієнтний аватар схованого профілю — лише профіль старого стилю (до кроку 8 U1Glaze).")]
         [SerializeField] private Color rankIncognito = Hex("#5C6274");
-
-        [Tooltip("Рядок списку: 56 px макета, проміжок 8.")]
-        [SerializeField] private float rankRowHeight = 155f;
-        [SerializeField] private float rankRowGap = 22f;
-
-        [Tooltip("Запас унизу списку під закріплену картку «Ти».")]
-        [SerializeField] private float rankListBottomPadding = 321f;
-
-        [Tooltip("Картка «Ти» (§16): щільний непрозорий фон без кольорової обводки — зверху й знизу градієнта.")]
-        [SerializeField] private Color youCardFillFrom = Hex("#2A1E56");
-        [SerializeField] private Color youCardFillTo = Hex("#1A1338");
-        [SerializeField] private Color youCardText = Hex("#FFD0E6");
 
         [Header("Спільні токени з колишнього магазину (магазин — у запасі, Reserve/OilShop)")]
         [Tooltip("Назва фарби й напис на кнопці картки: 13.5 px макета.")]
@@ -1253,30 +1232,14 @@ namespace InkFlow.Style
         public float ConfettiFallDuration => confettiFallDuration;
         public float FontSizeProfileNick => fontSizeProfileNick;
         public float NickMinScale => nickMinScale;
-        public float FontSizeRankRow => fontSizeRankRow;
-        public float FontSizeRankValue => fontSizeRankValue;
-        public float FontSizePodiumFirst => fontSizePodiumFirst;
-        public float FontSizePodiumOther => fontSizePodiumOther;
-        public Color MedalText => medalText;
-        public float PodiumGlowAlpha => podiumGlowAlpha;
-        public float PodiumSpinFirst => podiumSpinFirst;
-        public float PodiumSpinOther => podiumSpinOther;
-        public Color RankIncognito => rankIncognito;
-        public float RankRowHeight => rankRowHeight;
-        public float RankRowGap => rankRowGap;
-        public float RankListBottomPadding => rankListBottomPadding;
-        public Color YouCardFillFrom => youCardFillFrom;
-        public Color YouCardFillTo => youCardFillTo;
-        public Color YouCardText => youCardText;
-
-        /// <summary>Колір медалі за місцем (1..3). Поза межами — бронза.</summary>
-        public Color Medal(int place)
-        {
-            var i = place - 1;
-            if (medals == null || medals.Length == 0)
-                return Color.white;
-            return medals[i >= 0 && i < medals.Length ? i : medals.Length - 1];
-        }
+        public float RankRowHeight => rankRowHeightPx * MockupToReference;
+        public float RankRowGap => rankRowGapPx * MockupToReference;
+        public float RankListBottomPadding => rankListBottomPaddingPx * MockupToReference;
+        public Color MedalInk => medalInk;
+        public float RankRowFirstAlpha => rankRowFirstAlpha;
+        public float RankRowYouAlpha => rankRowYouAlpha;
+        public float YouCardRingAlpha => youCardRingAlpha;
+        public float YouCardOfflineAlpha => youCardOfflineAlpha;
 
         public float FontSizeShopCard => fontSizeShopCard;
         public float LetterSpacingShopTitle => letterSpacingShopTitle;

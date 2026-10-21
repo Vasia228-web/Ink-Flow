@@ -84,6 +84,24 @@ namespace InkFlow.Tests.Meta
         }
 
         [Test]
+        public void YouBelowThePage_GapComesFromTheAheadValue_AndProgressIsOwnOverOwnPlusGap()
+        {
+            // U1Glaze S08: «ще N до №M» навіть коли гравець далеко за сторінкою; смужка = своє / (своє + N).
+            var page = MockRankings.Page(RankMetric.Planets, RankPeriod.Week, 2, limit: 5);
+            Assert.AreEqual(5, page.Entries.Count);
+            Assert.AreEqual(19, page.YourRank, "вісімнадцять мокових гравців вище");
+            Assert.AreEqual(9, page.AheadValue, "сусід над гравцем — останній у моку (9)");
+            var board = new Leaderboard(page, You(2));
+            Assert.AreEqual(7, board.GapToNext);
+            Assert.AreEqual(2f / 9f, board.ProgressToNext, 1e-4);
+
+            var first = new Leaderboard(MockRankings.Page(RankMetric.Planets, RankPeriod.Week, 100), You(100));
+            Assert.AreEqual(1f, first.ProgressToNext, 1e-4, "перше місце — повна смужка");
+            var unknown = Leaderboard.Unavailable(RankMetric.Planets, RankPeriod.Week, LeaderboardStatus.NoConnection, You(4));
+            Assert.AreEqual(0f, unknown.ProgressToNext, 1e-4, "без місця — порожня");
+        }
+
+        [Test]
         public void FromPage_FirstPlaceHasNoGap_AndUnknownRankStaysZero()
         {
             var first = new Leaderboard(MockRankings.Page(RankMetric.Galaxies, RankPeriod.AllTime, 1000), You(1000));

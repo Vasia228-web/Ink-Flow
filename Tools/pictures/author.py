@@ -581,7 +581,7 @@ p.circle(3, 8, 2.2, "yellow", spark=True)
 p.circle(25, 24, 1.8, "cyan", spark=True)
 p.dots([(2, 20)], "ice", tone="light")
 
-p = pic("ghost_shy", "Сором'яз\u00adливий привид", "ghosts", "common", 28, 30)
+p = pic("ghost_shy", "Сором'язли\u00adвий привид", "ghosts", "common", 28, 30)
 p.ellipse(14, 28, 9, 1.6, "ice")
 ghost_body(p, shy=True)
 p.ellipse(9, 16, 3, 2, "blush", spark=True)

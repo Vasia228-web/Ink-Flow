@@ -32,11 +32,29 @@ namespace InkFlow.Editor
             "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
             "settings", "settings-run",
             "profile-fresh", "profile",
-            "rankings", "rankings-offline", "galaxy-visitor"
+            "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline", "galaxy-visitor"
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
-        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen" };
+        public static readonly string[] AuditEnforced = { "ComponentsShowcase", "HubScreen", "GalaxyScreen", "PlanetScreen", "CollectionScreen", "RankingsScreen" };
+
+        /// <summary>Стани «Ліги» (крок 7 U1Glaze): S08_01 (планети · тиждень), S08_02 (за весь час), S08_03 (галактики), S08_04 (без мережі).</summary>
+        public static readonly string[] RankingsStates = { "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline" };
+
+        /// <summary>Знімки рейтингів із уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
+        [MenuItem("Ink Flow/Debug/Capture Rankings Screenshots")]
+        public static void CaptureRankings()
+        {
+            Directory.CreateDirectory(Path.GetFullPath(OutputFolder));
+            var overBudget = new List<string>();
+            var audit = new List<string>();
+            foreach (var device in ScreenRigBase.Devices)
+                foreach (var state in RankingsStates)
+                    Capture(device, state, Path.Combine(OutputFolder, $"{device.Name}_{state}.png"), overBudget, audit);
+            AssetDatabase.Refresh();
+            Debug.Log($"[InkFlow] Знімки рейтингів: {RankingsStates.Length} станів × {ScreenRigBase.Devices.Length} пристроїв у {OutputFolder}.");
+            Finish(overBudget, audit);
+        }
 
         /// <summary>
         /// Стани колекції (крок 5 U1Glaze): S06_01 (14 різних · 15 усього, копії в слотах), S06_02 (вибір у комірку з
@@ -469,18 +487,32 @@ namespace InkFlow.Editor
                     break;
                 }
                 case "rankings":
+                case "rankings-alltime":
+                case "rankings-galaxies":
                 case "rankings-offline":
                 {
-                    // Таблиця «навмання» з обраним аватаром на картці «Ти» і той самий екран без мережі.
+                    // «Ліга» (S08): моковий світ із 18 гравців, картка «Ти» зі справжніми числами (1 ожила планета,
+                    // аватар 4), гравець — за межами сторінки, тож «ще N до №M» бере сусіда окремо; без мережі — S08_04.
                     using var rig = MetaScreenRig<RankingsScreen>.Create(device, "RankingsScreen");
                     var player = rig.NewPlayer();
+                    player.Wallet.Add(1240, RewardSource.Debug);
                     player.SetAvatar(3);
                     rig.FillPlanet(player, 0);
                     var leaderboards = new InkFlow.Platform.FakeLeaderboards { Offline = state == "rankings-offline" };
                     leaderboards.Submit(InkFlow.Core.RankMetric.Planets, InkFlow.Core.RankPeriod.Week, 1);
                     leaderboards.Submit(InkFlow.Core.RankMetric.Planets, InkFlow.Core.RankPeriod.AllTime, 1);
-                    rig.Screen.BindServices(leaderboards, new InkFlow.Platform.FakeShowcase(), new InkFlow.Platform.FakeIdentity());
+                    rig.Screen.BindServices(leaderboards, new InkFlow.Platform.FakeShowcase(), new InkFlow.Platform.FakeIdentity(), 12);
                     rig.Enter(player, ScreenArgs.Empty);
+                    if (state == "rankings-alltime")
+                        rig.Screen.PreviewSetPeriod(InkFlow.Core.RankPeriod.AllTime);
+                    if (state == "rankings-galaxies")
+                    {
+                        rig.Screen.PreviewSetMetric(InkFlow.Core.RankMetric.Galaxies);
+                        rig.Screen.PreviewSetPeriod(InkFlow.Core.RankPeriod.AllTime);
+                    }
+                    Canvas.ForceUpdateCanvases();
+                    Budget(rig, device.Name, state, overBudget);
+                    Audit(rig, "RankingsScreen", device.Name, state, audit);
                     rig.SavePng(path);
                     break;
                 }

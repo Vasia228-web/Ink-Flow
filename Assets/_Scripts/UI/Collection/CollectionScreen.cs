@@ -226,6 +226,7 @@ namespace InkFlow.UI
         public void SetTheme(int index)
         {
             _theme = Mathf.Clamp(index, 0, _themes.Count);
+            OnFilterChanged();
             Rebuild();
             Reveal(themesScroll, _theme < themeChips.Length ? themeChips[_theme] : null);
         }
@@ -234,8 +235,28 @@ namespace InkFlow.UI
         public void SetRarity(int index)
         {
             _rarity = Mathf.Clamp(index, 0, Rarities.Count);
+            OnFilterChanged();
             Rebuild();
             Reveal(raritiesScroll, _rarity < rarityChips.Length ? rarityChips[_rarity] : null);
+        }
+
+        /// <summary>
+        /// Новий фільтр — нова сітка з початку (інакше пружний скрол показав би кінець коротшого списку), і вибір
+        /// скидається: обрана картинка могла зникнути з сітки, а кнопка далі пропонувала б поставити її (ревізія кроку 5).
+        /// </summary>
+        private void OnFilterChanged()
+        {
+            if (scroll != null)
+                scroll.StopMovement();
+            if (content != null)
+                content.anchoredPosition = Vector2.zero;
+            if (_selected != null)
+            {
+                _selected = null;
+                ApplyPlaceButton();
+            }
+            if (hintLabel != null)
+                hintLabel.gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -327,7 +348,7 @@ namespace InkFlow.UI
                 return;
             if (_args.Showcase)
             {
-                pickInfoText.text = "Вітринна картинка · її бачать інші гравці";
+                pickInfoText.text = "Вітрина · її бачать інші гравці";
                 if (pickInfoIcon != null && showcaseIcon != null) pickInfoIcon.sprite = showcaseIcon;
             }
             else

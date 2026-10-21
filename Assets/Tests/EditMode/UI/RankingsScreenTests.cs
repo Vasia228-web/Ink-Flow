@@ -30,7 +30,7 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
-        public void Online_ShowsPodiumRowsAndARealYouCard()
+        public void Online_ShowsTableRowsAndARealYouCard()
         {
             using var rig = MetaScreenRig<RankingsScreen>.Create(ScreenRigBase.Devices[0], "RankingsScreen");
             var player = rig.NewPlayer();
@@ -48,18 +48,21 @@ namespace InkFlow.UI.Tests
             Assert.IsNotNull(board);
             Assert.IsTrue(board!.IsOk);
             Assert.IsFalse(rig.Screen.PreviewStatusShown, "таблиця є — блок стану схований");
-            Assert.IsTrue(rig.Screen.PreviewPodiumShown, "вісімнадцять гравців — подіум є");
+            Assert.IsTrue(rig.Screen.PreviewTableShown, "вісімнадцять гравців — таблиця є");
             Assert.AreEqual("Вега", board.Players[0].Nick, "мок збігається з еталонним скріншотом");
             Assert.AreEqual(1, board.You.Value, "картка «Ти» — з локального файлу: одна планета ожила");
             Assert.AreEqual(AvatarSet.InkOf(4), board.You.Avatar, "аватар із профілю");
             Assert.AreEqual($"#{board.YourPosition}", rig.Screen.PreviewYouPosition);
-            Assert.AreEqual("1", rig.Screen.PreviewYouValue);
+            Assert.AreEqual("1 планета за тиждень", rig.Screen.PreviewYouSubtitle);
+            Assert.AreEqual(4, board.You.AvatarId, "аватар-спрайт із профілю");
+            Assert.Greater(rig.Screen.PreviewYouProgress, 0f, "смужка до наступного місця");
+            StringAssertContains(rig.Screen.PreviewYouGap, "до №");
 
             var shownRows = 0;
             foreach (var row in rig.Screen.PreviewRows)
                 if (row != null && row.gameObject.activeSelf)
                     shownRows++;
-            Assert.Greater(shownRows, 0, "рядки після подіуму заповнені");
+            Assert.Greater(shownRows, 0, "рядки таблиці заповнені");
         }
 
         [Test]
@@ -74,15 +77,16 @@ namespace InkFlow.UI.Tests
 
             Assert.IsTrue(rig.Screen.PreviewStatusShown);
             Assert.AreEqual("Немає з'єднання", rig.Screen.PreviewStatusTitle);
-            Assert.IsFalse(rig.Screen.PreviewPodiumShown);
+            Assert.IsFalse(rig.Screen.PreviewTableShown);
+            Assert.IsTrue(rig.Screen.PreviewRetryShown, "без мережі — «Спробувати ще» (S08_04)");
             Assert.AreEqual("#—", rig.Screen.PreviewYouPosition, "місця без сервера не вигадуємо");
-            Assert.AreEqual("1", rig.Screen.PreviewYouValue, "свої числа є й без мережі");
+            Assert.AreEqual("місце оновиться з інтернетом", rig.Screen.PreviewYouSubtitle, "S08_04: без мережі — ні місця, ні смужки");
 
             // Перемикання метрики й періоду без мережі теж не падає.
             rig.Screen.PreviewSetMetric(RankMetric.Galaxies);
             rig.Screen.PreviewSetPeriod(RankPeriod.AllTime);
             Assert.IsTrue(rig.Screen.PreviewStatusShown);
-            Assert.AreEqual("0", rig.Screen.PreviewYouValue, "галактик ще немає");
+            Assert.AreEqual("#—", rig.Screen.PreviewYouPosition, "і після перемикання — без вигаданого місця");
         }
 
         [Test]
@@ -142,7 +146,7 @@ namespace InkFlow.UI.Tests
             rig.Screen.OnExit();
             slow.AnswerOldest();
             Assert.AreEqual(0, rig.Screen.PreviewBoard!.Players.Count, "відповідь після виходу відкинута — таблиця не підмінена");
-            Assert.IsFalse(rig.Screen.PreviewPodiumShown);
+            Assert.IsFalse(rig.Screen.PreviewTableShown);
 
             // Повторний вхід — свіжий запит, а не стара відповідь.
             rig.Enter(player, ScreenArgs.Empty);
@@ -167,7 +171,7 @@ namespace InkFlow.UI.Tests
             slow.AnswerOldest();                                 // відповідь «Галактики»
             Assert.AreEqual(RankMetric.Galaxies, rig.Screen.PreviewBoard!.Metric);
             Assert.Greater(rig.Screen.PreviewBoard.Players.Count, 0, "нова відповідь застосована");
-            Assert.IsTrue(rig.Screen.PreviewPodiumShown);
+            Assert.IsTrue(rig.Screen.PreviewTableShown);
         }
 
         [Test]
@@ -180,11 +184,11 @@ namespace InkFlow.UI.Tests
 
             rig.Enter(player, ScreenArgs.Empty);
             slow.AnswerOldest();
-            Assert.IsTrue(rig.Screen.PreviewPodiumShown);
+            Assert.IsTrue(rig.Screen.PreviewTableShown);
 
             rig.Screen.OnExit();
             rig.Enter(player, ScreenArgs.Empty);                 // повернення з чужої галактики
-            Assert.IsTrue(rig.Screen.PreviewPodiumShown, "попередня таблиця лишається, поки оновлення в дорозі");
+            Assert.IsTrue(rig.Screen.PreviewTableShown, "попередня таблиця лишається, поки оновлення в дорозі");
             Assert.IsFalse(rig.Screen.PreviewStatusShown, "«Завантажую…» не блимає поверх таблиці");
         }
 
@@ -238,5 +242,8 @@ namespace InkFlow.UI.Tests
                 done(MockRankings.Page(metric, period, 0));
             }
         }
+
+        private static void StringAssertContains(string actual, string expected) =>
+            Assert.IsTrue(actual.Contains(expected), $"«{actual}» має містити «{expected}»");
     }
 }

@@ -8,177 +8,103 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Рядок таблиці лідерів. Об'єкт із пулу: список віртуалізований, тож той самий
-    /// рядок протягом скролу показує різних гравців.
-    ///
-    /// Матеріал планети створюється один раз на рядок і далі лише переналаштовується —
-    /// створювати його на кожне перепризначення означало б алокацію під час скролу.
+    /// Рядок таблиці «Ліга» (U1Glaze S08): місце (медаль для топ-3 або число), аватар-спрайт набору (інкогніто — маска),
+    /// нік з «…», значення без переносу праворуч (автостиск до 70 %). Перше місце — теплий відтінок рядка, свій рядок —
+    /// бірюзовий. Рядок перепризначається при скролі, тож Show кличеться лише коли рядок в'їхав у вікно.
     /// </summary>
     public sealed class RankingRow : MonoBehaviour
     {
         [SerializeField] private DesignSystem design;
-        [SerializeField] private Shader planetShader;
-
-        [SerializeField] private Image background;
-        [SerializeField] private Image stroke;
         [SerializeField] private Button button;
-        [SerializeField] private TMP_Text positionLabel;
-        [SerializeField] private GradientImage avatar;
-        [SerializeField] private Image avatarGloss;
-        [SerializeField] private TMP_Text nickLabel;
-        [SerializeField] private TMP_Text valueLabel;
-        [SerializeField] private TMP_Text unitLabel;
-        [SerializeField] private Image planet;
-        [SerializeField] private Image planetLock;
+        [SerializeField] private Image highlight;
+        [SerializeField] private Image medal;
+        [SerializeField] private TMP_Text place;
+        [SerializeField] private Image avatar;
+        [SerializeField] private TMP_Text nick;
+        [SerializeField] private TMP_Text value;
+        [SerializeField] private Image divider;
 
-        private static readonly int ModeId = Shader.PropertyToID("_Mode");
-        private static readonly int TypeId = Shader.PropertyToID("_Type");
-        private static readonly int SpinId = Shader.PropertyToID("_Spin");
-        private static readonly int SeedId = Shader.PropertyToID("_Seed");
-        private static readonly int PaintedId = Shader.PropertyToID("_Painted");
-        private static readonly int LockedId = Shader.PropertyToID("_Locked");
-        private static readonly int BaseId = Shader.PropertyToID("_Base");
-        private static readonly int LandId = Shader.PropertyToID("_Land");
-        private static readonly int AtmoId = Shader.PropertyToID("_Atmo");
+        [Header("Спрайти (ставить збирач)")]
+        [SerializeField] private Sprite[] medals = System.Array.Empty<Sprite>();
+        [SerializeField] private Sprite[] avatars = System.Array.Empty<Sprite>();
+        [SerializeField] private Sprite? incognito;
 
-        private Material? _planetMaterial;
         private RankPlayer? _player;
         private System.Action<RankPlayer>? _onTap;
 
         public RankPlayer? Player => _player;
 
+        /// <summary>Нік, як його видно в рядку (тестам).</summary>
+        public string NickText => nick != null ? nick.text : string.Empty;
+
         private void Awake()
         {
             if (button != null)
-                button.onClick.AddListener(() =>
-                {
-                    // Інкогніто не відкриваємо: гравець сам сховав профіль.
-                    if (_player != null && !_player.Incognito && !_player.IsYou)
-                        _onTap?.Invoke(_player);
-                });
+                button.onClick.AddListener(() => { if (_player != null) _onTap?.Invoke(_player); });
         }
 
         public void Bind(System.Action<RankPlayer> onTap) => _onTap = onTap;
 
-        /// <summary>Колір краплі гравця — один на рядок, подіум і картку «Ти»: інкогніто — сірий, решта — аватар із набору (§14).</summary>
-        public static Color AvatarColor(DesignSystem design, RankPlayer player) =>
-            Hidden(player) || player.Avatar == InkColor.None ? design.RankIncognito : design.Ink(player.Avatar);
-
-        /// <summary>Сірим малюємо чужих інкогніто; власна картка «Ти» лишається кольоровою — себе гравець знає.</summary>
-        private static bool Hidden(RankPlayer player) => player.Incognito && !player.IsYou;
-
-        public static void PaintAvatar(GradientImage avatar, DesignSystem design, RankPlayer player)
+        /// <summary>Спрайт аватара гравця: інкогніто — маска, інакше avatar_N за номером (поза набором — перший).</summary>
+        public static Sprite? AvatarOf(RankPlayer player, Sprite[] set, Sprite? incognitoSprite)
         {
-            design.AvatarGradient(player.Avatar, Hidden(player), out var from, out var to);
-            avatar.SetGradient(from, to);
+            if (player.Incognito && !player.IsYou)
+                return incognitoSprite;
+            if (set.Length == 0)
+                return null;
+            var id = player.AvatarId;
+            return set[id >= 0 && id < set.Length ? id : 0];
         }
 
-        public void Show(RankPlayer player, int position, RankMetric metric)
+        public void Show(RankPlayer player, int position, bool last)
         {
             _player = player;
+            if (!gameObject.activeSelf)
+                gameObject.SetActive(true);
             if (design == null)
                 return;
 
-            gameObject.SetActive(true);
-            EnsureMaterial();
-
-            var hidden = player.Incognito;
-
-            if (positionLabel != null)
+            var medalled = position >= 1 && position <= medals.Length;
+            if (medal != null)
             {
-                positionLabel.text = position.ToString();
-                positionLabel.fontSize = design.FontSizeRankRow;
-                positionLabel.color = design.TextFaint;
-                if (design.Font != null) positionLabel.font = design.Font;
+                medal.gameObject.SetActive(medalled);
+                if (medalled)
+                    medal.sprite = medals[position - 1];
             }
-
-            if (nickLabel != null)
+            if (place != null)
             {
-                nickLabel.text = hidden ? "Гравець-інкогніто" : player.Nick;
-                nickLabel.fontSize = design.FontSizeRankRow;
-                nickLabel.color = hidden ? design.TextMuted : design.TextPrimary;
-                if (design.Font != null) nickLabel.font = design.Font;
-            }
-
-            if (valueLabel != null)
-            {
-                valueLabel.text = ScoreFormat.Full(player.Value);
-                valueLabel.fontSize = design.FontSizeRankValue;
-                valueLabel.color = design.TextPrimary;
-                if (design.Font != null) valueLabel.font = design.Font;
-            }
-
-            if (unitLabel != null)
-            {
-                unitLabel.text = Leaderboard.Unit(metric);
-                unitLabel.fontSize = design.FontSizeCaption;
-                unitLabel.color = design.TextFaint;
-                if (design.Font != null) unitLabel.font = design.Font;
+                place.text = position > 0 ? position.ToString() : "—";
+                place.color = medalled ? design.MedalInk : design.InkMuted;
             }
 
             if (avatar != null)
-                PaintAvatar(avatar, design, player);
-
-            if (avatarGloss != null)
-                avatarGloss.color = new Color(1f, 1f, 1f, 0.5f);
-
-            if (background != null)
-                background.color = design.GlassFill;
-            if (stroke != null)
-                stroke.color = design.GlassStroke;
-
-            // Інкогніто — замість планети матова заглушка.
-            if (planetLock != null)
             {
-                planetLock.gameObject.SetActive(hidden);
-                planetLock.color = new Color(1f, 1f, 1f, 0.06f);
+                avatar.sprite = AvatarOf(player, avatars, incognito);
+                avatar.enabled = avatar.sprite != null;
             }
+            if (nick != null)
+                nick.text = player.Incognito && !player.IsYou ? "Гравець-інкогніто" : player.IsYou ? $"Ти · {player.Nick}" : player.Nick;
+            if (value != null)
+                value.text = ScoreFormat.Full(player.Value);
 
-            if (planet != null)
+            if (highlight != null)
             {
-                planet.gameObject.SetActive(!hidden);
-                if (!hidden && _planetMaterial != null)
-                    ApplyPlanet(player);
+                var lit = player.IsYou || position == 1;
+                highlight.gameObject.SetActive(lit);
+                if (lit)
+                    highlight.color = player.IsYou
+                        ? DesignSystem.WithAlpha(design.Teal, design.RankRowYouAlpha)
+                        : DesignSystem.WithAlpha(design.Amber, design.RankRowFirstAlpha);
             }
-        }
-
-        private void ApplyPlanet(RankPlayer player)
-        {
-            var palette = design.Planet(player.Planet);
-            _planetMaterial!.SetFloat(ModeId, 0f);
-            _planetMaterial.SetFloat(TypeId, (float)player.Planet);
-            // Мініатюра не обертається: у списку з десяти планет це був би шум.
-            _planetMaterial.SetFloat(SpinId, 0f);
-            _planetMaterial.SetFloat(PaintedId, 1f);
-            _planetMaterial.SetFloat(LockedId, 0f);
-            _planetMaterial.SetFloat(SeedId, Mathf.Abs(player.Id.GetHashCode() % 863) * 0.021f);
-            _planetMaterial.SetColor(BaseId, palette.Base);
-            _planetMaterial.SetColor(LandId, palette.Land);
-            _planetMaterial.SetColor(AtmoId, palette.Atmosphere);
-        }
-
-        private void EnsureMaterial()
-        {
-            if (_planetMaterial != null || planetShader == null || planet == null)
-                return;
-            _planetMaterial = new Material(planetShader) { name = "RankPlanet" };
-            planet.material = _planetMaterial;
+            if (divider != null)
+                divider.gameObject.SetActive(!last);
         }
 
         public void Release()
         {
             _player = null;
-            gameObject.SetActive(false);
-        }
-
-        private void OnDestroy()
-        {
-            if (_planetMaterial == null)
-                return;
-            if (Application.isPlaying)
-                Destroy(_planetMaterial);
-            else
-                DestroyImmediate(_planetMaterial);
+            if (gameObject.activeSelf)
+                gameObject.SetActive(false);
         }
     }
 }

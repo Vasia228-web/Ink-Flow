@@ -11,14 +11,14 @@ using UnityEngine.UI;
 namespace InkFlow.UI
 {
     /// <summary>
-    /// Рейтинги (майстер-док §16): лише «Світ», метрики «Планети» й «Галактики», періоди «цей тиждень»
-    /// і «за весь час»; подіум топ-3, віртуалізований список і закріплена картка «Ти» зі СПРАВЖНІМИ
-    /// числами з локального файлу. Таблиця приходить від <see cref="ILeaderboardService"/>; без мережі
-    /// чи без налаштувань екран каже «немає з'єднання» / «не підключено» і нічого не падає.
+    /// Рейтинги «Ліга» (майстер-док §16, U1Glaze S08): угорі картка «Ти» — місце, аватар, своє число за період, смужка
+    /// й «ще N до №M»; нижче — сегменти «Планети / Галактики», таби «Цей тиждень / За весь час» і компактна таблиця
+    /// з медалями для топ-3. Лише «Світ». Картка «Ти» — СПРАВЖНІ числа з локального файлу; таблиця — від
+    /// <see cref="ILeaderboardService"/>; без мережі чи без налаштувань — блок стану з «Спробувати ще», і нічого не падає.
     ///
-    /// Список рециклюється: рядків у пулі стільки, скільки вміщується в екран плюс запас, і під час
-    /// скролу вони перепризначаються на інших гравців. Тап на чужого гравця читає його вітрину й
-    /// відкриває ГОТОВИЙ екран Галактики з <see cref="GalaxyArgs.ForVisitor"/> — окремого екрана немає.
+    /// Список рециклюється: рядків у пулі стільки, скільки вміщується в картку з запасом, і під час скролу вони
+    /// перепризначаються. Тап на чужого гравця читає його вітрину й відкриває ГОТОВИЙ екран Галактики з
+    /// <see cref="GalaxyArgs.ForVisitor"/>.
     /// </summary>
     public sealed class RankingsScreen : ScreenBase
     {
@@ -30,13 +30,21 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text title;
         [SerializeField] private CurrencyWidget currency;
 
-        [Header("Метрика")]
-        [SerializeField] private Button[] metricButtons = Array.Empty<Button>();
-        [SerializeField] private Image[] metricFills = Array.Empty<Image>();
-        [SerializeField] private Image[] metricStrokes = Array.Empty<Image>();
-        [SerializeField] private TMP_Text[] metricLabels = Array.Empty<TMP_Text>();
+        [Header("Картка «Ти»")]
+        [SerializeField] private CanvasGroup youGroup;
+        [SerializeField] private Image youRing;
+        [SerializeField] private TMP_Text youPosition;
+        [SerializeField] private Image youAvatar;
+        [SerializeField] private TMP_Text youNick;
+        [SerializeField] private TMP_Text youSubtitle;
+        [SerializeField] private GameObject youProgressRow;
+        [SerializeField] private RectTransform youProgressFill;
+        [SerializeField] private TMP_Text youGap;
 
-        [Header("Період")]
+        [Header("Метрика й період")]
+        [SerializeField] private Button[] metricButtons = Array.Empty<Button>();
+        [SerializeField] private Image[] metricOn = Array.Empty<Image>();
+        [SerializeField] private TMP_Text[] metricLabels = Array.Empty<TMP_Text>();
         [SerializeField] private Button weekButton;
         [SerializeField] private Button allTimeButton;
         [SerializeField] private TMP_Text weekLabel;
@@ -44,42 +52,31 @@ namespace InkFlow.UI
         [SerializeField] private Image weekUnderline;
         [SerializeField] private Image allTimeUnderline;
 
-        [Header("Подіум")]
-        [SerializeField] private RectTransform podium;
-        [SerializeField] private PodiumSlot[] podiumSlots = Array.Empty<PodiumSlot>();
-
-        [Header("Список")]
+        [Header("Таблиця")]
+        [SerializeField] private GameObject tableCard;
         [SerializeField] private ScrollRect scroll;
-
-        [Tooltip("Вміст скролу цілком: подіум і список разом.")]
-        [SerializeField] private RectTransform scrollContent;
-
-        [Tooltip("Вузол, у якому лежать рядки. Стоїть під подіумом, тому зсув " +
-                 "рециклінгу рахується від нього, а не від верху вмісту.")]
         [SerializeField] private RectTransform listContent;
         [SerializeField] private RankingRow[] rows = Array.Empty<RankingRow>();
 
         [Header("Стан без таблиці")]
-        [SerializeField] private RectTransform statusBlock;
+        [SerializeField] private GameObject statusCard;
+        [SerializeField] private Image statusIcon;
         [SerializeField] private TMP_Text statusTitle;
         [SerializeField] private TMP_Text statusHint;
+        [SerializeField] private CandyButton retryButton;
+        [SerializeField] private Sprite offlineIcon;
+        [SerializeField] private Sprite emptyIcon;
 
-        [Header("Картка «Ти»")]
-        [SerializeField] private GradientImage youBackground;
-        [SerializeField] private Image youStroke;
-        [SerializeField] private Image youGlow;
-        [SerializeField] private TMP_Text youPosition;
-        [SerializeField] private GradientImage youAvatar;
-        [SerializeField] private TMP_Text youNick;
-        [SerializeField] private TMP_Text youGap;
-        [SerializeField] private TMP_Text youValue;
-        [SerializeField] private TMP_Text youUnit;
+        [Header("Навігація й аватари")]
+        [SerializeField] private NavBar navBar;
+        [SerializeField] private Sprite[] avatarSprites = Array.Empty<Sprite>();
+        [SerializeField] private Sprite? incognitoAvatar;
 
         private ILeaderboardService? _leaderboards;
         private IShowcaseService? _showcases;
         private IIdentityService? _identity;
 
-        /// <summary>Скільки місць просити у сервісу (AppConfig): подіум плюс список із запасом на скрол.</summary>
+        /// <summary>Скільки місць просити у сервісу (AppConfig): таблиця із запасом на скрол.</summary>
         private int _pageLimit = 50;
 
         private Leaderboard? _board;
@@ -89,17 +86,17 @@ namespace InkFlow.UI
         private bool _requesting;
         private int _request;
 
-        /// <summary>Скільки місць займає подіум — список починається з четвертого.</summary>
-        private const int PodiumSize = 3;
-
         private int _firstBound = int.MinValue;
         private int _count;
 
-        /// <summary>Назад у хаб.</summary>
+        /// <summary>Назад у хаб (вкладка «назад» не показує, але подія лишається для підекрана).</summary>
         public System.Action? BackRequested;
 
         /// <summary>Відкрити галактику гравця в режимі перегляду (з його вітриною).</summary>
         public System.Action<GalaxyArgs>? PlayerOpened;
+
+        /// <summary>Вкладка нижньої навігації.</summary>
+        public System.Action<string>? TabRequested;
 
         private void OnEnable() => ScheduleApply(Apply);
 
@@ -107,14 +104,18 @@ namespace InkFlow.UI
         private void OnValidate() => StyleRefresh.ScheduleFromValidate(this, Apply);
 
         public Leaderboard? PreviewBoard => _board;
-        public bool PreviewStatusShown => statusBlock != null && statusBlock.gameObject.activeSelf;
+        public bool PreviewStatusShown => statusCard != null && statusCard.activeSelf;
         public string PreviewStatusTitle => statusTitle != null ? statusTitle.text : string.Empty;
-        public bool PreviewPodiumShown => podium != null && podium.gameObject.activeSelf;
+        public bool PreviewTableShown => tableCard != null && tableCard.activeSelf;
+        public bool PreviewRetryShown => retryButton != null && retryButton.gameObject.activeSelf;
         public string PreviewYouPosition => youPosition != null ? youPosition.text : string.Empty;
-        public string PreviewYouValue => youValue != null ? youValue.text : string.Empty;
+        public string PreviewYouSubtitle => youSubtitle != null ? youSubtitle.text : string.Empty;
+        public string PreviewYouGap => youGap != null && youGap.gameObject.activeInHierarchy ? youGap.text : string.Empty;
+        public float PreviewYouProgress => youProgressFill != null ? youProgressFill.localScale.x : 0f;
         public RankingRow[] PreviewRows => rows;
         public void PreviewSetMetric(RankMetric metric) => SetMetric(metric);
         public void PreviewSetPeriod(RankPeriod period) => SetPeriod(period);
+        public void PreviewRetry() => Retry();
         /// <summary>Тестам: тап по гравцю, як пальцем.</summary>
         public void PreviewOpen(RankPlayer player) => OpenPlayer(player);
 #endif
@@ -143,29 +144,25 @@ namespace InkFlow.UI
                 weekButton.onClick.AddListener(() => SetPeriod(RankPeriod.Week));
             if (allTimeButton != null)
                 allTimeButton.onClick.AddListener(() => SetPeriod(RankPeriod.AllTime));
-
             for (var i = 0; i < metricButtons.Length; i++)
             {
                 var metric = (RankMetric)i;
                 metricButtons[i]?.onClick.AddListener(() => SetMetric(metric));
             }
-
+            if (retryButton != null)
+                retryButton.Button.onClick.AddListener(Retry);
             if (scroll != null)
                 scroll.onValueChanged.AddListener(_ => Recycle());
+            if (navBar != null)
+                navBar.TabSelected += id => TabRequested?.Invoke(id);
         }
 
         private void Start()
         {
             for (var i = 0; i < rows.Length; i++)
                 rows[i]?.Bind(OpenPlayer);
-            for (var i = 0; i < podiumSlots.Length; i++)
-                podiumSlots[i]?.Bind(OpenPlayer);
         }
 
-        /// <summary>
-        /// Капсула в шапці показує справжній гаманець: без цього вона назавжди лишалась із числом-заглушкою
-        /// з префаба (ревізія кроку 0; доти правильний баланс показував лише магазин, а він тепер у запасі).
-        /// </summary>
         public override void BindState(PlayerState state)
         {
             base.BindState(state);
@@ -191,17 +188,20 @@ namespace InkFlow.UI
         private void OnApplicationFocus(bool focus)
         {
             if (focus && isActiveAndEnabled && _board != null && !_board.IsOk && !_loading)
-            {
-                Request();
-                ApplyBoard();
-            }
+                Retry();
+        }
+
+        private void Retry()
+        {
+            Request();
+            ApplyBoard();
         }
 
         /// <summary>Картка «Ти» — з локального файлу (§16): без стану (майстерня) — моковий гравець.</summary>
         private RankPlayer You() =>
             State != null
                 ? RankPlayer.You(State, PlayerId, _metric, _period, DateTime.UtcNow)
-                : new RankPlayer("you", "Нова", InkColor.Magenta, false, _metric == RankMetric.Planets ? 12 : 1, 0) { IsYou = true };
+                : new RankPlayer("you", "Гравець", InkColor.Magenta, false, _metric == RankMetric.Planets ? 2 : 1, 0, 3) { IsYou = true };
 
         /// <summary>
         /// Запит сторінки. Сервіс відповідає колбеком — можливо, одразу (Fake), після виходу з екрана або
@@ -290,15 +290,10 @@ namespace InkFlow.UI
                 else _board = Leaderboard.Unavailable(_metric, _period, LeaderboardStatus.NotConfigured, You());
             }
 
-            ApplyFont(title, design.FontSizePaintTitle, design.TextPrimary,
-                FontStyles.Bold, design.LetterSpacingShopTitle);
-            if (title != null) title.text = "РЕЙТИНГИ";
-
-            ApplyFont(weekLabel, design.FontSizeShopCard, design.TextPrimary, FontStyles.Bold, 0f);
-            ApplyFont(allTimeLabel, design.FontSizeShopCard, design.TextPrimary, FontStyles.Bold, 0f);
-            if (weekLabel != null) weekLabel.text = "Цей тиждень";
-            if (allTimeLabel != null) allTimeLabel.text = "За весь час";
-
+            if (title != null) title.text = "Рейтинги";
+            // Рейтинги — вкладка навігації (U1Glaze): «‹» немає, навігація є.
+            Toggle(backButton, false);
+            navBar?.SetActive(NavBar.Ranks);
             currency?.Apply();
 
             ApplyMetricSegments();
@@ -306,12 +301,11 @@ namespace InkFlow.UI
             ApplyBoard();
         }
 
-        /// <summary>Усе, що залежить від таблиці: статус, подіум, список, картка «Ти».</summary>
+        /// <summary>Усе, що залежить від таблиці: стан, список, картка «Ти».</summary>
         private void ApplyBoard()
         {
             ApplyStatus();
             ApplyList();
-            ApplyPodium();
             ApplyYouCard();
         }
 
@@ -335,102 +329,72 @@ namespace InkFlow.UI
             ApplyBoard();
         }
 
+        /// <summary>Сегменти «Планети / Галактики»: активний — бірюзова цукерка з написом teal-ink, другий — ink-muted.</summary>
         private void ApplyMetricSegments()
         {
             for (var i = 0; i < metricLabels.Length; i++)
             {
-                var exists = i <= (int)RankMetric.Galaxies;
-                if (i < metricButtons.Length)
-                    Toggle(metricButtons[i], exists);
-                if (!exists)
-                    continue;
                 var active = (int)_metric == i;
-                ApplyFont(metricLabels[i], design.FontSizeShopCard,
-                    active ? design.TextPrimary : design.TextMuted, FontStyles.Bold, 0f);
-                metricLabels[i].text = Leaderboard.Title((RankMetric)i);
-
-                // Активний сегмент — трохи світліший фон плюс тонка обводка.
-                if (i < metricFills.Length && metricFills[i] != null)
-                    metricFills[i].color = active ? design.GlassFillRaised : Color.clear;
-                if (i < metricStrokes.Length && metricStrokes[i] != null)
-                    metricStrokes[i].gameObject.SetActive(active);
+                if (metricLabels[i] != null)
+                {
+                    metricLabels[i].text = Leaderboard.Title((RankMetric)i);
+                    metricLabels[i].color = active ? design.TealInk : design.InkMuted;
+                }
+                if (i < metricOn.Length && metricOn[i] != null)
+                    metricOn[i].enabled = active;
             }
         }
 
+        /// <summary>Таби періоду: активний — ink з бурштиновим підкресленням, другий — ink-muted.</summary>
         private void ApplyPeriodTabs()
         {
             var week = _period == RankPeriod.Week;
             if (weekLabel != null)
-                weekLabel.color = week ? design.TextPrimary : design.TextMuted;
+            {
+                weekLabel.text = "Цей тиждень";
+                weekLabel.color = week ? design.InkText : design.InkMuted;
+            }
             if (allTimeLabel != null)
-                allTimeLabel.color = week ? design.TextMuted : design.TextPrimary;
+            {
+                allTimeLabel.text = "За весь час";
+                allTimeLabel.color = week ? design.InkMuted : design.InkText;
+            }
             if (weekUnderline != null)
-            {
-                weekUnderline.gameObject.SetActive(week);
-                weekUnderline.color = design.AccentPrimary;
-            }
-
+                weekUnderline.enabled = week;
             if (allTimeUnderline != null)
-            {
-                allTimeUnderline.gameObject.SetActive(!week);
-                allTimeUnderline.color = design.AccentPrimary;
-            }
+                allTimeUnderline.enabled = !week;
         }
 
-        /// <summary>Блок замість таблиці: завантаження, немає з'єднання, не підключено, помилка сервера.</summary>
+        /// <summary>Картка стану замість таблиці (S08_04): завантаження, немає з'єднання, не підключено, помилка, порожньо.</summary>
         private void ApplyStatus()
         {
             if (_board == null)
                 return;
             // Є що показати — показуємо, навіть поки оновлення в дорозі.
             var show = !_board.IsOk || _board.Players.Count == 0;
-            Toggle(statusBlock, show);
+            Toggle(statusCard, show);
+            Toggle(tableCard, !show);
             if (!show)
                 return;
 
-            var (caption, hint) = _loading && _board.IsOk
-                ? ("Завантажую…", "Таблиця з'явиться за мить")
+            var loading = _loading && _board.IsOk;
+            var (caption, hint) = loading
+                ? ("Завантажую…", "Таблиця з'явиться за мить.")
                 : _board.Status switch
                 {
-                    LeaderboardStatus.NoConnection => ("Немає з'єднання", "Рейтинги з'являться, щойно буде мережа. Грати можна й так"),
-                    LeaderboardStatus.NotConfigured => ("Рейтинги ще не підключені", "Твої числа справжні — таблиця з'явиться пізніше"),
-                    LeaderboardStatus.Failed => ("Таблиця не відповіла", "Спробуй ще раз трохи згодом"),
-                    _ => ("Тут поки порожньо", "Ожививши планету, ти станеш першим у таблиці")
+                    LeaderboardStatus.NoConnection => ("Немає з'єднання", "Рейтинги оновляться, щойно з'явиться інтернет."),
+                    LeaderboardStatus.NotConfigured => ("Рейтинги ще не підключені", "Твої числа справжні — таблиця з'явиться пізніше."),
+                    LeaderboardStatus.Failed => ("Таблиця не відповіла", "Спробуй ще раз трохи згодом."),
+                    _ => ("Тут поки порожньо", "Ожививши планету, ти станеш першим у таблиці.")
                 };
-            ApplyFont(statusTitle, design.FontSizeSubtitle, design.TextMuted, FontStyles.Bold, 0f);
             if (statusTitle != null) statusTitle.text = caption;
-            ApplyFont(statusHint, design.FontSizeCardSubtitle, design.TextFaint, FontStyles.Normal, 0f);
             if (statusHint != null) statusHint.text = hint;
-        }
-
-        private void ApplyPodium()
-        {
-            if (_board == null)
-                return;
-
-            // Подіум має сенс лише коли є щонайменше троє.
-            var players = _board.Players;
-            var show = _board.IsOk && players.Count >= PodiumSize;
-            if (podium != null)
-                podium.gameObject.SetActive(show);
-            if (!show)
-            {
-                for (var i = 0; i < podiumSlots.Length; i++)
-                    podiumSlots[i]?.Release();
-                return;
-            }
-
-            for (var i = 0; i < podiumSlots.Length; i++)
-            {
-                var slot = podiumSlots[i];
-                if (slot == null)
-                    continue;
-                var index = slot.Place - 1;
-                if (index < players.Count)
-                    slot.Show(players[index], _metric);
-                else
-                    slot.Release();
-            }
+            if (statusIcon != null)
+                statusIcon.sprite = _board.Status == LeaderboardStatus.NoConnection || _board.Status == LeaderboardStatus.Failed
+                    ? offlineIcon
+                    : emptyIcon;
+            // «Спробувати ще» має сенс лише там, де мережа чи сервер можуть ожити.
+            Toggle(retryButton, !loading && (_board.Status == LeaderboardStatus.NoConnection || _board.Status == LeaderboardStatus.Failed));
         }
 
         private void ApplyList()
@@ -439,18 +403,12 @@ namespace InkFlow.UI
                 return;
 
             var players = _board.IsOk ? _board.Players : (IReadOnlyList<RankPlayer>)Array.Empty<RankPlayer>();
-            var start = players.Count >= PodiumSize ? PodiumSize : 0;
-            _count = Mathf.Max(0, players.Count - start);
+            _count = players.Count;
 
-            if (listContent != null && scrollContent != null)
+            if (listContent != null)
             {
                 var step = design.RankRowHeight + design.RankRowGap;
-                var rowsHeight = _count * step;
-                listContent.sizeDelta = new Vector2(0f, rowsHeight);
-                // Висота вмісту = подіум (він над рядками) + рядки + запас під
-                // закріплену картку, щоб останній рядок не ховався під нею.
-                scrollContent.sizeDelta = new Vector2(0f,
-                    -listContent.anchoredPosition.y + rowsHeight + design.RankListBottomPadding);
+                listContent.sizeDelta = new Vector2(listContent.sizeDelta.x, _count * step + design.RankListBottomPadding);
             }
 
             _firstBound = int.MinValue;
@@ -467,17 +425,11 @@ namespace InkFlow.UI
                 return;
 
             var players = _board.IsOk ? _board.Players : (IReadOnlyList<RankPlayer>)Array.Empty<RankPlayer>();
-            var start = players.Count >= PodiumSize ? PodiumSize : 0;
             var step = design.RankRowHeight + design.RankRowGap;
             if (step <= 0.01f)
                 return;
 
-            // Скільки рядків «з'їхало» вгору за верхній край в'юпорта. Подіум теж
-            // скролиться, тому від зсуву вмісту віднімаємо його висоту — вона й є
-            // від'ємним anchoredPosition хоста рядків.
-            var scrolled = scrollContent != null ? scrollContent.anchoredPosition.y : 0f;
-            var offset = scrolled + listContent.anchoredPosition.y;
-            var first = Mathf.Max(0, Mathf.FloorToInt(offset / step));
+            var first = Mathf.Max(0, Mathf.FloorToInt(listContent.anchoredPosition.y / step));
             first = Mathf.Clamp(first, 0, Mathf.Max(0, _count - rows.Length));
 
             if (first == _firstBound)
@@ -499,54 +451,72 @@ namespace InkFlow.UI
 
                 var rect = (RectTransform)row.transform;
                 rect.anchoredPosition = new Vector2(0f, -index * step);
-                var player = players[start + index];
-                row.Show(player, player.Rank > 0 ? player.Rank : start + index + 1, _metric);
+                var player = players[index];
+                row.Show(player, player.Rank > 0 ? player.Rank : index + 1, index == _count - 1);
             }
         }
 
+        /// <summary>
+        /// Картка «Ти» (S08_01/04): місце бірюзовим display (без місця — «#—»), аватар, «Ти · нік», своє число за
+        /// період; смужка своє / (своє + N) і «ще N планет до №M». Без мережі — приглушена, без обводки й смужки,
+        /// «місце оновиться з інтернетом».
+        /// </summary>
         private void ApplyYouCard()
         {
             if (_board == null || design == null)
                 return;
 
             var you = _board.You;
-
-            // §16: щільний фон без кольорової обводки й світіння — картка стоїть над списком і не має
-            // просвічувати рядок під собою; акцент дає лише колір тексту.
-            if (youBackground != null)
-                youBackground.SetGradient(design.YouCardFillFrom, design.YouCardFillTo);
-            if (youStroke != null)
-                youStroke.color = design.GlassStroke;
-            Toggle(youGlow, false);
-
-            // Місце — лише коли сервер його дав; без мережі — риска, а не вигадане число.
             var position = _board.IsOk ? _board.YourPosition : 0;
-            ApplyFont(youPosition, design.FontSizeRankRow, design.YouCardText, FontStyles.Bold, 0f);
+            var online = _board.IsOk && !(_loading && _board.Players.Count == 0);
+
+            if (youGroup != null)
+                youGroup.alpha = online ? 1f : design.YouCardOfflineAlpha;
+            if (youRing != null)
+            {
+                youRing.enabled = online;
+                youRing.color = DesignSystem.WithAlpha(design.Teal, design.YouCardRingAlpha);
+            }
             if (youPosition != null)
+            {
                 youPosition.text = position > 0 ? $"#{position}" : "#—";
-
-            // Той самий колір, що в рядку таблиці: аватар із профілю (§14), а не моковий.
+                youPosition.color = position > 0 ? design.Teal300 : design.InkDim;
+            }
             if (youAvatar != null)
-                RankingRow.PaintAvatar(youAvatar, design, you);
+                youAvatar.sprite = RankingRow.AvatarOf(you, avatarSprites, incognitoAvatar) ?? youAvatar.sprite;
+            if (youNick != null)
+                youNick.text = $"Ти · {you.Nick}";
 
-            ApplyFont(youNick, design.FontSizeRankRow, design.TextPrimary, FontStyles.Bold, 0f);
-            if (youNick != null) youNick.text = $"Ти · {you.Nick}";
+            var unit = _metric == RankMetric.Planets
+                ? Plural.Of(Clip(you.Value), "планета", "планети", "планет")
+                : Plural.Of(Clip(you.Value), "галактика", "галактики", "галактик");
+            var period = _period == RankPeriod.Week ? "за тиждень" : "за весь час";
+            if (youSubtitle != null)
+                youSubtitle.text = online || position > 0
+                    ? $"{ScoreFormat.Full(you.Value)} {unit} {period}"
+                    : "місце оновиться з інтернетом";
 
-            var gap = position > 1 ? _board.GapToNext : 0;
-            ApplyFont(youGap, design.FontSizeSmall, design.AccentTeal, FontStyles.Bold, 0f);
+            var showProgress = online && position > 0;
+            Toggle(youProgressRow, showProgress);
+            if (!showProgress)
+                return;
+            // Ширина заливки — масштабом з півотом зліва: розмір похідний від доріжки, на подію (не щокадру).
+            if (youProgressFill != null)
+                youProgressFill.localScale = new Vector3(Mathf.Clamp01(_board.ProgressToNext), 1f, 1f);
             if (youGap != null)
             {
-                youGap.gameObject.SetActive(gap > 0);
-                youGap.text = $"ще +{gap} до №{position - 1}";
+                var gap = _board.GapToNext;
+                var gapUnit = _metric == RankMetric.Planets
+                    ? Plural.Of(Clip(gap), "планета", "планети", "планет")
+                    : Plural.Of(Clip(gap), "галактика", "галактики", "галактик");
+                youGap.text = position == 1 ? "Ти перший — тримай місце!"
+                    : gap > 0 ? $"ще {ScoreFormat.Full(gap)} {gapUnit} до №{position - 1}"
+                    : $"нарівні з №{position - 1}";
             }
-
-            ApplyFont(youValue, design.FontSizeRankValue, design.YouCardText, FontStyles.Bold, 0f);
-            if (youValue != null)
-                youValue.text = ScoreFormat.Full(you.Value);
-
-            ApplyFont(youUnit, design.FontSizeCaption, design.TextFaint, FontStyles.Normal, 0f);
-            if (youUnit != null) youUnit.text = Leaderboard.Unit(_metric);
         }
+
+        /// <summary>Відмінок рахується за останніми цифрами — для чисел понад int досить межі.</summary>
+        private static int Clip(long value) => (int)Math.Min(value, int.MaxValue);
 
         private static void Toggle(Component? target, bool on)
         {
@@ -554,16 +524,10 @@ namespace InkFlow.UI
                 target.gameObject.SetActive(on);
         }
 
-        private void ApplyFont(TMP_Text? label, float size, Color color, FontStyles style, float spacing)
+        private static void Toggle(GameObject? target, bool on)
         {
-            if (label == null)
-                return;
-            label.fontSize = size;
-            label.color = color;
-            label.fontStyle = style;
-            label.characterSpacing = spacing;
-            if (design.Font != null)
-                label.font = design.Font;
+            if (target != null && target.activeSelf != on)
+                target.SetActive(on);
         }
     }
 }

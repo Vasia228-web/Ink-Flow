@@ -157,7 +157,14 @@ namespace InkFlow.UI
                 // Колекція — вкладка (U1Glaze крок 5): її навігація веде туди ж, що й хаба; «Грати» з порожньої
                 // колекції чи фільтра — у забіг поверх неї, як «Грати» на головному.
                 collection.TabRequested += OnTab;
-                collection.PlayRequested += () => Push(endless, new EndlessArgs(_balance));
+                collection.PlayRequested += () =>
+                {
+                    // Колекцію відкрили з налаштувань посеред забігу — забіг уже в стеку: туди й повертаємось.
+                    if (navigation != null && endless != null && navigation.Contains(endless))
+                        navigation.PopTo(endless);
+                    else
+                        Push(endless, new EndlessArgs(_balance));
+                };
                 collection.PicturePicked += (args, pictureId) =>
                 {
                     // Постановка — одна дія стану: перевірка копій, запис і збереження разом.
@@ -174,6 +181,8 @@ namespace InkFlow.UI
             if (rankings != null)
             {
                 rankings.BackRequested += Pop;
+                // Рейтинги — вкладка (U1Glaze крок 7): навігація веде туди ж, що й з хаба.
+                rankings.TabRequested += OnTab;
                 // Чужа галактика — той самий екран у режимі перегляду з вітриною гравця (§16).
                 // Pop із неї поверне саме в Рейтинги: стек так і влаштований.
                 rankings.PlayerOpened += args => Push(galaxy, args);
@@ -228,6 +237,13 @@ namespace InkFlow.UI
             if (settings == null)
             {
                 Debug.LogError("[InkFlow] SettingsScreen не підв'язаний — перезбери: Ink Flow → Setup → Build Settings Screen → Build Main Scene.");
+                return;
+            }
+            // Налаштування вже в стеку (колекція, відкрита з них, теж має шестерню) — повертаємось до них, а не
+            // штовхаємо той самий екран удруге (повторний Push заборонений — кнопка мовчала б). Ревізія кроку 5.
+            if (navigation != null && navigation.Contains(settings))
+            {
+                navigation.PopTo(settings);
                 return;
             }
             // Запам'ятовуємо в момент відкриття: коли натиснуть «Додому», верхнім екраном будуть уже налаштування.

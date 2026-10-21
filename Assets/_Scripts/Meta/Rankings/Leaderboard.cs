@@ -13,11 +13,12 @@ namespace InkFlow.Meta
     /// </summary>
     public sealed class RankPlayer
     {
-        public RankPlayer(string id, string nick, InkColor avatar, bool incognito, long value, int rank)
+        public RankPlayer(string id, string nick, InkColor avatar, bool incognito, long value, int rank, int avatarId = 0)
         {
             Id = id ?? string.Empty;
             Nick = nick ?? string.Empty;
             Avatar = avatar;
+            AvatarId = avatarId;
             Incognito = incognito;
             Value = value;
             Rank = rank;
@@ -28,6 +29,9 @@ namespace InkFlow.Meta
 
         /// <summary>Аватар із набору (§14): той самий колір, що в профілі гравця.</summary>
         public InkColor Avatar { get; }
+
+        /// <summary>Номер аватара з набору U1Glaze (avatar_1…8 — 0…7): той самий, що в шапці головного й на картці гостя.</summary>
+        public int AvatarId { get; }
 
         /// <summary>Гравець сховав профіль (§15): «Гравець-інкогніто», тап нічого не робить.</summary>
         public bool Incognito { get; }
@@ -45,7 +49,7 @@ namespace InkFlow.Meta
         /// <summary>Картка «Ти» з РЕАЛЬНИХ чисел гравця (§16): локальний файл — правда.</summary>
         public static RankPlayer You(PlayerState state, string playerId, RankMetric metric, RankPeriod period, DateTime utcNow) =>
             new RankPlayer(string.IsNullOrEmpty(playerId) ? "you" : playerId, state.Nick, AvatarSet.InkOf(state.AvatarId),
-                state.Settings.ProfileHidden, state.RankValue(metric, period, utcNow), 0) { IsYou = true };
+                state.Settings.ProfileHidden, state.RankValue(metric, period, utcNow), 0, state.AvatarId) { IsYou = true };
     }
 
     /// <summary>
@@ -69,7 +73,7 @@ namespace InkFlow.Meta
             _players = new List<RankPlayer>(page.Entries.Count);
             foreach (var entry in page.Entries)
             {
-                var player = new RankPlayer(entry.PlayerId, entry.Nick, AvatarSet.InkOf(entry.AvatarId), entry.Incognito, entry.Value, entry.Rank)
+                var player = new RankPlayer(entry.PlayerId, entry.Nick, AvatarSet.InkOf(entry.AvatarId), entry.Incognito, entry.Value, entry.Rank, entry.AvatarId)
                 {
                     IsYou = entry.PlayerId == you.Id
                 };
@@ -84,12 +88,31 @@ namespace InkFlow.Meta
                     if (player.IsYou)
                         YourPosition = player.Rank;
 
+            // Сусід над гравцем — зі сторінки, а коли гравець за її межами — зі значення, яке дав сервер окремо.
             GapToNext = 0;
             if (YourPosition > 1)
+            {
+                var found = false;
                 foreach (var player in _players)
                     if (player.Rank == YourPosition - 1)
+                    {
                         GapToNext = Math.Max(0, player.Value - you.Value);
+                        found = true;
+                    }
+                if (!found && page.AheadValue >= 0)
+                    GapToNext = Math.Max(0, page.AheadValue - you.Value);
+            }
         }
+
+        /// <summary>
+        /// Смужка прогресу на картці «Ти» (рішення автора, U1Glaze S08): своє / (своє + скільки бракує до наступного).
+        /// Перше місце (чи нічия з сусідом) — повна; місце невідоме — порожня.
+        /// </summary>
+        public float ProgressToNext =>
+            YourPosition <= 0 ? 0f
+            : YourPosition == 1 || GapToNext <= 0 ? 1f
+            : You.Value <= 0 ? 0f
+            : (float)You.Value / (You.Value + GapToNext);
 
         public RankMetric Metric { get; }
         public RankPeriod Period { get; }
