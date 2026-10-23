@@ -2,7 +2,7 @@ id: mouse
 name: Мишка
 theme: animals
 rarity: common
-step: 10
+step: 6
 colors: K=1 A=7 B=6 C=24 D=20 E=10 F=4 G=37 H=38 I=4 J=35 L=36 M=71 N=72 O=4 P=43 Q=44
 outline: K
 families: A=AFGH B=BIJL C=CMN D=D E=EOPQ

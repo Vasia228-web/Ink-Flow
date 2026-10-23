@@ -72,11 +72,14 @@ namespace InkFlow.Meta
         /// </summary>
         public long ScorePerOil { get; }
 
-        /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 10 / 20 / 40 / 80 / 160 / 400.</summary>
+        /// <summary>Нафта за домальовану картинку за рідкістю (індекс — (int)Rarity): 15 / 30 / 55 / 110 / 220 / 450.</summary>
         public long[] PictureRewards { get; }
 
-        /// <summary>Стартова таблиця (§19): подвоюється з рідкістю, космічна — окрема подія.</summary>
-        public static long[] DefaultPictureRewards() => new long[] { 10, 20, 40, 80, 160, 400 };
+        /// <summary>
+        /// Росте з часом малювання (2026-10-23): ~7 нафти за хвилину звичайної (2 хв), ~17 — легендарної (13 хв),
+        /// тобто рідша платить і за довжину, і за ризик її втратити; космічна — окрема подія.
+        /// </summary>
+        public static long[] DefaultPictureRewards() => new long[] { 15, 30, 55, 110, 220, 450 };
 
         /// <summary>
         /// §13: «домалювати картинку одразу» — за нафту, повна ціна за рідкістю. Реальна
@@ -90,7 +93,7 @@ namespace InkFlow.Meta
         /// нафти (очки + картинки), картинка в момент програшу заповнена в середньому наполовину —
         /// епічна коштує близько двох забігів, легендарна — трьох, звичайна — третину.
         /// </summary>
-        public static long[] DefaultFinishPictureCosts() => new long[] { 100, 180, 300, 600, 1000, 2000 };
+        public static long[] DefaultFinishPictureCosts() => new long[] { 150, 300, 500, 1000, 1800, 3000 };
 
         /// <summary>Ціна домалювати цю картинку зараз: частка решти пікселів від повної ціни, знизу обмежена.</summary>
         public long FinishPictureCost(Core.Rarity rarity, float remainingFraction)

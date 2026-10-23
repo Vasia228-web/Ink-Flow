@@ -2,7 +2,7 @@ id: ghost_shy
 name: Сором'язли­вий привид
 theme: ghosts
 rarity: common
-step: 11
+step: 6
 colors: K=1 A=5 B=27 C=10 D=20 E=4 F=33 G=34 H=4 I=77 J=78 L=4 M=43 N=44
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=D

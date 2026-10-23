@@ -31,12 +31,12 @@ namespace InkFlow.Gameplay
         [SerializeField, Min(1)] private long scorePerOil = 100;
 
         [Tooltip("Нафта за домальовану картинку: звичайна … космічна.")]
-        [SerializeField] private long[] pictureRewards = { 10, 20, 40, 80, 160, 400 };
+        [SerializeField] private long[] pictureRewards = { 15, 30, 55, 110, 220, 450 };
 
         [Header("Витрати нафти (майстер-док §13)")]
         [Tooltip("Повна ціна «домалювати одразу» за рідкістю; реальна — пропорційна решті кроків, не нижче частки. " +
                  "Епічна, заповнена наполовину, коштує ~2 забіги доходу — «раз на кілька забігів, не щозабігу».")]
-        [SerializeField] private long[] finishPictureCosts = { 100, 180, 300, 600, 1000, 2000 };
+        [SerializeField] private long[] finishPictureCosts = { 150, 300, 500, 1000, 1800, 3000 };
         [SerializeField, Range(0f, 1f)] private float finishPictureMinShare = 0.25f;
 
         [Tooltip("«Продовжити після програшу» за нафту, коли ролик уже використано. Менше за забіг доходу; нуль заборонено — безплатне продовження дає ролик.")]

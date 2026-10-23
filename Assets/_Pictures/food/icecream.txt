@@ -2,7 +2,7 @@ id: icecream
 name: Морозиво
 theme: food
 rarity: uncommon
-step: 5
+step: 2
 colors: K=1 A=20 B=22 C=5 D=8 E=15 F=63 G=64 H=4 I=67 J=68 L=4 M=33 N=34 O=4 P=39 Q=40
 outline: K
 families: A=AFG B=BHIJ C=CLMN D=DOPQ E=E

@@ -2,7 +2,7 @@ id: key
 name: Ключик
 theme: things
 rarity: common
-step: 5
+step: 3
 colors: K=1 A=10 B=24 C=9 D=7 E=5 F=4 G=43 H=44 I=71 J=72 L=4 M=41 N=42 O=4 P=37 Q=38
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOPQ E=E

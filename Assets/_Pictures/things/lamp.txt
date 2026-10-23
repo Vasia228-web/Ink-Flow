@@ -2,7 +2,7 @@ id: lamp
 name: Лампочка
 theme: things
 rarity: common
-step: 8
+step: 5
 colors: K=1 A=10 B=11 C=6 D=9 E=7 F=43 G=44 H=4 I=45 J=46 L=35 M=36 N=4 O=41 P=42
 outline: K
 families: A=AFG B=BHIJ C=CLM D=DNOP E=E

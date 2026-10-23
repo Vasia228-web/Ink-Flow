@@ -2,7 +2,7 @@ id: whale
 name: Кит
 theme: sea
 rarity: rare
-step: 6
+step: 2
 colors: K=1 A=16 B=25 C=15 D=20 E=4 F=55 G=56 H=4 I=73 J=74 L=53 M=54
 outline: K
 families: A=AEFG B=BHIJ C=CLM D=D

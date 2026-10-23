@@ -2,7 +2,7 @@ id: cat_glasses
 name: Котик в окулярах
 theme: animals
 rarity: rare
-step: 6
+step: 2
 colors: K=1 A=7 B=6 C=15 D=24 E=20 F=37 G=38 H=4 I=35 J=36 L=4 M=53 N=54 O=71 P=72 Q=64
 outline: K
 families: A=AFG B=BHIJ C=CLMN D=DOP E=EQ

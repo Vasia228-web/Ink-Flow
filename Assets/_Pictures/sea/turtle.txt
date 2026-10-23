@@ -2,7 +2,7 @@ id: turtle
 name: Чере­пашка
 theme: sea
 rarity: uncommon
-step: 6
+step: 3
 colors: K=1 A=13 B=12 C=28 D=24 E=20 F=4 G=49 H=50 I=4 J=47 L=48 M=4 N=79 O=80 P=71 Q=72
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQ E=E

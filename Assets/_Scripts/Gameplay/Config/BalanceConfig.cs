@@ -91,8 +91,8 @@ namespace InkFlow.Gameplay
         [Tooltip("Тонів на картинку (§4: 10–16; рідкісніша — детальніша).")]
         [SerializeField] private int[] rarityMinColors = { 10, 10, 11, 12, 13, 14 };
         [SerializeField] private int[] rarityMaxColors = { 16, 16, 16, 16, 18, 18 };
-        [Tooltip("Ціль кроків до завершення (§6): стільки, скільки було пікселів у попередній редакції.")]
-        [SerializeField] private int[] rarityStepTargets = { 60, 70, 85, 110, 150, 240 };
+        [Tooltip("Ціль кроків до завершення (§6) під час малювання ~2 / 3 / 4–5 / 6–8 / 10–12 хв; легендарна й космічна — уже крок у піксель (стеля нинішніх картинок). Дзеркало — STEPS у Tools/pictures/raster.py.")]
+        [SerializeField] private int[] rarityStepTargets = { 100, 160, 250, 450, 800, 830 };
         [SerializeField, Range(0f, 0.9f)] private float stepTolerance = 0.35f;
         [Tooltip("Родин (ігрових кольорів) на картинку (§3).")]
         [SerializeField, Range(1, 8)] private int minFamilies = 4;

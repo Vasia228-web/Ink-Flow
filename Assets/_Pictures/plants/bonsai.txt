@@ -2,7 +2,7 @@ id: bonsai
 name: Бонсай
 theme: plants
 rarity: rare
-step: 5
+step: 2
 colors: K=1 A=13 B=22 C=23 D=24 E=12 F=4 G=49 H=50 I=67 J=68 L=4 M=69 N=70 O=71 P=72
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOP E=E

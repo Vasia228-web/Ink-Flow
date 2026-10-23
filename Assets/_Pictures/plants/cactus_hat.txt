@@ -2,7 +2,7 @@ id: cactus_hat
 name: Кактус у сомбреро
 theme: plants
 rarity: rare
-step: 6
+step: 2
 colors: K=1 A=13 B=10 C=22 D=8 E=24 F=12 G=4 H=49 I=50 J=4 L=43 M=44 N=67 O=68 P=71 Q=72
 outline: K
 families: A=AGHI B=BJLM C=CNO D=D E=EPQ F=F

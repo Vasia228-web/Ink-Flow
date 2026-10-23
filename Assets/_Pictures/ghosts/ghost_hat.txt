@@ -2,7 +2,7 @@ id: ghost_hat
 name: Привид у капелюсі
 theme: ghosts
 rarity: uncommon
-step: 10
+step: 4
 colors: K=1 A=5 B=23 C=8 D=20 E=10 F=4 G=33 H=34 I=4 J=69 L=70
 outline: K
 families: A=AFGH B=BIJL C=C D=D E=E

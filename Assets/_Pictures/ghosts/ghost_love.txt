@@ -2,7 +2,7 @@ id: ghost_love
 name: Зако­ханий привид
 theme: ghosts
 rarity: uncommon
-step: 9
+step: 4
 colors: K=1 A=5 B=8 C=10 D=20 E=4 F=33 G=34 H=4 I=39 J=40 L=4 M=43 N=44
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=D

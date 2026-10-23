@@ -2,7 +2,7 @@ id: cactus
 name: Кактус
 theme: plants
 rarity: common
-step: 6
+step: 4
 colors: K=1 A=13 B=22 C=24 D=12 E=4 F=49 G=50 H=67 I=68 J=71 L=72
 outline: K
 families: A=AEFG B=BHI C=CJL D=D

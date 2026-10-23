@@ -2,7 +2,7 @@ id: fluffy
 name: Пух­настик
 theme: monsters
 rarity: rare
-step: 9
+step: 3
 colors: K=1 A=20 B=24 C=18 D=10 E=29 F=4 G=63 H=64 I=71 J=72 L=4 M=59 N=60 O=4 P=44
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOP E=E

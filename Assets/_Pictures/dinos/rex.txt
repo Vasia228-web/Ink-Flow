@@ -2,7 +2,7 @@ id: rex
 name: Тирано­завр
 theme: dinos
 rarity: epic
-step: 5
+step: 1
 colors: K=1 A=28 B=12 C=24 D=9 E=20 F=5 G=4 H=79 I=80 J=4 L=47 M=48 N=71 O=72 P=4 Q=41 R=42
 outline: K
 families: A=AGHI B=BJLM C=CNO D=DPQR E=E F=F

@@ -2,7 +2,7 @@ id: astronaut
 name: Космо­навт
 theme: space
 rarity: rare
-step: 6
+step: 2
 colors: K=1 A=5 B=7 C=25 D=9 E=16 F=8 G=4 H=33 I=34 J=4 L=37 M=38 N=4 O=73 P=74 Q=4 R=41 S=42 T=56 U=39
 outline: K
 families: A=AGHI B=BJLM C=CNOP D=DQRS E=ET F=FU

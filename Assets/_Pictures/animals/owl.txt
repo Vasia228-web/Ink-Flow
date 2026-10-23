@@ -2,7 +2,7 @@ id: owl
 name: Совеня
 theme: animals
 rarity: rare
-step: 8
+step: 3
 colors: K=1 A=7 B=22 C=5 D=23 E=9 F=13 G=4 H=37 I=38 J=4 L=67 M=68 N=69 O=70 P=4 Q=41 R=42
 outline: K
 families: A=AGHI B=BJLM C=C D=DNO E=EPQR F=F

@@ -2,7 +2,7 @@ id: gem_cosmic
 name: Серце галак­тики
 theme: things
 rarity: cosmic
-step: 3
+step: 1
 colors: K=1 A=19 B=18 C=17 D=15 E=10 F=5 G=4 H=61 I=62 J=4 L=59 M=60 N=57 O=58 P=4 Q=53 R=54 S=4 T=43 U=44
 outline: K
 families: A=AGHI B=BJLM C=CNO D=DPQR E=ESTU F=F

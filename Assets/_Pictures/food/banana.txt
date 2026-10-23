@@ -2,7 +2,7 @@ id: banana
 name: Банан
 theme: food
 rarity: common
-step: 4
+step: 2
 colors: K=1 A=10 B=24 C=11 D=23 E=4 F=43 G=44 H=71 I=72 J=45 L=46 M=4 N=69 O=70
 outline: K
 families: A=AEFG B=BHI C=CJL D=DMNO

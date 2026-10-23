@@ -2,7 +2,7 @@ id: taco
 name: Тако
 theme: food
 rarity: rare
-step: 6
+step: 2
 colors: K=1 A=10 B=13 C=23 D=24 E=8 F=5 G=43 H=44 I=4 J=49 L=50 M=4 N=69 O=70 P=71 Q=72
 outline: K
 families: A=AGH B=BIJL C=CMNO D=DPQ E=E F=F

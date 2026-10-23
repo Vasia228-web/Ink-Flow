@@ -2,7 +2,7 @@ id: hedgehog
 name: Їжачок
 theme: animals
 rarity: uncommon
-step: 8
+step: 3
 colors: K=1 A=23 B=21 C=13 D=22 E=8 F=20 G=4 H=69 I=70 J=4 L=65 M=66 N=49 O=50 P=67 Q=68 R=39
 outline: K
 families: A=AGHI B=BJLM C=CNO D=DPQ E=ER F=F

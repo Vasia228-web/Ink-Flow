@@ -2,7 +2,7 @@ id: stego
 name: Стего­заврик
 theme: dinos
 rarity: uncommon
-step: 6
+step: 3
 colors: K=1 A=28 B=9 C=12 D=13 E=20 F=4 G=79 H=80 I=4 J=41 L=42 M=4 N=47 O=48 P=49 Q=50
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQ E=E

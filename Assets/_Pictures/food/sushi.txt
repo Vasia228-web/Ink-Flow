@@ -2,7 +2,7 @@ id: sushi
 name: Суші
 theme: food
 rarity: uncommon
-step: 6
+step: 3
 colors: K=1 A=5 B=8 C=13 D=7 E=12 F=4 G=33 H=34 I=4 J=39 L=40 M=4 N=49 O=50 P=37 Q=38
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQ E=E

@@ -2,7 +2,7 @@ id: cat_bow
 name: Котик із бантом
 theme: animals
 rarity: uncommon
-step: 9
+step: 4
 colors: K=1 A=9 B=5 C=24 D=8 E=20 F=29 G=4 H=41 I=42 J=4 L=33 M=34 N=71 O=72 P=4 Q=39 R=40
 outline: K
 families: A=AGHI B=BJLM C=CNO D=DPQR E=E F=F

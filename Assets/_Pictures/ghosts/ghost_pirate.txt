@@ -2,7 +2,7 @@ id: ghost_pirate
 name: Привид-пірат
 theme: ghosts
 rarity: uncommon
-step: 9
+step: 4
 colors: K=1 A=5 B=8 C=7 D=20 E=10 F=4 G=33 H=34 I=39 J=40 L=4 M=37 N=38
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=D E=E

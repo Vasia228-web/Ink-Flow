@@ -2,7 +2,7 @@ id: bee
 name: Бджілка
 theme: bugs
 rarity: common
-step: 8
+step: 5
 colors: K=1 A=10 B=7 C=25 D=20 E=4 F=43 G=44 H=4 I=73 J=74 L=4 M=63 N=64
 outline: K
 families: A=AEFG B=B C=CHIJ D=DLMN

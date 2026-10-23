@@ -81,7 +81,7 @@ namespace InkFlow.Core
             _rarityGridSizes = Six(rarityGridSizes, new[] { 34, 34, 34, 34, 42, 42 }, nameof(rarityGridSizes));
             _rarityMinColors = Six(rarityMinColors, new[] { 10, 10, 11, 12, 13, 14 }, nameof(rarityMinColors));
             _rarityMaxColors = Six(rarityMaxColors, new[] { 16, 16, 16, 16, 18, 18 }, nameof(rarityMaxColors));
-            _rarityStepTargets = Six(rarityStepTargets, new[] { 60, 70, 85, 110, 150, 240 }, nameof(rarityStepTargets));
+            _rarityStepTargets = Six(rarityStepTargets, new[] { 100, 160, 250, 450, 800, 830 }, nameof(rarityStepTargets));
             if (stepTolerance < 0f || stepTolerance >= 1f)
                 throw new ArgumentOutOfRangeException(nameof(stepTolerance));
             if (minFamilies < 1 || maxFamilies < minFamilies)

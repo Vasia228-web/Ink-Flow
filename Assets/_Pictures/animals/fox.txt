@@ -2,7 +2,7 @@ id: fox
 name: Лисичка
 theme: animals
 rarity: uncommon
-step: 8
+step: 4
 colors: K=1 A=9 B=5 C=13 D=23 E=20 F=4 G=41 H=42 I=4 J=33 L=34 M=49 N=50
 outline: K
 families: A=AFGH B=BIJL C=CMN D=D E=E

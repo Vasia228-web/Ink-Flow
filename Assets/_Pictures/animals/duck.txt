@@ -2,7 +2,7 @@ id: duck
 name: Каченя
 theme: animals
 rarity: common
-step: 8
+step: 5
 colors: K=1 A=11 B=15 C=10 D=9 E=27 F=4 G=45 H=46 I=53 J=54 L=4 M=43 N=44 O=4 P=41 Q=42
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOPQ E=E

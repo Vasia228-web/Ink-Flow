@@ -2,7 +2,7 @@ id: raincloud
 name: Дощова хмарка
 theme: weather
 rarity: uncommon
-step: 6
+step: 3
 colors: K=1 A=7 B=16 C=15 D=10 E=4 F=37 G=38 H=4 I=55 J=56 L=4 M=53 N=54 O=4 P=43 Q=44
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=DOPQ

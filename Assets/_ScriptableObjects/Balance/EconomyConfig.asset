@@ -13,6 +13,12 @@ MonoBehaviour:
   m_Name: EconomyConfig
   m_EditorClassIdentifier: InkFlow.Gameplay::InkFlow.Gameplay.EconomyConfig
   starterOil: 0
-  starterPaintLiters: 0
   fullRewardPlays: 10
   reducedRewardRate: 0.25
+  scorePerOil: 100
+  pictureRewards: 0f000000000000001e0000000000000037000000000000006e00000000000000dc00000000000000c201000000000000
+  finishPictureCosts: 96000000000000002c01000000000000f401000000000000e8030000000000000807000000000000b80b000000000000
+  finishPictureMinShare: 0.25
+  continueCost: 120
+  interstitialEveryRuns: 4
+  rewardAdMultiplier: 2

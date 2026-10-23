@@ -2,7 +2,7 @@ id: blackhole
 name: Чорна діра
 theme: space
 rarity: cosmic
-step: 3
+step: 1
 colors: K=1 A=9 B=10 C=15 D=18 E=7 F=41 G=42 H=43 I=44 J=4 L=53 M=54 N=59 O=60 P=4 Q=37 R=38
 outline: K
 families: A=AFG B=BHI C=CJLM D=DNO E=EPQR

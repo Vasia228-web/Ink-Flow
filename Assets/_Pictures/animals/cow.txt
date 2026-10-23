@@ -2,7 +2,7 @@ id: cow
 name: Корівка
 theme: animals
 rarity: rare
-step: 8
+step: 3
 colors: K=1 A=5 B=20 C=7 D=13 E=22 F=4 G=33 H=34 I=4 J=63 L=64 M=49 N=50 O=4 P=67 Q=68
 outline: K
 families: A=AFGH B=BIJL C=C D=DMN E=EOPQ

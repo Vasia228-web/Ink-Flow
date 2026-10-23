@@ -2,7 +2,7 @@ id: cake
 name: Торт
 theme: sweets
 rarity: epic
-step: 5
+step: 1
 colors: K=1 A=21 B=6 C=20 D=8 E=15 F=10 G=65 H=66 I=4 J=35 L=36 M=4 N=63 O=64 P=4 Q=39 R=40 S=44
 outline: K
 families: A=AGH B=BIJL C=CMNO D=DPQR E=E F=FS

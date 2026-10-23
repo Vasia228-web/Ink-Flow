@@ -2,7 +2,7 @@ id: moon
 name: Місяць
 theme: space
 rarity: common
-step: 10
+step: 6
 colors: K=1 A=17 B=11 C=10 D=5 E=20 F=4 G=57 H=58 I=4 J=45 L=46 M=4 N=43 O=44
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=D E=E

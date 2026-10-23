@@ -2,7 +2,7 @@ id: comet
 name: Комета
 theme: space
 rarity: uncommon
-step: 4
+step: 2
 colors: K=1 A=10 B=7 C=11 D=16 E=4 F=43 G=44 H=4 I=37 J=38 L=4 M=45 N=46 O=55 P=56
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=DOP

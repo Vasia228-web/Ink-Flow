@@ -2,7 +2,7 @@ id: crystal
 name: Кристал
 theme: things
 rarity: legendary
-step: 4
+step: 1
 colors: K=1 A=18 B=17 C=19 D=7 E=15 F=5 G=4 H=59 I=60 J=4 L=57 M=58 N=4 O=61 P=62 Q=4 R=37 S=38 T=4 U=53 V=54
 outline: K
 families: A=AGHI B=BJLM C=CNOP D=DQRS E=ETUV F=F

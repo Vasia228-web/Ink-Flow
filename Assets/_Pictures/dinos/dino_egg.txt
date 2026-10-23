@@ -2,7 +2,7 @@ id: dino_egg
 name: Яйце дино­завра
 theme: dinos
 rarity: common
-step: 11
+step: 6
 colors: K=1 A=26 B=13 C=12 D=23 E=28 F=4 G=75 H=76 I=4 J=49 L=50 M=4 N=47 O=48
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=D E=E

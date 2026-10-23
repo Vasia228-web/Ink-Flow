@@ -2,7 +2,7 @@ id: shell
 name: Мушля
 theme: sea
 rarity: common
-step: 7
+step: 4
 colors: K=1 A=21 B=24 C=27 D=22 E=15 F=4 G=65 H=66 I=71 J=72 L=4 M=77 N=78 O=4 P=67 Q=68 R=4 S=53 T=54
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOPQ E=ERST

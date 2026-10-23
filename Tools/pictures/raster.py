@@ -55,7 +55,7 @@ def shadow_of(fill):
 GRID = {"common": 34, "uncommon": 34, "rare": 34, "epic": 34, "legendary": 42, "cosmic": 42}
 TONES = {"common": (10, 16), "uncommon": (10, 16), "rare": (11, 16), "epic": (12, 16), "legendary": (13, 18), "cosmic": (14, 18)}
 FAMILIES = (4, 6)
-STEPS = {"common": 60, "uncommon": 70, "rare": 85, "epic": 110, "legendary": 150, "cosmic": 240}
+STEPS = {"common": 100, "uncommon": 160, "rare": 250, "epic": 450, "legendary": 800, "cosmic": 830}
 STEP_TOLERANCE = 0.35
 MIN_SIDE = 12
 MIN_LONG = 24
@@ -303,6 +303,7 @@ class Pic:
         tone_of = {v: k[0] for k, v in letters.items()}
         fam_of = {v: k[1] for k, v in letters.items()}
         steps = count_steps(text_rows, fam_of, outline_letter, step)
+        best = (abs(steps - target), step, steps)
         for _ in range(12):
             if steps > target * (1 + STEP_TOLERANCE * 0.6) and step < 64:
                 step += 1
@@ -311,6 +312,9 @@ class Pic:
             else:
                 break
             steps = count_steps(text_rows, fam_of, outline_letter, step)
+            best = min(best, (abs(steps - target), step, steps))
+        # Крок ±1 біля цілі може гойдатись між «забагато» й «замало» — тоді беремо найближчий до цілі.
+        _, step, steps = best
         if not (target * (1 - STEP_TOLERANCE) <= steps <= target * (1 + STEP_TOLERANCE)):
             errors.append(f"{self.id}: {steps} кроків (крок {step}, {fill_pixels} px), ціль {target} ± {int(STEP_TOLERANCE * 100)}%")
 

@@ -2,7 +2,7 @@ id: sun
 name: Сонечко
 theme: weather
 rarity: common
-step: 7
+step: 4
 colors: K=1 A=10 B=9 C=5 D=20 E=4 F=43 G=44 H=4 I=41 J=42 L=4 M=33 N=34
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=D

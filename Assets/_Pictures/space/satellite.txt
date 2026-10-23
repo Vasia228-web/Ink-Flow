@@ -2,7 +2,7 @@ id: satellite
 name: Супутник
 theme: space
 rarity: rare
-step: 4
+step: 2
 colors: K=1 A=16 B=6 C=7 D=15 E=8 F=5 G=4 H=55 I=56 J=4 L=35 M=36 N=4 O=37 P=38 Q=4 R=53 S=54
 outline: K
 families: A=AGHI B=BJLM C=CNOP D=DQRS E=E F=F

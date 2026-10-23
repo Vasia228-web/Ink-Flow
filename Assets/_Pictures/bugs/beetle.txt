@@ -2,7 +2,7 @@ id: beetle
 name: Жук-олень
 theme: bugs
 rarity: rare
-step: 5
+step: 2
 colors: K=1 A=22 B=7 C=23 D=9 E=13 F=67 G=68 H=4 I=37 J=38 L=4 M=69 N=70 O=49 P=50
 outline: K
 families: A=AFG B=BHIJ C=CLMN D=D E=EOP

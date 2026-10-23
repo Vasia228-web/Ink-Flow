@@ -2,7 +2,7 @@ id: rocket
 name: Ракета
 theme: space
 rarity: common
-step: 5
+step: 3
 colors: K=1 A=8 B=5 C=9 D=15 E=10 F=4 G=39 H=40 I=33 J=34 L=4 M=41 N=42 O=4 P=53 Q=54 R=4 S=43 T=44
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOPQ E=ERST

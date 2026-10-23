@@ -2,7 +2,7 @@ id: mushroom
 name: Грибочок
 theme: plants
 rarity: common
-step: 9
+step: 6
 colors: K=1 A=8 B=5 C=12 D=20 E=24 F=4 G=39 H=40 I=4 J=33 L=34 M=47 N=48
 outline: K
 families: A=AFGH B=BIJL C=CMN D=D E=E

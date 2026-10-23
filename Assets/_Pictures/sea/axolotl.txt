@@ -2,7 +2,7 @@ id: axolotl
 name: Аксо­лотль
 theme: sea
 rarity: epic
-step: 5
+step: 1
 colors: K=1 A=20 B=19 C=15 D=21 E=27 F=4 G=63 H=64 I=61 J=53 L=54 M=4 N=65 O=66
 outline: K
 families: A=AFGH B=BI C=CJL D=DMNO E=E

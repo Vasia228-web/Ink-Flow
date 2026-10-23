@@ -2,7 +2,7 @@ id: lightning
 name: Блис­кавка
 theme: weather
 rarity: common
-step: 5
+step: 3
 colors: K=1 A=7 B=10 C=11 D=15 E=4 F=37 G=38 H=4 I=43 J=44 L=53
 outline: K
 families: A=AEFG B=BHIJ C=C D=DL

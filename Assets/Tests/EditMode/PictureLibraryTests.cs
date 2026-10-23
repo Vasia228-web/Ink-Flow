@@ -85,7 +85,10 @@ namespace InkFlow.Core.Tests
             var library = TestBoard.RealLibrary;
             float MeanTones(Rarity r) { var n = 0; var sum = 0f; foreach (var p in library.Pictures) if (p.Rarity == r) { n++; sum += p.ToneCount; } return n == 0 ? 0f : sum / n; }
             float MeanSteps(Rarity r) { var n = 0; var sum = 0f; foreach (var p in library.Pictures) if (p.Rarity == r) { n++; sum += p.FillCount; } return n == 0 ? 0f : sum / n; }
-            Assert.Greater(MeanSteps(Rarity.Cosmic), MeanSteps(Rarity.Legendary));
+            // Легендарна й космічна вже «крок у піксель» — довжину впирає розмір нинішніх картинок, а космічні
+            // поки не більші за легендарні (рішення автора 1А, 2026-10-22: довші космічні — з генератором картинок).
+            // Тож космічна не коротша за 95 % легендарної; довшою її робить більше тонів (бот: 13,5 проти 12,8 хв).
+            Assert.GreaterOrEqual(MeanSteps(Rarity.Cosmic), 0.95f * MeanSteps(Rarity.Legendary));
             Assert.Greater(MeanSteps(Rarity.Legendary), MeanSteps(Rarity.Epic));
             Assert.Greater(MeanSteps(Rarity.Epic), MeanSteps(Rarity.Common));
             Assert.GreaterOrEqual(MeanTones(Rarity.Legendary), MeanTones(Rarity.Common));

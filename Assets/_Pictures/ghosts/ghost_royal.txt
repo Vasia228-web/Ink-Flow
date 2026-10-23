@@ -2,7 +2,7 @@ id: ghost_royal
 name: Привид-імпе­ратор
 theme: ghosts
 rarity: epic
-step: 7
+step: 2
 colors: K=1 A=5 B=8 C=10 D=15 E=20 F=4 G=33 H=34 I=4 J=39 L=40 M=43 N=44 O=4 P=53 Q=54
 outline: K
 families: A=AFGH B=BIJL C=CMN D=DOPQ E=E

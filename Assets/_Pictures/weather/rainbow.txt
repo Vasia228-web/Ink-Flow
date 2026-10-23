@@ -2,7 +2,7 @@ id: rainbow
 name: Веселка
 theme: weather
 rarity: rare
-step: 7
+step: 2
 colors: K=1 A=5 B=8 C=9 D=16 E=10 F=13 G=4 H=33 I=34 J=39 L=18
 outline: K
 families: A=AGHI B=BJ C=C D=DL E=E F=F

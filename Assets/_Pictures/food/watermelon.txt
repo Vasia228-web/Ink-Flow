@@ -2,7 +2,7 @@ id: watermelon
 name: Кавун
 theme: food
 rarity: uncommon
-step: 5
+step: 2
 colors: K=1 A=13 B=8 C=12 D=24 E=7 F=49 G=50 H=4 I=39 J=40 L=47 M=48 N=71 O=72
 outline: K
 families: A=AFG B=BHIJ C=CLM D=DNO E=E

@@ -2,7 +2,7 @@ id: horned
 name: Рогатик
 theme: monsters
 rarity: uncommon
-step: 8
+step: 4
 colors: K=1 A=8 B=10 C=7 D=9 E=20 F=4 G=39 H=40 I=4 J=43 L=44 M=37 N=38 O=4 P=41 Q=42
 outline: K
 families: A=AFGH B=BIJL C=CMN D=DOPQ E=E

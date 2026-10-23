@@ -2,7 +2,7 @@ id: cyclops
 name: Циклопик
 theme: monsters
 rarity: common
-step: 9
+step: 5
 colors: K=1 A=18 B=24 C=15 D=20 E=4 F=59 G=60 H=71 I=72 J=4 L=53 M=54 N=4 O=63 P=64
 outline: K
 families: A=AEFG B=BHI C=CJLM D=DNOP

@@ -2,7 +2,7 @@ id: snowflake
 name: Сніжинка
 theme: weather
 rarity: uncommon
-step: 4
+step: 2
 colors: K=1 A=15 B=25 C=17 D=5 E=4 F=53 G=54 H=4 I=73 J=74 L=4 M=57 N=58
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=D

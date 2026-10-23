@@ -2,7 +2,7 @@ id: panda
 name: Панда
 theme: animals
 rarity: uncommon
-step: 9
+step: 4
 colors: K=1 A=5 B=7 C=12 D=13 E=20 F=33 G=34 H=4 I=37 J=38 L=47 M=48 N=4 O=49 P=50
 outline: K
 families: A=AFG B=BHIJ C=CLM D=DNOP E=E

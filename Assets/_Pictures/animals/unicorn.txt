@@ -2,7 +2,7 @@ id: unicorn
 name: Єдиноріг
 theme: animals
 rarity: epic
-step: 5
+step: 1
 colors: K=1 A=5 B=20 C=19 D=16 E=18 F=10 G=4 H=33 I=34 J=4 L=61 M=62 N=4 O=59 P=60 Q=43 R=44
 outline: K
 families: A=AGHI B=B C=CJLM D=D E=ENOP F=FQR

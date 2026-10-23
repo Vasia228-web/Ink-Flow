@@ -2,7 +2,7 @@ id: sprout
 name: Паросток
 theme: plants
 rarity: common
-step: 6
+step: 4
 colors: K=1 A=13 B=22 C=9 D=23 E=12 F=15 G=4 H=49 I=50 J=67 L=68 M=4 N=41 O=42 P=4 Q=47 R=48
 outline: K
 families: A=AGHI B=BJL C=CMNO D=D E=EPQR F=F

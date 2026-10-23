@@ -2,7 +2,7 @@ id: ghost
 name: Привидик
 theme: ghosts
 rarity: common
-step: 11
+step: 7
 colors: K=1 A=5 B=10 C=15 D=20 E=25 F=4 G=33 H=34 I=4 J=43 L=44 M=4 N=53 O=54 P=73
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=D E=EP

@@ -2,7 +2,7 @@ id: star
 name: Зірочка
 theme: space
 rarity: common
-step: 6
+step: 4
 colors: K=1 A=10 B=15 C=5 D=9 E=4 F=43 G=44 H=4 I=53 J=54 L=4 M=33 N=34
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=D

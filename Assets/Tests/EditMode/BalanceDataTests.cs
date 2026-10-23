@@ -68,8 +68,8 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(34, balance.GridSizeFor(Rarity.Rare));
             Assert.AreEqual(34, balance.GridSizeFor(Rarity.Epic));
             Assert.AreEqual(42, balance.GridSizeFor(Rarity.Legendary));
-            Assert.AreEqual(60, balance.StepTargetFor(Rarity.Common), "§6: кроків стільки, скільки було пікселів");
-            Assert.AreEqual(240, balance.StepTargetFor(Rarity.Cosmic));
+            Assert.AreEqual(100, balance.StepTargetFor(Rarity.Common), "§6: звичайна ~2 хв");
+            Assert.AreEqual(830, balance.StepTargetFor(Rarity.Cosmic), "космічна — крок у піксель, стеля нинішніх картинок");
             Assert.AreEqual(4, balance.MinFamilies);
             Assert.AreEqual(6, balance.MaxFamilies);
             Assert.AreEqual(42, balance.GridSizeFor(Rarity.Cosmic));

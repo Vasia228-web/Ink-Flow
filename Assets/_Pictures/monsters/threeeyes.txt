@@ -2,7 +2,7 @@ id: threeeyes
 name: Триокий
 theme: monsters
 rarity: uncommon
-step: 8
+step: 4
 colors: K=1 A=14 B=24 C=10 D=20 E=4 F=51 G=52 H=71 I=72 J=4 L=43 M=44
 outline: K
 families: A=AEFG B=BHI C=CJLM D=D

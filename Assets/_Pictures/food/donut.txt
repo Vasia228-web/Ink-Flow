@@ -2,7 +2,7 @@ id: donut
 name: Пончик
 theme: food
 rarity: uncommon
-step: 8
+step: 4
 colors: K=1 A=20 B=22 C=24 D=15 E=10 F=4 G=63 H=64 I=67 J=68 L=71 M=72
 outline: K
 families: A=AFGH B=BIJ C=CLM D=D E=E

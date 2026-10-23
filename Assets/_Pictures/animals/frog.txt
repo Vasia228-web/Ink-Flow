@@ -2,7 +2,7 @@ id: frog
 name: Жабка
 theme: animals
 rarity: common
-step: 11
+step: 6
 colors: K=1 A=13 B=12 C=15 D=10 E=20 F=4 G=49 H=50 I=4 J=47 L=48 M=53 N=54 O=4 P=43 Q=44
 outline: K
 families: A=AFGH B=BIJL C=CMN D=DOPQ E=E

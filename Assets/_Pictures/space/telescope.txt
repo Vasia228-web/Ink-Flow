@@ -2,7 +2,7 @@ id: telescope
 name: Телескоп
 theme: space
 rarity: common
-step: 6
+step: 3
 colors: K=1 A=16 B=7 C=6 D=24 E=10 F=5 G=55 H=56 I=4 J=37 L=38 M=4 N=35 O=36 P=71 Q=72
 outline: K
 families: A=AGH B=BIJL C=CMNO D=DPQ E=E F=F

@@ -2,7 +2,7 @@ id: cactus_flower
 name: Кактус у цвіту
 theme: plants
 rarity: uncommon
-step: 6
+step: 3
 colors: K=1 A=13 B=22 C=20 D=24 E=12 F=4 G=49 H=50 I=67 J=68 L=4 M=63 N=64 O=71 P=72
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=DOP E=E

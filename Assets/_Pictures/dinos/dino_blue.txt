@@ -2,7 +2,7 @@ id: dino_blue
 name: Синьо­завр
 theme: dinos
 rarity: common
-step: 9
+step: 5
 colors: K=1 A=16 B=25 C=15 D=24 E=20 F=4 G=55 H=56 I=4 J=73 L=74 M=4 N=53 O=54 P=71 Q=72
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQ E=E

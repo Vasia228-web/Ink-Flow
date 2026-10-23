@@ -2,7 +2,7 @@ id: flower
 name: Квітка
 theme: plants
 rarity: common
-step: 10
+step: 6
 colors: K=1 A=20 B=10 C=13 D=12 E=9 F=4 G=63 H=64 I=4 J=43 L=44 M=4 N=49 O=50 P=47 Q=48
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQ E=E

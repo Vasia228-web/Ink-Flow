@@ -2,7 +2,7 @@ id: slime
 name: Слимачок
 theme: monsters
 rarity: common
-step: 9
+step: 5
 colors: K=1 A=12 B=14 C=13 D=20 E=4 F=47 G=48 H=51 I=52 J=4 L=49 M=50
 outline: K
 families: A=AEFG B=BHI C=CJLM D=D

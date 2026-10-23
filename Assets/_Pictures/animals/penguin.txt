@@ -2,7 +2,7 @@ id: penguin
 name: Пінгвін
 theme: animals
 rarity: common
-step: 10
+step: 6
 colors: K=1 A=7 B=5 C=8 D=25 E=9 F=27 G=4 H=37 I=38 J=4 L=33 M=34 N=4 O=39 P=40 Q=73 R=74 S=4 T=42
 outline: K
 families: A=AGHI B=BJLM C=CNOP D=DQR E=EST F=F

@@ -2,7 +2,7 @@ id: clover
 name: Конюшина
 theme: plants
 rarity: uncommon
-step: 7
+step: 3
 colors: K=1 A=13 B=12 C=24 D=10 E=4 F=49 G=50 H=4 I=47 J=48 L=71 M=72 N=4 O=43 P=44
 outline: K
 families: A=AEFG B=BHIJ C=CLM D=DNOP

@@ -2,7 +2,7 @@ id: gift
 name: Пода­рунок
 theme: things
 rarity: uncommon
-step: 8
+step: 4
 colors: K=1 A=15 B=10 C=9 D=24 E=4 F=53 G=54 H=4 I=43 J=44 L=4 M=41 N=42 O=71 P=72
 outline: K
 families: A=AEFG B=BHIJ C=CLMN D=DOP

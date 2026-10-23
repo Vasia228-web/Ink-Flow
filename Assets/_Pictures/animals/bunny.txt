@@ -2,7 +2,7 @@ id: bunny
 name: Зайчик
 theme: animals
 rarity: common
-step: 9
+step: 5
 colors: K=1 A=5 B=27 C=9 D=12 E=20 F=13 G=4 H=33 I=34 J=4 L=41 M=42 N=47 O=48 P=49 Q=50
 outline: K
 families: A=AGHI B=B C=CJLM D=DNO E=E F=FPQ

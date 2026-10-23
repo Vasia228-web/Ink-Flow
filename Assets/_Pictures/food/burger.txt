@@ -2,7 +2,7 @@ id: burger
 name: Бургер
 theme: food
 rarity: epic
-step: 7
+step: 2
 colors: K=1 A=22 B=23 C=13 D=10 E=8 F=5 G=4 H=67 I=68 J=4 L=69 M=70 N=4 O=49 P=50 Q=4 R=43 S=44
 outline: K
 families: A=AGHI B=BJLM C=CNOP D=DQRS E=E F=F

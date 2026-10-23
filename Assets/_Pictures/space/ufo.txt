@@ -2,7 +2,7 @@ id: ufo
 name: Летюча тарілка
 theme: space
 rarity: uncommon
-step: 6
+step: 3
 colors: K=1 A=10 B=7 C=6 D=15 E=13 F=5 G=43 H=4 I=37 J=38 L=4 M=35 N=36 O=4 P=53 Q=54 R=4
 outline: K
 families: A=AG B=BHIJ C=CLMN D=DOPQ E=ER F=F

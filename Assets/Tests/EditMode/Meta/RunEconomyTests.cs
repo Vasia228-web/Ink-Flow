@@ -11,6 +11,11 @@ namespace InkFlow.Tests.Meta
     {
         private static readonly DateTime Today = new DateTime(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
 
+        // Таблиці — дефолти EconomyData (пропорції тримає EconomySimulationTests); тут — формули, не числа.
+        private static long Reward(Rarity r) => EconomyData.Default.PictureRewards[(int)r];
+        private static long Cost(Rarity r) => EconomyData.Default.FinishPictureCosts[(int)r];
+        private static long Share(long full, float share) => (long)Math.Ceiling(full * share);
+
         [Test]
         public void CompleteRun_PaysForScoreAndPicturesAndRecordsEverything()
         {
@@ -20,10 +25,11 @@ namespace InkFlow.Tests.Meta
             var reward = state.CompleteRun(new RunSummary(4_450, 3, new[] { 2, 0, 1, 0, 0, 0 }), Today);
 
             Assert.AreEqual(44, reward.ForScore, "4 450 ÷ 100, униз");
-            Assert.AreEqual(2 * 10 + 40, reward.ForPictures, "дві звичайні по 10 і рідкісна за 40");
-            Assert.AreEqual(104, reward.Total);
+            var pictures = 2 * Reward(Rarity.Common) + Reward(Rarity.Rare);
+            Assert.AreEqual(pictures, reward.ForPictures, "дві звичайні й рідкісна — за таблицею рідкості");
+            Assert.AreEqual(44 + pictures, reward.Total);
             Assert.IsTrue(reward.NewRecord);
-            Assert.AreEqual(104, state.Wallet.OilDrops);
+            Assert.AreEqual(44 + pictures, state.Wallet.OilDrops);
             Assert.AreEqual(4_450, state.Progress.EndlessRecord);
             Assert.AreEqual(3, state.Progress.BestChain);
             Assert.AreEqual(1, state.Progress.RunsPlayed);
@@ -42,7 +48,7 @@ namespace InkFlow.Tests.Meta
 
             Assert.AreEqual(10, first.ForScore);
             Assert.AreEqual(2, second.ForScore, "ліміт вичерпано — чверть");
-            Assert.AreEqual(160, second.ForPictures, "картинка — подія, не фарм: без множника");
+            Assert.AreEqual(Reward(Rarity.Legendary), second.ForPictures, "картинка — подія, не фарм: без множника");
             Assert.IsFalse(second.NewRecord);
         }
 
@@ -67,7 +73,7 @@ namespace InkFlow.Tests.Meta
             var bonus = state.DoubleRunReward(reward.ForScore);
 
             Assert.AreEqual(30, bonus, "×2 − 1 = ще стільки ж");
-            Assert.AreEqual(30 + 10 + 30, state.Wallet.OilDrops);
+            Assert.AreEqual(30 + Reward(Rarity.Common) + 30, state.Wallet.OilDrops);
             Assert.AreEqual(0, state.DoubleRunReward(0));
             Assert.AreEqual(2, storage.Writes);
         }
@@ -90,31 +96,29 @@ namespace InkFlow.Tests.Meta
         [Test]
         public void FinishPicture_CostsOilByRarityAndRemainder()
         {
-            // Числа — дефолти EconomyData (їх тримає EconomySimulationTests); тут — формула.
             var state = PlayerState.NewPlayer(EconomyData.Default);
-            var full = EconomyData.Default.FinishPictureCosts[(int)Rarity.Common];
-            Assert.AreEqual(100, full, "§13: повна ціна звичайної — з симуляції");
+            var full = Cost(Rarity.Common);
             Assert.AreEqual(full, state.FinishPictureCost(Rarity.Common, 1f));
-            Assert.AreEqual(full / 2, state.FinishPictureCost(Rarity.Common, 0.5f), "половина пікселів — половина ціни");
-            Assert.AreEqual(full / 4, state.FinishPictureCost(Rarity.Common, 0.01f), "але не нижче чверті");
-            Assert.AreEqual(600, state.FinishPictureCost(Rarity.Epic, 1f));
+            Assert.AreEqual(Share(full, 0.5f), state.FinishPictureCost(Rarity.Common, 0.5f), "половина пікселів — половина ціни");
+            Assert.AreEqual(Share(full, 0.25f), state.FinishPictureCost(Rarity.Common, 0.01f), "але не нижче чверті");
+            Assert.AreEqual(Cost(Rarity.Epic), state.FinishPictureCost(Rarity.Epic, 1f));
             Assert.Greater(state.FinishPictureCost(Rarity.Epic, 1f), state.Rewards.ForPicture(Rarity.Epic), "домалювати дорожче, ніж отримаєш");
 
             Assert.IsFalse(state.TryFinishPicture(Rarity.Common, 1f), "нафти немає — нічого не списано");
             Assert.AreEqual(0, state.Wallet.OilDrops);
-            state.Wallet.Add(100, RewardSource.Debug);
+            state.Wallet.Add(full, RewardSource.Debug);
             Assert.IsTrue(state.TryFinishPicture(Rarity.Common, 0.5f));
-            Assert.AreEqual(50, state.Wallet.OilDrops);
+            Assert.AreEqual(full - Share(full, 0.5f), state.Wallet.OilDrops);
         }
 
         [Test]
         public void RewardPicture_PaysByRarity()
         {
             var state = PlayerState.NewPlayer(EconomyData.Default);
-            Assert.AreEqual(160, state.RewardPicture(Rarity.Legendary));
-            Assert.AreEqual(160, state.Wallet.OilDrops);
-            Assert.AreEqual(400, state.RewardPicture(Rarity.Cosmic));
-            Assert.AreEqual(10, state.RewardPicture(Rarity.Common));
+            Assert.AreEqual(Reward(Rarity.Legendary), state.RewardPicture(Rarity.Legendary));
+            Assert.AreEqual(Reward(Rarity.Legendary), state.Wallet.OilDrops);
+            Assert.AreEqual(Reward(Rarity.Cosmic), state.RewardPicture(Rarity.Cosmic));
+            Assert.AreEqual(Reward(Rarity.Common), state.RewardPicture(Rarity.Common));
             for (var r = 1; r < Rarities.Count; r++)
                 Assert.Greater(state.Rewards.ForPicture((Rarity)r), state.Rewards.ForPicture((Rarity)(r - 1)), "нафта росте з рідкістю");
         }

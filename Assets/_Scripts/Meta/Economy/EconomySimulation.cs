@@ -12,13 +12,14 @@ namespace InkFlow.Meta
         public int Seed = 42;
 
         /// <summary>
-        /// Квантилі очок за забіг (min, p10, med, p90, max) — з прогону бота
-        /// (`Tools/InkFlow.Sim --games 300 --seed 42 --noise 3`, 2026-10-05).
+        /// Квантилі очок за забіг (min, p10, med, p90, max) — посередині між прогонами бота без продовження
+        /// і з одним (`Tools/InkFlow.Sim --games 1000` і `--continues 1`, 2026-10-23: щедрий мішок, комбо-серія,
+        /// довші картинки): половина гравців продовжує за ролик.
         /// </summary>
-        public float[] ScoreQuantiles = { 760f, 2270f, 5480f, 10800f, 21260f };
+        public float[] ScoreQuantiles = { 1500f, 5000f, 12500f, 26000f, 55000f };
 
-        /// <summary>Закінчених картинок за забіг у середньому — з того самого прогону.</summary>
-        public float PicturesPerRun = 2.46f;
+        /// <summary>Закінчених картинок за забіг у середньому — з тих самих прогонів (1,15 без продовження, 2,69 з одним).</summary>
+        public float PicturesPerRun = 1.9f;
 
         /// <summary>Шанси рідкості витягу (§6).</summary>
         public float[] RarityWeights = { 45f, 25f, 15f, 9f, 5f, 1f };

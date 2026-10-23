@@ -2,7 +2,7 @@ id: butterfly
 name: Метелик
 theme: bugs
 rarity: uncommon
-step: 8
+step: 4
 colors: K=1 A=19 B=18 C=10 D=7 E=15 F=4 G=61 H=62 I=4 J=59 L=60 M=4 N=43 O=44 P=4 Q=37 R=38
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQR E=E

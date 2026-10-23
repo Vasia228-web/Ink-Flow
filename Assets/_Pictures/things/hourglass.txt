@@ -2,7 +2,7 @@ id: hourglass
 name: Пісочний годинник
 theme: things
 rarity: rare
-step: 6
+step: 2
 colors: K=1 A=25 B=23 C=22 D=24 E=7 F=4 G=73 H=74 I=4 J=69 L=70 M=4 N=67 O=68 P=4 Q=71 R=72
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=DPQR E=E

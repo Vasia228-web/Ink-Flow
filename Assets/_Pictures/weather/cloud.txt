@@ -2,7 +2,7 @@ id: cloud
 name: Хмарка
 theme: weather
 rarity: common
-step: 7
+step: 4
 colors: K=1 A=5 B=25 C=10 D=20 E=15 F=4 G=33 H=34 I=73 J=74 L=4 M=43 N=44
 outline: K
 families: A=AFGH B=BIJ C=CLMN D=D E=E

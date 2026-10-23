@@ -2,7 +2,7 @@ id: dragon
 name: Дра­кончик
 theme: animals
 rarity: legendary
-step: 5
+step: 1
 colors: K=1 A=13 B=12 C=14 D=8 E=7 F=9 G=4 H=49 I=50 J=4 L=47 M=48 N=4 O=51 P=52 Q=4 R=39 S=40 T=37 U=38
 outline: K
 families: A=AGHI B=BJLM C=CNOP D=DQRS E=ETU F=F

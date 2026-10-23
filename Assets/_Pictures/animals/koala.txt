@@ -2,7 +2,7 @@ id: koala
 name: Коала
 theme: animals
 rarity: uncommon
-step: 9
+step: 4
 colors: K=1 A=7 B=23 C=13 D=20 E=6 F=4 G=37 H=38 I=4 J=69 L=70 M=4 N=49 O=50
 outline: K
 families: A=AFGH B=BIJL C=CMNO D=D E=E

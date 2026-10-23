@@ -2,7 +2,7 @@ id: pig
 name: Порося
 theme: animals
 rarity: common
-step: 10
+step: 6
 colors: K=1 A=20 B=27 C=23 D=29 E=13 F=4 G=63 H=64 I=4 J=77 L=78 M=69 N=70 O=4 P=49 Q=50
 outline: K
 families: A=AFGH B=BIJL C=CMN D=D E=EOPQ

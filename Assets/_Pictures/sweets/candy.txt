@@ -2,7 +2,7 @@ id: candy
 name: Цукерка
 theme: sweets
 rarity: common
-step: 7
+step: 4
 colors: K=1 A=20 B=15 C=29 D=24 E=4 F=63 G=64 H=53 I=54 J=4 L=81 M=82 N=71 O=72
 outline: K
 families: A=AEFG B=BHI C=CJLM D=DNO
