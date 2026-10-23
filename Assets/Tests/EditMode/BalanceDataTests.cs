@@ -14,7 +14,10 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(1, balance.TierFor(10));
             Assert.AreEqual(2, balance.TierFor(20));
             Assert.AreEqual(3, balance.TierFor(30));
-            Assert.AreEqual(3, balance.TierFor(999));
+            Assert.AreEqual(3, balance.TierFor(59));
+            Assert.AreEqual(4, balance.TierFor(60));
+            Assert.AreEqual(5, balance.TierFor(90));
+            Assert.AreEqual(5, balance.TierFor(999), "пізні рівні: уважний гравець не грає безкінечно");
         }
 
         [Test]

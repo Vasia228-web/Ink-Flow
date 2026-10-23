@@ -214,19 +214,28 @@ TryPlace(i, anchor):
 
 ```
 count = кількість ліній за хід; multiplier = ComboMultipliers[min(count, 3) − 1] = 1 / 1.5 / 2
-очки за лінію := ⌊ScorePerLine (100) × (чиста ? PureLineScoreBonus (2) : 1) × multiplier⌋   — лише очки; кроки не множаться
-BestChain = max(count)
+серія: хід зі зривом → Streak = (Streak > 0 і ходів без ліній ≤ StreakGraceMoves (3)) ? Streak + 1 : 1; хід без ліній понад допуск → 0
+streakMul = min(StreakMaxMultiplier (2), 1 + StreakStepBonus (0.1) × (Streak − 1)); Streak ≥ 2 → StreakApplied(Streak, streakMul)
+очки за лінію := ⌊ScorePerLine (100) × (чиста ? PureLineScoreBonus (2) : 1) × multiplier × streakMul⌋   — лише очки; кроки не множаться
+поле порожнє після зриву → BoardCleared, +BoardClearScore (1500), BoardClears++
+BestChain = max(count); BestStreak = max(Streak); серія — у зліпку, продовження й рестарт її обнуляють
 ```
 
 ### 5.4 Мішок фігур
 
 ```
-tier = скільки порогів TierRounds (10/20/30) досяг номер лотка
+tier = скільки порогів TierRounds (10/20/30/60/90) досяг номер лотка
 вага форми = SizeWeight(size, tier) × (BagFitOffset (1) + скільки позицій на полі)^BagBias (0.5)
     SizeWeight: 2 клітинки 1.5 − 0.4·tier (≥ 0.3); 3 — 1.8; 4 — 0.7 + 1.1·tier; 5 — те саме, лише з tier ≥ FiveCellFromTier (1)
 набір перегенеровується, доки хоч одна фігура не влазить: до MaxTrayAttempts (60), після TrayShrinkAfterAttempts (40) — стеля 3,
 далі TrayRescueAttempts (20) двоклітинковими; наостанок — детермінований запобіжник (перша найменша, що влазить)
 колір: лише родини поточної картинки, вага = скільки кроків родини ще лишилось (§5); прогресії кольорів немає — їх диктує картинка
+щедрість: вага × (1 + LineFitBoost (0.5) × L²), L = min(3, ліній, які форма зриває найкращим місцем зараз)
+особливі лотки (до звичайного; шанс 0 не витрачає кидок): зайнято 1…ClearTrayMaxCells (16) → ClearTrayChance (1): «очистити поле»;
+    PerfectTrayChance (0.1): три фігури поспіль зривають ≥ PerfectTrayMinLines (3); заповнено ≥ RescueTrayFill (0.6) → RescueTrayChance (0.1):
+    перша — форма з найбільшою кількістю ліній, решта ≤ 3 клітинок. Пошук — промінь TrayPlanBeam (6) полів на крок, кожна фігура шляху
+    лягає на поле свого кроку (правило «неможливого набору» не порушується); «очистити поле» ранжує за «сиротами» — клітинками,
+    чий рядок і стовпець заповнені менш ніж наполовину. Не знайшовся — звичайний лоток
 ```
 
 ### 5.5 Картинка, родини, перефарбування (§4–§5, §7)

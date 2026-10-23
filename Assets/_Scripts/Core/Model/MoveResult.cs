@@ -100,6 +100,12 @@ namespace InkFlow.Core
         internal void AddCombo(int lines, float multiplier) =>
             _events.Add(new GameEvent(GameEventType.ComboApplied, LineKind.Row, 0, lines, lines, multiplier, false, 0, 0));
 
+        internal void AddStreak(int streak, float multiplier) =>
+            _events.Add(new GameEvent(GameEventType.StreakApplied, LineKind.Row, 0, streak, streak, multiplier, false, 0, 0));
+
+        internal void AddBoardCleared(int bonus) =>
+            _events.Add(new GameEvent(GameEventType.BoardCleared, LineKind.Row, 0, bonus, 0, 0f, false, 0, 0));
+
         internal void AddScore(int gained, int total)
         {
             _events.Add(new GameEvent(GameEventType.ScoreGained, LineKind.Row, 0, gained, total, 0f, false, 0, 0));

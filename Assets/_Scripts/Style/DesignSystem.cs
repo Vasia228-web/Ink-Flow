@@ -573,6 +573,14 @@ namespace InkFlow.Style
         [SerializeField, Min(0.1f)] private float comboPopDuration = 1.1f;
         [SerializeField] private float comboPopRise = 120f;
 
+        [Tooltip("Рядки «Комбо N» і «Чисте поле!» під множником — частка кегля множника.")]
+        [SerializeField, Range(0.3f, 1f)] private float comboPopSecondaryScale = 0.55f;
+
+        [Tooltip("Чисте поле: усе поле спалахує світінням блоків — тривалість, найбільша прозорість і колір.")]
+        [SerializeField, Min(0f)] private float boardClearFlashDuration = 0.6f;
+        [SerializeField, Range(0f, 1f)] private float boardClearFlashAlpha = 0.85f;
+        [SerializeField] private Color boardClearFlashColor = Hex("#FFF4C2");
+
         [Tooltip("Скільки секунд без ходу — і підказка сама покаже, куди влазить фігура; і скільки її видно.")]
         [SerializeField, Min(1f)] private float hintIdleDelay = 5f;
         [SerializeField, Min(0.2f)] private float hintShowDuration = 1.6f;
@@ -777,6 +785,10 @@ namespace InkFlow.Style
         public float FontSizeComboPop => fontSizeComboPop;
         public float ComboPopDuration => comboPopDuration;
         public float ComboPopRise => comboPopRise;
+        public float ComboPopSecondaryScale => comboPopSecondaryScale;
+        public float BoardClearFlashDuration => boardClearFlashDuration;
+        public float BoardClearFlashAlpha => boardClearFlashAlpha;
+        public Color BoardClearFlashColor => boardClearFlashColor;
         public float HintIdleDelay => hintIdleDelay;
         public float HintShowDuration => hintShowDuration;
         public Color PicturePlateStroke => picturePlateStroke;

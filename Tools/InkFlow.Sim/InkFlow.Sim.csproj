@@ -19,6 +19,7 @@
     <Compile Include="../../Assets/_Scripts/Core/**/*.cs" />
     <Compile Include="Metrics.cs" />
     <Compile Include="DangerStudy.cs" />
+    <Compile Include="PlannerBot.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 

@@ -59,8 +59,11 @@ namespace InkFlow.UI
         /// <summary>Гравець відпустив фігуру над полем. Валідність вирішує Core.</summary>
         public InputRouter Router { get; } = new InputRouter();
 
-        /// <summary>Ланцюг щойно програвся; аргумент — кількість ліній. Множник спливає по центру ЕКРАНА.</summary>
-        public System.Action<int>? ChainAdvanced;
+        /// <summary>
+        /// Ходові «вау»: ліній за хід (ланцюг, ≥ 2 — інакше 0), довжина комбо-серії (≥ 2 — інакше 0) і чи
+        /// спорожніло поле. Викликається на кожну таку подію з накопиченим за хід — напис по центру ЕКРАНА.
+        /// </summary>
+        public System.Action<int, int, bool>? HighlightsChanged;
 
         /// <summary>Лінія починає зриватись: стрічка й індекс події LineCleared — саме тепер краплі вилітають із клітинок (§5).</summary>
         public System.Action<MoveResult, int>? LineClearing;
@@ -406,6 +409,9 @@ namespace InkFlow.UI
             }
 
             var lineIndex = 0;
+            var chain = 0;
+            var streak = 0;
+            var cleared = false;
             for (var i = 0; i < result.Events.Count; i++)
             {
                 var e = result.Events[i];
@@ -422,7 +428,21 @@ namespace InkFlow.UI
                         break;
 
                     case GameEventType.ComboApplied:
+                        chain = e.Value;
                         PlayCombo(e.Value);
+                        HighlightsChanged?.Invoke(chain, streak, cleared);
+                        break;
+
+                    case GameEventType.StreakApplied:
+                        streak = e.Value;
+                        feedback?.PlayStreak(streak);
+                        HighlightsChanged?.Invoke(chain, streak, cleared);
+                        break;
+
+                    case GameEventType.BoardCleared:
+                        cleared = true;
+                        feedback?.PlayBoardClear();
+                        HighlightsChanged?.Invoke(chain, streak, cleared);
                         break;
 
                     case GameEventType.BoardRecolored:
@@ -439,6 +459,10 @@ namespace InkFlow.UI
 
             if (lineIndex > 0 && design != null && design.LineClearDuration > 0f)
                 yield return new WaitForSeconds(design.LineClearDuration);
+
+            // Спалах — після зриву: блоки вже згасли, світіння клітинок вільне.
+            if (cleared)
+                yield return PlayBoardClearFlash();
 
             if (deferRecolor && result.Has(GameEventType.BoardRecolored))
                 RepaintBeforeRecolor(result);
@@ -522,10 +546,48 @@ namespace InkFlow.UI
             MirrorCell(index);
         }
 
+        /// <summary>Чисте поле: світіння всіх клітинок спалахує й гасне; далі <see cref="Repaint"/> повертає поле до моделі.</summary>
+        private IEnumerator PlayBoardClearFlash()
+        {
+            if (design == null || design.BoardClearFlashDuration <= 0f)
+                yield break;
+            LightAllGlows();
+            var duration = design.BoardClearFlashDuration;
+            for (var t = 0f; t < duration; t += Time.deltaTime)
+            {
+                var k = Mathf.Clamp01(t / duration);
+                var alpha = design.BoardClearFlashAlpha * Mathf.Sin(k * Mathf.PI);
+                var scale = Vector3.one * Mathf.Lerp(0.7f, 1.1f, k);
+                for (var i = 0; i < glows.Length; i++)
+                {
+                    if (glows[i] == null)
+                        continue;
+                    glows[i].canvasRenderer.SetAlpha(alpha);
+                    glows[i].transform.localScale = scale;
+                }
+                yield return null;
+            }
+            for (var i = 0; i < glows.Length; i++)
+                if (glows[i] != null)
+                    glows[i].canvasRenderer.SetAlpha(1f);
+        }
+
+        /// <summary>Колір і активність світіння — поза тілом корутини (у твіні графіку чіпати не можна).</summary>
+        private void LightAllGlows()
+        {
+            for (var i = 0; i < glows.Length; i++)
+            {
+                if (glows[i] == null)
+                    continue;
+                SetLayerActive(glows, i, true);
+                glows[i].color = design!.BoardClearFlashColor;
+                glows[i].canvasRenderer.SetAlpha(0f);
+            }
+        }
+
         private void PlayCombo(int lines)
         {
             feedback?.PlayCombo(lines);
-            ChainAdvanced?.Invoke(lines);
             if (design != null && lines >= design.BoardShakeFromLines)
                 Shake(lines - design.BoardShakeFromLines + 1);
         }

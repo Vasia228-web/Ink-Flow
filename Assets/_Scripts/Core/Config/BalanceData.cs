@@ -50,7 +50,19 @@ namespace InkFlow.Core
             int dangerTightFits = 3,
             int dangerWarnShapes = 8,
             int dangerCalmShapes = 3,
-            int dangerStrongShapes = 18)
+            int dangerStrongShapes = 18,
+            float lineFitBoost = 0.5f,
+            float rescueTrayChance = 0.1f,
+            float rescueTrayFill = 0.6f,
+            float perfectTrayChance = 0.1f,
+            int perfectTrayMinLines = 3,
+            float clearTrayChance = 1f,
+            int clearTrayMaxCells = 16,
+            int trayPlanBeam = 6,
+            int streakGraceMoves = 3,
+            float streakStepBonus = 0.1f,
+            float streakMaxMultiplier = 2f,
+            int boardClearScore = 1500)
         {
             if (gridWidth < 2 || gridHeight < 2)
                 throw new ArgumentOutOfRangeException(nameof(gridWidth), "Поле мінімум 2×2.");
@@ -78,6 +90,24 @@ namespace InkFlow.Core
                 throw new ArgumentOutOfRangeException(nameof(dangerTightFits));
             if (dangerWarnShapes < 1 || dangerCalmShapes < 0 || dangerCalmShapes >= dangerWarnShapes || dangerStrongShapes < dangerWarnShapes)
                 throw new ArgumentOutOfRangeException(nameof(dangerWarnShapes), "Потрібно: 0 ≤ гасне < попередження ≤ сильна.");
+            if (lineFitBoost < 0f || Out01(rescueTrayChance) || Out01(rescueTrayFill) || Out01(perfectTrayChance) || Out01(clearTrayChance))
+                throw new ArgumentOutOfRangeException(nameof(lineFitBoost), "Щедрість ≥ 0, шанси й заповнення — від 0 до 1.");
+            if (perfectTrayMinLines < 1 || clearTrayMaxCells < 0 || trayPlanBeam < 1)
+                throw new ArgumentOutOfRangeException(nameof(perfectTrayMinLines));
+            if (streakGraceMoves < 0 || streakStepBonus < 0f || streakMaxMultiplier < 1f || boardClearScore < 0)
+                throw new ArgumentOutOfRangeException(nameof(streakGraceMoves));
+            LineFitBoost = lineFitBoost;
+            RescueTrayChance = rescueTrayChance;
+            RescueTrayFill = rescueTrayFill;
+            PerfectTrayChance = perfectTrayChance;
+            PerfectTrayMinLines = perfectTrayMinLines;
+            ClearTrayChance = clearTrayChance;
+            ClearTrayMaxCells = clearTrayMaxCells;
+            TrayPlanBeam = trayPlanBeam;
+            StreakGraceMoves = streakGraceMoves;
+            StreakStepBonus = streakStepBonus;
+            StreakMaxMultiplier = streakMaxMultiplier;
+            BoardClearScore = boardClearScore;
             StepTolerance = stepTolerance;
             MinFamilies = minFamilies;
             MaxFamilies = maxFamilies;
@@ -101,7 +131,7 @@ namespace InkFlow.Core
             TraySize = traySize;
             MinPieceSize = minPieceSize;
             MaxPieceSize = maxPieceSize;
-            TierRounds = tierRounds is null || tierRounds.Length == 0 ? new[] { 10, 20, 30 } : tierRounds;
+            TierRounds = tierRounds is null || tierRounds.Length == 0 ? new[] { 10, 20, 30, 60, 90 } : tierRounds;
             BigPieceBaseWeight = bigPieceBaseWeight;
             BigPieceWeightPerTier = bigPieceWeightPerTier;
             MidPieceWeight = midPieceWeight;
@@ -124,6 +154,8 @@ namespace InkFlow.Core
             HintIdleSeconds = hintIdleSeconds;
             ContinuesPerRun = continuesPerRun;
         }
+
+        private static bool Out01(float v) => v < 0f || v > 1f;
 
         private static int[] Six(int[]? given, int[] fallback, string name)
         {
@@ -164,6 +196,41 @@ namespace InkFlow.Core
         public int MaxTrayAttempts { get; }
         public int TrayShrinkAfterAttempts { get; }
         public int TrayRescueAttempts { get; }
+
+        // ── Щедрість мішка (§2): лотки, що дають зривати лінії ──
+
+        /// <summary>Вага форми × (1 + LineFitBoost × L²), де L ≤ 3 — скільки ліній вона зірве найкращим місцем просто зараз.</summary>
+        public float LineFitBoost { get; }
+
+        /// <summary>Рятувальний лоток: поле заповнене щонайменше на RescueTrayFill — з цим шансом перша фігура зриває найбільше ліній, решта малі.</summary>
+        public float RescueTrayChance { get; }
+        public float RescueTrayFill { get; }
+
+        /// <summary>Ідеальний лоток: з цим шансом мішок шукає три фігури, що поспіль зривають щонайменше PerfectTrayMinLines ліній.</summary>
+        public float PerfectTrayChance { get; }
+        public int PerfectTrayMinLines { get; }
+
+        /// <summary>Лоток «очистити поле»: зайнято не більше ClearTrayMaxCells клітинок — з цим шансом мішок шукає фігури, що спорожнять поле.</summary>
+        public float ClearTrayChance { get; }
+        public int ClearTrayMaxCells { get; }
+
+        /// <summary>Скільки найкращих варіантів поля мішок тримає на кожному кроці пошуку ідеального лотка (ширина променя; більше — точніше й повільніше).</summary>
+        public int TrayPlanBeam { get; }
+
+        // ── Комбо-серія й чисте поле (§10) ──
+
+        /// <summary>Серія триває, поки між ходами зі зривом не більше стількох ходів без ліній.</summary>
+        public int StreakGraceMoves { get; }
+
+        /// <summary>Очки за лінії × min(StreakMaxMultiplier, 1 + StreakStepBonus × (серія − 1)).</summary>
+        public float StreakStepBonus { get; }
+        public float StreakMaxMultiplier { get; }
+
+        /// <summary>Очок за спорожнене поле.</summary>
+        public int BoardClearScore { get; }
+
+        public float StreakMultiplierFor(int streak) =>
+            streak <= 1 ? 1f : Math.Min(StreakMaxMultiplier, 1f + StreakStepBonus * (streak - 1));
 
         // ── Пікселі (§5, §19) ──
 

@@ -212,7 +212,7 @@ namespace InkFlow.UI
             if (board != null)
             {
                 board.Router.PlaceRequested += OnPlaceRequested;
-                board.ChainAdvanced += OnChainAdvanced;
+                board.HighlightsChanged += OnHighlightsChanged;
                 board.LineClearing += OnLineClearing;
             }
 
@@ -234,7 +234,7 @@ namespace InkFlow.UI
             if (board != null)
             {
                 board.Router.PlaceRequested -= OnPlaceRequested;
-                board.ChainAdvanced -= OnChainAdvanced;
+                board.HighlightsChanged -= OnHighlightsChanged;
                 board.LineClearing -= OnLineClearing;
             }
 
@@ -808,14 +808,32 @@ namespace InkFlow.UI
             FinishMove();
         }
 
-        private void OnChainAdvanced(int lines)
+        /// <summary>
+        /// Напис по центру: «×N» за ланцюг, під ним дрібніше «Комбо N» за серію й «Чисте поле!».
+        /// Події одного ходу йдуть підряд без пауз, тож видно накопичене за хід.
+        /// </summary>
+        private void OnHighlightsChanged(int chain, int streak, bool cleared)
         {
-            if (lines < 2)
+            var text = HighlightText(chain, streak, cleared, design != null ? design.ComboPopSecondaryScale : 0.55f);
+            if (text.Length == 0)
                 return;
             if (_combo != null)
                 StopCoroutine(_combo);
             if (isActiveAndEnabled)
-                _combo = StartCoroutine(ComboRoutine(lines));
+                _combo = StartCoroutine(ComboRoutine(text));
+        }
+
+        public static string HighlightText(int chain, int streak, bool cleared, float secondaryScale)
+        {
+            var lines = new System.Collections.Generic.List<string>(3);
+            if (chain >= 2)
+                lines.Add($"×{chain}");
+            var size = Mathf.RoundToInt(secondaryScale * 100f);
+            if (streak >= 2)
+                lines.Add($"<size={size}%>Комбо {streak}</size>");
+            if (cleared)
+                lines.Add($"<size={size}%>Чисте поле!</size>");
+            return string.Join("\n", lines);
         }
 
         /// <summary>Через кілька секунд без ходу підсвічуємо одну валідну позицію.</summary>
@@ -1070,12 +1088,12 @@ namespace InkFlow.UI
             _flash = null;
         }
 
-        private IEnumerator ComboRoutine(int lines)
+        private IEnumerator ComboRoutine(string text)
         {
             if (comboPop == null)
                 yield break;
 
-            PrepareComboPop(lines);
+            PrepareComboPop(text);
 
             var rect = (RectTransform)comboPop.transform;
             var origin = rect.localPosition;
@@ -1100,9 +1118,9 @@ namespace InkFlow.UI
             _combo = null;
         }
 
-        private void PrepareComboPop(int lines)
+        private void PrepareComboPop(string text)
         {
-            comboPop.text = $"×{lines}";
+            comboPop.text = text;
             comboPop.gameObject.SetActive(true);
         }
 

@@ -98,6 +98,10 @@ namespace InkFlow.Core
             PixelsWasted = snapshot.PixelsWasted;
             PicturesCompleted = snapshot.PicturesCompleted;
             ContinuesUsed = snapshot.ContinuesUsed;
+            Streak = snapshot.Streak;
+            _movesSinceClear = snapshot.MovesSinceClear;
+            BestStreak = snapshot.BestStreak;
+            BoardClears = snapshot.BoardClears;
             for (var i = 0; i < snapshot.Collected.Length; i++)
             {
                 var collected = Library.IndexOf(snapshot.Collected[i]);
@@ -166,6 +170,10 @@ namespace InkFlow.Core
             into.ContinuesUsed = ContinuesUsed;
             into.TraysIssued = _trays.TraysIssued;
             into.RescuesUsed = _trays.RescuesUsed;
+            into.Streak = Streak;
+            into.MovesSinceClear = _movesSinceClear;
+            into.BestStreak = BestStreak;
+            into.BoardClears = BoardClears;
             var collected = new string[_collected.Count];
             for (var i = 0; i < _collected.Count; i++)
                 collected[i] = Library[_collected[i]].Id;
@@ -221,6 +229,22 @@ namespace InkFlow.Core
         public IReadOnlyList<int> PicturesCollected => _collected;
 
         public int TrayRescues => _trays.RescuesUsed;
+
+        /// <summary>Особливі лотки щедрого мішка за партію — для прогонів.</summary>
+        public int ClearTraysGiven => _trays.ClearTraysGiven;
+        public int PerfectTraysGiven => _trays.PerfectTraysGiven;
+        public int RescueTraysGiven => _trays.RescueTraysGiven;
+
+        // ── Комбо-серія й чисте поле (§10) ──
+
+        /// <summary>Скільки ходів зі зривом поспіль (між ними — не більше StreakGraceMoves ходів без ліній); 0 — серії немає.</summary>
+        public int Streak { get; private set; }
+        public int BestStreak { get; private set; }
+
+        /// <summary>Скільки разів поле спорожніло за партію.</summary>
+        public int BoardClears { get; private set; }
+
+        private int _movesSinceClear;
 
         // ── Продовження (§10) ──
 
@@ -319,6 +343,7 @@ namespace InkFlow.Core
             PlacementCount = 0;
             LinesCleared = 0;
             PureLinesCleared = 0;
+            Streak = BestStreak = BoardClears = _movesSinceClear = 0;
             State = GameState.Playing;
             for (var i = 0; i < TrayPieces.Length; i++)
                 TrayPieces[i] = PieceDef.None;
@@ -336,6 +361,7 @@ namespace InkFlow.Core
 
             Board.Clear();
             ContinuesUsed++;
+            Streak = _movesSinceClear = 0;
             State = GameState.Playing;
             for (var i = 0; i < TrayPieces.Length; i++)
                 TrayPieces[i] = PieceDef.None;
@@ -388,7 +414,18 @@ namespace InkFlow.Core
             _lines.Clear();
             PlacementRules.CollectFullLines(Board, _lines);
             if (_lines.Count == 0)
+            {
+                if (++_movesSinceClear > Balance.StreakGraceMoves)
+                    Streak = 0;
                 return 0;
+            }
+
+            // Серія: зрив не пізніше ніж через StreakGraceMoves ходів без ліній продовжує її.
+            Streak = Streak > 0 && _movesSinceClear <= Balance.StreakGraceMoves ? Streak + 1 : 1;
+            _movesSinceClear = 0;
+            if (Streak > BestStreak)
+                BestStreak = Streak;
+            var streakMultiplier = Balance.StreakMultiplierFor(Streak);
 
             // 5. Вихід кожної лінії — за станом ДО очищення; клітинка на перетині рахується в обидві.
             var count = _lines.Count < _yields.Length ? _lines.Count : _yields.Length;
@@ -433,7 +470,7 @@ namespace InkFlow.Core
                 _result.SetLinePixels(lineEvent, pixels);
 
                 var lineScore = Balance.ScorePerLine * (_yields[i].IsPure ? Balance.PureLineScoreBonus : 1);
-                score += LineResolver.ApplyCombo(lineScore, multiplier);
+                score += LineResolver.ApplyCombo(lineScore, multiplier * streakMultiplier);
             }
 
             // 6. Очистити всі лінії ОДНОЧАСНО: перетин очищується один раз.
@@ -445,9 +482,17 @@ namespace InkFlow.Core
                     Board[LineResolver.CellAt(line, c)] = Board.Empty;
             }
 
-            // 7. Ланцюг.
+            // 7. Ланцюг, серія, чисте поле.
             if (count >= 2)
                 _result.AddCombo(count, multiplier);
+            if (Streak >= 2)
+                _result.AddStreak(Streak, streakMultiplier);
+            if (Board.CountEmpty() == Board.CellCount)
+            {
+                BoardClears++;
+                score += Balance.BoardClearScore;
+                _result.AddBoardCleared(Balance.BoardClearScore);
+            }
             if (count > BestChain)
                 BestChain = count;
 

@@ -4,6 +4,9 @@ using System.Globalization;
 
 namespace InkFlow.Sim
 {
+    /// <summary>Вибір ходу ботом: false — жодна фігура не влазить.</summary>
+    public delegate bool MoveChooser(InkFlow.Core.RunSession session, out int trayIndex, out InkFlow.Core.GridPos anchor);
+
     /// <summary>Підсумок одного забігу. Struct — забігів тисячі, і кожен об'єкт тут коштує.</summary>
     public readonly struct RunStats
     {
@@ -11,8 +14,23 @@ namespace InkFlow.Sim
             int pixelsFilled, int pixelsWasted, int pressureAt, int rescues, bool lostAtRefill, bool unfair,
             int emptyAtDeath, int pictures, float pictureFillAtDeath, int placementsToFirstPicture,
             int[] doneByRarity, int[] seenByRarity, int firstWarnAt = -1, int firstStrongAt = -1, int warnMoves = 0, int strongMoves = 0,
-            int warnLead = 0, int strongLead = 0, int warnOnsets = 0)
+            int warnLead = 0, int strongLead = 0, int warnOnsets = 0,
+            int lineMoves = 0, int multiLineMoves = 0, int bestStreak = 0, int boardClears = 0,
+            int clearTrays = 0, int perfectTrays = 0, int rescueTrays = 0, int firstLifePlacements = 0, int firstLifePictures = 0,
+            int traysMulti = 0, int traysEmpty = 0, int traysLine = 0)
         {
+            TraysLine = traysLine;
+            TraysMulti = traysMulti;
+            TraysEmpty = traysEmpty;
+            LineMoves = lineMoves;
+            MultiLineMoves = multiLineMoves;
+            BestStreak = bestStreak;
+            BoardClears = boardClears;
+            ClearTrays = clearTrays;
+            PerfectTrays = perfectTrays;
+            RescueTrays = rescueTrays;
+            FirstLifePlacements = firstLifePlacements;
+            FirstLifePictures = firstLifePictures;
             WarnLead = warnLead;
             StrongLead = strongLead;
             WarnOnsets = warnOnsets;
@@ -39,6 +57,26 @@ namespace InkFlow.Sim
             DoneByRarity = doneByRarity;
             SeenByRarity = seenByRarity;
         }
+
+        /// <summary>Щедрість (§2): ходів зі зривом, ходів із 2+ лініями, найдовша серія, скільки разів поле спорожніло.</summary>
+        public int LineMoves { get; }
+        public int MultiLineMoves { get; }
+        public int BestStreak { get; }
+        public int BoardClears { get; }
+
+        /// <summary>Особливих лотків видано: очистити поле / ідеальних / рятувальних.</summary>
+        public int ClearTrays { get; }
+        public int PerfectTrays { get; }
+        public int RescueTrays { get; }
+
+        /// <summary>Розміщень і картинок до першої смерті — з --continues забіг триває далі.</summary>
+        /// <summary>Лотків, де в найкращому порядку можна зірвати 2+ лінії одним ходом / спорожнити поле — що мішок ДАЄ, незалежно від бота.</summary>
+        public int TraysLine { get; }
+        public int TraysMulti { get; }
+        public int TraysEmpty { get; }
+
+        public int FirstLifePlacements { get; }
+        public int FirstLifePictures { get; }
 
         public int Placements { get; }
         public int Rounds { get; }

@@ -200,5 +200,161 @@ namespace InkFlow.Core.Tests
 
             Assert.Greater(vertical, total * 2 / 3, "мішок має підіймати ймовірність форм, що влазять");
         }
+    
+        // ── Щедрість мішка ──
+
+        /// <summary>Повний перебір: найбільше ліній, які лоток зриває в якомусь порядку, і чи може спорожнити поле.</summary>
+        private static void Explore(Board board, PieceDef[] tray, bool[] used, int lines, ref int bestLines, ref bool canEmpty)
+        {
+            var any = false;
+            for (var i = 0; i < tray.Length; i++)
+            {
+                if (used[i] || tray[i].IsEmpty)
+                    continue;
+                var shape = tray[i].Shape!;
+                for (var y = 0; y <= board.Height - shape.Height; y++)
+                    for (var x = 0; x <= board.Width - shape.Width; x++)
+                    {
+                        if (!PlacementRules.CanPlace(board, shape, new GridPos(x, y)))
+                            continue;
+                        any = true;
+                        var next = board.Clone();
+                        foreach (var c in shape.Cells)
+                            next[new GridPos(x + c.X, y + c.Y)] = TestBoard.Blue;
+                        var full = new List<Line>();
+                        PlacementRules.CollectFullLines(next, full);
+                        foreach (var line in full)
+                            for (var k = 0; k < LineResolver.LengthOf(next, line.Kind); k++)
+                                next[LineResolver.CellAt(line, k)] = Board.Empty;
+                        if (next.CountEmpty() == next.CellCount)
+                            canEmpty = true;
+                        used[i] = true;
+                        Explore(next, tray, used, lines + full.Count, ref bestLines, ref canEmpty);
+                        used[i] = false;
+                    }
+            }
+            if (!any && lines > bestLines)
+                bestLines = lines;
+            if (lines > bestLines)
+                bestLines = lines;
+        }
+
+        private static BalanceData Specials(float clear = 0f, float perfect = 0f, float rescue = 0f, float boost = 0f) =>
+            new BalanceData(lineFitBoost: boost, clearTrayChance: clear, perfectTrayChance: perfect, rescueTrayChance: rescue);
+
+        [Test]
+        public void ClearTray_CanEmptyANearlyEmptyBoard()
+        {
+            var board = new Board(8, 8);
+            TestBoard.FillRow(board, 0, "bbbbbb..");
+            TestBoard.FillRow(board, 1, "bbbbbb..");
+            var generator = new TrayGenerator(PieceCatalogData.Default, Specials(clear: 1f));
+            var tray = new PieceDef[3];
+            generator.Fill(tray, board, new XorShiftRandom(5), ThreeColors, EvenWeights);
+
+            Assert.AreEqual(1, generator.ClearTraysGiven);
+            var best = 0;
+            var empty = false;
+            Explore(board, tray, new bool[3], 0, ref best, ref empty);
+            Assert.IsTrue(empty, "лоток «очистити поле» має давати спосіб спорожнити поле");
+        }
+
+        [Test]
+        public void PerfectTray_ClearsAtLeastTheConfiguredLines()
+        {
+            var board = new Board(8, 8);
+            for (var y = 0; y < 3; y++)
+                TestBoard.FillRow(board, y, "bbbbbbb.");
+            TestBoard.FillRow(board, 5, "bbbb....");
+            var generator = new TrayGenerator(PieceCatalogData.Default, Specials(perfect: 1f));
+            var tray = new PieceDef[3];
+            generator.Fill(tray, board, new XorShiftRandom(8), ThreeColors, EvenWeights);
+
+            Assert.AreEqual(1, generator.PerfectTraysGiven);
+            var best = 0;
+            var empty = false;
+            Explore(board, tray, new bool[3], 0, ref best, ref empty);
+            Assert.GreaterOrEqual(best, BalanceData.Default.PerfectTrayMinLines);
+        }
+
+        [Test]
+        public void SpecialTrays_OffWithZeroChances_DoNotTouchTheRandomStream()
+        {
+            var board = RandomBoard(4, 20);
+            var plain = new BalanceData(lineFitBoost: 0f, rescueTrayChance: 0f, perfectTrayChance: 0f, clearTrayChance: 0f);
+            var a = new TrayGenerator(PieceCatalogData.Default, plain);
+            var b = new TrayGenerator(PieceCatalogData.Default, plain);
+            var ta = new PieceDef[3];
+            var tb = new PieceDef[3];
+            var ra = new XorShiftRandom(77);
+            var rb = new XorShiftRandom(77);
+            for (var i = 0; i < 20; i++)
+            {
+                a.Fill(ta, board, ra, ThreeColors, EvenWeights);
+                b.Fill(tb, board, rb, ThreeColors, EvenWeights);
+                for (var k = 0; k < 3; k++)
+                    Assert.AreEqual(ta[k], tb[k]);
+            }
+            Assert.AreEqual(0, a.ClearTraysGiven + a.PerfectTraysGiven + a.RescueTraysGiven);
+        }
+
+        [Test]
+        public void RescueTray_OnACrowdedBoard_LeadsWithAPieceThatClears()
+        {
+            var board = new Board(8, 8);
+            for (var y = 0; y < 7; y++)
+                TestBoard.FillRow(board, y, y == 0 ? "bbbbbbb." : "bbbbbb..");
+            var generator = new TrayGenerator(PieceCatalogData.Default, Specials(rescue: 1f));
+            var tray = new PieceDef[3];
+            generator.Fill(tray, board, new XorShiftRandom(12), ThreeColors, EvenWeights);
+
+            Assert.AreEqual(1, generator.RescueTraysGiven);
+            var clears = false;
+            var lines = new List<Line>();
+            foreach (var piece in tray)
+                for (var y = 0; y <= 8 - piece.Shape!.Height; y++)
+                    for (var x = 0; x <= 8 - piece.Shape.Width; x++)
+                    {
+                        PlacementRules.PreviewLines(board, piece.Shape, new GridPos(x, y), piece.Color, lines);
+                        clears |= lines.Count > 0;
+                    }
+            Assert.IsTrue(clears, "рятувальний лоток має фігуру, що зриває лінію");
+        }
+
+        [Test]
+        public void LineFitBoost_FavoursShapesThatCloseALine()
+        {
+            var board = new Board(8, 8);
+            TestBoard.FillRow(board, 0, "bbbbb...");
+            int Closing(float boost)
+            {
+                var generator = new TrayGenerator(PieceCatalogData.Default,
+                    new BalanceData(lineFitBoost: boost, rescueTrayChance: 0f, perfectTrayChance: 0f, clearTrayChance: 0f,
+                        tierRounds: new[] { 100_000 }));
+                var tray = new PieceDef[3];
+                var random = new XorShiftRandom(31);
+                var lines = new List<Line>();
+                var hits = 0;
+                for (var i = 0; i < 300; i++)
+                {
+                    generator.Fill(tray, board, random, ThreeColors, EvenWeights);
+                    foreach (var piece in tray)
+                    {
+                        var closes = false;
+                        for (var y = 0; y <= 8 - piece.Shape!.Height && !closes; y++)
+                            for (var x = 0; x <= 8 - piece.Shape.Width && !closes; x++)
+                            {
+                                PlacementRules.PreviewLines(board, piece.Shape, new GridPos(x, y), piece.Color, lines);
+                                closes = lines.Count > 0;
+                            }
+                        if (closes)
+                            hits++;
+                    }
+                }
+                return hits;
+            }
+
+            Assert.Greater(Closing(4f), Closing(0f) * 3 / 2, "щедрість підіймає частку форм, що закривають лінію");
+        }
     }
 }

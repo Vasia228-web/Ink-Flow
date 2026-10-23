@@ -186,7 +186,11 @@ namespace InkFlow.UI.Tests
         {
             using var rig = RunScreenRig.Create(ScreenRigBase.Mockup);
             rig.BindAds(new FakeAds());
-            rig.Show(rig.NewSession(10_000, stopWhen: s => s.IsOver));
+            // Потрібен програш із частково намальованою картинкою: перший сід, що такий дає (мішок змінюється — сід ні).
+            RunSession? lost = null;
+            for (var seed = 4242u; lost == null || lost.Picture.FilledCount == 0; seed++)
+                lost = rig.NewSession(10_000, seed, s => s.IsOver);
+            rig.Show(lost);
             rig.Screen.PreviewOverContinue();
             Awaken(rig.Screen); // у Edit Mode Awake не біжить — підписки кнопок ставимо самі, клік іде по-справжньому
             rig.Screen.PreviewEndRun();

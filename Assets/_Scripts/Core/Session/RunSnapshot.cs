@@ -32,6 +32,10 @@ namespace InkFlow.Core
         public int ContinuesUsed;
         public int TraysIssued;
         public int RescuesUsed;
+        public int Streak;
+        public int MovesSinceClear;
+        public int BestStreak;
+        public int BoardClears;
         public string[] Collected = Array.Empty<string>();
         public uint RandomState;
 
@@ -49,6 +53,7 @@ namespace InkFlow.Core
             FilledSteps = Array.Empty<int>();
             Score = BestChain = PlacementCount = LinesCleared = PureLinesCleared = 0;
             PixelsFilled = PixelsWasted = PicturesCompleted = ContinuesUsed = TraysIssued = RescuesUsed = 0;
+            Streak = MovesSinceClear = BestStreak = BoardClears = 0;
             Collected = Array.Empty<string>();
             RandomState = 0;
         }

@@ -21,8 +21,8 @@ namespace InkFlow.Gameplay
         [SerializeField, Range(2, 5)] private int maxPieceSize = 5;
 
         [Header("Прогресія (§10): раунд = виданий лоток")]
-        [Tooltip("Раунди, з яких починається кожен наступний рівень складності.")]
-        [SerializeField] private int[] tierRounds = { 10, 20, 30 };
+        [Tooltip("Раунди, з яких починається кожен наступний рівень складності. Пізні рівні (60, 90) не дають уважному гравцю грати безкінечно.")]
+        [SerializeField] private int[] tierRounds = { 10, 20, 30, 60, 90 };
         [SerializeField, Min(0f)] private float bigPieceBaseWeight = 0.7f;
         [SerializeField, Min(0f)] private float bigPieceWeightPerTier = 1.1f;
         [SerializeField, Min(0f)] private float midPieceWeight = 1.8f;
@@ -39,6 +39,34 @@ namespace InkFlow.Gameplay
         [SerializeField, Min(1)] private int maxTrayAttempts = 60;
         [SerializeField, Min(0)] private int trayShrinkAfterAttempts = 40;
         [SerializeField, Min(1)] private int trayRescueAttempts = 20;
+
+        [Header("Щедрість мішка (§2): як у Block Blast — лотки, що дають зривати лінії")]
+        [Tooltip("Форми, що просто зараз зривають лінії, важать × (1 + щедрість × ліній²). 0 — вимкнено.")]
+        [SerializeField, Range(0f, 10f)] private float lineFitBoost = 0.5f;
+        [Tooltip("Шанс рятувального лотка на тісному полі: перша фігура зриває найбільше ліній, решта малі.")]
+        [SerializeField, Range(0f, 1f)] private float rescueTrayChance = 0.1f;
+        [Tooltip("Рятувальний лоток можливий, коли поле заповнене щонайменше на цю частку.")]
+        [SerializeField, Range(0f, 1f)] private float rescueTrayFill = 0.6f;
+        [Tooltip("Шанс ідеального лотка: три фігури, що поспіль зривають багато ліній.")]
+        [SerializeField, Range(0f, 1f)] private float perfectTrayChance = 0.1f;
+        [Tooltip("Ідеальний лоток мусить зривати щонайменше стільки ліній разом.")]
+        [SerializeField, Range(1, 8)] private int perfectTrayMinLines = 3;
+        [Tooltip("Шанс лотка «очистити поле», коли на полі мало клітинок.")]
+        [SerializeField, Range(0f, 1f)] private float clearTrayChance = 1f;
+        [Tooltip("Лоток «очистити поле» можливий, коли зайнято не більше стількох клітинок.")]
+        [SerializeField, Range(0, 32)] private int clearTrayMaxCells = 16;
+        [Tooltip("Ширина пошуку ідеального лотка: більше — точніше, але повільніше на слабкому телефоні.")]
+        [SerializeField, Range(1, 16)] private int trayPlanBeam = 6;
+
+        [Header("Комбо-серія й чисте поле (§10)")]
+        [Tooltip("Серія зривів триває, поки між ними не більше стількох ходів без ліній.")]
+        [SerializeField, Range(0, 6)] private int streakGraceMoves = 3;
+        [Tooltip("Кожен наступний зрив серії: очки за лінії × (1 + крок × (серія − 1)).")]
+        [SerializeField, Range(0f, 1f)] private float streakStepBonus = 0.1f;
+        [Tooltip("Стеля множника серії.")]
+        [SerializeField, Range(1f, 5f)] private float streakMaxMultiplier = 2f;
+        [Tooltip("Очок за спорожнене поле.")]
+        [SerializeField, Range(0, 5000)] private int boardClearScore = 1500;
 
         [Header("Пікселі (§5, §19)")]
         [Tooltip("Чиста одноколірна лінія дає стільки пікселів на клітинку; мішана — один.")]
@@ -99,7 +127,10 @@ namespace InkFlow.Gameplay
             rarityWeights, rarityGridSizes, rarityMinColors, rarityMaxColors,
             continuesPerRun,
             rarityStepTargets, stepTolerance, minFamilies, maxFamilies,
-            dangerTightFits, dangerWarnShapes, dangerCalmShapes, dangerStrongShapes);
+            dangerTightFits, dangerWarnShapes, dangerCalmShapes, dangerStrongShapes,
+            lineFitBoost, rescueTrayChance, rescueTrayFill, perfectTrayChance, perfectTrayMinLines,
+            clearTrayChance, clearTrayMaxCells, trayPlanBeam,
+            streakGraceMoves, streakStepBonus, streakMaxMultiplier, boardClearScore);
 
         private void OnValidate()
         {

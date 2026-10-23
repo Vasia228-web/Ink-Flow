@@ -215,7 +215,10 @@ namespace InkFlow.Core.Tests
             Assert.AreEqual(24, result.PixelsFilled);
             Assert.AreEqual(24, result.PixelsWasted, "§5: лишок понад потребу згорає");
             Assert.AreEqual(24, session.PixelsWasted);
-            Assert.AreEqual(2 * 10 + (int)(200 * 1.5f) * 2, session.Score, "множник ланцюга — до очок");
+            Assert.AreEqual(1, session.BoardClears, "поле спорожніло — чисте поле");
+            Assert.AreEqual(session.Balance.BoardClearScore, TestBoard.Find(result, GameEventType.BoardCleared).Value);
+            Assert.AreEqual(2 * 10 + (int)(200 * 1.5f) * 2 + session.Balance.BoardClearScore, session.Score,
+                "множник ланцюга — до очок, бонус чистого поля — зверху");
         }
 
         [Test]
@@ -593,6 +596,63 @@ namespace InkFlow.Core.Tests
                     id => id != "c");
                 Assert.AreEqual("c", session.Picture.Picture.Id, "§7: спершу те, чого немає в колекції");
             }
+        }
+    
+        // ── Комбо-серія ──
+
+        [Test]
+        public void Streak_GrowsOnClearsInARow_AndMultipliesLineScore()
+        {
+            var session = Stripes();
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.FillRow(session.Board, 2, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue), TestBoard.Piece("2v", TestBoard.Blue));
+
+            var first = session.TryPlace(0, new GridPos(7, 0));
+            Assert.AreEqual(1, session.Streak);
+            Assert.IsFalse(first.Has(GameEventType.StreakApplied), "серія починається з другого зриву");
+
+            var scoreBefore = session.Score;
+            var second = session.TryPlace(1, new GridPos(7, 2));
+            Assert.AreEqual(2, session.Streak);
+            var streak = TestBoard.Find(second, GameEventType.StreakApplied);
+            Assert.AreEqual(2, streak.Value);
+            Assert.AreEqual(1f + session.Balance.StreakStepBonus, streak.Multiplier, 1e-4);
+            var linePoints = (int)(session.Balance.ScorePerLine * session.Balance.PureLineScoreBonus * (1f + session.Balance.StreakStepBonus));
+            Assert.AreEqual(2 * session.Balance.ScorePerPlacedCell + linePoints, session.Score - scoreBefore);
+            Assert.AreEqual(2, session.BestStreak);
+        }
+
+        [Test]
+        public void Streak_BreaksAfterTooManyMovesWithoutLines()
+        {
+            var session = TestBoard.NewSession(7u, new BalanceData(streakGraceMoves: 0), ThreeStripes());
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.FillRow(session.Board, 2, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Blue),
+                TestBoard.Piece("2v", TestBoard.Blue));
+
+            session.TryPlace(0, new GridPos(7, 0));
+            session.TryPlace(1, new GridPos(0, 6));
+            Assert.AreEqual(0, session.Streak, "хід без ліній понад допуск обриває серію");
+            var third = session.TryPlace(2, new GridPos(7, 2));
+            Assert.AreEqual(1, session.Streak);
+            Assert.IsFalse(third.Has(GameEventType.StreakApplied));
+        }
+
+        [Test]
+        public void Streak_SurvivesASnapshot_AndResetsOnContinue()
+        {
+            var session = Stripes();
+            TestBoard.FillRow(session.Board, 0, "bbbbbbb.");
+            TestBoard.SetTray(session, TestBoard.Piece("2v", TestBoard.Blue), TestBoard.Piece("2h", TestBoard.Blue));
+            session.TryPlace(0, new GridPos(7, 0));
+
+            var snapshot = new RunSnapshot();
+            session.Capture(snapshot);
+            var restored = new RunSession(session.Balance, PieceCatalogData.Default, session.Library, snapshot);
+            Assert.AreEqual(1, restored.Streak);
+            Assert.AreEqual(1, restored.BestStreak);
         }
     }
 }

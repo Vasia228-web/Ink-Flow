@@ -43,7 +43,11 @@ namespace InkFlow.Core
         PictureStarted = 11,
 
         /// <summary>Забіг продовжено після програшу: поле очищено, Value = скільки разів продовжували.</summary>
-        RunContinued = 12
+        RunContinued = 12,
+        /// <summary>Комбо-серія: хід зі зривом продовжив серію; Value = довжина серії (≥ 2), Multiplier — множник очок за лінії.</summary>
+        StreakApplied = 13,
+        /// <summary>Поле спорожніло після зриву: Value = бонусні очки.</summary>
+        BoardCleared = 14
     }
 
     /// <summary>
