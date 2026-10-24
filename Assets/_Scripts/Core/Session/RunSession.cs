@@ -32,7 +32,7 @@ namespace InkFlow.Core
         private readonly byte[] _colorMap = new byte[MasterPalette.Count];
 
         public RunSession(BalanceData balance, PieceCatalogData catalog, IRandomSource random,
-            PictureLibrary? library = null, Func<string, bool>? isCollected = null)
+            PictureLibrary? library = null, Func<string, bool>? isCollected = null, Rarity? firstPictureAtLeast = null)
         {
             Balance = balance ?? throw new ArgumentNullException(nameof(balance));
             Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
@@ -45,6 +45,7 @@ namespace InkFlow.Core
             TrayPieces = new PieceDef[balance.TraySize];
             _trays = new TrayGenerator(catalog, balance);
 
+            NextPictureAtLeast = firstPictureAtLeast;
             Picture = DrawPicture(exclude: -1);
             RefillTray(_result, silent: true);
         }
@@ -606,9 +607,18 @@ namespace InkFlow.Core
             }
         }
 
+        /// <summary>
+        /// Наступна картинка — щонайменше цієї рідкості (обіцянка нагороди галактики), один раз: витяг її скидає.
+        /// Гра ставить перед стартом і рестартом, поки обіцянка чекає (Meta: <c>PlayerState.GuaranteedRarity</c>).
+        /// </summary>
+        public Rarity? NextPictureAtLeast { get; set; }
+
         private PictureProgress DrawPicture(int exclude)
         {
-            var index = _deck.Draw(Random, exclude, _isCollected);
+            var index = NextPictureAtLeast is { } min
+                ? _deck.DrawAtLeast(min, Random, exclude, _isCollected)
+                : _deck.Draw(Random, exclude, _isCollected);
+            NextPictureAtLeast = null;
             return new PictureProgress(Library[index], index);
         }
 

@@ -47,8 +47,14 @@ namespace InkFlow.Core.Tests
             var deck = new PictureDeck(library, BalanceData.Default);
             var random = new XorShiftRandom(3u);
 
-            for (var i = 0; i < 200; i++)
-                Assert.AreEqual(1, deck.Draw(random, -1, id => id != "b"), "§7: невидані спершу — лише «b» не в колекції");
+            // Рідкість — за звичайними вагами (рідкісна «c» лишається рідкісною, хоч і зібрана), а в межах
+            // рідкості невидані першими: зібрана звичайна «a», поки «b» не зібрана, не випадає ніколи.
+            var draws = new int[3];
+            for (var i = 0; i < 400; i++)
+                draws[deck.Draw(random, -1, id => id != "b")]++;
+            Assert.AreEqual(0, draws[0], "§7: у межах рідкості невидані спершу — лише «b» не в колекції");
+            Assert.Greater(draws[1], draws[2], "звичайна випадає частіше за рідкісну — шанси рідкості не зсуваються колекцією");
+            Assert.Greater(draws[2], 0);
 
             var seen = new bool[3];
             for (var i = 0; i < 200; i++)

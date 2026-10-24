@@ -14,7 +14,10 @@ namespace InkFlow.Meta
         PictureCompleted,
 
         /// <summary>Ролик за нагороду (§9): подвоєння нафти за забіг.</summary>
-        RewardAd
+        RewardAd,
+
+        /// <summary>Завершена галактика (§12, 2026-10-23).</summary>
+        Galaxy
     }
 
     /// <summary>

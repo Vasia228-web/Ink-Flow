@@ -249,11 +249,11 @@ namespace InkFlow.App
                 // §12: збираємо стільки копій, скільки порожніх слотів, і ставимо їх — планета оживає.
                 var galaxy = state.CurrentGalaxy;
                 var index = GalaxyState.CurrentPlanetIndex(state.Galaxy, galaxy, state.Layout);
-                if (index >= state.Layout.Planets.Count)
+                if (index >= state.Layout.For(galaxy).Planets.Count)
                     Report("усі планети цієї галактики вже ожили");
                 else
                 {
-                    var planet = state.Layout.Planets[index];
+                    var planet = state.Layout.For(galaxy).Planets[index];
                     var placed = 0;
                     for (var slot = 0; slot < planet.Slots; slot++)
                     {

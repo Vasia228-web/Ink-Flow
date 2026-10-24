@@ -193,6 +193,99 @@ namespace InkFlow.Meta
                 {
                     save.Version = 11;
                     return save;
+                },
+
+                // v11 → v12: галактики ростуть за формулою (перша — 6 планет, 33 комірки, далі +6 на галактику)
+                // замість однакових 9 планет по 4…12. Картинка, чия комірка є й у новій розкладці, лишається на місці;
+                // картинки з комірок, яких більше немає (планети Вихор, Ігніс, Дюна в першій галактиці, «зайві»
+                // комірки), переїжджають у перші вільні комірки — галактика за галактикою, планета за планетою, у тому
+                // порядку, в якому стояли. Жодна картинка не губиться, колекції міграція не чіпає. Запис понад зібрані
+                // копії (його й раніше не було видно — копію він не тримав) не переноситься. Нагороди за галактики
+                // видаються з наступною постановкою — і за ті, що завершились самою міграцією.
+                [11] = (save, context, _) =>
+                {
+                    save.Galaxy ??= new GalaxyData();
+                    save.Galaxy.Slots ??= new List<PlanetSlotRecord>();
+                    save.Progress ??= new ProgressData();
+                    save.Collection ??= new CollectionData();
+                    save.Collection.Pictures ??= new List<CollectedPicture>();
+
+                    var owned = new Dictionary<string, int>(StringComparer.Ordinal);
+                    foreach (var picture in save.Collection.Pictures)
+                        if (picture.PictureId is { Length: > 0 })
+                            owned[picture.PictureId] = picture.Count;
+                    var placed = new Dictionary<string, int>(StringComparer.Ordinal);
+                    bool TakeCopy(string id)
+                    {
+                        owned.TryGetValue(id, out var copies);
+                        placed.TryGetValue(id, out var used);
+                        if (used >= copies)
+                            return false;
+                        placed[id] = used + 1;
+                        return true;
+                    }
+
+                    var old = new GalaxyLayout(context.Layout.Planets, context.Layout.GalaxyNames);
+                    var kept = new List<PlanetSlotRecord>();
+                    var taken = new HashSet<(int, string, int)>();
+                    var homeless = new List<(int galaxy, int planet, int slot, int at)>();
+                    var records = save.Galaxy.Slots;
+                    for (var i = 0; i < records.Count; i++)
+                    {
+                        var r = records[i];
+                        if (r.PictureId is not { Length: > 0 } || r.PlanetId is null)
+                            continue;
+                        var planet = context.Layout.For(r.Galaxy).Find(r.PlanetId);
+                        if (planet != null && r.Slot >= 0 && r.Slot < planet.Slots && taken.Add((r.Galaxy, r.PlanetId, r.Slot)))
+                        {
+                            if (TakeCopy(r.PictureId))
+                                kept.Add(r);
+                            continue;
+                        }
+                        var oldIndex = old.IndexOf(r.PlanetId);
+                        homeless.Add((r.Galaxy, oldIndex < 0 ? int.MaxValue : oldIndex, r.Slot, i));
+                    }
+                    homeless.Sort();
+
+                    int galaxy = 0, planetIndex = 0, slot = 0;
+                    foreach (var key in homeless)
+                    {
+                        var record = records[key.at];
+                        if (!TakeCopy(record.PictureId!))
+                            continue;
+                        // Перша вільна комірка нової розкладки.
+                        while (true)
+                        {
+                            var layout = context.Layout.For(galaxy);
+                            var target = layout.Planets[planetIndex];
+                            var free = !taken.Contains((galaxy, target.Id, slot));
+                            if (free)
+                            {
+                                taken.Add((galaxy, target.Id, slot));
+                                record.Galaxy = galaxy;
+                                record.PlanetId = target.Id;
+                                record.Slot = slot;
+                                kept.Add(record);
+                            }
+                            if (++slot >= target.Slots)
+                            {
+                                slot = 0;
+                                if (++planetIndex >= layout.Planets.Count)
+                                {
+                                    planetIndex = 0;
+                                    galaxy++;
+                                }
+                            }
+                            if (free)
+                                break;
+                        }
+                    }
+
+                    save.Galaxy.Slots = kept;
+                    save.Progress.GalaxyRewards = 0;
+                    save.Progress.RareGuarantees = 0;
+                    save.Version = 12;
+                    return save;
                 }
             };
 

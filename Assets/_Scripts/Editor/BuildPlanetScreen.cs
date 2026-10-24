@@ -29,7 +29,7 @@ namespace InkFlow.Editor
         private const string ShaderPath = "Assets/_Shaders/InkFlowPlanet.shader";
 
         /// <summary>Комірок і міток у пулі: стеля слотів у GalaxyConfig ([Range(1, 24)]).</summary>
-        private const int SlotPool = 24;
+        private const int SlotPool = 30;
 
         /// <summary>Діаметр кулі за масштабу 1, px макета (S04: 291.5); під екран її масштабує PlanetScreen.</summary>
         private const float GlobePx = 291.5f;

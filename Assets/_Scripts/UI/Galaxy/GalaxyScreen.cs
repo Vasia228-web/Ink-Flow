@@ -42,6 +42,7 @@ namespace InkFlow.UI
         [Header("Рядок галактики")]
         [SerializeField] private TMP_Text galaxyName;
         [SerializeField] private TMP_Text galaxyProgress;
+        [SerializeField] private TMP_Text galaxyReward;
         [SerializeField] private Button prevGalaxyButton;
         [SerializeField] private Button nextGalaxyButton;
 
@@ -343,7 +344,12 @@ namespace InkFlow.UI
 
             if (galaxyName != null) galaxyName.text = _galaxy.Name;
             if (galaxyProgress != null)
-                galaxyProgress.text = $"{_galaxy.DoneCount} / {Plural.Count(_galaxy.Planets.Count, "планета", "планети", "планет")}";
+                galaxyProgress.text = $"{_galaxy.FilledCells} / {Plural.Count(_galaxy.TotalCells, "комірка", "комірки", "комірок")} · " +
+                                      $"{_galaxy.DoneCount} / {Plural.Count(_galaxy.Planets.Count, "планета", "планети", "планет")}";
+            // Нагорода видна заздалегідь (2026-10-23) — лише у своїй галактиці.
+            Toggle(galaxyReward, _own && !_readOnly && State != null);
+            if (galaxyReward != null && State != null)
+                galaxyReward.text = RewardText(State.Layout.Reward);
             ApplyGalaxyArrows();
 
             // «Відкрити» й навігація — своя галактика; у гостя — скляна «Подивитись планету» (S09_01, крок 7).
@@ -492,18 +498,34 @@ namespace InkFlow.UI
                 ShowReveal();
         }
 
-        /// <summary>S03_04: дуга з усіх планет галактики, її назва, «Галактику завершено!», «Усі N планет ожили».</summary>
+        /// <summary>Підпис нагороди: «У кінці галактики: Епічна+ картинка і 300 нафти».</summary>
+        public static string RewardText(GalaxyReward reward) =>
+            $"У кінці галактики: {RarityName(reward.MinRarity)}+ картинка і {reward.Oil} нафти";
+
+        private static string RarityName(Rarity rarity) => rarity switch
+        {
+            Rarity.Common => "Звичайна",
+            Rarity.Uncommon => "Незвичайна",
+            Rarity.Rare => "Рідкісна",
+            Rarity.Epic => "Епічна",
+            Rarity.Legendary => "Легендарна",
+            _ => "Космічна"
+        };
+
+        /// <summary>S03_04: дуга з усіх планет галактики, її назва, «Галактику завершено!», «Усі N планет ожили», нагорода.</summary>
         private void ShowCompleted()
         {
             if (State == null)
                 return;
-            var layout = State.Layout;
+            var layout = State.Layout.For(_completedGalaxy);
             var count = Mathf.Min(layout.Planets.Count, arcPlanets.Length);
+            var reward = State.Layout.Reward;
+            var prize = $"+{reward.Oil} нафти, а наступна картинка — {RarityName(reward.MinRarity)}+.";
             if (completeKicker != null) completeKicker.text = layout.NameOf(_completedGalaxy);
             if (completeBody != null)
                 completeBody.text = layout.Planets.Count == 1
-                    ? "Планета ожила. Тебе чекає нова галактика."   // «Усі 1 планета ожили» — не по-людськи
-                    : $"Усі {Plural.Count(layout.Planets.Count, "планета", "планети", "планет")} ожили. Тебе чекає нова галактика.";
+                    ? $"Планета ожила. {prize}"   // «Усі 1 планета ожили» — не по-людськи
+                    : $"Усі {Plural.Count(layout.Planets.Count, "планета", "планети", "планет")} ожили. {prize}";
 
             var radius = U1Px(design.GalaxyArcRadius);
             var side = U1Px(design.GalaxyArcPlanet);
@@ -534,8 +556,8 @@ namespace InkFlow.UI
         {
             if (State == null)
                 return;
-            var layout = State.Layout;
             var next = State.CurrentGalaxy;
+            var layout = State.Layout.For(next);
             if (revealTitle != null) revealTitle.text = layout.TitleOf(next);
             if (revealSubtitle != null)
                 revealSubtitle.text = $"{Plural.Count(layout.Planets.Count, "планета", "планети", "планет")} · до {Plural.Count(layout.MaxSlots, "комірки", "комірок", "комірок")} на планеті";

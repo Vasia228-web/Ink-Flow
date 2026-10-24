@@ -69,7 +69,7 @@ namespace InkFlow.Editor
         /// </summary>
         public void FillPlanet(PlayerState player, int planetIndex, int count = -1, int pictureOffset = 0)
         {
-            var planet = player.Layout.Planets[planetIndex];
+            var planet = player.Layout.For(player.CurrentGalaxy).Planets[planetIndex];
             var n = count < 0 ? planet.Slots : Mathf.Min(count, planet.Slots);
             var galaxy = player.CurrentGalaxy;
             for (var i = 0; i < n; i++)

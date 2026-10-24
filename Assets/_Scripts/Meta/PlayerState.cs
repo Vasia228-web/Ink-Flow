@@ -61,7 +61,7 @@ namespace InkFlow.Meta
         public Core.PictureLibrary Library { get; }
         public Core.BalanceData Balance { get; }
 
-        /// <summary>Розкладка галактики (§12): планети й слоти — з конфігу, цикли нескінченні.</summary>
+        /// <summary>Розкладка галактики (§12): шаблони планет і ріст — з конфігу; конкретна галактика — <c>Layout.For(g)</c>.</summary>
         public GalaxyLayout Layout { get; }
 
         /// <summary>
@@ -253,8 +253,9 @@ namespace InkFlow.Meta
         private int FilledInGalaxy(int galaxy)
         {
             var total = 0;
-            for (var i = 0; i < Layout.Planets.Count; i++)
-                total += GalaxyState.FilledCount(Galaxy, galaxy, Layout.Planets[i].Id, Layout.Planets[i].Slots);
+            var planets = Layout.For(galaxy).Planets;
+            for (var i = 0; i < planets.Count; i++)
+                total += GalaxyState.FilledCount(Galaxy, galaxy, planets[i].Id, planets[i].Slots);
             return total;
         }
 
@@ -334,8 +335,37 @@ namespace InkFlow.Meta
         public bool CollectPicture(string pictureId, DateTime utcNow)
         {
             var isNew = Collection.Add(pictureId, utcNow);
+            // Обіцянка нагороди галактики виконана, лише коли картинку такої рідкості справді домальовано.
+            var picture = Library.Find(pictureId);
+            if (Progress.RareGuarantees > 0 && picture != null && picture.Rarity >= Layout.Reward.MinRarity)
+                Progress.RareGuarantees--;
             Persist();
             return isNew;
+        }
+
+        /// <summary>
+        /// Найменша рідкість наступної картинки забігу, якщо чекає обіцянка нагороди галактики; null — звичайний витяг.
+        /// Забіг питає це на старті й на рестарті: програв — обіцянка лишилась, наступний забіг знову з рідкої.
+        /// </summary>
+        public Core.Rarity? GuaranteedRarity => Progress.RareGuarantees > 0 ? Layout.Reward.MinRarity : (Core.Rarity?)null;
+
+        /// <summary>Галактику завершено й нагороду видано: індекс галактики (0 — перша).</summary>
+        public event Action<int>? GalaxyRewarded;
+
+        /// <summary>
+        /// Видає нагороди за галактики, завершені після останньої видачі: нафта й обіцянка «наступна — Епічна+».
+        /// Завершену галактику змінити не можна (ставити — лише в поточну), тож лічильника вистачає.
+        /// </summary>
+        private void ClaimGalaxyRewards()
+        {
+            var done = GalaxiesDone;
+            while (Progress.GalaxyRewards < done)
+            {
+                Wallet.Add(Layout.Reward.Oil, RewardSource.Galaxy);
+                Progress.RareGuarantees++;
+                GalaxyRewarded?.Invoke(Progress.GalaxyRewards);
+                Progress.GalaxyRewards++;
+            }
         }
 
         /// <summary>
@@ -459,7 +489,7 @@ namespace InkFlow.Meta
         {
             if (galaxy != CurrentGalaxy)
                 return false;
-            var index = Layout.IndexOf(planetId);
+            var index = Layout.For(galaxy).IndexOf(planetId);
             return index >= 0 && GalaxyState.IsPlanetOpen(Galaxy, galaxy, Layout, index);
         }
 
@@ -476,7 +506,7 @@ namespace InkFlow.Meta
             WeekBaseline.RollOver(File.RankWeek, utcNow, PlanetsDone, GalaxiesDone);
             if (pictureId is null || pictureId.Length == 0)
                 return false;
-            var planet = Layout.Find(planetId);
+            var planet = Layout.For(galaxy).Find(planetId);
             if (planet is null || slot < 0 || slot >= planet.Slots)
                 return false;
             if (!CanEditPlanet(galaxy, planetId))
@@ -489,6 +519,7 @@ namespace InkFlow.Meta
                 return false;
 
             GalaxyState.Set(Galaxy, galaxy, planetId, slot, pictureId, utcNow);
+            ClaimGalaxyRewards();
             Persist();
             GalaxyChanged?.Invoke();
             return true;

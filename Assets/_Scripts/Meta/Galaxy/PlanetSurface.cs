@@ -28,14 +28,18 @@ namespace InkFlow.Meta
     /// <summary>Поверхня планети: слоти й похідний прогрес. Розкладка статична; що стоїть у слотах, кладе збереження.</summary>
     public sealed class PlanetSurface
     {
-        public PlanetSurface(PlanetType type, string name, IReadOnlyList<PlanetSlot> slots)
+        public PlanetSurface(PlanetType type, string name, IReadOnlyList<PlanetSlot> slots, string? id = null)
         {
             Type = type;
+            Id = id is { Length: > 0 } ? id : GalaxyState.PlanetId(type);
             Name = name;
             Slots = slots;
         }
 
         public PlanetType Type { get; }
+
+        /// <summary>Ідентифікатор планети у збереженні (<see cref="PlanetLayout.Id"/>).</summary>
+        public string Id { get; }
         public string Name { get; }
         public IReadOnlyList<PlanetSlot> Slots { get; }
 
@@ -64,7 +68,7 @@ namespace InkFlow.Meta
             var slots = new List<PlanetSlot>(planet.Slots);
             for (var i = 0; i < planet.Slots; i++)
                 slots.Add(new PlanetSlot(i));
-            return new PlanetSurface(planet.Type, planet.Name, slots);
+            return new PlanetSurface(planet.Type, planet.Name, slots, planet.Id);
         }
 
         /// <summary>Поверхня планети цього типу з розкладки галактики.</summary>

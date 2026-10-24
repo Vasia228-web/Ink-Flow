@@ -36,7 +36,7 @@ namespace InkFlow.Meta
         public static bool IsAddressed(in PlanetSlotRecord record, GalaxyLayout layout)
         {
             if (layout is null) throw new ArgumentNullException(nameof(layout));
-            var planet = layout.Find(record.PlanetId);
+            var planet = layout.For(record.Galaxy).Find(record.PlanetId);
             return planet != null && record.Slot >= 0 && record.Slot < planet.Slots;
         }
 
@@ -213,7 +213,7 @@ namespace InkFlow.Meta
         {
             if (surface == null)
                 return;
-            var planetId = PlanetId(surface.Type);
+            var planetId = surface.Id;
             for (var i = 0; i < surface.Slots.Count; i++)
                 surface.Slots[i].PictureId = PictureAt(data, galaxy, planetId, surface.Slots[i].Index);
         }
@@ -233,6 +233,7 @@ namespace InkFlow.Meta
         public static bool IsPlanetOpen(GalaxyData? data, int galaxy, GalaxyLayout layout, int index)
         {
             if (layout is null) throw new ArgumentNullException(nameof(layout));
+            layout = layout.For(galaxy);
             if (index < 0 || index >= layout.Planets.Count)
                 return false;
             if (index == 0)
@@ -246,6 +247,7 @@ namespace InkFlow.Meta
         public static bool IsGalaxyComplete(GalaxyData? data, int galaxy, GalaxyLayout layout)
         {
             if (layout is null) throw new ArgumentNullException(nameof(layout));
+            layout = layout.For(galaxy);
             for (var i = 0; i < layout.Planets.Count; i++)
                 if (!IsPlanetComplete(data, galaxy, layout.Planets[i]))
                     return false;
@@ -268,6 +270,7 @@ namespace InkFlow.Meta
         public static int CurrentPlanetIndex(GalaxyData? data, int galaxy, GalaxyLayout layout)
         {
             if (layout is null) throw new ArgumentNullException(nameof(layout));
+            layout = layout.For(galaxy);
             for (var i = 0; i < layout.Planets.Count; i++)
                 if (!IsPlanetComplete(data, galaxy, layout.Planets[i]))
                     return i;
@@ -281,9 +284,12 @@ namespace InkFlow.Meta
             var last = MaxGalaxy(data);
             var done = 0;
             for (var g = 0; g <= last; g++)
-                for (var i = 0; i < layout.Planets.Count; i++)
-                    if (IsPlanetComplete(data, g, layout.Planets[i]))
+            {
+                var planets = layout.For(g).Planets;
+                for (var i = 0; i < planets.Count; i++)
+                    if (IsPlanetComplete(data, g, planets[i]))
                         done++;
+            }
             return done;
         }
 

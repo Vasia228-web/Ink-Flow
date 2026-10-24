@@ -193,15 +193,17 @@ namespace InkFlow.UI
         public override void OnEnter(ScreenArgs args)
         {
             base.OnEnter(args);
-            var layout = Layout;
             _visitor = (args as PlanetArgs)?.Visitor;
             if (args is PlanetArgs planetArgs)
             {
-                _planetIndex = Mathf.Clamp(planetArgs.PlanetIndex, 0, layout.Planets.Count - 1);
                 _galaxy = Mathf.Max(0, planetArgs.Galaxy);
+                _planetIndex = planetArgs.PlanetIndex;
             }
             else
                 _galaxy = State?.CurrentGalaxy ?? 0;
+            // Планет і комірок у кожної галактики своє (ріст, 2026-10-23).
+            var layout = Layout.For(_galaxy);
+            _planetIndex = Mathf.Clamp(_planetIndex, 0, layout.Planets.Count - 1);
 
             _surface = PlanetSurface.For(layout.Planets[_planetIndex]);
             // Чужа планета — зі слотів вітрини гравця (§16), своя — зі збереження.
@@ -248,7 +250,8 @@ namespace InkFlow.UI
 
             if (_surface == null)
             {
-                _surface = PlanetSurface.For(Layout.Planets[Mathf.Clamp(_planetIndex, 0, Layout.Planets.Count - 1)]);
+                var planets = Layout.For(_galaxy).Planets;
+                _surface = PlanetSurface.For(planets[Mathf.Clamp(_planetIndex, 0, planets.Count - 1)]);
                 if (State == null)
                     MockFill(_surface);
             }
@@ -447,7 +450,7 @@ namespace InkFlow.UI
             if (aliveTitle != null) aliveTitle.text = $"{_surface.Name} ожила!";
             if (aliveBody != null)
             {
-                var planets = Layout.Planets;
+                var planets = Layout.For(_galaxy).Planets;
                 aliveBody.text = _planetIndex + 1 < planets.Count
                     ? $"Відкрито наступну планету: {planets[_planetIndex + 1].Name}."
                     : "Це остання планета галактики.";

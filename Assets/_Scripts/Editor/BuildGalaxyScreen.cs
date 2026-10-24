@@ -120,6 +120,12 @@ namespace InkFlow.Editor
 
             U1.Gap(column, 4f);
             BuildGalaxyRow(column, design!, out var galaxyName, out var galaxyProgress, out var prev, out var next);
+            // Нагорода в кінці галактики — видно заздалегідь (2026-10-23); вигляд галактик — окремою задачею автора.
+            var galaxyReward = U1.Text(column, "GalaxyReward", "У кінці галактики: Епічна+ картинка і 300 нафти", design!, U1.Role.Caption, design!.Amber);
+            galaxyReward.font = design!.FontBody;
+            galaxyReward.textWrappingMode = TextWrappingModes.NoWrap;
+            galaxyReward.overflowMode = TextOverflowModes.Ellipsis;
+            U1.Size(galaxyReward.gameObject, 0f, 20f);
 
             var area = Child(column, "Carousel");
             area.AddComponent<LayoutElement>().flexibleHeight = 1f;
@@ -179,7 +185,7 @@ namespace InkFlow.Editor
                 ("design", design!), ("backButton", back), ("title", title), ("currency", currency), ("settingsButton", gear),
                 ("visitorCard", visitor), ("visitorAvatar", visitorAvatar), ("visitorNick", visitorNick), ("visitorHint", visitorHint),
                 ("incognitoAvatar", U1.S("avatar_incognito")),
-                ("galaxyName", galaxyName), ("galaxyProgress", galaxyProgress),
+                ("galaxyName", galaxyName), ("galaxyProgress", galaxyProgress), ("galaxyReward", galaxyReward),
                 ("prevGalaxyButton", prev), ("nextGalaxyButton", next),
                 ("column", column.GetComponent<RectTransform>()), ("carouselArea", area.GetComponent<RectTransform>()),
                 ("carousel", carousel),
@@ -281,7 +287,7 @@ namespace InkFlow.Editor
             name = U1.Text(labels, "Name", "ГАЛАКТИКА I · ПЕРВІСНА", design, U1.Role.Label, design.InkMuted);
             name.textWrappingMode = TextWrappingModes.NoWrap;
             name.overflowMode = TextOverflowModes.Ellipsis;
-            progress = U1.Text(labels, "Progress", "2 / 9 планет", design, U1.Role.Caption, design.InkMuted);
+            progress = U1.Text(labels, "Progress", "12 / 33 комірок · 2 / 6 планет", design, U1.Role.Caption, design.InkMuted);
             progress.font = design.FontBody;
             progress.textWrappingMode = TextWrappingModes.NoWrap;
 

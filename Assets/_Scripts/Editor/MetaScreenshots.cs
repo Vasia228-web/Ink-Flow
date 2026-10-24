@@ -483,7 +483,7 @@ namespace InkFlow.Editor
                     player.Wallet.Add(1240, RewardSource.Debug);
                     var everything = state == "galaxy-second" || state == "galaxy-complete" || state == "galaxy-reveal";
                     if (everything)
-                        for (var p = 0; p < player.Layout.Planets.Count; p++) rig.FillPlanet(player, p, pictureOffset: p * 9);
+                        for (var p = 0; p < player.Layout.For(0).Planets.Count; p++) rig.FillPlanet(player, p, pictureOffset: p * 9);
                     else if (state != "galaxy-fresh")
                     {
                         for (var p = 0; p < 3; p++) rig.FillPlanet(player, p, pictureOffset: p * 7);
@@ -553,7 +553,7 @@ namespace InkFlow.Editor
                     using var rig = MetaScreenRig<PlanetScreen>.Create(device, "PlanetScreen");
                     var player = rig.NewPlayer();
                     player.Wallet.Add(1240, RewardSource.Debug);
-                    var visitor = MockupVisitor(player.Layout, rig.Library, out var sphere, out var horizon);
+                    var visitor = MockupVisitor(player.Layout.For(0), rig.Library, out var sphere, out var horizon);
                     rig.Enter(player, PlanetArgs.ForVisitor(visitor, state == "planet-visitor-sphere" ? sphere : horizon));
                     Canvas.ForceUpdateCanvases();
                     Budget(rig, device.Name, state, overBudget);
@@ -567,9 +567,9 @@ namespace InkFlow.Editor
                     using var rig = MetaScreenRig<PlanetScreen>.Create(device, "PlanetScreen");
                     var player = rig.NewPlayer();
                     player.Wallet.Add(1240, RewardSource.Debug);
-                    for (var p = 0; p < player.Layout.Planets.Count; p++)
+                    for (var p = 0; p < player.Layout.For(0).Planets.Count; p++)
                         rig.FillPlanet(player, p, pictureOffset: p * 11);
-                    rig.Enter(player, new PlanetArgs(0, player.Layout.Planets.Count - 1));
+                    rig.Enter(player, new PlanetArgs(0, player.Layout.For(0).Planets.Count - 1));
                     Canvas.ForceUpdateCanvases();
                     Budget(rig, device.Name, state, overBudget);
                     Audit(rig, "PlanetScreen", device.Name, state, audit);
@@ -629,7 +629,7 @@ namespace InkFlow.Editor
                     // Чужа галактика з вітрини (S09_01): планети по порядку, картка гостя під шапкою, «‹» замість назви.
                     using var rig = MetaScreenRig<GalaxyScreen>.Create(device, "GalaxyScreen");
                     var player = rig.NewPlayer();
-                    var layout = player.Layout;
+                    var layout = player.Layout.For(0);
                     var ids = new List<string>();
                     var slots = new List<int>();
                     foreach (var planet in layout.Planets) { ids.Add(planet.Id); slots.Add(planet.Slots); }
@@ -700,13 +700,13 @@ namespace InkFlow.Editor
                             if (rig.Library.Find(id) != null && (state != "collection-filter-empty" || id != "gem_cosmic"))
                                 player.CollectPicture(id, now);
                         player.CollectPicture("cupcake", now);
-                        var planet = player.Layout.Planets[0].Id;
+                        var planet = player.Layout.For(0).Planets[0].Id;
                         player.TryPlaceInSlot(0, planet, 0, "cupcake", now);
                         player.TryPlaceInSlot(0, planet, 1, "robot", now);
                     }
                     var args = state switch
                     {
-                        "collection-pick" => new CollectionArgs(0, player.Layout.Planets[0].Id, 5),
+                        "collection-pick" => new CollectionArgs(0, player.Layout.For(0).Planets[0].Id, 5),
                         "collection-showcase" => CollectionArgs.ForShowcase(),
                         _ => CollectionArgs.Tab()
                     };

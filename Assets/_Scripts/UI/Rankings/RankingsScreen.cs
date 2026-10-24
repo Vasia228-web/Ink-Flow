@@ -270,7 +270,7 @@ namespace InkFlow.UI
             {
                 if (_workshopShowcases != null)
                     return _workshopShowcases;
-                var layout = GalaxyLayout.Default;
+                var layout = GalaxyLayout.Growing.For(0);
                 var ids = new List<string>();
                 var slots = new List<int>();
                 foreach (var planet in layout.Planets) { ids.Add(planet.Id); slots.Add(planet.Slots); }

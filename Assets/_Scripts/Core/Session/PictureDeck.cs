@@ -32,18 +32,50 @@ namespace InkFlow.Core
             if (_library.Count == 1)
                 return 0;
 
-            // Спершу — серед невиданих: рідкості, де ще є невидані, зважуються між собою.
-            var rarity = RollRarity(random, exclude, isCollected, unseenOnly: true);
-            if (rarity.HasValue)
-            {
-                Collect(rarity.Value, exclude, isCollected, unseenOnly: true);
-                if (_pool.Count > 0)
-                    return _pool[random.Next(_pool.Count)];
-            }
+            // Рідкість — завжди за звичайними вагами (§6), а вже в її межах невидані першими. Раніше невидані
+            // вирішували й рідкість: коли звичайні зібрано, лишались самі невидані рідкі, кожна картинка ставала
+            // епічною чи легендарною (8–13 хв, домалювати — рідко), і галактика 3 тяглась уп'ятеро довше за 2-гу.
+            var rarity = RollRarity(random, exclude, null, unseenOnly: false) ?? Rarity.Common;
+            Collect(rarity, exclude, isCollected, unseenOnly: true);
+            if (_pool.Count > 0)
+                return _pool[random.Next(_pool.Count)];
+            return DrawOf(rarity, random, exclude);
+        }
 
-            // Невидані закінчились — повтори за звичайними вагами.
-            var any = RollRarity(random, exclude, null, unseenOnly: false) ?? Rarity.Common;
-            return DrawOf(any, random, exclude);
+        /// <summary>
+        /// Картинка щонайменше рідкості <paramref name="min"/> — обіцянка нагороди галактики. Рідкість — за звичайними
+        /// вагами серед дозволених (епічна частіше за космічну), невидані — першими, як у <see cref="Draw"/>.
+        /// </summary>
+        public int DrawAtLeast(Rarity min, IRandomSource random, int exclude, Func<string, bool>? isCollected)
+        {
+            if (random is null) throw new ArgumentNullException(nameof(random));
+            for (var pass = 0; pass < 2; pass++)
+            {
+                var unseenOnly = pass == 0;
+                var total = 0;
+                for (var r = 0; r < Rarities.Count; r++)
+                {
+                    _weights[r] = 0;
+                    if (r < (int)min)
+                        continue;
+                    Collect((Rarity)r, exclude, isCollected, unseenOnly);
+                    _weights[r] = _pool.Count > 0 ? Math.Max(1, _balance.RarityWeights[r]) : 0;
+                    total += _weights[r];
+                }
+                if (total <= 0)
+                    continue;
+                var roll = random.Next(total);
+                for (var r = 0; r < Rarities.Count; r++)
+                {
+                    roll -= _weights[r];
+                    if (roll >= 0 || _weights[r] == 0)
+                        continue;
+                    Collect((Rarity)r, exclude, isCollected, unseenOnly);
+                    return _pool[random.Next(_pool.Count)];
+                }
+            }
+            // Такої рідкості в бібліотеці немає — найближча, як у DrawOf.
+            return DrawOf(min, random, exclude);
         }
 
         /// <summary>Картинка саме цієї рідкості (з відкатом), без огляду на колекцію.</summary>

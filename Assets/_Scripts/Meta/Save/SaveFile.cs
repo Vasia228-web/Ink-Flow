@@ -13,7 +13,7 @@ namespace InkFlow.Meta
     public sealed class SaveFile
     {
         /// <summary>Поточна версія формату. Піднімати РАЗОМ із написанням міграції.</summary>
-        public const int CurrentVersion = 11;
+        public const int CurrentVersion = 12;
 
         public int Version = CurrentVersion;
         public ProfileData Profile = new ProfileData();
@@ -121,6 +121,12 @@ namespace InkFlow.Meta
 
         /// <summary>Скільки забігів зіграно.</summary>
         public int RunsPlayed;
+
+        /// <summary>За скільки завершених галактик нагороду вже видано (v12) — щоб не видати двічі.</summary>
+        public int GalaxyRewards;
+
+        /// <summary>Скільки обіцянок «наступна картинка — Епічна+» ще чекають (v12): згорає лише домальована картинка такої рідкості.</summary>
+        public int RareGuarantees;
     }
 
     [Serializable]

@@ -40,6 +40,7 @@ var rarityChances = false;
 int[]? stepTargets = null;
 float[]? bag = null;
 int[]? tiers = null;
+var galaxies = 0;
 string? dangerCsv = null;
 
 for (var i = 0; i < args.Length; i++)
@@ -59,6 +60,7 @@ for (var i = 0; i < args.Length; i++)
         case "--bag": bag = args[++i].Split(',').Select(v => float.Parse(v, CultureInfo.InvariantCulture)).ToArray(); break;
         case "--continues": continues = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--rarity-chances": rarityChances = true; break;
+        case "--galaxies": galaxies = int.Parse(args[++i], CultureInfo.InvariantCulture); break;
         case "--steps": stepTargets = args[++i].Split(',').Select(v => int.Parse(v, CultureInfo.InvariantCulture)).ToArray(); break;
         case "--bot":
             botName = args[++i];
@@ -105,6 +107,12 @@ var balance = plain
 var catalog = PieceCatalogData.Default;
 var library = LoadLibrary(picturesDir ?? FindPictures(), stepTargets);
 var planner = botName == "planner";
+
+if (galaxies > 0)
+{
+    Galaxies(balance, catalog, library, weights, noise, seed, planner, secondsPerMove, galaxies);
+    return 0;
+}
 var stopwatch = Stopwatch.StartNew();
 var results = new RunStats[games];
 var timing = new PictureTiming(Rarities.Count);
@@ -504,6 +512,52 @@ static RunStats PlayOne(BalanceData balance, PieceCatalogData catalog, PictureLi
         session.IsOver ? warnStreak : 0, session.IsOver ? strongStreak : 0, warnOnsets,
         lineMoves, multiLineMoves, session.BestStreak, session.BoardClears,
         session.ClearTraysGiven, session.PerfectTraysGiven, session.RescueTraysGiven, firstLifePlacements, firstLifePictures, traysMulti, traysEmpty, traysLine);
+}
+
+// Скільки забігів і годин іде на галактику (§12, 2026-10-23): гравець грає забіги поспіль (колекція переноситься —
+// колода дає невидані першими), кожен другий — з продовженням за ролик; кожна домальована картинка — одна комірка.
+// Комірок у галактиці g — 33 + 6·g: дзеркало GalaxyGrowth.Default (Meta), яку прогонник не компілює.
+static void Galaxies(BalanceData balance, PieceCatalogData catalog, PictureLibrary library, BotWeights weights,
+    float noise, uint seed, bool planner, float secondsPerMove, int count)
+{
+    const int Players = 20;
+    var runs = new List<float>[count];
+    var hours = new List<float>[count];
+    for (var g = 0; g < count; g++)
+    {
+        runs[g] = new List<float>();
+        hours[g] = new List<float>();
+    }
+    for (var p = 0; p < Players; p++)
+    {
+        var collection = new HashSet<string>(StringComparer.Ordinal);
+        var timing = new PictureTiming(Rarities.Count);
+        long pictures = 0, placements = 0;
+        var galaxy = 0;
+        var need = 33L;
+        for (var run = 1; galaxy < count && run < 100_000; run++)
+        {
+            var runSeed = unchecked(seed + (uint)p * 7919u + (uint)run * 2654435761u);
+            var stats = PlayOne(balance, catalog, library, runSeed, noise, weights, collection, timing, null, 0, planner, run % 2);
+            pictures += stats.Pictures;
+            placements += stats.Placements;
+            while (galaxy < count && pictures >= need)
+            {
+                runs[galaxy].Add(run);
+                hours[galaxy].Add(placements * secondsPerMove / 3600f);
+                galaxy++;
+                need += 33 + 6 * galaxy;
+            }
+        }
+    }
+    Console.WriteLine($"галактики (§12): {Players} гравців, кожен другий забіг — з продовженням; накопичено до кінця галактики");
+    Console.WriteLine("  галактика  комірок   забігів мед (p10–p90)   годин мед");
+    for (var g = 0; g < count; g++)
+    {
+        var r = new Distribution(runs[g]);
+        var h = new Distribution(hours[g]);
+        Console.WriteLine($"  {g + 1,9}  {33 + 6 * g,7}   {r.Median,7:0} ({r.P10:0}–{r.P90:0})        {h.Median,5:0.0}");
+    }
 }
 
 static MoveChooser Chooser(BotWeights weights, uint seed, float noise, bool planner)

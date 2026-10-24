@@ -74,6 +74,29 @@ namespace InkFlow.Meta
 
         public bool IsComplete => Planets.Count > 0 && DoneCount == Planets.Count;
 
+        /// <summary>Комірок зайнято й усього в галактиці — прогрес «31 / 45 комірок».</summary>
+        public int FilledCells
+        {
+            get
+            {
+                var n = 0;
+                for (var i = 0; i < Planets.Count; i++)
+                    n += System.Math.Min(Planets[i].FilledSlots, Planets[i].TotalSlots);
+                return n;
+            }
+        }
+
+        public int TotalCells
+        {
+            get
+            {
+                var n = 0;
+                for (var i = 0; i < Planets.Count; i++)
+                    n += Planets[i].TotalSlots;
+                return n;
+            }
+        }
+
         /// <summary>Індекс планети, на якій гравець зупинився (перша відкрита). −1, якщо таких немає.</summary>
         public int CurrentIndex
         {
@@ -102,6 +125,7 @@ namespace InkFlow.Meta
         public static GalaxyProgress FromSave(GalaxyData? data, GalaxyLayout layout, int galaxy)
         {
             if (layout is null) throw new System.ArgumentNullException(nameof(layout));
+            layout = layout.For(galaxy);
             var planets = new List<PlanetProgress>(layout.Planets.Count);
 
             for (var i = 0; i < layout.Planets.Count; i++)

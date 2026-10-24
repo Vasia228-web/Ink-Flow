@@ -153,7 +153,7 @@ namespace InkFlow.App
                     : (_state.Nick, _state.AvatarId, false)));
             ServiceLocator.Register<IShowcaseService>(new InkFlow.Platform.Ugs.UgsShowcase(config != null ? config.CloudShowcaseKey : string.Empty));
 #elif UNITY_EDITOR || DEVELOPMENT_BUILD
-            var layout = LoadLayout();
+            var layout = LoadLayout().For(0);
             var ids = new System.Collections.Generic.List<string>(layout.Planets.Count);
             var slots = new System.Collections.Generic.List<int>(layout.Planets.Count);
             foreach (var planet in layout.Planets) { ids.Add(planet.Id); slots.Add(planet.Slots); }

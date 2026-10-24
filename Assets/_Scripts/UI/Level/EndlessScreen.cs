@@ -348,7 +348,7 @@ namespace InkFlow.UI
             _session = _resumed
                 ? new RunSession(_balance, PieceCatalogData.Default, _state!.Library, saved!, isCollected)
                 : new RunSession(_balance, PieceCatalogData.Default, new XorShiftRandom(unchecked((uint)System.DateTime.UtcNow.Ticks)),
-                    _state?.Library, isCollected);
+                    _state?.Library, isCollected, _state?.GuaranteedRarity); // нагорода галактики: перша — Епічна+
             GameEvents.RaiseSessionStarted(_session);
 
             _record = new LiveRecord(_progress?.EndlessRecord ?? _record.Stored);

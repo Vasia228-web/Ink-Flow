@@ -20,7 +20,7 @@ namespace InkFlow.Gameplay
         {
             public PlanetType type;
             public string name = string.Empty;
-            [Tooltip("Скільки картинок треба поставити, щоб планета ожила.")]
+            [Tooltip("Комірок у розкладці до 2026-10-23 — лише щоб міграція переклала старі збереження; у грі комірки дає ріст нижче.")]
             [Range(1, 24)] public int slots = 4;
             public bool hasMoons;
             public bool hasRing;
@@ -32,6 +32,22 @@ namespace InkFlow.Gameplay
 
         [Tooltip("Імена циклів галактик по колу: I — перше, II — друге, …")]
         [SerializeField] private string[] galaxyNames = DefaultNames();
+
+        [Header("Ріст галактик (2026-10-23): планети вище — шаблони по черзі, фінальна — остання")]
+        [Tooltip("Комірок у першій галактиці.")]
+        [SerializeField, Range(6, 200)] private int baseCells = 33;
+        [Tooltip("На скільки комірок більша кожна наступна галактика.")]
+        [SerializeField, Range(0, 60)] private int cellsPerGalaxy = 6;
+        [Tooltip("Стеля комірок на одній планеті: досягли — росте кількість планет, а не комірок (новий дизайн: 24–30).")]
+        [SerializeField, Range(1, 30)] private int maxCellsPerPlanet = 24;
+        [Tooltip("Щонайменше планет у галактиці.")]
+        [SerializeField, Range(1, 12)] private int minPlanets = 6;
+
+        [Header("Нагорода за галактику — видно заздалегідь")]
+        [Tooltip("Нафти за завершену галактику.")]
+        [SerializeField, Range(0, 5000)] private long rewardOil = 300;
+        [Tooltip("Наступна картинка забігу — щонайменше ця рідкість; обіцянка тримається, доки таку не домалюєш.")]
+        [SerializeField] private Rarity rewardMinRarity = Rarity.Epic;
 
         public GalaxyLayout ToLayout()
         {
@@ -47,14 +63,16 @@ namespace InkFlow.Gameplay
 
             try
             {
-                return new GalaxyLayout(list, galaxyNames is null || galaxyNames.Length == 0 ? DefaultNames() : galaxyNames);
+                return new GalaxyLayout(list, galaxyNames is null || galaxyNames.Length == 0 ? DefaultNames() : galaxyNames,
+                    new GalaxyGrowth(baseCells, cellsPerGalaxy, maxCellsPerPlanet, minPlanets),
+                    new GalaxyReward(rewardOil, rewardMinRarity));
             }
             catch (ArgumentException e)
             {
                 // Зіпсований асет (два записи одного типу, порожній список) не має ронити гру —
                 // голосно в консоль і дефолтна розкладка.
                 Debug.LogError($"[InkFlow] GalaxyConfig зіпсований: {e.Message}. Беру розкладку за замовчуванням.");
-                return GalaxyLayout.Default;
+                return GalaxyLayout.Growing;
             }
         }
 
