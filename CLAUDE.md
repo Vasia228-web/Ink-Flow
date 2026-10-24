@@ -87,11 +87,11 @@ SpacePaint — мобільна головоломка про фарбу: ста
 
 ## Статус
 
-- **Зараз — `prompts/2026-10-22-pokrashchennia-hry.md`** (перед «Першою версією», та на паузі): частина 1 ✅ щедрий мішок, комбо-серія, чисте поле (`8d87732`); частина 2 ✅ довші рідкі картинки й нафта; **далі — КТ 1 автора (фігури й тривалість картинок)**, потім частини 3–6.
+- **Зараз — `prompts/2026-10-22-pokrashchennia-hry.md`** (перед «Першою версією», та на паузі): усі 6 частин ✅ — щедрий мішок і комбо (`8d87732`), довші рідкі картинки (`57b7142`), КТ 1 ок; галактики ростуть з нагородою (`ecc5300`), колекція без тем (`31a9b92`), одна таблиця рейтингу (`fef015e`), аватар із колекції й політика (`7eb2ba2`). **Далі — фінальна КТ автора** (звіт `../reports/2026-10-24-pokrashchennia-hry-final.html`), потім дизайн галактик (окрема задача автора) і «Перша версія».
 - **Порядок робіт до того** — фаза 1 ✅ (крок 4, `dbc296a`) → фаза 2 ✅ (рефреш, `5bee273`; глобальні правила й скіл beginner-to-pro — у `~/.claude`) → фаза 3 ✅ (MCP for Unity, `1c2b3dd`; зв'язок перевірено 2026-10-21: консоль, Validate Project, 440 EditMode-тестів) → фаза 4 ✅ (помічники й скіли, замір — `Tools/token-bench/README.md`) → фаза 5 ✅ (U1Glaze кроки 5, 7–10, нічний режим автора 2026-10-21/22) → чернетка промту «Перша версія» ✏️ (`prompts/2026-10-21-persha-versiya.md`, чекає правок автора) → **далі: КТ автора за нічним звітом, правки чернетки, сесія 1 «Першої версії»**.
 - **U1Glaze** (`prompts/2026-10-12-ui-spacepaint-u1glaze.md`): кроки 0–5, 7–10 ✅ — усі екрани на U1Glaze, старий стиль прибрано (5, 7–10 — нічний режим 2026-10-21/22 без КТ, автор перевіряє за нічним звітом). Крок 6 «Магазин» пропущено (запас). Перерахунок альф під лінійне змішування свідомо не зроблено — вимір показав, що затемнення вже як у макеті (`docs/implementation-notes.md`, крок 10); рішення за автором.
 - **Не закомічено в робочій копії:** перезібрані сцени, префаби, нові `.meta`, `DesignSystem.asset` — див. п. 2 «Дороги». Знімки мета-екранів `docs/screenshots/meta/` — свіжі (MCP, 2026-10-21/22); знімки забігу в `docs/screenshots/` — старі закомічені, перезняті лише локально.
-- **Тести:** 352 headless (`run-core-tests.sh`), 455 EditMode (UI + Meta + Services).
+- **Тести:** 361 headless (`run-core-tests.sh`), 464 EditMode (UI + Meta + Services).
 
 ## Запас (Reserve/)
 
@@ -101,10 +101,10 @@ SpacePaint — мобільна головоломка про фарбу: ста
 ## Команди
 
 ```bash
-bash Tools/run-core-tests.sh      # headless, 352 тести; працює при ВІДКРИТОМУ редакторі
+bash Tools/run-core-tests.sh      # headless, 361 тест; працює при ВІДКРИТОМУ редакторі
 bash Tools/check-compile.sh       # компіляція точно тими response-файлами, що в редактора
 python3 Tools/check-ui-animation.py && python3 Tools/check-glyphs.py && python3 Tools/check-navigation.py
-"/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet" run --project Tools/InkFlow.Sim -c Release --verbosity quiet -- --games 1000 --seed 42 --noise 3   # бот; --bot sloppy|default|careful, --weights a,b,c,d,e[,w], --no-carry, --csv; --bot planner (уважний гравець), --continues N, --rarity-chances, --plain (мішок «до»), --bag/--tiers/--steps (калібрування); код 1 — є несправедливі смерті
+"/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet" run --project Tools/InkFlow.Sim -c Release --verbosity quiet -- --games 1000 --seed 42 --noise 3   # бот; --bot sloppy|default|careful, --weights a,b,c,d,e[,w], --no-carry, --csv; --bot planner (уважний гравець), --continues N, --rarity-chances, --plain (мішок «до»), --bag/--tiers/--steps (калібрування), --galaxies N (забігів і годин на галактику); код 1 — є несправедливі смерті
 "/Applications/Unity/Hub/Editor/6000.5.4f1/Unity.app/Contents/MacOS/Unity" -batchmode -projectPath "$(pwd)" -runTests -testPlatform EditMode -testResults "$(pwd)/TestResults.xml" | cat   # лише при ЗАКРИТОМУ редакторі; лише UI — -testFilter InkFlow.UI.Tests
 ```
 
