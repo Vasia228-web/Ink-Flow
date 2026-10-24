@@ -130,7 +130,6 @@ namespace InkFlow.UI.Tests
 
             Assert.IsTrue(rig.Screen.PreviewFooterShown, "у виборі — низ із кнопкою");
             Assert.IsFalse(rig.Screen.PreviewNavBarShown, "у виборі навігації немає");
-            Assert.IsFalse(rig.Screen.PreviewThemesShown, "у виборі — лише рідкості (S06_02)");
             Assert.IsFalse(rig.Screen.PreviewPlaceEnabled, "поки нічого не обрано — кнопка спить");
 
             CollectionCard? usedCard = null, freeCard = null;
@@ -170,7 +169,6 @@ namespace InkFlow.UI.Tests
             rig.Enter(player, CollectionArgs.Tab());
             Assert.IsTrue(rig.Screen.PreviewNavBarShown, "вкладка — з навігацією");
             Assert.IsFalse(rig.Screen.PreviewBackShown, "вкладка — без «‹»");
-            Assert.IsTrue(rig.Screen.PreviewThemesShown);
             Assert.IsFalse(rig.Screen.PreviewFooterShown);
 
             rig.Enter(player, new CollectionArgs());

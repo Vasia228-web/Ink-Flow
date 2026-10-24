@@ -30,19 +30,8 @@ namespace InkFlow.Editor
         private const string DesignSystemPath = "Assets/_ScriptableObjects/Style/DesignSystem.asset";
         private const string SpriteAssetPath = "Assets/_Sprites/UI/InkFlow Icons.asset";
 
-        /// <summary>Чипів рідкості («Усі» + шість). Чипи тем — за бібліотекою, див. <see cref="ThemeChipCount"/>.</summary>
+        /// <summary>Чипів рідкості («Усі» + шість). Фільтра тем немає з 2026-10-23 (рішення автора) — лише рідкість.</summary>
         private const int RarityChips = 7;
-
-        /// <summary>Запас чипів тем понад бібліотеку: нова тема без перезбирання екрана.</summary>
-        private const int ThemeChipHeadroom = 4;
-
-        /// <summary>«Усі теми» + стільки тем, скільки в бібліотеці, плюс запас; без бібліотеки — лише запас.</summary>
-        private static int ThemeChipCount()
-        {
-            var asset = AssetDatabase.LoadAssetAtPath<PictureLibraryAsset>(MetaScreenRig<CollectionScreen>.LibraryPath);
-            var themes = asset != null ? asset.ToLibrary().Themes.Count : 0;
-            return 1 + themes + ThemeChipHeadroom;
-        }
 
         /// <summary>Рядків карток у пулі: в'юпорт найвищого телефона вміщає ~3.5, запас — два.</summary>
         private const int PoolRows = 6;
@@ -132,8 +121,6 @@ namespace InkFlow.Editor
             var pickInfo = BuildPickInfo(column, design!, out var pickIcon, out var pickText);
 
             U1.Gap(column, 6f);
-            var themesRow = ChipRow(column, "Themes", design!, ThemeChipCount(), withMarks: false, out var themesScroll, out var themeChips);
-            U1.Gap(column, 6f);
             var raritiesRow = ChipRow(column, "Rarities", design!, RarityChips, withMarks: true, out var raritiesScroll, out var rarityChips);
             _ = raritiesRow;
             U1.Gap(column, 8f);
@@ -176,13 +163,12 @@ namespace InkFlow.Editor
                 ("pickHeader", pickHeader), ("closeButton", close), ("pickTitle", pickTitle),
                 ("pickInfo", pickInfo), ("pickInfoIcon", pickIcon), ("pickInfoText", pickText),
                 ("planetIcon", U1.S("icon_planet")), ("showcaseIcon", U1.S("icon_grid")),
-                ("themesRow", themesRow), ("themesScroll", themesScroll), ("raritiesScroll", raritiesScroll),
+                ("raritiesScroll", raritiesScroll),
                 ("scroll", scroll), ("content", content),
                 ("emptyCard", empty), ("emptyTitle", emptyTitle), ("emptyBody", emptyBody), ("emptyPlay", emptyPlay),
                 ("footer", footer), ("hintLabel", hint), ("placeButton", place),
                 ("placeSprite", U1.S("button_coral")), ("offSprite", U1.S("button_off")),
                 ("navBar", navBar));
-            WireArray(screen, "themeChips", themeChips);
             WireArray(screen, "rarityChips", rarityChips);
             WireArray(screen, "cards", cards);
 
@@ -300,7 +286,7 @@ namespace InkFlow.Editor
             chips = new ChipView[count];
             for (var i = 0; i < count; i++)
             {
-                var label = i == 0 ? (withMarks ? "Усі" : "Усі теми") : "Тема";
+                var label = i == 0 ? "Усі" : "Рідкість";
                 chips[i] = U1.Chip(contentGo, $"Chip{i}", label, design, withMark: withMarks && i > 0);
             }
             return row;

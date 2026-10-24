@@ -80,9 +80,6 @@ namespace InkFlow.UI
         [SerializeField] private Sprite showcaseIcon;
 
         [Header("Фільтри")]
-        [SerializeField] private GameObject themesRow;
-        [SerializeField] private ScrollRect themesScroll;
-        [SerializeField] private ChipView[] themeChips = System.Array.Empty<ChipView>();
         [SerializeField] private ScrollRect raritiesScroll;
         [SerializeField] private ChipView[] rarityChips = System.Array.Empty<ChipView>();
 
@@ -113,16 +110,13 @@ namespace InkFlow.UI
         private readonly List<int> _cells = new List<int>(128);
         private readonly Dictionary<string, int> _placed = new Dictionary<string, int>(System.StringComparer.Ordinal);
         private readonly SlotAtlas _atlas = new SlotAtlas();
-        private readonly List<string> _themes = new List<string>(16);
 
         private CollectionArgs _args = new CollectionArgs();
-        private int _theme;      // 0 — усі
         private int _rarity;     // 0 — усі, далі (int)Rarity + 1
         private string? _selected;
         private int _firstBound = int.MinValue;
         private float _boundWidth = -1f;
         private int[] _boundRow = System.Array.Empty<int>();
-        private bool _themeOverflowReported;
 
         /// <summary>Назад / закрити вибір: на планету, профіль чи туди, звідки відкрили.</summary>
         public System.Action? BackRequested;
@@ -159,11 +153,10 @@ namespace InkFlow.UI
         /// <summary>Тестам і знімкам: коралова «Поставити».</summary>
         public void PreviewPlace() => OnPlaceClicked();
 
-        /// <summary>Тестам: чи видна картка порожнього фільтра, навігація, «‹», рядок тем, низ із кнопкою.</summary>
+        /// <summary>Тестам: чи видна картка порожнього фільтра, навігація, «‹», низ із кнопкою.</summary>
         public bool PreviewEmptyShown => emptyCard != null && emptyCard.activeSelf;
         public bool PreviewNavBarShown => navBar != null && navBar.gameObject.activeSelf;
         public bool PreviewBackShown => backButton != null && backButton.gameObject.activeSelf;
-        public bool PreviewThemesShown => themesRow != null && themesRow.activeSelf;
         public bool PreviewFooterShown => footer != null && footer.activeSelf;
         public bool PreviewPlaceEnabled => placeButton != null && placeButton.Interactable;
         public string PreviewPlaceText => placeButton != null ? placeButton.Text : string.Empty;
@@ -178,11 +171,6 @@ namespace InkFlow.UI
             if (closeButton != null)
                 closeButton.onClick.AddListener(() => BackRequested?.Invoke());
             WireSettingsButton(settingsButton);
-            for (var i = 0; i < themeChips.Length; i++)
-            {
-                var index = i;
-                themeChips[i]?.Button.onClick.AddListener(() => SetTheme(index));
-            }
             for (var i = 0; i < rarityChips.Length; i++)
             {
                 var index = i;
@@ -210,25 +198,13 @@ namespace InkFlow.UI
         {
             base.OnEnter(args);
             _args = args as CollectionArgs ?? new CollectionArgs();
-            _theme = 0;
             _rarity = 0;
             _selected = null;
             if (scroll != null)
                 scroll.verticalNormalizedPosition = 1f;
-            if (themesScroll != null)
-                themesScroll.horizontalNormalizedPosition = 0f;
             if (raritiesScroll != null)
                 raritiesScroll.horizontalNormalizedPosition = 0f;
             Apply();
-        }
-
-        /// <summary>Фільтр за темою: 0 — усі, далі індекс у списку тем бібліотеки.</summary>
-        public void SetTheme(int index)
-        {
-            _theme = Mathf.Clamp(index, 0, _themes.Count);
-            OnFilterChanged();
-            Rebuild();
-            Reveal(themesScroll, _theme < themeChips.Length ? themeChips[_theme] : null);
         }
 
         /// <summary>Фільтр за рідкістю: 0 — усі, далі (int)Rarity + 1.</summary>
@@ -295,8 +271,6 @@ namespace InkFlow.UI
             Toggle(pickHeader, pick);
             Toggle(subtitle, !pick);
             Toggle(pickInfo, pick);
-            // У виборі — лише рідкості (S06_02): тема тут другорядна, а місце — сітці.
-            Toggle(themesRow, !pick);
             Toggle(footer, pick);
             Toggle(navBar, !pick && _args.IsTab);
             Toggle(backButton, !pick && !_args.IsTab);
@@ -312,12 +286,6 @@ namespace InkFlow.UI
             var library = State?.Library ?? PictureLibrary.Fallback;
             if (pick)
                 ApplyPickInfo();
-
-            _themes.Clear();
-            for (var i = 0; i < library.Themes.Count; i++)
-                _themes.Add(library.Themes[i]);
-            if (_theme > _themes.Count)
-                _theme = 0;
 
             // Усе зібране — в атлас, один раз на вхід.
             _all.Clear();
@@ -336,7 +304,6 @@ namespace InkFlow.UI
             else
                 _placed.Clear();
 
-            ApplyThemeChips();
             ApplyRarityChips();
             ApplyPlaceButton();
             Rebuild();
@@ -353,31 +320,9 @@ namespace InkFlow.UI
             }
             else
             {
-                var planet = (State?.Layout ?? GalaxyLayout.Default).Find(_args.PlanetId!);
+                var planet = (State?.Layout ?? GalaxyLayout.Default).For(_args.Galaxy).Find(_args.PlanetId!);
                 pickInfoText.text = $"Комірка {_args.Slot + 1} · планета {(planet != null ? planet.Name : "—")}";
                 if (pickInfoIcon != null && planetIcon != null) pickInfoIcon.sprite = planetIcon;
-            }
-        }
-
-        private void ApplyThemeChips()
-        {
-            if (!_themeOverflowReported && _themes.Count + 1 > themeChips.Length)
-            {
-                _themeOverflowReported = true;
-                Debug.LogError($"[InkFlow] Тем у бібліотеці {_themes.Count}, а чипів у пулі {themeChips.Length}: " +
-                               "перезбери екран (Ink Flow → Setup → Build Collection Screen), інакше частина тем недосяжна.");
-            }
-            for (var i = 0; i < themeChips.Length; i++)
-            {
-                var chip = themeChips[i];
-                if (chip == null)
-                    continue;
-                var used = i <= _themes.Count;
-                Toggle(chip, used);
-                if (!used)
-                    continue;
-                chip.Text = i == 0 ? "Усі теми" : ThemeNames.Of(_themes[i - 1]);
-                chip.SetOn(i == _theme);
             }
         }
 
@@ -413,9 +358,6 @@ namespace InkFlow.UI
                 var picture = _all[i];
                 if (picture == null)
                     continue;
-                if (_theme > 0 && _theme - 1 < _themes.Count &&
-                    !string.Equals(picture.ThemeId, _themes[_theme - 1], System.StringComparison.Ordinal))
-                    continue;
                 if (_rarity > 0 && (int)picture.Rarity != _rarity - 1)
                     continue;
                 _ids.Add(picture.Id);
@@ -423,7 +365,6 @@ namespace InkFlow.UI
                 _cells.Add(i);
             }
 
-            ApplyThemeChips();
             ApplyRarityChips();
 
             if (subtitle != null)
@@ -458,7 +399,7 @@ namespace InkFlow.UI
                 emptyTitle.text = "Колекція поки порожня";
                 emptyBody.text = "Домалюй картинку в Нескінченному — і вона з'явиться тут.";
             }
-            else if (_rarity > 0 && _theme == 0)
+            else if (_rarity > 0)
             {
                 var rarity = (Rarity)(_rarity - 1);
                 emptyTitle.text = $"Ще немає {RarityNames.GenitivePlural(rarity)} картинок";
@@ -469,7 +410,7 @@ namespace InkFlow.UI
             else
             {
                 emptyTitle.text = "Тут поки нічого немає";
-                emptyBody.text = "Спробуй іншу тему чи рідкість — або грай далі.";
+                emptyBody.text = "Спробуй іншу рідкість — або грай далі.";
             }
             Toggle(emptyPlay, !_args.IsPick);
         }
