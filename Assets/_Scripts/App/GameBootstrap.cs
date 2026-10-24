@@ -143,14 +143,11 @@ namespace InkFlow.App
             var config = appConfig;
             ServiceLocator.Register<IIdentityService>(new InkFlow.Platform.Ugs.UgsIdentity());
             ServiceLocator.Register<ILeaderboardService>(new InkFlow.Platform.Ugs.UgsLeaderboards(
-                config != null ? config.LeaderboardPlanetsWeek : string.Empty,
                 config != null ? config.LeaderboardPlanetsAll : string.Empty,
-                config != null ? config.LeaderboardGalaxiesWeek : string.Empty,
-                config != null ? config.LeaderboardGalaxiesAll : string.Empty,
-                // Прихований профіль (§15): у метадані таблиці нік і аватар не йдуть — лише прапорець.
-                () => _state == null ? (string.Empty, 0, false)
-                    : _state.Settings.ProfileHidden ? (string.Empty, 0, true)
-                    : (_state.Nick, _state.AvatarId, false)));
+                // Прихований профіль (§15): у метадані таблиці нік і аватар не йдуть — лише прапорець і числа.
+                () => _state == null ? (string.Empty, 0, false, 0, 0L)
+                    : _state.Settings.ProfileHidden ? (string.Empty, 0, true, _state.GalaxiesDone, (long)_state.Progress.EndlessRecord)
+                    : (_state.Nick, _state.AvatarId, false, _state.GalaxiesDone, (long)_state.Progress.EndlessRecord)));
             ServiceLocator.Register<IShowcaseService>(new InkFlow.Platform.Ugs.UgsShowcase(config != null ? config.CloudShowcaseKey : string.Empty));
 #elif UNITY_EDITOR || DEVELOPMENT_BUILD
             var layout = LoadLayout().For(0);

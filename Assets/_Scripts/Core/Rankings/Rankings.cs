@@ -35,8 +35,11 @@ namespace InkFlow.Core
     /// <summary>Рядок таблиці лідерів, як його віддає сервіс: лише те, що потрібно екрану.</summary>
     public sealed class LeaderboardEntry
     {
-        public LeaderboardEntry(string playerId, string nick, int avatarId, bool incognito, long value, int rank)
+        public LeaderboardEntry(string playerId, string nick, int avatarId, bool incognito, long value, int rank,
+            int galaxies = 0, long bestScore = 0)
         {
+            Galaxies = galaxies;
+            BestScore = bestScore;
             PlayerId = playerId ?? string.Empty;
             Nick = nick ?? string.Empty;
             AvatarId = avatarId;
@@ -50,6 +53,10 @@ namespace InkFlow.Core
         public int AvatarId { get; }
         public bool Incognito { get; }
         public long Value { get; }
+
+        /// <summary>Завершених галактик і найкращий рахунок забігу — з метаданих запису (одна таблиця за планетами, 2026-10-24).</summary>
+        public int Galaxies { get; }
+        public long BestScore { get; }
 
         /// <summary>Місце, 1 — перше.</summary>
         public int Rank { get; }
@@ -183,6 +190,9 @@ namespace InkFlow.Core
             };
         }
 
+        /// <summary>Найкращий рахунок мокового гравця — у метаданих рядка.</summary>
+        public static long BestScoreOf(int index) => 184_250 - index * 7_350L;
+
         /// <summary>Сторінка таблиці з місцем гравця, порахованим від його значення <paramref name="yourValue"/>.</summary>
         public static LeaderboardPage Page(RankMetric metric, RankPeriod period, long yourValue, int limit = int.MaxValue)
         {
@@ -209,7 +219,8 @@ namespace InkFlow.Core
                 }
                 if (entries.Count < limit)
                     entries.Add(new LeaderboardEntry(PlayerIdOf(index), Nicks[index], index % 8,
-                        Array.IndexOf(Incognito, index) >= 0, value, r + 1));
+                        Array.IndexOf(Incognito, index) >= 0, value, r + 1,
+                        (int)ValueOf(index, RankMetric.Galaxies, RankPeriod.AllTime), BestScoreOf(index)));
             }
             return new LeaderboardPage(metric, period, LeaderboardStatus.Ok, entries, yourRank, yourValue, aheadValue: ahead);
         }

@@ -41,17 +41,6 @@ namespace InkFlow.UI
         [SerializeField] private RectTransform youProgressFill;
         [SerializeField] private TMP_Text youGap;
 
-        [Header("Метрика й період")]
-        [SerializeField] private Button[] metricButtons = Array.Empty<Button>();
-        [SerializeField] private Image[] metricOn = Array.Empty<Image>();
-        [SerializeField] private TMP_Text[] metricLabels = Array.Empty<TMP_Text>();
-        [SerializeField] private Button weekButton;
-        [SerializeField] private Button allTimeButton;
-        [SerializeField] private TMP_Text weekLabel;
-        [SerializeField] private TMP_Text allTimeLabel;
-        [SerializeField] private Image weekUnderline;
-        [SerializeField] private Image allTimeUnderline;
-
         [Header("Таблиця")]
         [SerializeField] private GameObject tableCard;
         [SerializeField] private ScrollRect scroll;
@@ -80,8 +69,9 @@ namespace InkFlow.UI
         private int _pageLimit = 50;
 
         private Leaderboard? _board;
-        private RankMetric _metric = RankMetric.Planets;
-        private RankPeriod _period = RankPeriod.Week;
+        // Одна таблиця (2026-10-24): планети за весь час; галактики й рекорд — поруч у рядку.
+        private const RankMetric _metric = RankMetric.Planets;
+        private const RankPeriod _period = RankPeriod.AllTime;
         private bool _loading;
         private bool _requesting;
         private int _request;
@@ -113,8 +103,6 @@ namespace InkFlow.UI
         public string PreviewYouGap => youGap != null && youGap.gameObject.activeInHierarchy ? youGap.text : string.Empty;
         public float PreviewYouProgress => youProgressFill != null ? youProgressFill.localScale.x : 0f;
         public RankingRow[] PreviewRows => rows;
-        public void PreviewSetMetric(RankMetric metric) => SetMetric(metric);
-        public void PreviewSetPeriod(RankPeriod period) => SetPeriod(period);
         public void PreviewRetry() => Retry();
         /// <summary>Тестам: тап по гравцю, як пальцем.</summary>
         public void PreviewOpen(RankPlayer player) => OpenPlayer(player);
@@ -140,15 +128,6 @@ namespace InkFlow.UI
             if (backButton != null)
                 backButton.onClick.AddListener(() => BackRequested?.Invoke());
             WireSettingsButton(settingsButton);
-            if (weekButton != null)
-                weekButton.onClick.AddListener(() => SetPeriod(RankPeriod.Week));
-            if (allTimeButton != null)
-                allTimeButton.onClick.AddListener(() => SetPeriod(RankPeriod.AllTime));
-            for (var i = 0; i < metricButtons.Length; i++)
-            {
-                var metric = (RankMetric)i;
-                metricButtons[i]?.onClick.AddListener(() => SetMetric(metric));
-            }
             if (retryButton != null)
                 retryButton.Button.onClick.AddListener(Retry);
             if (scroll != null)
@@ -296,8 +275,6 @@ namespace InkFlow.UI
             navBar?.SetActive(NavBar.Ranks);
             currency?.Apply();
 
-            ApplyMetricSegments();
-            ApplyPeriodTabs();
             ApplyBoard();
         }
 
@@ -307,62 +284,6 @@ namespace InkFlow.UI
             ApplyStatus();
             ApplyList();
             ApplyYouCard();
-        }
-
-        private void SetMetric(RankMetric metric)
-        {
-            if (_metric == metric)
-                return;
-            _metric = metric;
-            ApplyMetricSegments();
-            Request();
-            ApplyBoard();
-        }
-
-        private void SetPeriod(RankPeriod period)
-        {
-            if (_period == period)
-                return;
-            _period = period;
-            ApplyPeriodTabs();
-            Request();
-            ApplyBoard();
-        }
-
-        /// <summary>Сегменти «Планети / Галактики»: активний — бірюзова цукерка з написом teal-ink, другий — ink-muted.</summary>
-        private void ApplyMetricSegments()
-        {
-            for (var i = 0; i < metricLabels.Length; i++)
-            {
-                var active = (int)_metric == i;
-                if (metricLabels[i] != null)
-                {
-                    metricLabels[i].text = Leaderboard.Title((RankMetric)i);
-                    metricLabels[i].color = active ? design.TealInk : design.InkMuted;
-                }
-                if (i < metricOn.Length && metricOn[i] != null)
-                    metricOn[i].enabled = active;
-            }
-        }
-
-        /// <summary>Таби періоду: активний — ink з бурштиновим підкресленням, другий — ink-muted.</summary>
-        private void ApplyPeriodTabs()
-        {
-            var week = _period == RankPeriod.Week;
-            if (weekLabel != null)
-            {
-                weekLabel.text = "Цей тиждень";
-                weekLabel.color = week ? design.InkText : design.InkMuted;
-            }
-            if (allTimeLabel != null)
-            {
-                allTimeLabel.text = "За весь час";
-                allTimeLabel.color = week ? design.InkMuted : design.InkText;
-            }
-            if (weekUnderline != null)
-                weekUnderline.enabled = week;
-            if (allTimeUnderline != null)
-                allTimeUnderline.enabled = !week;
         }
 
         /// <summary>Картка стану замість таблиці (S08_04): завантаження, немає з'єднання, не підключено, помилка, порожньо.</summary>
@@ -487,13 +408,9 @@ namespace InkFlow.UI
             if (youNick != null)
                 youNick.text = $"Ти · {you.Nick}";
 
-            var unit = _metric == RankMetric.Planets
-                ? Plural.Of(Clip(you.Value), "планета", "планети", "планет")
-                : Plural.Of(Clip(you.Value), "галактика", "галактики", "галактик");
-            var period = _period == RankPeriod.Week ? "за тиждень" : "за весь час";
             if (youSubtitle != null)
                 youSubtitle.text = online || position > 0
-                    ? $"{ScoreFormat.Full(you.Value)} {unit} {period}"
+                    ? $"{ScoreFormat.Full(you.Value)} {Plural.Of(Clip(you.Value), "планета", "планети", "планет")} · {RankingRow.Details(you)}"
                     : "місце оновиться з інтернетом";
 
             var showProgress = online && position > 0;
@@ -506,9 +423,7 @@ namespace InkFlow.UI
             if (youGap != null)
             {
                 var gap = _board.GapToNext;
-                var gapUnit = _metric == RankMetric.Planets
-                    ? Plural.Of(Clip(gap), "планета", "планети", "планет")
-                    : Plural.Of(Clip(gap), "галактика", "галактики", "галактик");
+                var gapUnit = Plural.Of(Clip(gap), "планета", "планети", "планет");
                 youGap.text = position == 1 ? "Ти перший — тримай місце!"
                     : gap > 0 ? $"ще {ScoreFormat.Full(gap)} {gapUnit} до №{position - 1}"
                     : $"нарівні з №{position - 1}";

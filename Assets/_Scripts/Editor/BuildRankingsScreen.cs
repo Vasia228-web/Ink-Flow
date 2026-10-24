@@ -107,9 +107,7 @@ namespace InkFlow.Editor
                 out var youNick, out var youSubtitle, out var progressRow, out var progressFill, out var youGap);
             _ = you;
 
-            BuildSegments(column, design!, out var metricButtons, out var metricOn, out var metricLabels);
-            BuildPeriodTabs(column, design!, out var weekButton, out var allButton, out var weekLabel, out var allLabel,
-                out var weekLine, out var allLine);
+            // Одна таблиця «планети за весь час» (2026-10-24, рішення автора): без «Цей тиждень» і «Планети / Галактики».
 
             var area = Child(column, "Area");
             area.AddComponent<LayoutElement>().flexibleHeight = 1f;
@@ -127,15 +125,10 @@ namespace InkFlow.Editor
                 ("youGroup", youGroup), ("youRing", youRing), ("youPosition", youPosition), ("youAvatar", youAvatar),
                 ("youNick", youNick), ("youSubtitle", youSubtitle), ("youProgressRow", progressRow),
                 ("youProgressFill", progressFill), ("youGap", youGap),
-                ("weekButton", weekButton), ("allTimeButton", allButton), ("weekLabel", weekLabel), ("allTimeLabel", allLabel),
-                ("weekUnderline", weekLine), ("allTimeUnderline", allLine),
                 ("tableCard", table), ("scroll", scroll), ("listContent", listContent),
                 ("statusCard", status), ("statusIcon", statusIcon), ("statusTitle", statusTitle), ("statusHint", statusHint),
                 ("retryButton", retry), ("offlineIcon", U1.S("icon_wifi_off")), ("emptyIcon", U1.S("icon_trophy")),
                 ("navBar", navBar), ("incognitoAvatar", U1.S("avatar_incognito")));
-            WireArray(screen, "metricButtons", metricButtons);
-            WireArray(screen, "metricOn", metricOn);
-            WireArray(screen, "metricLabels", metricLabels);
             WireArray(screen, "rows", rows);
             WireArray(screen, "avatarSprites", avatars);
 
@@ -214,9 +207,13 @@ namespace InkFlow.Editor
             nick = U1.Text(texts, "Nick", "Ти · Гравець", design, U1.Role.H2, design.InkText, TextAlignmentOptions.Left);
             nick.textWrappingMode = TextWrappingModes.NoWrap;
             nick.overflowMode = TextOverflowModes.Ellipsis;
-            subtitle = U1.Text(texts, "Subtitle", "2 планети за тиждень", design, U1.Role.Body, design.InkMuted, TextAlignmentOptions.Left);
+            subtitle = U1.Text(texts, "Subtitle", "2 планети · 0 гал. · рекорд 12 340", design, U1.Role.Body, design.InkMuted, TextAlignmentOptions.Left);
             subtitle.textWrappingMode = TextWrappingModes.NoWrap;
             subtitle.overflowMode = TextOverflowModes.Ellipsis;
+            // Планети, галактики й рекорд в один рядок: на iPhone SE кегль стискається до 80 %, далі — «…».
+            subtitle.enableAutoSizing = true;
+            subtitle.fontSizeMax = design.UiBody;
+            subtitle.fontSizeMin = design.UiBody * 0.8f;
 
             progressRow = Child(card, "Progress");
             var progressCol = progressRow.AddComponent<VerticalLayoutGroup>();
@@ -246,102 +243,6 @@ namespace InkFlow.Editor
             gap.textWrappingMode = TextWrappingModes.NoWrap;
             gap.overflowMode = TextOverflowModes.Ellipsis;
             return card;
-        }
-
-        // ── Сегменти «Планети / Галактики» (S08): доріжка segment_track 56, активна половина — segment_on ──
-        private static void BuildSegments(GameObject parent, DesignSystem design, out Button[] buttons, out Image[] on, out TMP_Text[] labels)
-        {
-            var trackGo = Child(parent, "Metric");
-            var track = trackGo.AddComponent<Image>();
-            track.sprite = U1.S("segment_track");
-            track.type = Image.Type.Sliced;
-            track.raycastTarget = false;
-            // flexibleHeight 0 явно: ряд половин із childForceExpandHeight робить доріжку гнучкою, і вона ділила б
-            // залишок стовпчика з таблицею (той самий урок, що з NavBar).
-            U1.Size(trackGo, 0f, 52f).flexibleHeight = 0f;
-            var row = trackGo.AddComponent<HorizontalLayoutGroup>();
-            var pad = (int)U1.Px(4f);
-            row.padding = new RectOffset(pad, pad, pad, pad);
-            row.childControlWidth = row.childControlHeight = true;
-            row.childForceExpandWidth = row.childForceExpandHeight = true;
-
-            buttons = new Button[2];
-            on = new Image[2];
-            labels = new TMP_Text[2];
-            for (var i = 0; i < 2; i++)
-            {
-                var segGo = Child(trackGo, i == 0 ? "Planets" : "Galaxies");
-                var seg = segGo.AddComponent<Image>();
-                seg.sprite = U1.S("segment_on");
-                seg.type = Image.Type.Sliced;
-                seg.enabled = i == 0;
-                var share = segGo.AddComponent<LayoutElement>();
-                share.preferredWidth = 0f;
-                share.flexibleWidth = 1f;
-                // Тап — на всю половину, навіть коли спрайт вимкнений: окрема прозора ціль.
-                var hitGo = Child(segGo, "Hit");
-                Stretch(hitGo);
-                var hit = hitGo.AddComponent<Image>();
-                hit.color = Color.clear;
-                var button = segGo.AddComponent<Button>();
-                button.targetGraphic = hit;
-                button.transition = Selectable.Transition.None;
-                var label = U1.Text(segGo, "Label", i == 0 ? "Планети" : "Галактики", design, U1.Role.ButtonSmall,
-                    i == 0 ? design.TealInk : design.InkMuted);
-                Stretch(label.gameObject);
-                buttons[i] = button;
-                on[i] = seg;
-                labels[i] = label;
-            }
-        }
-
-        // ── Таби періоду: «Цей тиждень» / «За весь час» h3, під активним — бурштинове tab_underline ──
-        private static void BuildPeriodTabs(GameObject parent, DesignSystem design, out Button week, out Button all,
-            out TMP_Text weekLabel, out TMP_Text allLabel, out Image weekLine, out Image allLine)
-        {
-            var rowGo = Child(parent, "Period");
-            var row = rowGo.AddComponent<HorizontalLayoutGroup>();
-            row.spacing = U1.Px(22f);
-            row.padding = new RectOffset((int)U1.Px(4f), 0, 0, 0);
-            row.childAlignment = TextAnchor.MiddleLeft;
-            row.childControlWidth = row.childControlHeight = true;
-            row.childForceExpandWidth = false;
-            row.childForceExpandHeight = true; // зона тапу табу — уся висота ряду (≥ 44), не лише напис
-            U1.Size(rowGo, 0f, 44f).flexibleHeight = 0f;
-
-            week = Tab(rowGo, "Week", "Цей тиждень", design, out weekLabel, out weekLine);
-            all = Tab(rowGo, "AllTime", "За весь час", design, out allLabel, out allLine);
-            allLine.enabled = false;
-        }
-
-        private static Button Tab(GameObject parent, string name, string text, DesignSystem design, out TMP_Text label, out Image line)
-        {
-            var go = Child(parent, name);
-            var hit = go.AddComponent<Image>();
-            hit.color = Color.clear;
-            var col = go.AddComponent<VerticalLayoutGroup>();
-            col.spacing = U1.Px(4f);
-            col.childAlignment = TextAnchor.MiddleCenter;
-            col.childControlWidth = col.childControlHeight = true;
-            col.childForceExpandWidth = true;
-            col.childForceExpandHeight = false;
-            // Група з childForceExpandWidth сама каже ряду «я гнучка» — таб забирав би пів ряду. Ширина — за написом.
-            go.AddComponent<LayoutElement>().flexibleWidth = 0f;
-            label = U1.Text(go, "Label", text, design, U1.Role.H3, design.InkText);
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            var lineGo = Child(go, "Underline");
-            line = lineGo.AddComponent<Image>();
-            line.sprite = U1.S("tab_underline");
-            line.type = Image.Type.Sliced;
-            line.color = design.Amber;
-            line.raycastTarget = false;
-            // Ширина — за написом: інакше Image віддав би розкладці ширину свого спрайта, і таб розтягувався б.
-            var lineSize = U1.Size(lineGo, 0f, 4f);
-            lineSize.preferredWidth = lineSize.minWidth = 0f;
-            var button = go.AddComponent<Button>();
-            button.targetGraphic = hit;
-            button.transition = Selectable.Transition.None;
-            return button;
         }
 
         // ── Картка таблиці: panel_card, вертикальний скрол, пул рядків 56 ──
@@ -437,20 +338,32 @@ namespace InkFlow.Editor
             avatar.raycastTarget = false;
             U1.Size(avatarGo, 40f, 40f);
 
-            var nick = U1.Text(rowGo, "Nick", "Вега", design, U1.Role.H3, design.InkText, TextAlignmentOptions.Left);
+            // Нік і під ним «2 галактики · рекорд 12 340» — стовпчиком, що забирає ширину між аватаром і числом.
+            var names = Child(rowGo, "Names");
+            var namesCol = names.AddComponent<VerticalLayoutGroup>();
+            namesCol.childAlignment = TextAnchor.MiddleLeft;
+            namesCol.childControlWidth = namesCol.childControlHeight = true;
+            namesCol.childForceExpandWidth = true;
+            namesCol.childForceExpandHeight = false;
+            var namesSize = names.AddComponent<LayoutElement>();
+            namesSize.preferredWidth = 0f;
+            namesSize.minWidth = 0f;
+            namesSize.flexibleWidth = 1f;
+            var nick = U1.Text(names, "Nick", "Вега", design, U1.Role.H3, design.InkText, TextAlignmentOptions.Left);
             nick.textWrappingMode = TextWrappingModes.NoWrap;
             nick.overflowMode = TextOverflowModes.Ellipsis;
-            var nickSize = nick.gameObject.AddComponent<LayoutElement>();
-            nickSize.preferredWidth = 0f;
-            nickSize.minWidth = 0f;
-            nickSize.flexibleWidth = 1f;
+            var detail = U1.Text(names, "Detail", "2 гал. · рекорд 12 340", design, U1.Role.Caption, design.InkMuted, TextAlignmentOptions.Left);
+            detail.font = design.FontBody;
+            detail.textWrappingMode = TextWrappingModes.NoWrap;
+            detail.overflowMode = TextOverflowModes.Ellipsis;
 
             var value = U1.Text(rowGo, "Value", "56", design, U1.Role.H3, design.InkText, TextAlignmentOptions.Right);
             value.textWrappingMode = TextWrappingModes.NoWrap;
             value.enableAutoSizing = true;
             value.fontSizeMax = design.UiH3;
             value.fontSizeMin = design.UiH3 * 0.7f;
-            U1.Size(value.gameObject, 96f, 0f);
+            // Планет — до 4–5 цифр, тож 72 вистачає (автостиск до 70 %); ширина йде другому рядку ніка.
+            U1.Size(value.gameObject, 72f, 0f);
 
             var divider = U1.Divider(go, "Divider", design);
             var dividerRect = divider.rectTransform;
@@ -466,7 +379,7 @@ namespace InkFlow.Editor
 
             var component = go.AddComponent<RankingRow>();
             Wire(component, ("design", design), ("button", button), ("highlight", highlight), ("medal", medal), ("place", place),
-                ("avatar", avatar), ("nick", nick), ("value", value), ("divider", divider), ("incognito", U1.S("avatar_incognito")));
+                ("avatar", avatar), ("nick", nick), ("detail", detail), ("value", value), ("divider", divider), ("incognito", U1.S("avatar_incognito")));
             WireArray(component, "medals", medals);
             WireArray(component, "avatars", avatars);
             _ = quad;

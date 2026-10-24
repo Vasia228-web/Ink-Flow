@@ -23,7 +23,7 @@ namespace InkFlow.App
         private readonly ILeaderboardService _leaderboards;
         private readonly IShowcaseService _showcases;
         private readonly Func<DateTime> _clock;
-        private readonly Dictionary<(RankMetric, RankPeriod), long> _sent = new Dictionary<(RankMetric, RankPeriod), long>();
+        private string? _sentSignature;
         private string? _publishedSignature;
         private bool _dirty;
         private bool _signingIn;
@@ -93,21 +93,19 @@ namespace InkFlow.App
                     });
             }
 
+            // Одна таблиця «Планети за весь час» (2026-10-24): галактики, рекорд, нік і аватар — у метаданих запису,
+            // тож запис іде знову, коли змінилось будь-що з цього, а не лише кількість планет.
             if (_leaderboards.IsAvailable)
-                foreach (var metric in new[] { RankMetric.Planets, RankMetric.Galaxies })
-                    foreach (var period in new[] { RankPeriod.Week, RankPeriod.AllTime })
-                        SubmitIfChanged(metric, period, _state.RankValue(metric, period, now));
-        }
-
-        private void SubmitIfChanged(RankMetric metric, RankPeriod period, long value)
-        {
-            if (_sent.TryGetValue((metric, period), out var last) && last == value)
-                return;
-            _leaderboards.Submit(metric, period, value, ok =>
             {
-                if (ok) { _sent[(metric, period)] = value; Submissions++; }
-                else _dirty = true;
-            });
+                var planets = _state.RankValue(RankMetric.Planets, RankPeriod.AllTime, now);
+                var signature = $"{planets}|{_state.GalaxiesDone}|{_state.Progress.EndlessRecord}|{_state.Nick}|{_state.AvatarId}|{_state.Settings.ProfileHidden}";
+                if (!string.Equals(signature, _sentSignature, StringComparison.Ordinal))
+                    _leaderboards.Submit(RankMetric.Planets, RankPeriod.AllTime, planets, ok =>
+                    {
+                        if (ok) { _sentSignature = signature; Submissions++; }
+                        else _dirty = true;
+                    });
+            }
         }
 
         private void SignIn()

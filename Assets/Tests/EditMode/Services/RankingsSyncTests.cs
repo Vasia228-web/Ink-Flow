@@ -49,7 +49,7 @@ namespace InkFlow.Services.Tests
         }
 
         [Test]
-        public void Start_PublishesShowcaseAndBothPeriods_OnceForUnchangedState()
+        public void Start_PublishesShowcaseAndTheOneTable_OnceForUnchangedState()
         {
             var state = PlayerState.NewPlayer(EconomyData.Default);
             var boards = new FakeLeaderboards();
@@ -59,17 +59,17 @@ namespace InkFlow.Services.Tests
             sync.Start();
             Assert.AreEqual(1, showcases.Publications);
             Assert.AreEqual("cloud-1", showcases.LastPublished!.PlayerId);
-            Assert.AreEqual(4, boards.Submissions, "дві метрики × два періоди");
-            Assert.AreEqual(0, boards.Submitted(RankMetric.Planets, RankPeriod.Week));
+            Assert.AreEqual(1, boards.Submissions, "одна таблиця — планети за весь час (2026-10-24)");
+            Assert.AreEqual(0, boards.Submitted(RankMetric.Planets, RankPeriod.AllTime));
 
             sync.Start();
             sync.Flush();
             Assert.AreEqual(1, showcases.Publications, "нічого не змінилось — нічого не шлемо");
-            Assert.AreEqual(4, boards.Submissions);
+            Assert.AreEqual(1, boards.Submissions);
         }
 
         [Test]
-        public void WeekTableGetsTheWeekIncrement_AllTimeGetsTheCounter()
+        public void TheTableGetsPlanets_AndIsResentWhenTheRecordOrNickChanges()
         {
             var state = PlayerState.NewPlayer(EconomyData.Default);
             CompletePlanet(state, 0, Wednesday.AddDays(-10));
@@ -78,17 +78,23 @@ namespace InkFlow.Services.Tests
             using var sync = new RankingsSync(state, new FakeIdentity(), boards, new FakeShowcase(), () => Wednesday);
 
             sync.Start();
-            Assert.AreEqual(2, boards.Submitted(RankMetric.Planets, RankPeriod.AllTime), "за весь час — лічильник");
-            Assert.AreEqual(0, boards.Submitted(RankMetric.Planets, RankPeriod.Week), "минулого тижня — не цього");
-            Assert.AreEqual(4, boards.Submissions);
+            Assert.AreEqual(2, boards.Submitted(RankMetric.Planets, RankPeriod.AllTime), "за весь час — лічильник планет");
+            Assert.AreEqual(1, boards.Submissions);
 
             CompletePlanet(state, 2, Wednesday);
             Assert.IsTrue(sync.IsDirty, "постановка в слот позначила зміни");
             sync.Flush();
             Assert.AreEqual(3, boards.Submitted(RankMetric.Planets, RankPeriod.AllTime));
-            Assert.AreEqual(1, boards.Submitted(RankMetric.Planets, RankPeriod.Week), "цього тижня — приріст");
-            Assert.AreEqual(0, boards.Submitted(RankMetric.Galaxies, RankPeriod.AllTime));
-            Assert.AreEqual(6, boards.Submissions, "галактики не змінились — їх не шлемо повторно, лише дві планетні таблиці");
+            Assert.AreEqual(2, boards.Submissions);
+
+            // Рекорд — у метаданих запису: змінився — запис іде знову, хоч планет стільки ж.
+            state.Progress.EndlessRecord = 9_000;
+            sync.MarkDirty();
+            sync.Flush();
+            Assert.AreEqual(3, boards.Submissions, "новий рекорд — новий запис із тими самими планетами");
+            sync.MarkDirty();
+            sync.Flush();
+            Assert.AreEqual(3, boards.Submissions, "нічого не змінилось — не шлемо");
         }
 
         [Test]
@@ -174,7 +180,7 @@ namespace InkFlow.Services.Tests
             boards.Offline = false;
             sync.Flush();
             Assert.AreEqual(1, showcases.Publications);
-            Assert.AreEqual(4, boards.Submissions);
+            Assert.AreEqual(1, boards.Submissions);
             Assert.IsFalse(sync.IsDirty);
         }
 

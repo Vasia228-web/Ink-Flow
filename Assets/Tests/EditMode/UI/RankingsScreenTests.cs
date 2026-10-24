@@ -36,8 +36,8 @@ namespace InkFlow.UI.Tests
             var player = rig.NewPlayer();
             player.SetAvatar(4);
             rig.FillPlanet(player, 0);
+            player.Progress.EndlessRecord = 12_340;
             var leaderboards = new FakeLeaderboards();
-            leaderboards.Submit(RankMetric.Planets, RankPeriod.Week, 1);
             leaderboards.Submit(RankMetric.Planets, RankPeriod.AllTime, 1);
             var (ids, slots) = LayoutOf(player);
             rig.Screen.BindServices(leaderboards, new FakeShowcase(ids, slots), new FakeIdentity("local-player"));
@@ -53,7 +53,10 @@ namespace InkFlow.UI.Tests
             Assert.AreEqual(1, board.You.Value, "картка «Ти» — з локального файлу: одна планета ожила");
             Assert.AreEqual(4, board.You.AvatarId, "аватар із профілю");
             Assert.AreEqual($"#{board.YourPosition}", rig.Screen.PreviewYouPosition);
-            Assert.AreEqual("1 планета за тиждень", rig.Screen.PreviewYouSubtitle);
+            Assert.AreEqual("1 планета · 0 гал. · рекорд 12\u00A0340", rig.Screen.PreviewYouSubtitle,
+                "одна таблиця за весь час: планети, а поруч — галактики й рекорд");
+            Assert.AreEqual(RankPeriod.AllTime, board.Period);
+            Assert.Greater(board.Players[0].BestScore, 0, "рекорд гравця — з метаданих рядка");
             Assert.AreEqual(4, board.You.AvatarId, "аватар-спрайт із профілю");
             Assert.Greater(rig.Screen.PreviewYouProgress, 0f, "смужка до наступного місця");
             StringAssertContains(rig.Screen.PreviewYouGap, "до №");
@@ -81,12 +84,6 @@ namespace InkFlow.UI.Tests
             Assert.IsTrue(rig.Screen.PreviewRetryShown, "без мережі — «Спробувати ще» (S08_04)");
             Assert.AreEqual("#—", rig.Screen.PreviewYouPosition, "місця без сервера не вигадуємо");
             Assert.AreEqual("місце оновиться з інтернетом", rig.Screen.PreviewYouSubtitle, "S08_04: без мережі — ні місця, ні смужки");
-
-            // Перемикання метрики й періоду без мережі теж не падає.
-            rig.Screen.PreviewSetMetric(RankMetric.Galaxies);
-            rig.Screen.PreviewSetPeriod(RankPeriod.AllTime);
-            Assert.IsTrue(rig.Screen.PreviewStatusShown);
-            Assert.AreEqual("#—", rig.Screen.PreviewYouPosition, "і після перемикання — без вигаданого місця");
         }
 
         [Test]
@@ -155,22 +152,20 @@ namespace InkFlow.UI.Tests
         }
 
         [Test]
-        public void StaleAnswer_AfterSwitchingTheMetric_IsIgnored_AndTheNewOneLands()
+        public void StaleAnswer_AfterReEntering_IsIgnored_AndTheNewOneLands()
         {
             using var rig = MetaScreenRig<RankingsScreen>.Create(ScreenRigBase.Devices[0], "RankingsScreen");
             var player = rig.NewPlayer();
             var slow = new DelayedLeaderboards();
             rig.Screen.BindServices(slow, new FakeShowcase(), new FakeIdentity());
 
-            rig.Enter(player, ScreenArgs.Empty);                 // запит «Планети»
-            rig.Screen.PreviewSetMetric(RankMetric.Galaxies);    // запит «Галактики», старий ще в дорозі
-            slow.AnswerOldest();                                 // приходить відповідь «Планети»
-            Assert.AreEqual(0, rig.Screen.PreviewBoard!.Players.Count, "стара відповідь не лягає на новий зріз");
-            Assert.AreEqual(RankMetric.Galaxies, rig.Screen.PreviewBoard.Metric);
+            rig.Enter(player, ScreenArgs.Empty);                 // перший запит
+            rig.Enter(player, ScreenArgs.Empty);                 // другий, перший ще в дорозі
+            slow.AnswerOldest();                                 // приходить стара відповідь
+            Assert.AreEqual(0, rig.Screen.PreviewBoard!.Players.Count, "стара відповідь не лягає на новий запит");
 
-            slow.AnswerOldest();                                 // відповідь «Галактики»
-            Assert.AreEqual(RankMetric.Galaxies, rig.Screen.PreviewBoard!.Metric);
-            Assert.Greater(rig.Screen.PreviewBoard.Players.Count, 0, "нова відповідь застосована");
+            slow.AnswerOldest();                                 // нова
+            Assert.Greater(rig.Screen.PreviewBoard!.Players.Count, 0, "нова відповідь застосована");
             Assert.IsTrue(rig.Screen.PreviewTableShown);
         }
 

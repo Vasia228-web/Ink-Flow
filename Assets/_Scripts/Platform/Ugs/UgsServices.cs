@@ -70,9 +70,9 @@ namespace InkFlow.Platform.Ugs
     }
 
     /// <summary>
-    /// Таблиці лідерів UGS. Ідентифікатори чотирьох таблиць — з конфігу (AppConfig); тижневі таблиці
-    /// скидаються на сервері (reset schedule — щопонеділка 00:00 UTC, як і локальна база тижня).
-    /// Нік, аватар і прапорець інкогніто — у метаданих запису (у дашборді ввімкнути Metadata).
+    /// Таблиця лідерів UGS — одна (2026-10-24): «Планети за весь час», ідентифікатор — з конфігу (AppConfig).
+    /// Нік, аватар, прапорець інкогніто, завершені галактики й рекорд забігу — у метаданих запису (у дашборді
+    /// ввімкнути Metadata; оновлення — «Keep latest»: планет лише більшає, а метадані мають оновлюватись щоразу).
     /// </summary>
     public sealed class UgsLeaderboards : ILeaderboardService
     {
@@ -82,33 +82,27 @@ namespace InkFlow.Platform.Ugs
             public string nick = string.Empty;
             public int avatar;
             public bool incognito;
+            public int galaxies;
+            public long best;
         }
 
-        private readonly string _planetsWeek, _planetsAll, _galaxiesWeek, _galaxiesAll;
+        private readonly string _planetsAll;
         private readonly Func<EntryMetadata> _metadata;
 
-        public UgsLeaderboards(string planetsWeek, string planetsAll, string galaxiesWeek, string galaxiesAll,
-            Func<(string nick, int avatar, bool incognito)> metadata)
+        public UgsLeaderboards(string planetsAll, Func<(string nick, int avatar, bool incognito, int galaxies, long best)> metadata)
         {
-            _planetsWeek = planetsWeek;
             _planetsAll = planetsAll;
-            _galaxiesWeek = galaxiesWeek;
-            _galaxiesAll = galaxiesAll;
             _metadata = () =>
             {
-                var (nick, avatar, incognito) = metadata();
-                return new EntryMetadata { nick = nick, avatar = avatar, incognito = incognito };
+                var (nick, avatar, incognito, galaxies, best) = metadata();
+                return new EntryMetadata { nick = nick, avatar = avatar, incognito = incognito, galaxies = galaxies, best = best };
             };
         }
 
-        public bool IsAvailable => !string.IsNullOrEmpty(_planetsWeek) && !string.IsNullOrEmpty(_planetsAll)
-                                   && !string.IsNullOrEmpty(_galaxiesWeek) && !string.IsNullOrEmpty(_galaxiesAll);
+        public bool IsAvailable => !string.IsNullOrEmpty(_planetsAll);
 
-        private string IdOf(RankMetric metric, RankPeriod period) => metric switch
-        {
-            RankMetric.Planets => period == RankPeriod.Week ? _planetsWeek : _planetsAll,
-            _ => period == RankPeriod.Week ? _galaxiesWeek : _galaxiesAll
-        };
+        // Таблиця одна: метрика й період лишились у сигнатурі сервісу, але завжди «планети за весь час».
+        private string IdOf(RankMetric metric, RankPeriod period) => _planetsAll;
 
         public async void Fetch(RankMetric metric, RankPeriod period, int limit, Action<LeaderboardPage> done)
         {
@@ -133,7 +127,7 @@ namespace InkFlow.Platform.Ugs
                 {
                     var meta = ParseMetadata(row.Metadata);
                     entries.Add(new CoreEntry(row.PlayerId, string.IsNullOrEmpty(meta.nick) ? row.PlayerName : meta.nick,
-                        meta.avatar, meta.incognito, (long)row.Score, row.Rank + 1));
+                        meta.avatar, meta.incognito, (long)row.Score, row.Rank + 1, meta.galaxies, meta.best));
                 }
 
                 var yourRank = 0;

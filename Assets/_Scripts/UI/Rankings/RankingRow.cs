@@ -21,6 +21,7 @@ namespace InkFlow.UI
         [SerializeField] private TMP_Text place;
         [SerializeField] private Image avatar;
         [SerializeField] private TMP_Text nick;
+        [SerializeField] private TMP_Text detail;
         [SerializeField] private TMP_Text value;
         [SerializeField] private Image divider;
 
@@ -44,6 +45,10 @@ namespace InkFlow.UI
         }
 
         public void Bind(System.Action<RankPlayer> onTap) => _onTap = onTap;
+
+        /// <summary>Другий рядок: «2 гал. · рекорд 12 340» — поруч із планетами, на місце не впливає; «гал.» — щоб влізло на iPhone SE.</summary>
+        public static string Details(RankPlayer player) =>
+            $"{player.Galaxies} гал. · рекорд {ScoreFormat.Full(player.BestScore)}";
 
         /// <summary>Спрайт аватара гравця: інкогніто — маска, інакше avatar_N за номером (поза набором — перший).</summary>
         public static Sprite? AvatarOf(RankPlayer player, Sprite[] set, Sprite? incognitoSprite)
@@ -84,6 +89,8 @@ namespace InkFlow.UI
             }
             if (nick != null)
                 nick.text = player.Incognito && !player.IsYou ? "Гравець-інкогніто" : player.IsYou ? $"Ти · {player.Nick}" : player.Nick;
+            if (detail != null)
+                detail.text = Details(player);
             if (value != null)
                 value.text = ScoreFormat.Full(player.Value);
 

@@ -33,7 +33,7 @@ namespace InkFlow.Editor
             "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
             "settings", "settings-run", "settings-links",
             "profile-fresh", "profile", "profile-nick", "profile-nick-error", "profile-nick-max",
-            "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline", "galaxy-visitor"
+            "rankings", "rankings-offline", "galaxy-visitor"
         };
 
         /// <summary>Екрани, для яких автоперевірка (переповнення написів, тапи ≥ 44) — помилка, а не попередження: ті, що вже на U1Glaze.</summary>
@@ -76,7 +76,7 @@ namespace InkFlow.Editor
         }
 
         /// <summary>Стани «Ліги» (крок 7 U1Glaze): S08_01 (планети · тиждень), S08_02 (за весь час), S08_03 (галактики), S08_04 (без мережі).</summary>
-        public static readonly string[] RankingsStates = { "rankings", "rankings-alltime", "rankings-galaxies", "rankings-offline" };
+        public static readonly string[] RankingsStates = { "rankings", "rankings-offline" };
 
         /// <summary>Знімки рейтингів із уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
         [MenuItem("Ink Flow/Debug/Capture Rankings Screenshots")]
@@ -595,8 +595,6 @@ namespace InkFlow.Editor
                     break;
                 }
                 case "rankings":
-                case "rankings-alltime":
-                case "rankings-galaxies":
                 case "rankings-offline":
                 {
                     // «Ліга» (S08): моковий світ із 18 гравців, картка «Ти» зі справжніми числами (1 ожила планета,
@@ -607,17 +605,9 @@ namespace InkFlow.Editor
                     player.SetAvatar(3);
                     rig.FillPlanet(player, 0);
                     var leaderboards = new InkFlow.Platform.FakeLeaderboards { Offline = state == "rankings-offline" };
-                    leaderboards.Submit(InkFlow.Core.RankMetric.Planets, InkFlow.Core.RankPeriod.Week, 1);
                     leaderboards.Submit(InkFlow.Core.RankMetric.Planets, InkFlow.Core.RankPeriod.AllTime, 1);
                     rig.Screen.BindServices(leaderboards, new InkFlow.Platform.FakeShowcase(), new InkFlow.Platform.FakeIdentity(), 12);
                     rig.Enter(player, ScreenArgs.Empty);
-                    if (state == "rankings-alltime")
-                        rig.Screen.PreviewSetPeriod(InkFlow.Core.RankPeriod.AllTime);
-                    if (state == "rankings-galaxies")
-                    {
-                        rig.Screen.PreviewSetMetric(InkFlow.Core.RankMetric.Galaxies);
-                        rig.Screen.PreviewSetPeriod(InkFlow.Core.RankPeriod.AllTime);
-                    }
                     Canvas.ForceUpdateCanvases();
                     Budget(rig, device.Name, state, overBudget);
                     Audit(rig, "RankingsScreen", device.Name, state, audit);

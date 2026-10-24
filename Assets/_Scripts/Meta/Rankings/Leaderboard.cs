@@ -13,8 +13,11 @@ namespace InkFlow.Meta
     /// </summary>
     public sealed class RankPlayer
     {
-        public RankPlayer(string id, string nick, bool incognito, long value, int rank, int avatarId = 0)
+        public RankPlayer(string id, string nick, bool incognito, long value, int rank, int avatarId = 0,
+            int galaxies = 0, long bestScore = 0)
         {
+            Galaxies = galaxies;
+            BestScore = bestScore;
             Id = id ?? string.Empty;
             Nick = nick ?? string.Empty;
             AvatarId = avatarId;
@@ -32,8 +35,12 @@ namespace InkFlow.Meta
         /// <summary>Гравець сховав профіль (§15): «Гравець-інкогніто», тап нічого не робить.</summary>
         public bool Incognito { get; }
 
-        /// <summary>Значення метрики за період сторінки.</summary>
+        /// <summary>Значення таблиці — планет, що ожили, за весь час (сортування, 2026-10-24).</summary>
         public long Value { get; }
+
+        /// <summary>Завершених галактик і рекорд забігу — показуються поруч, на місце не впливають.</summary>
+        public int Galaxies { get; }
+        public long BestScore { get; }
 
         /// <summary>Місце, 1 — перше; 0 — невідоме (картка «Ти» без відповіді сервера).</summary>
         public int Rank { get; }
@@ -45,7 +52,8 @@ namespace InkFlow.Meta
         /// <summary>Картка «Ти» з РЕАЛЬНИХ чисел гравця (§16): локальний файл — правда.</summary>
         public static RankPlayer You(PlayerState state, string playerId, RankMetric metric, RankPeriod period, DateTime utcNow) =>
             new RankPlayer(string.IsNullOrEmpty(playerId) ? "you" : playerId, state.Nick,
-                state.Settings.ProfileHidden, state.RankValue(metric, period, utcNow), 0, state.AvatarId) { IsYou = true };
+                state.Settings.ProfileHidden, state.RankValue(metric, period, utcNow), 0, state.AvatarId,
+                state.GalaxiesDone, state.Progress.EndlessRecord) { IsYou = true };
     }
 
     /// <summary>
@@ -69,7 +77,8 @@ namespace InkFlow.Meta
             _players = new List<RankPlayer>(page.Entries.Count);
             foreach (var entry in page.Entries)
             {
-                var player = new RankPlayer(entry.PlayerId, entry.Nick, entry.Incognito, entry.Value, entry.Rank, entry.AvatarId)
+                var player = new RankPlayer(entry.PlayerId, entry.Nick, entry.Incognito, entry.Value, entry.Rank, entry.AvatarId,
+                    entry.Galaxies, entry.BestScore)
                 {
                     IsYou = entry.PlayerId == you.Id
                 };
