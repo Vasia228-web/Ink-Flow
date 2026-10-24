@@ -145,9 +145,10 @@ namespace InkFlow.App
             ServiceLocator.Register<ILeaderboardService>(new InkFlow.Platform.Ugs.UgsLeaderboards(
                 config != null ? config.LeaderboardPlanetsAll : string.Empty,
                 // Прихований профіль (§15): у метадані таблиці нік і аватар не йдуть — лише прапорець і числа.
-                () => _state == null ? (string.Empty, 0, false, 0, 0L)
-                    : _state.Settings.ProfileHidden ? (string.Empty, 0, true, _state.GalaxiesDone, (long)_state.Progress.EndlessRecord)
-                    : (_state.Nick, _state.AvatarId, false, _state.GalaxiesDone, (long)_state.Progress.EndlessRecord)));
+                () => _state == null ? (string.Empty, 0, false, 0, 0L, string.Empty)
+                    : _state.Settings.ProfileHidden ? (string.Empty, 0, true, _state.GalaxiesDone, (long)_state.Progress.EndlessRecord, string.Empty)
+                    : (_state.Nick, _state.AvatarId, false, _state.GalaxiesDone, (long)_state.Progress.EndlessRecord,
+                        _state.AvatarPictureId ?? string.Empty)));
             ServiceLocator.Register<IShowcaseService>(new InkFlow.Platform.Ugs.UgsShowcase(config != null ? config.CloudShowcaseKey : string.Empty));
 #elif UNITY_EDITOR || DEVELOPMENT_BUILD
             var layout = LoadLayout().For(0);

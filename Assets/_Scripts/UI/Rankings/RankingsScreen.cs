@@ -404,7 +404,7 @@ namespace InkFlow.UI
                 youPosition.color = position > 0 ? design.Teal300 : design.InkDim;
             }
             if (youAvatar != null)
-                youAvatar.sprite = RankingRow.AvatarOf(you, avatarSprites, incognitoAvatar) ?? youAvatar.sprite;
+                youAvatar.sprite = RankingRow.AvatarOf(you, avatarSprites, incognitoAvatar, design) ?? youAvatar.sprite;
             if (youNick != null)
                 youNick.text = $"Ти · {you.Nick}";
 

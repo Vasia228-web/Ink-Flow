@@ -120,11 +120,38 @@ namespace InkFlow.Meta
         public void SetAvatar(int id)
         {
             id = AvatarSet.Clamp(id);
-            if (File.Profile.AvatarId == id)
+            if (File.Profile.AvatarId == id && string.IsNullOrEmpty(File.Profile.AvatarPictureId))
                 return;
             File.Profile.AvatarId = id;
+            File.Profile.AvatarPictureId = string.Empty;
             Persist();
             ProfileChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Аватар-картинка з колекції (§14, 2026-10-24); null — спрайт набору. Картинка, якої бібліотека вже не знає
+        /// або якої немає в колекції, тихо повертає спрайт — як і будь-який невідомий ідентифікатор у файлі.
+        /// </summary>
+        public string? AvatarPictureId
+        {
+            get
+            {
+                var id = File.Profile.AvatarPictureId;
+                return id is { Length: > 0 } && Library.Find(id) != null && Collection.CountOf(id) > 0 ? id : null;
+            }
+        }
+
+        /// <summary>Зробити аватаром зібрану картинку; false — її немає в колекції чи бібліотеці. Копії не витрачаються.</summary>
+        public bool SetAvatarPicture(string pictureId)
+        {
+            if (pictureId is null || Library.Find(pictureId) == null || Collection.CountOf(pictureId) <= 0)
+                return false;
+            if (string.Equals(File.Profile.AvatarPictureId, pictureId, StringComparison.Ordinal))
+                return true;
+            File.Profile.AvatarPictureId = pictureId;
+            Persist();
+            ProfileChanged?.Invoke();
+            return true;
         }
 
         /// <summary>
@@ -274,7 +301,8 @@ namespace InkFlow.Meta
             foreach (var record in Galaxy.Slots)
                 if (record.Galaxy == galaxy && GalaxyState.IsAddressed(record, Layout))
                     slots.Add(new ShowcaseSlot(record.PlanetId, record.Slot, record.PictureId));
-            return new PublicShowcase(playerId, Nick, AvatarId, false, ShowcasePictureId, PlanetsDone, GalaxiesDone, galaxy, slots, stamp);
+            return new PublicShowcase(playerId, Nick, AvatarId, false, ShowcasePictureId, PlanetsDone, GalaxiesDone, galaxy, slots, stamp,
+                AvatarPictureId);
         }
 
         /// <summary>Стан щойно створеного гравця: усе по нулях, крім явно виданого стартового.</summary>

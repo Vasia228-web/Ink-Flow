@@ -171,7 +171,9 @@ namespace InkFlow.UI
                 {
                     // Постановка — одна дія стану: перевірка копій, запис і збереження разом.
                     // Вітрина профілю (§14) — той самий екран, інша дія стану; профіль перечитає її в OnEnter.
-                    if (_state != null && args.Showcase)
+                    if (_state != null && args.Avatar)
+                        _state.SetAvatarPicture(pictureId);
+                    else if (_state != null && args.Showcase)
                         _state.SetShowcasePicture(pictureId);
                     else if (_state != null && args.PlanetId != null)
                         _state.TryPlaceInSlot(args.Galaxy, args.PlanetId, args.Slot, pictureId, System.DateTime.UtcNow);
@@ -196,6 +198,8 @@ namespace InkFlow.UI
                 profile.NickEditRequested += OpenNickPrompt;
                 // Вітринна картинка — з колекції в режимі вибору; Pop повертає в профіль.
                 profile.ShowcasePickRequested += () => Push(collection, CollectionArgs.ForShowcase());
+                // Аватар-картинка (2026-10-24) — та сама колекція в режимі вибору, інша дія.
+                profile.AvatarPickRequested += () => Push(collection, CollectionArgs.ForAvatar());
             }
 
             // ── Налаштування (§15): шестерня на кожному екрані — одна подія базового екрана ──

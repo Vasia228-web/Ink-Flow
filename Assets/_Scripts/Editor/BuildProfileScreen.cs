@@ -131,14 +131,14 @@ namespace InkFlow.Editor
             scroll.content = content;
 
             BuildIdentity(contentGo, design!, out var avatar, out var nick, out var edit);
-            BuildAvatars(contentGo, design!, out var avatarButtons, out var avatarRings, out var avatarSprites);
+            BuildAvatars(contentGo, design!, out var avatarButtons, out var avatarRings, out var avatarSprites, out var avatarPick);
             BuildShowcase(contentGo, design!, out var frame, out var picture, out var empty, out var pictureName, out var badge, out var pick);
 
             Wire(screen,
                 ("design", design!), ("backButton", back), ("settingsButton", gear), ("currency", currency),
                 ("avatar", avatar), ("nickLabel", nick), ("editNickButton", edit),
                 ("showcaseFrame", frame), ("showcasePicture", picture), ("showcaseEmpty", empty), ("showcaseName", pictureName),
-                ("showcaseBadge", badge), ("showcaseButton", pick));
+                ("showcaseBadge", badge), ("showcaseButton", pick), ("avatarPickButton", avatarPick));
             WireArray(screen, "avatarButtons", avatarButtons);
             WireArray(screen, "avatarRings", avatarRings);
             WireArray(screen, "avatarSprites", avatarSprites);
@@ -221,7 +221,8 @@ namespace InkFlow.Editor
         }
 
         // ── «АВАТАР» (S10_01): сітка 4 × 2, аватар 56, обраний — у кільці (кільце намальоване з відступом 3: ×1.125) ──
-        private static void BuildAvatars(GameObject parent, DesignSystem design, out Button[] buttons, out Image[] rings, out Sprite[] sprites)
+        private static void BuildAvatars(GameObject parent, DesignSystem design, out Button[] buttons, out Image[] rings, out Sprite[] sprites,
+            out CandyButton pick)
         {
             var card = Card(parent, "Avatars", 16);
             var label = U1.Text(card, "Label", "Аватар", design, U1.Role.Label, design.InkMuted, TextAlignmentOptions.Left);
@@ -269,6 +270,11 @@ namespace InkFlow.Editor
                 buttons[i] = button;
                 rings[i] = ring;
             }
+
+            // Аватаром може стати й зібрана картинка (2026-10-24): скляна кнопка під сіткою, як «Обрати з колекції» вітрини.
+            U1.Gap(card, 2f);
+            pick = U1.Button(card, "Pick", "З колекції", design, CandyButton.Tone.Glass);
+            U1.Size(pick.gameObject, 0f, 48f);
         }
 
         // ── «ВІТРИНА» (S10_01): рамка рідкості 150 з мітками, назва h2, бейдж рідкості, скляна «Обрати з колекції» ──

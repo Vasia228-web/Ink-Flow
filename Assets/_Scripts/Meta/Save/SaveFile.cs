@@ -66,6 +66,12 @@ namespace InkFlow.Meta
         /// <summary>Номер аватара з набору (§14); 0 — перший.</summary>
         public int AvatarId;
 
+        /// <summary>
+        /// Аватар — картинка з колекції (2026-10-24): назва картинки; порожньо — спрайт набору <see cref="AvatarId"/>.
+        /// Нове поле зі значенням за замовчуванням — міграція не потрібна (старий файл читається як «спрайт»).
+        /// </summary>
+        public string AvatarPictureId = string.Empty;
+
         /// <summary>Картинка на вітрині профілю (§14): назва з бібліотеки; порожньо — остання зібрана.</summary>
         public string ShowcasePictureId = string.Empty;
 

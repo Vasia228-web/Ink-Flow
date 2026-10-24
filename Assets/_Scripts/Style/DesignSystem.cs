@@ -576,6 +576,10 @@ namespace InkFlow.Style
         [Tooltip("Рядки «Комбо N» і «Чисте поле!» під множником — частка кегля множника.")]
         [SerializeField, Range(0.3f, 1f)] private float comboPopSecondaryScale = 0.55f;
 
+        [Tooltip("Аватар-картинка з колекції: скільки текселів на піксель картинки (ціле — чіткі пікселі) і яку частку діаметра кола займає картинка.")]
+        [SerializeField, Range(1, 6)] private int avatarPortraitPixel = 3;
+        [SerializeField, Range(0.4f, 0.9f)] private float avatarPortraitFill = 0.72f;
+
         [Tooltip("Чисте поле: усе поле спалахує світінням блоків — тривалість, найбільша прозорість і колір.")]
         [SerializeField, Min(0f)] private float boardClearFlashDuration = 0.6f;
         [SerializeField, Range(0f, 1f)] private float boardClearFlashAlpha = 0.85f;
@@ -786,6 +790,8 @@ namespace InkFlow.Style
         public float ComboPopDuration => comboPopDuration;
         public float ComboPopRise => comboPopRise;
         public float ComboPopSecondaryScale => comboPopSecondaryScale;
+        public int AvatarPortraitPixel => avatarPortraitPixel;
+        public float AvatarPortraitFill => avatarPortraitFill;
         public float BoardClearFlashDuration => boardClearFlashDuration;
         public float BoardClearFlashAlpha => boardClearFlashAlpha;
         public Color BoardClearFlashColor => boardClearFlashColor;

@@ -32,6 +32,8 @@ namespace InkFlow.UI
         [SerializeField] private Button[] avatarButtons = System.Array.Empty<Button>();
         [SerializeField] private Image[] avatarRings = System.Array.Empty<Image>();
         [SerializeField] private Sprite[] avatarSprites = System.Array.Empty<Sprite>();
+        [Tooltip("«З колекції» — аватаром стає зібрана картинка.")]
+        [SerializeField] private CandyButton avatarPickButton;
 
         [Header("Вітрина")]
         [SerializeField] private RarityFrameView showcaseFrame;
@@ -50,6 +52,9 @@ namespace InkFlow.UI
 
         /// <summary>«Обрати з колекції» — колекція в режимі вибору вітрини.</summary>
         public System.Action? ShowcasePickRequested;
+
+        /// <summary>«З колекції» під аватарами — колекція в режимі вибору аватара.</summary>
+        public System.Action? AvatarPickRequested;
 
         private void OnEnable() => ScheduleApply(Apply);
 
@@ -84,6 +89,8 @@ namespace InkFlow.UI
                 editNickButton.onClick.AddListener(() => NickEditRequested?.Invoke());
             if (showcaseButton != null)
                 showcaseButton.Button.onClick.AddListener(() => ShowcasePickRequested?.Invoke());
+            if (avatarPickButton != null)
+                avatarPickButton.Button.onClick.AddListener(() => AvatarPickRequested?.Invoke());
             for (var i = 0; i < avatarButtons.Length; i++)
             {
                 var index = i;
@@ -112,8 +119,11 @@ namespace InkFlow.UI
                 return;
             currency?.Apply();
             ApplyIdentity();
-            ApplyAvatars(State?.AvatarId ?? 0);
+            // Аватар-картинка — жоден спрайт набору не в кільці.
+            ApplyAvatars(State?.AvatarPictureId != null ? -1 : State?.AvatarId ?? 0);
             ApplyShowcase();
+            if (avatarPickButton != null)
+                avatarPickButton.Interactable = State == null || State.Collection.Distinct > 0;
         }
 
         private Sprite? AvatarSprite(int id) =>
@@ -122,7 +132,7 @@ namespace InkFlow.UI
         private void ApplyIdentity()
         {
             if (avatar != null)
-                avatar.sprite = AvatarSprite(State?.AvatarId ?? 0) ?? avatar.sprite;
+                avatar.sprite = AvatarPortrait.For(State?.AvatarId ?? 0, State?.AvatarPictureId, avatarSprites, design) ?? avatar.sprite;
             if (nickLabel != null)
             {
                 // Нік — завжди один рядок: 16 широких літер стискаються, а не переносяться.

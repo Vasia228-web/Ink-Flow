@@ -133,10 +133,7 @@ namespace InkFlow.UI
                 playerName.text = State?.Nick ?? mockName;
 
             if (avatar != null && avatarSprites.Length > 0)
-            {
-                var id = State?.AvatarId ?? 0;
-                avatar.sprite = avatarSprites[id >= 0 && id < avatarSprites.Length ? id : 0];
-            }
+                avatar.sprite = AvatarPortrait.For(State?.AvatarId ?? 0, State?.AvatarPictureId, avatarSprites, design) ?? avatar.sprite;
 
             // §8: головний рекорд — скільки різних картинок у колекції; рекорд забігу — числом з нерозривними пробілами.
             var pictures = State != null ? State.Collection.Distinct : mockPictures;

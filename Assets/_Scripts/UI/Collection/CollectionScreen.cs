@@ -23,14 +23,18 @@ namespace InkFlow.UI
             Slot = slot;
         }
 
-        private CollectionArgs(bool showcase, bool tab)
+        private CollectionArgs(bool showcase, bool tab, bool avatar = false)
         {
             Showcase = showcase;
             IsTab = tab;
+            Avatar = avatar;
         }
 
         /// <summary>Вибір вітринної картинки профілю: будь-яка зібрана, копії не рахуються.</summary>
         public static CollectionArgs ForShowcase() => new CollectionArgs(showcase: true, tab: false);
+
+        /// <summary>Вибір аватара-картинки (§14, 2026-10-24): будь-яка зібрана, копії не рахуються — як вітрина.</summary>
+        public static CollectionArgs ForAvatar() => new CollectionArgs(showcase: true, tab: false, avatar: true);
 
         /// <summary>Вкладка нижньої навігації: навігація видна, «‹» немає (U1Glaze S06_01).</summary>
         public static CollectionArgs Tab() => new CollectionArgs(showcase: false, tab: true);
@@ -39,6 +43,9 @@ namespace InkFlow.UI
         public string? PlanetId { get; }
         public int Slot { get; }
         public bool Showcase { get; }
+
+        /// <summary>Вибір аватара, а не вітрини: той самий режим «копії не рахуються» (<see cref="Showcase"/>), інша дія.</summary>
+        public bool Avatar { get; }
         public bool IsTab { get; }
 
         /// <summary>Режим вибору: тап обирає картинку, коралова кнопка ставить її в слот (чи на вітрину).</summary>
@@ -313,7 +320,12 @@ namespace InkFlow.UI
         {
             if (pickInfoText == null)
                 return;
-            if (_args.Showcase)
+            if (_args.Avatar)
+            {
+                pickInfoText.text = "Аватар · його бачать інші гравці";
+                if (pickInfoIcon != null && showcaseIcon != null) pickInfoIcon.sprite = showcaseIcon;
+            }
+            else if (_args.Showcase)
             {
                 pickInfoText.text = "Вітрина · її бачать інші гравці";
                 if (pickInfoIcon != null && showcaseIcon != null) pickInfoIcon.sprite = showcaseIcon;
@@ -569,7 +581,7 @@ namespace InkFlow.UI
             if (placeSprite != null) placeButton.SetTone(CandyButton.Tone.Coral, placeSprite);
             placeButton.Interactable = true;
             var name = picture.Name.Replace("­", string.Empty);
-            placeButton.Text = _args.Showcase ? $"На вітрину «{name}»" : $"Поставити «{name}»";
+            placeButton.Text = _args.Avatar ? $"Аватаром «{name}»" : _args.Showcase ? $"На вітрину «{name}»" : $"Поставити «{name}»";
         }
 
         private void OnPlaceClicked()

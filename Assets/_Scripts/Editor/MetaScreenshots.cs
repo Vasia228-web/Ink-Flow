@@ -32,7 +32,7 @@ namespace InkFlow.Editor
             "planet-visitor-sphere", "planet-visitor-horizon",
             "collection-browse", "collection-pick", "collection-filter-empty", "collection-empty", "collection-showcase",
             "settings", "settings-run", "settings-links",
-            "profile-fresh", "profile", "profile-nick", "profile-nick-error", "profile-nick-max",
+            "profile-fresh", "profile", "profile-avatar-picture", "profile-nick", "profile-nick-error", "profile-nick-max",
             "rankings", "rankings-offline", "galaxy-visitor"
         };
 
@@ -58,7 +58,7 @@ namespace InkFlow.Editor
         }
 
         /// <summary>Стани профілю (крок 8 U1Glaze): S10_01, новий гравець, діалог ніка S10_02 / 03 (заборонене) / 04 (межа).</summary>
-        public static readonly string[] ProfileStates = { "profile", "profile-fresh", "profile-nick", "profile-nick-error", "profile-nick-max" };
+        public static readonly string[] ProfileStates = { "profile", "profile-fresh", "profile-avatar-picture", "profile-nick", "profile-nick-error", "profile-nick-max" };
 
         /// <summary>Знімки профілю з уже зібраного префаба (у відкритому редакторі — через MCP).</summary>
         [MenuItem("Ink Flow/Debug/Capture Profile Screenshots")]
@@ -641,6 +641,7 @@ namespace InkFlow.Editor
                 }
                 case "profile-fresh":
                 case "profile":
+                case "profile-avatar-picture":
                 case "profile-nick":
                 case "profile-nick-error":
                 case "profile-nick-max":
@@ -658,6 +659,9 @@ namespace InkFlow.Editor
                         player.CollectPicture("cactus_hat", System.DateTime.UtcNow);
                         player.SetAvatar(5);
                         player.SetShowcasePicture("cactus_hat");
+                        // Аватар-картинка з колекції (2026-10-24): той самий кактус — круглим портретом.
+                        if (state == "profile-avatar-picture")
+                            player.SetAvatarPicture("cactus_hat");
                     }
                     rig.Enter(player, ScreenArgs.Empty);
                     NickPrompt? prompt = null;

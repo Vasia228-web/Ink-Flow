@@ -35,7 +35,11 @@ namespace InkFlow.UI
         protected bool Entering { get; private set; }
 
         /// <summary>Підставляє композиційний корінь через <see cref="AppRouter"/>.</summary>
-        public virtual void BindState(PlayerState state) => State = state;
+        public virtual void BindState(PlayerState state)
+        {
+            State = state;
+            AvatarPortrait.Library = state?.Library; // аватар-картинки малюються з бібліотеки гравця
+        }
 
         /// <summary>
         /// Шестерня в правому верхньому куті (§15) — на кожному екрані та сама подія, тож вона живе

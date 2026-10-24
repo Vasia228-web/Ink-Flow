@@ -36,10 +36,11 @@ namespace InkFlow.Core
     public sealed class LeaderboardEntry
     {
         public LeaderboardEntry(string playerId, string nick, int avatarId, bool incognito, long value, int rank,
-            int galaxies = 0, long bestScore = 0)
+            int galaxies = 0, long bestScore = 0, string? avatarPictureId = null)
         {
             Galaxies = galaxies;
             BestScore = bestScore;
+            AvatarPictureId = string.IsNullOrEmpty(avatarPictureId) ? null : avatarPictureId;
             PlayerId = playerId ?? string.Empty;
             Nick = nick ?? string.Empty;
             AvatarId = avatarId;
@@ -57,6 +58,9 @@ namespace InkFlow.Core
         /// <summary>Завершених галактик і найкращий рахунок забігу — з метаданих запису (одна таблиця за планетами, 2026-10-24).</summary>
         public int Galaxies { get; }
         public long BestScore { get; }
+
+        /// <summary>Аватар-картинка з колекції (назва в бібліотеці); null — спрайт набору <see cref="AvatarId"/>.</summary>
+        public string? AvatarPictureId { get; }
 
         /// <summary>Місце, 1 — перше.</summary>
         public int Rank { get; }
@@ -121,8 +125,10 @@ namespace InkFlow.Core
     public sealed class PublicShowcase
     {
         public PublicShowcase(string playerId, string nick, int avatarId, bool incognito, string? showcasePictureId,
-            int planetsDone, int galaxiesDone, int galaxy, IReadOnlyList<ShowcaseSlot>? slots, string updatedUtc)
+            int planetsDone, int galaxiesDone, int galaxy, IReadOnlyList<ShowcaseSlot>? slots, string updatedUtc,
+            string? avatarPictureId = null)
         {
+            AvatarPictureId = incognito || string.IsNullOrEmpty(avatarPictureId) ? null : avatarPictureId;
             PlayerId = playerId ?? string.Empty;
             Nick = nick ?? string.Empty;
             AvatarId = avatarId;
@@ -138,6 +144,9 @@ namespace InkFlow.Core
         public string PlayerId { get; }
         public string Nick { get; }
         public int AvatarId { get; }
+
+        /// <summary>Аватар-картинка з колекції; null — спрайт набору. Прихований профіль не віддає її ніколи.</summary>
+        public string? AvatarPictureId { get; }
         public bool Incognito { get; }
         public string? ShowcasePictureId { get; }
         public int PlanetsDone { get; }

@@ -50,15 +50,12 @@ namespace InkFlow.UI
         public static string Details(RankPlayer player) =>
             $"{player.Galaxies} гал. · рекорд {ScoreFormat.Full(player.BestScore)}";
 
-        /// <summary>Спрайт аватара гравця: інкогніто — маска, інакше avatar_N за номером (поза набором — перший).</summary>
-        public static Sprite? AvatarOf(RankPlayer player, Sprite[] set, Sprite? incognitoSprite)
+        /// <summary>Спрайт аватара гравця: інкогніто — маска, інакше картинка з колекції чи avatar_N за номером (поза набором — перший).</summary>
+        public static Sprite? AvatarOf(RankPlayer player, Sprite[] set, Sprite? incognitoSprite, DesignSystem? design)
         {
             if (player.Incognito && !player.IsYou)
                 return incognitoSprite;
-            if (set.Length == 0)
-                return null;
-            var id = player.AvatarId;
-            return set[id >= 0 && id < set.Length ? id : 0];
+            return AvatarPortrait.For(player.AvatarId, player.AvatarPictureId, set, design);
         }
 
         public void Show(RankPlayer player, int position, bool last)
@@ -84,7 +81,7 @@ namespace InkFlow.UI
 
             if (avatar != null)
             {
-                avatar.sprite = AvatarOf(player, avatars, incognito);
+                avatar.sprite = AvatarOf(player, avatars, incognito, design);
                 avatar.enabled = avatar.sprite != null;
             }
             if (nick != null)

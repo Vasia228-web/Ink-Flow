@@ -84,18 +84,23 @@ namespace InkFlow.Platform.Ugs
             public bool incognito;
             public int galaxies;
             public long best;
+            public string avatarPicture = string.Empty;
         }
 
         private readonly string _planetsAll;
         private readonly Func<EntryMetadata> _metadata;
 
-        public UgsLeaderboards(string planetsAll, Func<(string nick, int avatar, bool incognito, int galaxies, long best)> metadata)
+        public UgsLeaderboards(string planetsAll,
+            Func<(string nick, int avatar, bool incognito, int galaxies, long best, string avatarPicture)> metadata)
         {
             _planetsAll = planetsAll;
             _metadata = () =>
             {
-                var (nick, avatar, incognito, galaxies, best) = metadata();
-                return new EntryMetadata { nick = nick, avatar = avatar, incognito = incognito, galaxies = galaxies, best = best };
+                var (nick, avatar, incognito, galaxies, best, avatarPicture) = metadata();
+                return new EntryMetadata
+                {
+                    nick = nick, avatar = avatar, incognito = incognito, galaxies = galaxies, best = best, avatarPicture = avatarPicture
+                };
             };
         }
 
@@ -127,7 +132,7 @@ namespace InkFlow.Platform.Ugs
                 {
                     var meta = ParseMetadata(row.Metadata);
                     entries.Add(new CoreEntry(row.PlayerId, string.IsNullOrEmpty(meta.nick) ? row.PlayerName : meta.nick,
-                        meta.avatar, meta.incognito, (long)row.Score, row.Rank + 1, meta.galaxies, meta.best));
+                        meta.avatar, meta.incognito, (long)row.Score, row.Rank + 1, meta.galaxies, meta.best, meta.avatarPicture));
                 }
 
                 var yourRank = 0;
@@ -201,6 +206,7 @@ namespace InkFlow.Platform.Ugs
         {
             public string nick = string.Empty;
             public int avatar;
+            public string avatarPicture = string.Empty;
             public bool incognito;
             public string showcase = string.Empty;
             public int planetsDone;
@@ -228,7 +234,8 @@ namespace InkFlow.Platform.Ugs
                 await UgsCore.EnsureSignedIn();
                 var dto = new ShowcaseDto
                 {
-                    nick = showcase.Nick, avatar = showcase.AvatarId, incognito = showcase.Incognito,
+                    nick = showcase.Nick, avatar = showcase.AvatarId, avatarPicture = showcase.AvatarPictureId ?? string.Empty,
+                    incognito = showcase.Incognito,
                     showcase = showcase.ShowcasePictureId ?? string.Empty, planetsDone = showcase.PlanetsDone,
                     galaxiesDone = showcase.GalaxiesDone, galaxy = showcase.Galaxy, updatedUtc = showcase.UpdatedUtc
                 };
@@ -272,7 +279,7 @@ namespace InkFlow.Platform.Ugs
                 foreach (var slot in dto.slots)
                     slots.Add(new ShowcaseSlot(slot.planet, slot.slot, slot.picture));
                 done?.Invoke(new PublicShowcase(playerId, dto.nick, dto.avatar, dto.incognito, dto.showcase,
-                    dto.planetsDone, dto.galaxiesDone, dto.galaxy, slots, dto.updatedUtc));
+                    dto.planetsDone, dto.galaxiesDone, dto.galaxy, slots, dto.updatedUtc, dto.avatarPicture));
             }
             catch (Exception error)
             {

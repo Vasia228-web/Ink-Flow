@@ -461,7 +461,7 @@ namespace InkFlow.UI
             var hidden = _visitor == null || _visitor.Incognito;
             if (visitorAvatar != null)
                 visitorAvatar.sprite = hidden && incognitoAvatar != null ? incognitoAvatar
-                    : avatarSprites.Length > 0 ? avatarSprites[AvatarIndex(_visitor?.AvatarId ?? 0)] : visitorAvatar.sprite;
+                    : AvatarPortrait.For(_visitor?.AvatarId ?? 0, _visitor?.AvatarPictureId, avatarSprites, design) ?? visitorAvatar.sprite;
             if (visitorNick != null)
             {
                 visitorNick.text = hidden ? "Гравець-інкогніто" : _visitor!.Nick;
@@ -471,7 +471,6 @@ namespace InkFlow.UI
                 visitorHint.text = hidden ? "профіль приховано" : "галактика гравця";
         }
 
-        private int AvatarIndex(int id) => id >= 0 && id < avatarSprites.Length ? id : 0;
 
         // ── Галактику завершено → нова галактика ──
 

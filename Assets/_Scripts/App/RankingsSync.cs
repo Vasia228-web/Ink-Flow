@@ -98,7 +98,7 @@ namespace InkFlow.App
             if (_leaderboards.IsAvailable)
             {
                 var planets = _state.RankValue(RankMetric.Planets, RankPeriod.AllTime, now);
-                var signature = $"{planets}|{_state.GalaxiesDone}|{_state.Progress.EndlessRecord}|{_state.Nick}|{_state.AvatarId}|{_state.Settings.ProfileHidden}";
+                var signature = $"{planets}|{_state.GalaxiesDone}|{_state.Progress.EndlessRecord}|{_state.Nick}|{_state.AvatarId}|{_state.AvatarPictureId}|{_state.Settings.ProfileHidden}";
                 if (!string.Equals(signature, _sentSignature, StringComparison.Ordinal))
                     _leaderboards.Submit(RankMetric.Planets, RankPeriod.AllTime, planets, ok =>
                     {
@@ -126,6 +126,7 @@ namespace InkFlow.App
         {
             var sb = new StringBuilder(64 + showcase.Slots.Count * 24);
             sb.Append(showcase.Incognito ? 'h' : 'v').Append('|').Append(showcase.Nick).Append('|').Append(showcase.AvatarId)
+              .Append('|').Append(showcase.AvatarPictureId ?? string.Empty)
               .Append('|').Append(showcase.ShowcasePictureId ?? string.Empty).Append('|').Append(showcase.PlanetsDone)
               .Append('|').Append(showcase.GalaxiesDone).Append('|').Append(showcase.Galaxy);
             foreach (var slot in showcase.Slots)
